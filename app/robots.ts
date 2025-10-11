@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/private/', '/admin/', '/api/'],
     },
-    sitemap: 'https://nuroo.com/sitemap.xml',
+    sitemap: 'https://usenuroo.com/sitemap.xml',
   }
 }
