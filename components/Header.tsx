@@ -44,20 +44,32 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6">
             <Link
               href="#features"
-              className="text-gray-600 hover:text-primary-500 transition-colors"
+              className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
             >
               Features
             </Link>
             <Link
-              href="#solution"
-              className="text-gray-600 hover:text-primary-500 transition-colors"
+              href="#solution-section"
+              className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
             >
               How It Works
             </Link>
-            <div className="btn-primary opacity-75 cursor-not-allowed">
+            <Link
+              href="/help"
+              className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
+            >
+              Help
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
+            >
+              Privacy
+            </Link>
+            <div className="btn-primary opacity-75 cursor-not-allowed text-sm">
               Coming Soon
             </div>
           </div>
@@ -80,19 +92,33 @@ export function Header() {
             <div className="px-2 pt-2 pb-3 space-y-1 bg-white rounded-lg mt-2 shadow-lg border border-gray-200">
               <Link
                 href="#features"
-                className="block px-3 py-3 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
+                className="block px-3 py-2 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </Link>
               <Link
-                href="#solution"
-                className="block px-3 py-3 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
+                href="#solution-section"
+                className="block px-3 py-2 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 How It Works
               </Link>
-              <div className="block mx-3 my-2 btn-primary text-center opacity-75 cursor-not-allowed text-sm py-3">
+              <Link
+                href="/help"
+                className="block px-3 py-2 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Help
+              </Link>
+              <Link
+                href="/privacy"
+                className="block px-3 py-2 text-gray-600 hover:text-primary-500 transition-colors text-sm font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Privacy
+              </Link>
+              <div className="block mx-3 my-2 btn-primary text-center opacity-75 cursor-not-allowed text-sm py-2">
                 Coming Soon
               </div>
             </div>

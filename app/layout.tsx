@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
     images: [
       {
-        url: '/logo.png',
+        url: '/mother-and-child.png',
         width: 1200,
         height: 630,
         alt: 'Nuroo - AI-Powered Support for Children with Special Needs',
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Nuroo - AI-Powered Support for Children with Special Needs',
     description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
-    images: ['/logo.png'],
+    images: ['/mother-and-child.png'],
     creator: '@nuroo',
   },
   robots: {

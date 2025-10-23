@@ -77,8 +77,14 @@ export function Footer() {
               <Link href="#features" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
                 Features
               </Link>
-              <Link href="#solution" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+              <Link href="#solution-section" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
                 How It Works
+              </Link>
+              <Link href="/help" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+                Help
+              </Link>
+              <Link href="/privacy" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+                Privacy
               </Link>
               <div className="text-white/50 text-xs md:text-sm">
                 Coming Soon
