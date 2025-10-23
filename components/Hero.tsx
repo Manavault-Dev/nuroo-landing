@@ -54,27 +54,27 @@ export function Hero() {
             </div>
 
             {/* Stats */}
-            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className={`grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               <div className="text-center lg:text-left">
-                <div className="flex items-center justify-center lg:justify-start mb-2">
-                  <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-500 mr-2" />
-                  <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">240M+</span>
+                <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
+                  <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 text-primary-500 mr-1 sm:mr-2" />
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">240M+</span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">Children worldwide</p>
+                <p className="text-xs sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight">Children worldwide</p>
               </div>
               <div className="text-center lg:text-left">
-                <div className="flex items-center justify-center lg:justify-start mb-2">
-                  <Heart className="w-5 h-5 md:w-6 md:h-6 text-secondary-400 mr-2" />
-                  <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">$60k</span>
+                <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
+                  <Heart className="w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 text-secondary-400 mr-1 sm:mr-2" />
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">$60k</span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">Yearly therapy cost</p>
+                <p className="text-xs sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight">Yearly therapy cost</p>
               </div>
               <div className="text-center lg:text-left">
-                <div className="flex items-center justify-center lg:justify-start mb-2">
-                  <Star className="w-5 h-5 md:w-6 md:h-6 text-primary-400 mr-2" />
-                  <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">2025</span>
+                <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 text-primary-400 mr-1 sm:mr-2" />
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">2025</span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">Launch Year</p>
+                <p className="text-xs sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight">Launch Year</p>
               </div>
             </div>
           </div>
