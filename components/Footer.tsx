@@ -31,7 +31,6 @@ export function Footer() {
     product: [
       { name: 'Features', href: '#features' },
       { name: 'How It Works', href: '#solution' },
-      { name: 'Waitlist', href: '#waitlist' },
     ],
     support: [
       { name: 'Help Center', href: '/help' },
@@ -86,9 +85,14 @@ export function Footer() {
               <Link href="/privacy" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
                 Privacy
               </Link>
-              <div className="text-white/50 text-xs md:text-sm">
-                Coming Soon
-              </div>
+              <a
+                href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/80 hover:text-white text-xs md:text-sm transition-colors"
+              >
+                Download App
+              </a>
             </div>
             
             {/* Social Media Icons */}

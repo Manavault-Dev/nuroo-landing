@@ -61,8 +61,8 @@ export function Testimonials() {
           <div className="bg-gradient-to-r from-primary-100 to-secondary-100 rounded-3xl p-8 border border-primary-200">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <div className="text-3xl md:text-4xl font-bold mb-2 text-gray-900 dark:text-white">Beta</div>
-                <div className="text-primary-600 dark:text-primary-400">Coming Soon</div>
+                <div className="text-3xl md:text-4xl font-bold mb-2 text-gray-900 dark:text-white">Available</div>
+                <div className="text-primary-600 dark:text-primary-400">App Store</div>
               </div>
               <div>
                 <div className="text-3xl md:text-4xl font-bold mb-2 text-gray-900 dark:text-white">AI-Powered</div>

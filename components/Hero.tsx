@@ -27,8 +27,8 @@ export function Hero() {
             {/* Badge */}
             <div className={`inline-flex items-center px-3 md:px-4 py-2 rounded-full bg-primary-100 text-primary-700 text-xs md:text-sm font-medium mb-6 md:mb-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <Star className="w-3 h-3 md:w-4 md:h-4 mr-2" />
-              <span className="hidden sm:inline">Coming Soon to App Store & Google Play</span>
-              <span className="sm:hidden">Coming Soon</span>
+              <span className="hidden sm:inline">Available Now on App Store</span>
+              <span className="sm:hidden">Available Now</span>
             </div>
 
             {/* Main Headline */}
@@ -47,10 +47,15 @@ export function Hero() {
 
             {/* CTA Button */}
             <div className={`flex justify-center lg:justify-start items-center mb-8 md:mb-12 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <div className="btn-primary text-base md:text-lg px-6 md:px-8 py-3 md:py-4 flex items-center group opacity-75 cursor-not-allowed">
-                Coming Soon
-                <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
-              </div>
+              <a
+                href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary text-base md:text-lg px-6 md:px-8 py-3 md:py-4 flex items-center group"
+              >
+                Download on App Store
+                <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
+              </a>
             </div>
 
             {/* Stats */}
