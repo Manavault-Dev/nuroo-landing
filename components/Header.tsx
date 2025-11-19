@@ -69,9 +69,14 @@ export function Header() {
             >
               Privacy
             </Link>
-            <div className="btn-primary opacity-75 cursor-not-allowed text-sm">
-              Coming Soon
-            </div>
+            <a
+              href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary text-sm"
+            >
+              Download App
+            </a>
           </div>
 
           {/* Mobile menu button */}
@@ -118,9 +123,15 @@ export function Header() {
               >
                 Privacy
               </Link>
-              <div className="block mx-3 my-2 btn-primary text-center opacity-75 cursor-not-allowed text-sm py-2">
-                Coming Soon
-              </div>
+              <a
+                href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mx-3 my-2 btn-primary text-center text-sm py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Download App
+              </a>
             </div>
           </div>
         )}

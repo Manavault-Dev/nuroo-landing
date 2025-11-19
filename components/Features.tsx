@@ -201,13 +201,15 @@ export function Features() {
               Ready to Transform Your Child's Journey?
             </h3>
             <p className="text-xl mb-8 text-gray-700 dark:text-gray-300">
-              Be part of our beta program and help us create the future of special needs support.
+              Download Nuroo today and start your child's personalized development journey.
             </p>
             <a
-              href="#waitlist"
+              href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center bg-white text-primary-500 font-semibold py-4 px-8 rounded-lg hover:bg-gray-100 transition-colors text-lg"
             >
-              Join the Beta Today
+              Download on App Store
               <Heart className="ml-2 w-5 h-5" />
             </a>
           </div>
