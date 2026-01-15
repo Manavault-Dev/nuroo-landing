@@ -15,6 +15,8 @@ import {
   Target,
   Award
 } from 'lucide-react'
+import { AppStoreButton } from './AppStoreButton'
+import { GooglePlayButton } from './GooglePlayButton'
 
 export function Features() {
   const [isVisible, setIsVisible] = useState(false)
@@ -203,15 +205,10 @@ export function Features() {
             <p className="text-xl mb-8 text-gray-700 dark:text-gray-300">
               Download Nuroo today and start your child's personalized development journey.
             </p>
-            <a
-              href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center bg-white text-primary-500 font-semibold py-4 px-8 rounded-lg hover:bg-gray-100 transition-colors text-lg"
-            >
-              Download on App Store
-              <Heart className="ml-2 w-5 h-5" />
-            </a>
+            <div className="flex flex-wrap justify-center items-center gap-4">
+              <AppStoreButton />
+              <GooglePlayButton disabled />
+            </div>
           </div>
         </div>
       </div>

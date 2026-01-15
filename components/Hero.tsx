@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, Star, Users, Heart } from 'lucide-react'
-import Link from 'next/link'
+import { Star, Users, Heart } from 'lucide-react'
+import { AppStoreButton } from './AppStoreButton'
+import { GooglePlayButton } from './GooglePlayButton'
 
 export function Hero() {
   const [isVisible, setIsVisible] = useState(false)
@@ -42,20 +43,12 @@ export function Hero() {
 
             {/* Subtitle */}
             <p className={`text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-6 md:mb-8 leading-relaxed transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              Personalized AI exercises, chat support, and progress tracking—all from home.
+              Personalized AI exercises, chat support, and progress tracking-all from home.
             </p>
 
-            {/* CTA Button */}
-            <div className={`flex justify-center lg:justify-start items-center mb-8 md:mb-12 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <a
-                href="https://apps.apple.com/us/app/nuroo-ai/id6753772410"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary text-base md:text-lg px-6 md:px-8 py-3 md:py-4 flex items-center group"
-              >
-                Download on App Store
-                <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
-              </a>
+            <div className={`flex flex-wrap justify-center lg:justify-start items-center gap-4 mb-8 md:mb-12 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              <AppStoreButton />
+              <GooglePlayButton disabled />
             </div>
 
             {/* Stats */}
