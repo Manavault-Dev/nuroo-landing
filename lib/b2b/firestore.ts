@@ -39,6 +39,7 @@ const toTimestamp = (date: Date | undefined): Timestamp | null => {
 }
 
 export async function getOrganization(orgId: string): Promise<Organization | null> {
+  if (!db) throw new Error('Firestore is not initialized')
   const docRef = doc(db, COLLECTIONS.organizations, orgId)
   const docSnap = await getDoc(docRef)
   
@@ -56,6 +57,7 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
 }
 
 export async function createOrganization(orgData: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  if (!db) throw new Error('Firestore is not initialized')
   const orgRef = doc(collection(db, COLLECTIONS.organizations))
   const now = new Date()
   
@@ -69,6 +71,7 @@ export async function createOrganization(orgData: Omit<Organization, 'id' | 'cre
 }
 
 export async function getSpecialist(specialistId: string): Promise<Specialist | null> {
+  if (!db) throw new Error('Firestore is not initialized')
   const docRef = doc(db, COLLECTIONS.specialists, specialistId)
   const docSnap = await getDoc(docRef)
   
@@ -91,6 +94,7 @@ export async function createOrUpdateSpecialist(
   specialistId: string,
   specialistData: Omit<Specialist, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<void> {
+  if (!db) throw new Error('Firestore is not initialized')
   const specialistRef = doc(db, COLLECTIONS.specialists, specialistId)
   const docSnap = await getDoc(specialistRef)
   const now = new Date()
@@ -110,6 +114,7 @@ export async function createOrUpdateSpecialist(
 }
 
 export async function getChildrenByOrganization(orgId: string): Promise<ChildSummary[]> {
+  if (!db) throw new Error('Firestore is not initialized')
   const q = query(
     collection(db, COLLECTIONS.children),
     where('organizationId', '==', orgId)
@@ -135,6 +140,7 @@ export async function getChildrenByOrganization(orgId: string): Promise<ChildSum
 }
 
 export async function getChildProfile(childId: string): Promise<ChildProfile | null> {
+  if (!db) throw new Error('Firestore is not initialized')
   const childRef = doc(db, COLLECTIONS.children, childId)
   const childSnap = await getDoc(childRef)
   
@@ -190,6 +196,7 @@ export async function createSpecialistNote(
   specialistName: string,
   content: string
 ): Promise<string> {
+  if (!db) throw new Error('Firestore is not initialized')
   const notesRef = collection(db, COLLECTIONS.specialistNotes(childId))
   const now = new Date()
   
