@@ -7,6 +7,7 @@ import {
   Phone, 
   MapPin, 
   Linkedin,
+  Instagram,
   ArrowUp
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -40,6 +41,7 @@ export function Footer() {
 
   const socialLinks = [
     { name: 'LinkedIn', href: 'https://www.linkedin.com/company/nuroo-ai/', icon: Linkedin },
+    { name: 'Instagram', href: 'https://www.instagram.com/nuroo.global/', icon: Instagram },
   ]
 
   return (
