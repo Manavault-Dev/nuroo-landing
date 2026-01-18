@@ -9,6 +9,7 @@ import { joinRoute } from './routes/join.js'
 import { sessionRoute } from './routes/session.js'
 import { childrenRoute } from './routes/children.js'
 import { notesRoute } from './routes/notes.js'
+import { invitesRoute } from './routes/invites.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -58,6 +59,7 @@ async function buildServer() {
   await fastify.register(sessionRoute)
   await fastify.register(childrenRoute)
   await fastify.register(notesRoute)
+  await fastify.register(invitesRoute)
 
   return fastify
 }
