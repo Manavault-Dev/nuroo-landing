@@ -52,3 +52,20 @@ export interface SpecialistProfile {
     role: 'admin' | 'specialist'
   }>
 }
+
+export interface ParentFeedback {
+  mood: 'good' | 'ok' | 'hard'
+  comment?: string
+  timestamp: Date
+}
+
+export interface ActivityDay {
+  date: string
+  tasksAttempted: number
+  tasksCompleted: number
+  feedback?: ParentFeedback
+}
+
+export interface TimelineResponse {
+  days: ActivityDay[]
+}

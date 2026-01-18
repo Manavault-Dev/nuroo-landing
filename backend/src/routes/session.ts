@@ -17,18 +17,17 @@ export const sessionRoute: FastifyPluginAsync = async (fastify) => {
       return { ok: true, hasOrg: false }
     }
 
-    const orgId = specialistSnap.data()?.orgId as string | undefined
-    if (!orgId) {
-      return { ok: true, hasOrg: false }
+    const orgsSnapshot = await db.collection('organizations').get()
+    for (const orgDoc of orgsSnapshot.docs) {
+      const orgId = orgDoc.id
+      const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
+      const memberSnap = await memberRef.get()
+      
+      if (memberSnap.exists && memberSnap.data()?.status === 'active') {
+        return { ok: true, orgId, hasOrg: true }
+      }
     }
 
-    const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
-    const memberSnap = await memberRef.get()
-
-    if (!memberSnap.exists || memberSnap.data()?.status !== 'active') {
-      return { ok: true, hasOrg: false }
-    }
-
-    return { ok: true, orgId, hasOrg: true }
+    return { ok: true, hasOrg: false }
   })
 }
