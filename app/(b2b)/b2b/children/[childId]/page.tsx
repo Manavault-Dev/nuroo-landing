@@ -4,8 +4,8 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type ChildDetail, type SpecialistNote } from '@/lib/b2b/api'
-import { ArrowLeft, MessageSquare, Send, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { apiClient, type ChildDetail, type SpecialistNote, type TimelineResponse } from '@/lib/b2b/api'
+import { ArrowLeft, MessageSquare, Send, Calendar, CheckCircle, Clock, AlertCircle, Smile, Meh, Frown } from 'lucide-react'
 
 export default function ChildDetailPage() {
   const router = useRouter()
@@ -16,6 +16,7 @@ export default function ChildDetailPage() {
 
   const [childDetail, setChildDetail] = useState<ChildDetail | null>(null)
   const [notes, setNotes] = useState<SpecialistNote[]>([])
+  const [timeline, setTimeline] = useState<TimelineResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [noteContent, setNoteContent] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
@@ -37,13 +38,15 @@ export default function ChildDetailPage() {
         }
         apiClient.setToken(idToken)
 
-        const [detailData, notesData] = await Promise.all([
+        const [detailData, notesData, timelineData] = await Promise.all([
           apiClient.getChildDetail(orgId, childId),
           apiClient.getNotes(orgId, childId),
+          apiClient.getTimeline(orgId, childId, 30),
         ])
 
         setChildDetail(detailData)
         setNotes(notesData)
+        setTimeline(timelineData)
       } catch (error: any) {
         console.error('Error loading child profile:', error)
         setError(error.message || 'Failed to load child profile')
@@ -121,26 +124,52 @@ export default function ChildDetailPage() {
     }
   }
 
+  const getFeedbackIcon = (mood: 'good' | 'ok' | 'hard') => {
+    switch (mood) {
+      case 'good':
+        return <Smile className="w-5 h-5 text-green-500" />
+      case 'ok':
+        return <Meh className="w-5 h-5 text-yellow-500" />
+      case 'hard':
+        return <Frown className="w-5 h-5 text-red-500" />
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today'
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday'
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center space-x-4">
-            <Link
-              href={`/b2b/children?orgId=${orgId}`}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{childDetail.name}</h1>
-              <p className="text-sm text-gray-600 mt-1">Child Profile</p>
-            </div>
+    <div className="p-8">
+      <div className="mb-8">
+        <div className="flex items-center space-x-4 mb-2">
+          <Link
+            href={`/b2b/children?orgId=${orgId}`}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{childDetail.name}</h2>
+            {childDetail.age && (
+              <p className="text-sm text-gray-600 mt-1">Age {childDetail.age}</p>
+            )}
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
@@ -169,6 +198,50 @@ export default function ChildDetailPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <Calendar className="w-5 h-5 text-gray-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Progress Timeline</h2>
+              </div>
+              {timeline && timeline.days.length > 0 ? (
+                <div className="space-y-4">
+                  {timeline.days
+                    .filter(day => day.tasksAttempted > 0 || day.feedback)
+                    .map((day) => (
+                      <div
+                        key={day.date}
+                        className="border-l-2 border-gray-200 pl-4 pb-4 last:pb-0"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-gray-900">{formatDate(day.date)}</p>
+                          {day.feedback && (
+                            <div className="flex items-center space-x-1">
+                              {getFeedbackIcon(day.feedback.mood)}
+                              <span className="text-xs text-gray-500 capitalize">{day.feedback.mood}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-600">
+                            {day.tasksCompleted} of {day.tasksAttempted} tasks completed
+                          </p>
+                          {day.feedback?.comment && (
+                            <p className="text-sm text-gray-700 italic mt-2 pl-2 border-l-2 border-gray-200">
+                              "{day.feedback.comment}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  {timeline.days.filter(day => day.tasksAttempted > 0 || day.feedback).length === 0 && (
+                    <p className="text-gray-600 text-sm py-4">No activity in the last 30 days.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm py-4">Loading timeline...</p>
+              )}
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
@@ -265,7 +338,7 @@ export default function ChildDetailPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
