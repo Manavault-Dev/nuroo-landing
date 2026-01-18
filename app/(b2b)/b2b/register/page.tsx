@@ -206,7 +206,7 @@ function RegisterForm() {
                 placeholder="Enter invite code if you have one"
               />
               <p className="mt-1 text-xs text-gray-500">
-                If you have an invite code, enter it here to join an organization automatically
+                Optional: If you have an invite code, enter it to join an existing organization. Otherwise, a personal workspace will be created for you automatically.
               </p>
             </div>
 
