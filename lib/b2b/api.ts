@@ -43,6 +43,23 @@ export interface SpecialistNote {
   updatedAt: string
 }
 
+export interface ParentFeedback {
+  mood: 'good' | 'ok' | 'hard'
+  comment?: string
+  timestamp: string
+}
+
+export interface ActivityDay {
+  date: string
+  tasksAttempted: number
+  tasksCompleted: number
+  feedback?: ParentFeedback
+}
+
+export interface TimelineResponse {
+  days: ActivityDay[]
+}
+
 export class ApiClient {
   private baseUrl: string
   private token: string | null = null
@@ -116,6 +133,10 @@ export class ApiClient {
     return this.request<ChildDetail>(`/orgs/${orgId}/children/${childId}`)
   }
 
+  async getTimeline(orgId: string, childId: string, days: number = 30) {
+    return this.request<TimelineResponse>(`/orgs/${orgId}/children/${childId}/timeline?days=${days}`)
+  }
+
   async getNotes(orgId: string, childId: string) {
     return this.request<SpecialistNote[]>(`/orgs/${orgId}/children/${childId}/notes`)
   }
@@ -124,6 +145,24 @@ export class ApiClient {
     return this.request<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
       method: 'POST',
       body: JSON.stringify({ text, tags }),
+    })
+  }
+
+  async createInvite(orgId: string, options?: { role?: 'specialist' | 'admin'; maxUses?: number; expiresInDays?: number }) {
+    return this.request<{ ok: boolean; inviteCode: string; expiresAt: string; role: 'specialist' | 'admin'; maxUses: number | null }>(`/orgs/${orgId}/invites`, {
+      method: 'POST',
+      body: JSON.stringify({
+        role: options?.role || 'specialist',
+        maxUses: options?.maxUses,
+        expiresInDays: options?.expiresInDays || 30,
+      }),
+    })
+  }
+
+  async createParentInvite() {
+    return this.request<{ ok: boolean; inviteCode: string; expiresAt: string; orgId: string }>('/specialists/invites', {
+      method: 'POST',
+      body: JSON.stringify({}),
     })
   }
 }
