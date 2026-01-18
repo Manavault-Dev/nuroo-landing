@@ -83,6 +83,37 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
       updatedAt: admin.firestore.Timestamp.fromDate(now),
     }
     await specialistRef.set(newData)
-    return { ok: true, specialist: { uid, email: email || '', name: newData.name }, orgId: null }
+
+    const orgsSnapshot = await db.collection('organizations').where('ownerId', '==', uid).limit(1).get()
+    let personalOrgId: string | null = null
+
+    if (orgsSnapshot.empty) {
+      const personalOrgName = `${newData.name}'s Practice`
+      const orgRef = db.collection('organizations').doc()
+      personalOrgId = orgRef.id
+
+      await orgRef.set({
+        name: personalOrgName,
+        type: 'personal',
+        ownerId: uid,
+        createdAt: admin.firestore.Timestamp.fromDate(now),
+        updatedAt: admin.firestore.Timestamp.fromDate(now),
+      })
+
+      const memberRef = orgRef.collection('members').doc(uid)
+      await memberRef.set({
+        role: 'admin',
+        status: 'active',
+        joinedAt: admin.firestore.Timestamp.fromDate(now),
+      })
+    } else {
+      personalOrgId = orgsSnapshot.docs[0].id
+    }
+
+    return { 
+      ok: true, 
+      specialist: { uid, email: email || '', name: newData.name }, 
+      orgId: personalOrgId 
+    }
   })
 }
