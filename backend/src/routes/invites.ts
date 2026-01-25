@@ -22,7 +22,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
     const member = await requireOrgMember(request, reply, orgId)
 
-    if (member.role !== 'admin') {
+    if (member.role !== 'org_admin') {
       return reply.code(403).send({ error: 'Only organization admins can create invite codes' })
     }
 
