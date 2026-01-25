@@ -57,7 +57,7 @@ export function getFirestore() {
   return admin.firestore()
 }
 
-export function getAuth() {
+export function getAuth(): admin.auth.Auth {
   if (!app) app = initializeFirebaseAdmin()
   if (!app) throw new Error('Firebase Admin not initialized')
   return admin.auth()
