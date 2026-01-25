@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../firebaseAdmin.js'
-import { requireOrgMember, requireChildAssigned } from '../plugins/rbac.js'
+import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
 import type { SpecialistNote } from '../types.js'
 import { z } from 'zod'
 
@@ -17,13 +17,13 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const { orgId, childId } = request.params
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAssigned(request, reply, orgId, childId)
+      await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const notesRef = db.collection(`children/${childId}/specialistNotes`)
       const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
-      const notes: SpecialistNote[] = notesSnapshot.docs.map(doc => {
+      const notes: SpecialistNote[] = notesSnapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
         const data = doc.data()
         return {
           id: doc.id,
@@ -54,7 +54,7 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const body = createNoteSchema.parse(request.body)
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAssigned(request, reply, orgId, childId)
+      await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const specialistRef = db.doc(`specialists/${request.user.uid}`)

@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../firebaseAdmin.js'
-import { requireOrgMember, requireChildAssigned } from '../plugins/rbac.js'
+import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
 
 export const childrenRoute: FastifyPluginAsync = async (fastify) => {
@@ -9,13 +9,27 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     '/orgs/:orgId/children',
     async (request, reply) => {
       const { orgId } = request.params
-      await requireOrgMember(request, reply, orgId)
+      const member = await requireOrgMember(request, reply, orgId)
+      const { uid } = request.user!
+      const role = member.role
 
       const db = getFirestore()
       
       const orgChildrenRef = db.collection(`organizations/${orgId}/children`)
-      const assignedChildrenSnap = await orgChildrenRef.where('assigned', '==', true).get()
-      const childIds = assignedChildrenSnap.docs.map(doc => doc.id)
+      let assignedChildrenSnap
+
+      // Org Admin: Get all assigned children
+      if (role === 'org_admin') {
+        assignedChildrenSnap = await orgChildrenRef.where('assigned', '==', true).get()
+      } else {
+        // Specialist: Get only children assigned to them
+        assignedChildrenSnap = await orgChildrenRef
+          .where('assigned', '==', true)
+          .where('assignedSpecialistId', '==', uid)
+          .get()
+      }
+
+      const childIds = assignedChildrenSnap.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => doc.id)
       
       console.log('🔍 [CHILDREN] Organization:', orgId)
       console.log('🔍 [CHILDREN] Found childIds from organizations/{orgId}/children (parents connected via invite code):', childIds)
@@ -92,7 +106,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       const { orgId, childId } = request.params
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAssigned(request, reply, orgId, childId)
+      await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const childRef = db.doc(`children/${childId}`)
@@ -110,7 +124,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       const tasksRef = db.collection(`children/${childId}/tasks`)
       const tasksSnapshot = await tasksRef.orderBy('updatedAt', 'desc').limit(10).get()
 
-      const recentTasks = tasksSnapshot.docs.map(doc => {
+      const recentTasks = tasksSnapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
         const taskData = doc.data()
         return {
           id: doc.id,
@@ -149,7 +163,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       const days = Math.min(Math.max(daysParam, 7), 90)
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAssigned(request, reply, orgId, childId)
+      await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const now = new Date()
