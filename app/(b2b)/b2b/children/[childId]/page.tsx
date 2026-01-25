@@ -19,6 +19,7 @@ export default function ChildDetailPage() {
   const [timeline, setTimeline] = useState<TimelineResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [noteContent, setNoteContent] = useState('')
+  const [visibleToParent, setVisibleToParent] = useState(true)
   const [submittingNote, setSubmittingNote] = useState(false)
   const [error, setError] = useState('')
 
@@ -73,10 +74,11 @@ export default function ChildDetailPage() {
       }
       apiClient.setToken(idToken)
 
-      const newNote = await apiClient.createNote(orgId, childId, noteContent.trim())
+      const newNote = await apiClient.createNote(orgId, childId, noteContent.trim(), undefined, visibleToParent)
       const updatedNotes = await apiClient.getNotes(orgId, childId)
       setNotes(updatedNotes)
       setNoteContent('')
+      setVisibleToParent(true)
     } catch (err: any) {
       setError(err.message || 'Failed to save note. Please try again.')
     } finally {
@@ -364,6 +366,21 @@ export default function ChildDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                   required
                 />
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visibleToParent}
+                    onChange={(e) => setVisibleToParent(e.target.checked)}
+                    className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Visible to parent</span>
+                  {visibleToParent && childDetail?.parentInfo && (
+                    <span className="text-xs text-green-600">(Parent will see this note)</span>
+                  )}
+                  {visibleToParent && !childDetail?.parentInfo && (
+                    <span className="text-xs text-gray-500">(No parent connected yet)</span>
+                  )}
+                </label>
                 <button
                   type="submit"
                   disabled={submittingNote || !noteContent.trim()}
@@ -384,10 +401,21 @@ export default function ChildDetailPage() {
                   {notes.map((note) => (
                     <div
                       key={note.id}
-                      className="border border-gray-200 rounded-lg p-4 space-y-2"
+                      className={`border rounded-lg p-4 space-y-2 ${
+                        note.visibleToParent === false
+                          ? 'border-gray-300 bg-gray-50'
+                          : 'border-gray-200'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">{note.specialistName}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-semibold text-gray-900">{note.specialistName}</p>
+                          {note.visibleToParent === false && (
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
+                              Private
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">
                           {new Date(note.createdAt).toLocaleDateString()}{' '}
                           {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

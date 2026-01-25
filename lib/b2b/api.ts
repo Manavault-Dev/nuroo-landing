@@ -150,10 +150,10 @@ export class ApiClient {
     return this.request<SpecialistNote[]>(`/orgs/${orgId}/children/${childId}/notes`)
   }
 
-  async createNote(orgId: string, childId: string, text: string, tags?: string[]) {
+  async createNote(orgId: string, childId: string, text: string, tags?: string[], visibleToParent: boolean = true) {
     return this.request<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
       method: 'POST',
-      body: JSON.stringify({ text, tags }),
+      body: JSON.stringify({ text, tags, visibleToParent }),
     })
   }
 
