@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
@@ -12,6 +12,42 @@ export default function JoinPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Check if user is Super Admin on mount - redirect immediately if Super Admin
+    const checkSuperAdmin = async () => {
+      const user = getCurrentUser()
+      if (!user) {
+        router.push('/b2b/login')
+        return
+      }
+
+      try {
+        const idToken = await getIdToken(true)
+        if (!idToken) {
+          return
+        }
+        apiClient.setToken(idToken)
+        const superAdminCheck = await apiClient.checkSuperAdmin()
+        
+        console.log('🔍 [JOIN] Super Admin check result:', superAdminCheck)
+        
+        if (superAdminCheck.isSuperAdmin) {
+          console.log('✅ [JOIN] User is Super Admin, redirecting to admin panel')
+          router.replace('/b2b/admin') // Use replace instead of push to avoid back button issues
+          return
+        } else {
+          console.log('⚠️ [JOIN] User is NOT Super Admin, showing join form')
+        }
+      } catch (err: any) {
+        // Not Super Admin or error - continue with normal flow (show join form)
+        console.error('❌ [JOIN] Failed to check Super Admin:', err)
+        console.log('⚠️ [JOIN] Showing join form')
+      }
+    }
+
+    checkSuperAdmin()
+  }, [router])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -38,7 +74,10 @@ export default function JoinPage() {
       }
 
       apiClient.setToken(idToken)
-      await apiClient.joinOrganization(inviteCode.trim())
+      
+      // Use new invite acceptance endpoint
+      const result = await apiClient.acceptInvite(inviteCode.trim())
+      console.log('✅ [JOIN] Successfully joined organization:', result.orgId)
       
       router.push('/b2b')
     } catch (err: any) {

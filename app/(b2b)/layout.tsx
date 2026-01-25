@@ -29,6 +29,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
           setProfile(profileData)
         } catch (error) {
           console.error('Failed to load profile:', error)
+          // If /me fails, profile will be null - that's OK for Super Admin
         }
       } else {
         apiClient.setToken(null)
@@ -37,7 +38,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       
       setLoading(false)
 
-      const isAuthPage = pathname === '/b2b/login' || pathname === '/b2b/register'
+      const isAuthPage = pathname === '/b2b/login' || pathname === '/b2b/register' || pathname === '/b2b/join'
       if (!currentUser && !isAuthPage) {
         router.push('/b2b/login')
       }
@@ -57,7 +58,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     )
   }
 
-  const isAuthPage = pathname === '/b2b/login' || pathname === '/b2b/register'
+  const isAuthPage = pathname === '/b2b/login' || pathname === '/b2b/register' || pathname === '/b2b/join'
   if (isAuthPage) {
     return <>{children}</>
   }

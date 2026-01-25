@@ -24,6 +24,13 @@ function RegisterForm() {
     e.preventDefault()
     setError('')
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       return
@@ -34,26 +41,36 @@ function RegisterForm() {
       return
     }
 
+    // NEW FLOW: Invite code is REQUIRED for registration
+    if (!inviteCode.trim()) {
+      setError('Invite code is required. Please contact your administrator to get an invite code.')
+      return
+    }
+
     setLoading(true)
 
     try {
+      // Step 1: Create Firebase Auth account
+      console.log('🔐 [REGISTER] Creating Firebase Auth account...')
       const userCredential = await register(email, password, name)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
-      await apiClient.createProfile(name)
       
-      if (inviteCode.trim()) {
-        try {
-          await apiClient.joinOrganization(inviteCode.trim())
-        } catch (joinError: any) {
-          console.warn('Failed to join organization:', joinError)
-          setError(joinError.message || 'Account created but failed to join organization. Please join manually.')
-          setLoading(false)
-          return
-        }
+      // Step 2: Accept invite code (this creates membership)
+      console.log('🔗 [REGISTER] Accepting invite code:', inviteCode.trim())
+      try {
+        const result = await apiClient.acceptInvite(inviteCode.trim())
+        console.log('✅ [REGISTER] Successfully joined organization:', result.orgId)
+        
+        // Redirect to dashboard
+        router.push('/b2b')
+        return
+      } catch (acceptError: any) {
+        console.error('❌ [REGISTER] Failed to accept invite:', acceptError)
+        setError(acceptError.message || 'Failed to join organization. Please check your invite code.')
+        setLoading(false)
+        return
       }
-      
-      router.push('/b2b')
     } catch (err: any) {
       console.error('Registration error:', err)
       let errorMessage = 'Failed to create account. Please try again.'
@@ -194,19 +211,20 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-                Invite Code <span className="text-gray-400 font-normal">(optional)</span>
+                Invite Code <span className="text-red-500">*</span>
               </label>
               <input
                 id="inviteCode"
                 name="inviteCode"
                 type="text"
+                required
                 value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Enter invite code if you have one"
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
+                placeholder="Enter your invite code"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Optional: If you have an invite code, enter it to join an existing organization. Otherwise, a personal workspace will be created for you automatically.
+                You need an invite code from your organization administrator to register. Contact them to get your invite code.
               </p>
             </div>
 
