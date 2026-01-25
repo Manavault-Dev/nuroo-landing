@@ -21,8 +21,16 @@ export interface ChildSummary {
   completedTasksCount: number
 }
 
+export interface ParentInfo {
+  uid: string
+  displayName?: string
+  email?: string
+  linkedAt?: string
+}
+
 export interface ChildDetail extends ChildSummary {
   organizationId: string
+  parentInfo?: ParentInfo
   recentTasks: Array<{
     id: string
     title: string
@@ -39,6 +47,7 @@ export interface SpecialistNote {
   specialistName: string
   text: string
   tags?: string[]
+  visibleToParent?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -164,6 +173,199 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify({}),
     })
+  }
+
+  /**
+   * Accept an invite code and join organization
+   * This is the NEW invite-based onboarding endpoint
+   */
+  async acceptInvite(code: string) {
+    return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>('/invites/accept', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
+
+  // ==================== Super Admin Methods ====================
+
+  /**
+   * Create a new organization (Super Admin only)
+   */
+  async createOrganization(name: string, country?: string) {
+    return this.request<{ ok: boolean; orgId: string; name: string; country: string | null }>('/admin/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ name, country }),
+    })
+  }
+
+  /**
+   * List all organizations (Super Admin only)
+   */
+  async listOrganizations() {
+    return this.request<{
+      ok: boolean
+      organizations: Array<{
+        orgId: string
+        name: string
+        country: string | null
+        createdAt: string | null
+        createdBy: string | null
+        isActive: boolean
+      }>
+      count: number
+    }>('/admin/organizations')
+  }
+
+  /**
+   * Generate an invite code for an organization (Super Admin only)
+   */
+  async generateInviteCode(data: {
+    orgId: string
+    role: 'org_admin' | 'specialist' | 'parent'
+    expiresAt?: string
+    maxUses?: number
+  }) {
+    return this.request<{
+      ok: boolean
+      code: string
+      inviteLink: string
+      orgId: string
+      orgName: string
+      role: string
+      expiresAt: string | null
+      maxUses: number | null
+    }>('/admin/invites', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * List recent invite codes (Super Admin only)
+   */
+  async listInvites() {
+    return this.request<{
+      ok: boolean
+      invites: Array<{
+        code: string
+        inviteLink: string
+        orgId: string
+        orgName: string
+        role: string
+        expiresAt: string | null
+        maxUses: number | null
+        usedCount: number
+        isActive: boolean
+        createdAt: string | null
+      }>
+      count: number
+    }>('/admin/invites')
+  }
+
+  /**
+   * Check if current user is Super Admin (dev only)
+   */
+  async checkSuperAdmin() {
+    return this.request<{ uid: string; email: string | undefined; isSuperAdmin: boolean; claims?: any }>('/dev/check-super-admin')
+  }
+
+  // ==================== Super Admin Management ====================
+
+  /**
+   * Grant Super Admin rights to a user (Super Admin only)
+   */
+  async grantSuperAdmin(email: string) {
+    return this.request<{ ok: boolean; message: string; uid: string; email: string; note: string }>('/admin/super-admin', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  /**
+   * Remove Super Admin rights from a user (Super Admin only)
+   */
+  async removeSuperAdmin(uid: string) {
+    return this.request<{ ok: boolean; message: string; uid: string; email: string }>(`/admin/super-admin/${uid}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /**
+   * List all Super Admins (Super Admin only)
+   */
+  async listSuperAdmins() {
+    return this.request<{ ok: boolean; superAdmins: Array<{ uid: string; email: string; displayName: string | null; createdAt: string; lastSignIn: string | null }>; count: number }>('/admin/super-admin')
+  }
+
+  /**
+   * Get specialists in an organization (Super Admin only)
+   */
+  async getOrgSpecialists(orgId: string) {
+    return this.request<{
+      ok: boolean
+      specialists: Array<{
+        uid: string
+        email: string
+        name: string
+        role: 'org_admin' | 'specialist'
+        joinedAt: string | null
+        createdAt: string | null
+      }>
+      count: number
+    }>(`/admin/orgs/${orgId}/specialists`)
+  }
+
+  /**
+   * Get parents in an organization (Super Admin only)
+   */
+  async getOrgParents(orgId: string) {
+    return this.request<{
+      ok: boolean
+      parents: Array<{
+        id: string
+        name: string
+        email?: string | null
+        phone?: string | null
+        linkedChildren?: string[]
+        createdAt: string | null
+        updatedAt: string | null
+      }>
+      count: number
+    }>(`/admin/orgs/${orgId}/parents`)
+  }
+
+  /**
+   * Get children in an organization (Super Admin only)
+   */
+  async getOrgChildren(orgId: string) {
+    return this.request<{
+      ok: boolean
+      children: Array<{
+        id: string
+        name: string
+        age?: number
+        assignedAt: string | null
+      }>
+      count: number
+    }>(`/admin/orgs/${orgId}/children`)
+  }
+
+  /**
+   * Get parents in an organization (Org Admin only, via regular endpoint)
+   */
+  async getParents(orgId: string) {
+    return this.request<{
+      ok: boolean
+      parents: Array<{
+        id: string
+        name: string
+        email?: string | null
+        phone?: string | null
+        linkedChildren?: string[]
+        createdAt: string | null
+        updatedAt: string | null
+      }>
+    }>(`/orgs/${orgId}/parents`)
   }
 }
 
