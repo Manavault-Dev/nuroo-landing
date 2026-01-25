@@ -4,8 +4,8 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type ChildDetail, type SpecialistNote, type TimelineResponse } from '@/lib/b2b/api'
-import { ArrowLeft, MessageSquare, Send, Calendar, CheckCircle, Clock, AlertCircle, Smile, Meh, Frown } from 'lucide-react'
+import { apiClient, type ChildDetail, type SpecialistNote, type TimelineResponse, type ParentInfo } from '@/lib/b2b/api'
+import { ArrowLeft, MessageSquare, Send, Calendar, CheckCircle, Clock, AlertCircle, Smile, Meh, Frown, User, Mail, Link2 } from 'lucide-react'
 
 export default function ChildDetailPage() {
   const router = useRouter()
@@ -285,6 +285,69 @@ export default function ChildDetailPage() {
           </div>
 
           <div className="space-y-6">
+            {/* Parent Info Section */}
+            {childDetail.parentInfo && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <User className="w-5 h-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Parent Information</h2>
+                </div>
+                <div className="space-y-3">
+                  {childDetail.parentInfo.displayName && (
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Name:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {childDetail.parentInfo.displayName}
+                      </span>
+                    </div>
+                  )}
+                  {childDetail.parentInfo.email && (
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Email:</span>
+                      <a
+                        href={`mailto:${childDetail.parentInfo.email}`}
+                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                      >
+                        {childDetail.parentInfo.email}
+                      </a>
+                    </div>
+                  )}
+                  {childDetail.parentInfo.linkedAt && (
+                    <div className="flex items-center space-x-2">
+                      <Link2 className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Connected:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {new Date(childDetail.parentInfo.linkedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    Parent connected via mobile app invite code
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Show placeholder if no parent linked */}
+            {!childDetail.parentInfo && (
+              <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-6">
+                <div className="flex items-center space-x-2 mb-3">
+                  <User className="w-5 h-5 text-gray-400" />
+                  <h2 className="text-lg font-semibold text-gray-500">Parent Not Connected</h2>
+                </div>
+                <p className="text-sm text-gray-500 mb-3">
+                  This child's parent hasn't connected via the mobile app yet.
+                </p>
+                <p className="text-xs text-gray-400">
+                  Share your invite code with the parent to enable communication and note sharing.
+                </p>
+              </div>
+            )}
+
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Add Note</h2>
               <form onSubmit={handleSubmitNote} className="space-y-4">
