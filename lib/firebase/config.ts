@@ -19,7 +19,7 @@ let db: Firestore | undefined
 
 if (typeof window !== 'undefined') {
   const env = process.env.NODE_ENV || 'development'
-  
+
   if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     try {
       if (getApps().length === 0) {
@@ -35,7 +35,9 @@ if (typeof window !== 'undefined') {
       console.error('❌ Failed to initialize Firebase:', error)
     }
   } else {
-    console.warn('⚠️ Firebase config is missing. B2B authentication will not work. Add Firebase config to .env files')
+    console.warn(
+      '⚠️ Firebase config is missing. B2B authentication will not work. Add Firebase config to .env files'
+    )
   }
 }
 
