@@ -3,16 +3,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Settings, 
+import {
+  Grid,
+  Users,
+  Settings,
   UserCog,
   Key,
   Building2,
-  FileText,
   ChevronRight,
-  Shield
+  Users2,
+  FileText,
 } from 'lucide-react'
 import { type SpecialistProfile, apiClient } from '@/lib/b2b/api'
 import { getIdToken } from '@/lib/b2b/authClient'
@@ -25,9 +25,9 @@ interface SidebarProps {
 export function Sidebar({ profile, currentOrgId }: SidebarProps) {
   const pathname = usePathname()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
-  const currentOrg = profile?.organizations.find(org => org.orgId === currentOrgId) || profile?.organizations[0]
-  const isAdmin = currentOrg?.role === 'admin'
-  const isPersonalOrg = currentOrg?.orgName?.includes("'s Practice")
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
+  const isOrgAdmin = currentOrg?.role === 'admin'
 
   useEffect(() => {
     const checkSuperAdmin = async () => {
@@ -43,27 +43,11 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
         setIsSuperAdmin(false)
       }
     }
-    
+
     if (profile) {
       checkSuperAdmin()
     }
   }, [profile])
-
-  const navItems = [
-    { href: '/b2b', label: 'Dashboard', icon: LayoutDashboard },
-    { href: `/b2b/children${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Children', icon: Users },
-    { href: '/b2b/settings', label: 'Profile Settings', icon: Settings },
-  ]
-
-  const adminItems = isAdmin ? [
-    { href: `/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Team Management', icon: UserCog },
-    { href: `/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Invite Codes', icon: Key },
-    { href: `/b2b/organization${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Organization', icon: Building2 },
-  ] : []
-
-  const superAdminItems = isSuperAdmin ? [
-    { href: '/b2b/admin', label: 'Super Admin', icon: Shield },
-  ] : []
 
   const isActive = (href: string) => {
     if (href === '/b2b') {
@@ -72,15 +56,101 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     return pathname.startsWith(href)
   }
 
+  // Super Admin: Show ONLY Content Management (no organization management)
+  if (isSuperAdmin) {
+    const superAdminNavItems = [
+      { href: '/b2b/content', label: 'Content Management', icon: FileText },
+    ]
+
+    return (
+      <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <Link href="/b2b/content" className="flex items-center space-x-3 mb-4">
+            <img src="/logo.png" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
+              <p className="text-xs text-gray-500">Content Platform</p>
+            </div>
+          </Link>
+          <div className="mt-2">
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+              Super Admin
+            </span>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1">
+          <div className="pt-4">
+            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Content Management
+            </p>
+          </div>
+          {superAdminNavItems.map((item) => {
+            const Icon = item.icon
+            const active = isActive(item.href)
+            if (!Icon) return null
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  active
+                    ? 'bg-purple-50 text-purple-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.label}</span>
+                {active && <ChevronRight className="w-4 h-4 ml-auto" />}
+              </Link>
+            )
+          })}
+        </nav>
+      </aside>
+    )
+  }
+
+  // Regular users (Specialist or Org Admin)
+  const specialistNavItems = [
+    { href: '/b2b', label: 'Dashboard', icon: Grid },
+    {
+      href: `/b2b/children${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+      label: 'Children',
+      icon: Users,
+    },
+    {
+      href: `/b2b/groups${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+      label: 'Groups',
+      icon: Users2,
+    },
+    { href: '/b2b/settings', label: 'Settings', icon: Settings },
+  ]
+
+  const orgAdminNavItems = isOrgAdmin
+    ? [
+        {
+          href: `/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Team Management',
+          icon: UserCog,
+        },
+        {
+          href: `/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Invite Codes',
+          icon: Key,
+        },
+        {
+          href: `/b2b/organization${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Organization',
+          icon: Building2,
+        },
+      ]
+    : []
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <Link href="/b2b" className="flex items-center space-x-3 mb-4">
-          <img 
-            src="/logo.png" 
-            alt="Nuroo Logo" 
-            className="w-8 h-8 rounded-lg"
-          />
+          <img src="/logo.png" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
             <p className="text-xs text-gray-500">B2B Platform</p>
@@ -89,22 +159,20 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
         {currentOrg && (
           <div className="mt-2">
             <p className="text-sm font-medium text-gray-900">{currentOrg.orgName}</p>
-            {isAdmin && (
+            {isOrgAdmin && (
               <span className="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
                 Admin
               </span>
-            )}
-            {isPersonalOrg && (
-              <p className="text-xs text-gray-500 mt-1">Personal Workspace</p>
             )}
           </div>
         )}
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {specialistNavItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.href)
+          if (!Icon) return null
           return (
             <Link
               key={item.href}
@@ -122,16 +190,17 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
           )
         })}
 
-        {adminItems.length > 0 && (
+        {orgAdminNavItems.length > 0 && (
           <>
             <div className="pt-4 mt-4 border-t border-gray-200">
               <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 Administration
               </p>
             </div>
-            {adminItems.map((item) => {
+            {orgAdminNavItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)
+              if (!Icon) return null
               return (
                 <Link
                   key={item.href}
@@ -139,35 +208,6 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                     active
                       ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                  {active && <ChevronRight className="w-4 h-4 ml-auto" />}
-                </Link>
-              )
-            })}
-          </>
-        )}
-
-        {superAdminItems.length > 0 && (
-          <>
-            <div className="pt-4 mt-4 border-t border-gray-200">
-              <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                Super Admin
-              </p>
-            </div>
-            {superAdminItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                    active
-                      ? 'bg-purple-50 text-purple-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -208,4 +248,3 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     </aside>
   )
 }
-
