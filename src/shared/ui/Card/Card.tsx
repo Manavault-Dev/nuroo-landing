@@ -26,12 +26,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     return (
       <div
         ref={ref}
-        className={cn(
-          'rounded-lg',
-          variantStyles[variant],
-          paddingStyles[padding],
-          className
-        )}
+        className={cn('rounded-lg', variantStyles[variant], paddingStyles[padding], className)}
         {...props}
       >
         {children}
@@ -47,11 +42,7 @@ export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {}
 export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('mb-4', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('mb-4', className)} {...props}>
         {children}
       </div>
     )
@@ -65,11 +56,7 @@ export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {}
 export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <h3
-        ref={ref}
-        className={cn('text-lg font-semibold text-gray-900', className)}
-        {...props}
-      >
+      <h3 ref={ref} className={cn('text-lg font-semibold text-gray-900', className)} {...props}>
         {children}
       </h3>
     )
@@ -83,11 +70,7 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
 export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('', className)} {...props}>
         {children}
       </div>
     )
@@ -101,11 +84,7 @@ export interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {}
 export const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('mt-4 pt-4 border-t border-gray-200', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('mt-4 pt-4 border-t border-gray-200', className)} {...props}>
         {children}
       </div>
     )
