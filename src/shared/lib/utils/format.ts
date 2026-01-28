@@ -1,7 +1,10 @@
 /**
  * Format a date to a readable string
  */
-export function formatDate(date: Date | string | undefined | null, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(
+  date: Date | string | undefined | null,
+  options?: Intl.DateTimeFormatOptions
+): string {
   if (!date) return '-'
 
   const d = typeof date === 'string' ? new Date(date) : date

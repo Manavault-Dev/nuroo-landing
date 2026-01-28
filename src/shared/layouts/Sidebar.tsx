@@ -11,7 +11,7 @@ import {
   Key,
   Building2,
   ChevronRight,
-  Shield
+  Shield,
 } from 'lucide-react'
 import { apiClient } from '@/src/shared/lib/api'
 import type { SpecialistProfile } from '@/src/shared/types'
@@ -24,7 +24,8 @@ interface SidebarProps {
 export function Sidebar({ profile, currentOrgId }: SidebarProps) {
   const pathname = usePathname()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
-  const currentOrg = profile?.organizations.find(org => org.orgId === currentOrgId) || profile?.organizations[0]
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
   const isPersonalOrg = currentOrg?.orgName?.includes("'s Practice")
 
@@ -45,19 +46,37 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
 
   const navItems = [
     { href: '/b2b', label: 'Dashboard', icon: LayoutDashboard },
-    { href: `/b2b/children${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Children', icon: Users },
+    {
+      href: `/b2b/children${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+      label: 'Children',
+      icon: Users,
+    },
     { href: '/b2b/settings', label: 'Profile Settings', icon: Settings },
   ]
 
-  const adminItems = isAdmin ? [
-    { href: `/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Team Management', icon: UserCog },
-    { href: `/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Invite Codes', icon: Key },
-    { href: `/b2b/organization${currentOrgId ? `?orgId=${currentOrgId}` : ''}`, label: 'Organization', icon: Building2 },
-  ] : []
+  const adminItems = isAdmin
+    ? [
+        {
+          href: `/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Team Management',
+          icon: UserCog,
+        },
+        {
+          href: `/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Invite Codes',
+          icon: Key,
+        },
+        {
+          href: `/b2b/organization${currentOrgId ? `?orgId=${currentOrgId}` : ''}`,
+          label: 'Organization',
+          icon: Building2,
+        },
+      ]
+    : []
 
-  const superAdminItems = isSuperAdmin ? [
-    { href: '/b2b/admin', label: 'Super Admin', icon: Shield },
-  ] : []
+  const superAdminItems = isSuperAdmin
+    ? [{ href: '/b2b/admin', label: 'Super Admin', icon: Shield }]
+    : []
 
   const isActive = (href: string) => {
     if (href === '/b2b') {
@@ -70,11 +89,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <Link href="/b2b" className="flex items-center space-x-3 mb-4">
-          <img
-            src="/logo.png"
-            alt="Nuroo Logo"
-            className="w-8 h-8 rounded-lg"
-          />
+          <img src="/logo.png" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
             <p className="text-xs text-gray-500">B2B Platform</p>
@@ -88,9 +103,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
                 Admin
               </span>
             )}
-            {isPersonalOrg && (
-              <p className="text-xs text-gray-500 mt-1">Personal Workspace</p>
-            )}
+            {isPersonalOrg && <p className="text-xs text-gray-500 mt-1">Personal Workspace</p>}
           </div>
         )}
       </div>

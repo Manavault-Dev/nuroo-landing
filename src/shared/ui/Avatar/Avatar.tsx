@@ -34,18 +34,7 @@ function getInitials(name: string): string {
 }
 
 export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
-  (
-    {
-      className,
-      src,
-      alt,
-      name,
-      size = 'md',
-      variant = 'circle',
-      ...props
-    },
-    ref
-  ) => {
+  ({ className, src, alt, name, size = 'md', variant = 'circle', ...props }, ref) => {
     const hasImage = !!src
     const initials = name ? getInitials(name) : null
 
@@ -61,11 +50,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         {...props}
       >
         {hasImage ? (
-          <img
-            src={src}
-            alt={alt || name || 'Avatar'}
-            className="h-full w-full object-cover"
-          />
+          <img src={src} alt={alt || name || 'Avatar'} className="h-full w-full object-cover" />
         ) : initials ? (
           <span className="font-medium text-gray-600">{initials}</span>
         ) : (
