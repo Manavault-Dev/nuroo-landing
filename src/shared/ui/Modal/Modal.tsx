@@ -88,9 +88,7 @@ export function Modal({
                   </Dialog.Description>
                 )}
 
-                <div className={cn(title || description ? 'mt-4' : '')}>
-                  {children}
-                </div>
+                <div className={cn(title || description ? 'mt-4' : '')}>{children}</div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

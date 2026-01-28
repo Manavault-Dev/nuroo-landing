@@ -8,7 +8,13 @@ export type { InputProps } from './Input'
 
 // Card
 export { Card, CardHeader, CardTitle, CardContent, CardFooter } from './Card'
-export type { CardProps, CardHeaderProps, CardTitleProps, CardContentProps, CardFooterProps } from './Card'
+export type {
+  CardProps,
+  CardHeaderProps,
+  CardTitleProps,
+  CardContentProps,
+  CardFooterProps,
+} from './Card'
 
 // Badge
 export { Badge } from './Badge'
