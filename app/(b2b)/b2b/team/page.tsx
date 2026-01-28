@@ -22,7 +22,8 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
 
   const currentOrgId = searchParams.get('orgId') || undefined
-  const currentOrg = profile?.organizations.find(org => org.orgId === currentOrgId) || profile?.organizations[0]
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
 
   useEffect(() => {
@@ -50,14 +51,27 @@ export default function TeamPage() {
         setProfile(profileData)
 
         if (currentOrgId) {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'}/orgs/${currentOrgId}/team`, {
-            headers: {
-              'Authorization': `Bearer ${idToken}`,
-            },
-          })
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'}/orgs/${currentOrgId}/team`,
+            {
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+              },
+            }
+          )
           if (response.ok) {
             const members = await response.json()
-            setTeamMembers(members)
+            setTeamMembers(
+              members.map((m: any) => ({
+                ...m,
+                joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
+              }))
+            )
+          } else {
+            const errorData = await response
+              .json()
+              .catch(() => ({ error: 'Failed to load team members' }))
+            console.error('Failed to load team members:', errorData)
           }
         }
       } catch (error) {
@@ -85,8 +99,8 @@ export default function TeamPage() {
     return null
   }
 
-  const admins = teamMembers.filter(m => m.role === 'admin')
-  const specialists = teamMembers.filter(m => m.role === 'specialist')
+  const admins = teamMembers.filter((m) => m.role === 'admin')
+  const specialists = teamMembers.filter((m) => m.role === 'specialist')
 
   return (
     <div className="p-8">
@@ -143,7 +157,9 @@ export default function TeamPage() {
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
-              <p className="text-gray-600">Create invite codes to add specialists to your organization.</p>
+              <p className="text-gray-600">
+                Create invite codes to add specialists to your organization.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -183,5 +199,3 @@ export default function TeamPage() {
     </div>
   )
 }
-
-
