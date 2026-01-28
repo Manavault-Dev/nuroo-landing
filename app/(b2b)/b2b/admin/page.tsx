@@ -4,7 +4,21 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Building2, Plus, Key, Copy, Check, X, Calendar, Users, Shield, UserPlus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Building2,
+  Plus,
+  Key,
+  Copy,
+  Check,
+  X,
+  Calendar,
+  Users,
+  Shield,
+  UserPlus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 
 interface Organization {
   orgId: string
@@ -40,13 +54,13 @@ export default function AdminPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [invites, setInvites] = useState<InviteCode[]>([])
   const [superAdmins, setSuperAdmins] = useState<SuperAdmin[]>([])
-  
+
   // Create organization form
   const [showCreateOrg, setShowCreateOrg] = useState(false)
   const [orgName, setOrgName] = useState('')
   const [orgCountry, setOrgCountry] = useState('')
   const [creatingOrg, setCreatingOrg] = useState(false)
-  
+
   // Generate invite form
   const [showGenerateInvite, setShowGenerateInvite] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState('')
@@ -54,21 +68,20 @@ export default function AdminPage() {
   const [inviteExpiresAt, setInviteExpiresAt] = useState('')
   const [inviteMaxUses, setInviteMaxUses] = useState('')
   const [generatingInvite, setGeneratingInvite] = useState(false)
-  
+
   // Super Admin management
   const [showAddSuperAdmin, setShowAddSuperAdmin] = useState(false)
   const [newSuperAdminEmail, setNewSuperAdminEmail] = useState('')
   const [addingSuperAdmin, setAddingSuperAdmin] = useState(false)
   const [removingSuperAdmin, setRemovingSuperAdmin] = useState<string | null>(null)
-  
+
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [error, setError] = useState('')
-  
+
   // Organization details state
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
   const [orgSpecialists, setOrgSpecialists] = useState<Record<string, any[]>>({})
   const [orgParents, setOrgParents] = useState<Record<string, any[]>>({})
-  const [orgChildren, setOrgChildren] = useState<Record<string, any[]>>({})
   const [loadingOrgData, setLoadingOrgData] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -139,17 +152,20 @@ export default function AdminPage() {
     setCreatingOrg(true)
 
     try {
-      const result = await apiClient.createOrganization(orgName.trim(), orgCountry.trim() || undefined)
+      const result = await apiClient.createOrganization(
+        orgName.trim(),
+        orgCountry.trim() || undefined
+      )
       console.log('✅ Organization created:', result)
-      
+
       // Reset form
       setOrgName('')
       setOrgCountry('')
       setShowCreateOrg(false)
-      
+
       // Reload data
       await loadData()
-      
+
       // Show success message
       alert(`Organization "${result.name}" created successfully!`)
     } catch (err: any) {
@@ -162,7 +178,7 @@ export default function AdminPage() {
   const handleGenerateInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    
+
     if (!selectedOrgId) {
       setError('Please select an organization')
       return
@@ -177,19 +193,19 @@ export default function AdminPage() {
         expiresAt: inviteExpiresAt || undefined,
         maxUses: inviteMaxUses ? parseInt(inviteMaxUses) : undefined,
       })
-      
+
       console.log('✅ Invite code generated:', result)
-      
+
       // Add to invites list
       setInvites([result, ...invites])
-      
+
       // Reset form
       setSelectedOrgId('')
       setInviteRole('org_admin')
       setInviteExpiresAt('')
       setInviteMaxUses('')
       setShowGenerateInvite(false)
-      
+
       // Copy to clipboard
       await copyToClipboard(result.inviteLink)
     } catch (err: any) {
@@ -207,15 +223,17 @@ export default function AdminPage() {
     try {
       const result = await apiClient.grantSuperAdmin(newSuperAdminEmail.trim())
       console.log('✅ Super Admin granted:', result)
-      
+
       // Reload Super Admins list
       await loadData()
-      
+
       // Reset form
       setNewSuperAdminEmail('')
       setShowAddSuperAdmin(false)
-      
-      alert(`Super Admin rights granted to ${result.email}. They need to sign out and sign in again.`)
+
+      alert(
+        `Super Admin rights granted to ${result.email}. They need to sign out and sign in again.`
+      )
     } catch (err: any) {
       setError(err.message || 'Failed to grant Super Admin rights')
     } finally {
@@ -234,7 +252,7 @@ export default function AdminPage() {
     try {
       const result = await apiClient.removeSuperAdmin(uid)
       console.log('✅ Super Admin removed:', result)
-      
+
       // Reload Super Admins list
       await loadData()
     } catch (err: any) {
@@ -245,25 +263,38 @@ export default function AdminPage() {
   }
 
   const loadOrgData = async (orgId: string) => {
-    if (orgSpecialists[orgId] && orgParents[orgId] && orgChildren[orgId]) {
+    if (orgSpecialists[orgId] && orgParents[orgId]) {
+      console.log(`ℹ️ [ADMIN] Data already loaded for org ${orgId}`)
       return // Already loaded
     }
 
-    setLoadingOrgData(prev => ({ ...prev, [orgId]: true }))
+    console.log(`🔍 [ADMIN] Loading data for org ${orgId}`)
+    setLoadingOrgData((prev) => ({ ...prev, [orgId]: true }))
     try {
-      const [specialistsData, parentsData, childrenData] = await Promise.all([
-        apiClient.getOrgSpecialists(orgId).catch(() => ({ ok: true, specialists: [], count: 0 })),
-        apiClient.getOrgParents(orgId).catch(() => ({ ok: true, parents: [], count: 0 })),
-        apiClient.getOrgChildren(orgId).catch(() => ({ ok: true, children: [], count: 0 })),
+      const [specialistsData, parentsData] = await Promise.all([
+        apiClient.getOrgSpecialists(orgId).catch((err) => {
+          console.error(`❌ [ADMIN] Failed to load specialists for org ${orgId}:`, err)
+          return { ok: true, specialists: [], count: 0 }
+        }),
+        apiClient.getOrgParents(orgId).catch((err) => {
+          console.error(`❌ [ADMIN] Failed to load parents for org ${orgId}:`, err)
+          return { ok: true, parents: [], count: 0 }
+        }),
       ])
 
-      setOrgSpecialists(prev => ({ ...prev, [orgId]: specialistsData.specialists || [] }))
-      setOrgParents(prev => ({ ...prev, [orgId]: parentsData.parents || [] }))
-      setOrgChildren(prev => ({ ...prev, [orgId]: childrenData.children || [] }))
+      console.log(`✅ [ADMIN] Loaded data for org ${orgId}:`, {
+        specialists: specialistsData.specialists?.length || 0,
+        parents: parentsData.parents?.length || 0,
+      })
+      console.log(`📋 [ADMIN] Specialists data:`, specialistsData)
+      console.log(`📋 [ADMIN] Parents data:`, parentsData)
+
+      setOrgSpecialists((prev) => ({ ...prev, [orgId]: specialistsData.specialists || [] }))
+      setOrgParents((prev) => ({ ...prev, [orgId]: parentsData.parents || [] }))
     } catch (err: any) {
-      console.error(`Failed to load data for org ${orgId}:`, err)
+      console.error(`❌ [ADMIN] Failed to load data for org ${orgId}:`, err)
     } finally {
-      setLoadingOrgData(prev => ({ ...prev, [orgId]: false }))
+      setLoadingOrgData((prev) => ({ ...prev, [orgId]: false }))
     }
   }
 
@@ -429,9 +460,7 @@ export default function AdminPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Role *</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as any)}
@@ -501,9 +530,7 @@ export default function AdminPage() {
             <h2 className="text-xl font-bold mb-4">Add Super Admin</h2>
             <form onSubmit={handleAddSuperAdmin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  User Email *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">User Email *</label>
                 <input
                   type="email"
                   required
@@ -513,7 +540,8 @@ export default function AdminPage() {
                   placeholder="user@example.com"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  User must already have an account. They will need to sign out and sign in again after you grant Super Admin rights.
+                  User must already have an account. They will need to sign out and sign in again
+                  after you grant Super Admin rights.
                 </p>
               </div>
               <div className="flex space-x-3">
@@ -550,14 +578,149 @@ export default function AdminPage() {
             <p className="text-gray-600">No organizations yet. Create your first organization!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {organizations.map((org) => (
-              <div key={org.orgId} className="bg-white rounded-lg p-4 border border-gray-200">
-                <h3 className="font-semibold text-gray-900">{org.name}</h3>
-                {org.country && (
-                  <p className="text-sm text-gray-500 mt-1">{org.country}</p>
+              <div
+                key={org.orgId}
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden"
+              >
+                <div
+                  className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => toggleOrgExpanded(org.orgId)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{org.name}</h3>
+                      {org.country && <p className="text-sm text-gray-500 mt-1">{org.country}</p>}
+                      <p className="text-xs text-gray-400 mt-2">ID: {org.orgId}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-500">
+                        {orgSpecialists[org.orgId]?.length || 0} specialists,{' '}
+                        {orgParents[org.orgId]?.length || 0} parents
+                      </span>
+                      {expandedOrg === org.orgId ? (
+                        <ChevronUp className="w-5 h-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedOrg === org.orgId && (
+                  <div className="border-t border-gray-200 p-4 bg-gray-50">
+                    {loadingOrgData[org.orgId] ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+                        <p className="text-sm text-gray-500 mt-2">Loading...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Specialists */}
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                            <Users className="w-5 h-5 mr-2" />
+                            Specialists ({orgSpecialists[org.orgId]?.length || 0})
+                          </h4>
+                          {orgSpecialists[org.orgId] && orgSpecialists[org.orgId].length > 0 ? (
+                            <div className="space-y-2">
+                              {orgSpecialists[org.orgId].map((spec: any) => (
+                                <div
+                                  key={spec.uid}
+                                  className="bg-white p-3 rounded border border-gray-200"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="font-medium text-gray-900">{spec.name}</p>
+                                      <p className="text-sm text-gray-500">{spec.email}</p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        Role: {spec.role}
+                                      </p>
+                                    </div>
+                                    {spec.joinedAt && (
+                                      <p className="text-xs text-gray-400">
+                                        Joined: {new Date(spec.joinedAt).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">No specialists yet</p>
+                          )}
+                        </div>
+
+                        {/* Parents */}
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                            <UserPlus className="w-5 h-5 mr-2" />
+                            Parents ({orgParents[org.orgId]?.length || 0})
+                          </h4>
+                          {orgParents[org.orgId] && orgParents[org.orgId].length > 0 ? (
+                            <div className="space-y-3">
+                              {orgParents[org.orgId].map((parent: any) => (
+                                <div
+                                  key={parent.id}
+                                  className="bg-white p-3 rounded border border-gray-200"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <p className="font-medium text-gray-900">{parent.name}</p>
+                                      {parent.email && (
+                                        <p className="text-sm text-gray-500">{parent.email}</p>
+                                      )}
+                                      {parent.createdAt && (
+                                        <p className="text-xs text-gray-400 mt-1">
+                                          Linked: {new Date(parent.createdAt).toLocaleDateString()}
+                                        </p>
+                                      )}
+
+                                      {/* Children for this parent */}
+                                      {parent.linkedChildren && parent.linkedChildren.length > 0 ? (
+                                        <div className="mt-3 pt-3 border-t border-gray-100">
+                                          <p className="text-xs font-medium text-gray-700 mb-2">
+                                            Children ({parent.linkedChildren.length}):
+                                          </p>
+                                          <div className="space-y-2">
+                                            {parent.linkedChildren.map((child: any) => (
+                                              <div
+                                                key={child.id}
+                                                className="bg-gray-50 p-2 rounded text-sm"
+                                              >
+                                                <p className="font-medium text-gray-900">
+                                                  {child.name}
+                                                </p>
+                                                {child.age && (
+                                                  <p className="text-xs text-gray-500">
+                                                    Age: {child.age}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="mt-3 pt-3 border-t border-gray-100">
+                                          <p className="text-xs text-gray-400">
+                                            No children linked yet
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">No parents yet</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-                <p className="text-xs text-gray-400 mt-2">ID: {org.orgId}</p>
               </div>
             ))}
           </div>
@@ -572,18 +735,30 @@ export default function AdminPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Code
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Organization
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Expires
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {invites.map((invite) => (
                   <tr key={invite.code}>
                     <td className="px-4 py-3">
-                      <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{invite.code}</code>
+                      <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                        {invite.code}
+                      </code>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">{invite.orgName}</td>
                     <td className="px-4 py-3">
@@ -625,10 +800,18 @@ export default function AdminPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Sign In</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Created
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Last Sign In
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">

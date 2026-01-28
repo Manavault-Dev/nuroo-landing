@@ -11,7 +11,7 @@ export default function ChildrenPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const orgId = searchParams.get('orgId') || 'default-org'
-  
+
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -58,10 +58,7 @@ export default function ChildrenPage() {
     <div className="p-8">
       <div className="mb-8">
         <div className="flex items-center space-x-4 mb-2">
-          <Link
-            href="/b2b"
-            className="text-gray-600 hover:text-gray-900 transition-colors"
-          >
+          <Link href="/b2b" className="text-gray-600 hover:text-gray-900 transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-900">Children</h2>
@@ -76,7 +73,9 @@ export default function ChildrenPage() {
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No children assigned</h3>
-            <p className="text-gray-600">Children assigned to your organization will appear here.</p>
+            <p className="text-gray-600">
+              Children assigned to your organization will appear here.
+            </p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -99,12 +98,16 @@ export default function ChildrenPage() {
                         {child.speechStepNumber && (
                           <div>
                             <span className="text-gray-600">Current step:</span>{' '}
-                            <span className="font-medium text-gray-900">Step {child.speechStepNumber}</span>
+                            <span className="font-medium text-gray-900">
+                              Step {child.speechStepNumber}
+                            </span>
                           </div>
                         )}
                         <div>
                           <span className="text-gray-600">Tasks completed:</span>{' '}
-                          <span className="font-medium text-gray-900">{child.completedTasksCount}</span>
+                          <span className="font-medium text-gray-900">
+                            {child.completedTasksCount}
+                          </span>
                         </div>
                         {child.lastActiveDate && (
                           <div>

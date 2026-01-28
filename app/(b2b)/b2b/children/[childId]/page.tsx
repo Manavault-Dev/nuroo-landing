@@ -4,8 +4,28 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type ChildDetail, type SpecialistNote, type TimelineResponse, type ParentInfo } from '@/lib/b2b/api'
-import { ArrowLeft, MessageSquare, Send, Calendar, CheckCircle, Clock, AlertCircle, Smile, Meh, Frown, User, Mail, Link2 } from 'lucide-react'
+import {
+  apiClient,
+  type ChildDetail,
+  type SpecialistNote,
+  type TimelineResponse,
+  type ParentInfo,
+} from '@/lib/b2b/api'
+import {
+  ArrowLeft,
+  MessageSquare,
+  Send,
+  Calendar,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Smile,
+  Meh,
+  Frown,
+  User,
+  Mail,
+  Link2,
+} from 'lucide-react'
 
 export default function ChildDetailPage() {
   const router = useRouter()
@@ -74,7 +94,13 @@ export default function ChildDetailPage() {
       }
       apiClient.setToken(idToken)
 
-      const newNote = await apiClient.createNote(orgId, childId, noteContent.trim(), undefined, visibleToParent)
+      const newNote = await apiClient.createNote(
+        orgId,
+        childId,
+        noteContent.trim(),
+        undefined,
+        visibleToParent
+      )
       const updatedNotes = await apiClient.getNotes(orgId, childId)
       setNotes(updatedNotes)
       setNoteContent('')
@@ -103,7 +129,9 @@ export default function ChildDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Child not found</h3>
-          <p className="text-gray-600 mb-4">{error || "The child profile you're looking for doesn't exist."}</p>
+          <p className="text-gray-600 mb-4">
+            {error || "The child profile you're looking for doesn't exist."}
+          </p>
           <Link
             href={`/b2b/children?orgId=${orgId}`}
             className="text-primary-600 hover:text-primary-700 font-medium"
@@ -164,9 +192,7 @@ export default function ChildDetailPage() {
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{childDetail.name}</h2>
-            {childDetail.age && (
-              <p className="text-sm text-gray-600 mt-1">Age {childDetail.age}</p>
-            )}
+            {childDetail.age && <p className="text-sm text-gray-600 mt-1">Age {childDetail.age}</p>}
           </div>
         </div>
       </div>
@@ -210,18 +236,22 @@ export default function ChildDetailPage() {
               {timeline && timeline.days.length > 0 ? (
                 <div className="space-y-4">
                   {timeline.days
-                    .filter(day => day.tasksAttempted > 0 || day.feedback)
+                    .filter((day) => day.tasksAttempted > 0 || day.feedback)
                     .map((day) => (
                       <div
                         key={day.date}
                         className="border-l-2 border-gray-200 pl-4 pb-4 last:pb-0"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-gray-900">{formatDate(day.date)}</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {formatDate(day.date)}
+                          </p>
                           {day.feedback && (
                             <div className="flex items-center space-x-1">
                               {getFeedbackIcon(day.feedback.mood)}
-                              <span className="text-xs text-gray-500 capitalize">{day.feedback.mood}</span>
+                              <span className="text-xs text-gray-500 capitalize">
+                                {day.feedback.mood}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -237,7 +267,8 @@ export default function ChildDetailPage() {
                         </div>
                       </div>
                     ))}
-                  {timeline.days.filter(day => day.tasksAttempted > 0 || day.feedback).length === 0 && (
+                  {timeline.days.filter((day) => day.tasksAttempted > 0 || day.feedback).length ===
+                    0 && (
                     <p className="text-gray-600 text-sm py-4">No activity in the last 30 days.</p>
                   )}
                 </div>
@@ -273,8 +304,8 @@ export default function ChildDetailPage() {
                           task.status === 'completed'
                             ? 'bg-success-100 text-success-700'
                             : task.status === 'in-progress'
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-gray-100 text-gray-700'
+                              ? 'bg-primary-100 text-primary-700'
+                              : 'bg-gray-100 text-gray-700'
                         }`}
                       >
                         {task.status}
@@ -409,7 +440,9 @@ export default function ChildDetailPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <p className="text-sm font-semibold text-gray-900">{note.specialistName}</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {note.specialistName}
+                          </p>
                           {note.visibleToParent === false && (
                             <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
                               Private
@@ -418,7 +451,10 @@ export default function ChildDetailPage() {
                         </div>
                         <p className="text-xs text-gray-500">
                           {new Date(note.createdAt).toLocaleDateString()}{' '}
-                          {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(note.createdAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </p>
                       </div>
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.text}</p>
