@@ -1,7 +1,22 @@
 {
-  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "app/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "components/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "lib/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "src/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "types/**/*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "backend/src/routes/**/*.ts": [
+    "eslint --fix --config backend/.eslintrc.json",
+    "prettier --write"
+  ],
+  "backend/src/plugins/**/*.ts": [
+    "eslint --fix --config backend/.eslintrc.json",
+    "prettier --write"
+  ],
+  "backend/src/{config,firebaseAdmin,index,types}.ts": [
+    "eslint --fix --config backend/.eslintrc.json",
+    "prettier --write"
+  ],
   "*.{js,jsx,mjs}": ["eslint --fix", "prettier --write"],
   "*.{json,md,yml,yaml}": ["prettier --write"],
-  "*.css": ["prettier --write"],
-  "backend/src/**/*.ts": ["eslint --fix --config backend/.eslintrc.json", "prettier --write"]
+  "*.css": ["prettier --write"]
 }

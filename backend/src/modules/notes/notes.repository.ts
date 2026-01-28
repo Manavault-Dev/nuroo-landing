@@ -3,11 +3,14 @@ import { getChildNotesRef, getSpecialistRef } from '../../infrastructure/databas
 import { nowTimestamp } from '../../shared/utils/timestamp.js'
 import type { SpecialistNote } from '../../shared/types/common.js'
 
-export async function findNotesByChildId(childId: string, orgId: string): Promise<SpecialistNote[]> {
+export async function findNotesByChildId(
+  childId: string,
+  orgId: string
+): Promise<SpecialistNote[]> {
   const notesRef = getChildNotesRef(childId)
   const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
-  return notesSnapshot.docs.map(doc => {
+  return notesSnapshot.docs.map((doc) => {
     const data = doc.data()
     return {
       id: doc.id,

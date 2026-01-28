@@ -1,5 +1,10 @@
 import { apiClient } from '@/src/shared/lib/api'
-import type { ChildSummary, ChildDetail, SpecialistNote, TimelineResponse } from '@/src/shared/types'
+import type {
+  ChildSummary,
+  ChildDetail,
+  SpecialistNote,
+  TimelineResponse,
+} from '@/src/shared/types'
 
 export const childrenApi = {
   getChildren: (orgId: string) => {
@@ -11,7 +16,9 @@ export const childrenApi = {
   },
 
   getTimeline: (orgId: string, childId: string, days: number = 30) => {
-    return apiClient.get<TimelineResponse>(`/orgs/${orgId}/children/${childId}/timeline?days=${days}`)
+    return apiClient.get<TimelineResponse>(
+      `/orgs/${orgId}/children/${childId}/timeline?days=${days}`
+    )
   },
 
   getNotes: (orgId: string, childId: string) => {
@@ -19,6 +26,9 @@ export const childrenApi = {
   },
 
   createNote: (orgId: string, childId: string, text: string, tags?: string[]) => {
-    return apiClient.post<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, { text, tags })
+    return apiClient.post<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
+      text,
+      tags,
+    })
   },
 }

@@ -25,7 +25,9 @@ export async function assignChildToSpecialist(
     assignedAt: nowTimestamp(),
   })
 
-  console.log(`[ASSIGNMENTS] Child ${childId} assigned to specialist ${specialistId} in org ${orgId}`)
+  console.log(
+    `[ASSIGNMENTS] Child ${childId} assigned to specialist ${specialistId} in org ${orgId}`
+  )
 }
 
 export async function unassignChildFromSpecialist(orgId: string, childId: string) {

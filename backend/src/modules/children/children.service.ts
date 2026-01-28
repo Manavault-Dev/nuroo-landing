@@ -6,7 +6,11 @@ import {
 } from './children.repository.js'
 import type { ChildSummary, ChildDetail, TimelineResponse } from '../../shared/types/common.js'
 
-export async function listChildren(orgId: string, role: string, uid: string): Promise<ChildSummary[]> {
+export async function listChildren(
+  orgId: string,
+  role: string,
+  uid: string
+): Promise<ChildSummary[]> {
   console.log('[CHILDREN] Organization:', orgId)
 
   const childIds = await findOrgChildren(orgId, role, uid)
@@ -32,7 +36,10 @@ export async function listChildren(orgId: string, role: string, uid: string): Pr
   return children
 }
 
-export async function getChildDetailById(orgId: string, childId: string): Promise<ChildDetail | null> {
+export async function getChildDetailById(
+  orgId: string,
+  childId: string
+): Promise<ChildDetail | null> {
   return getChildDetailRepo(childId, orgId)
 }
 

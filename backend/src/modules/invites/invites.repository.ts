@@ -121,12 +121,7 @@ export async function createOrgMembership(orgId: string, uid: string, role: stri
   })
 }
 
-export async function upsertSpecialist(
-  uid: string,
-  email: string,
-  orgId: string,
-  role: string
-) {
+export async function upsertSpecialist(uid: string, email: string, orgId: string, role: string) {
   const specialistRef = getSpecialistRef(uid)
   const specialistSnap = await specialistRef.get()
   const now = nowTimestamp()
@@ -232,11 +227,13 @@ export async function upsertParent(parentUid: string, orgId: string, childId: st
   } else {
     await parentRef.set({
       uid: parentUid,
-      linkedOrganizations: [{
-        orgId,
-        orgName,
-        linkedAt: now,
-      }],
+      linkedOrganizations: [
+        {
+          orgId,
+          orgName,
+          linkedAt: now,
+        },
+      ],
       linkedChildren: [childId],
       createdAt: now,
       updatedAt: now,

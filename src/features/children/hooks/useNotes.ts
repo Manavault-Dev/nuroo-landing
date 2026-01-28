@@ -29,23 +29,26 @@ export function useNotes(orgId: string | undefined, childId: string | undefined)
     }
   }, [orgId, childId])
 
-  const createNote = useCallback(async (text: string, tags?: string[]) => {
-    if (!orgId || !childId) return null
+  const createNote = useCallback(
+    async (text: string, tags?: string[]) => {
+      if (!orgId || !childId) return null
 
-    setCreating(true)
-    setError(null)
+      setCreating(true)
+      setError(null)
 
-    try {
-      const note = await childrenApi.createNote(orgId, childId, text, tags)
-      setNotes(prev => [note, ...prev])
-      return note
-    } catch (err: any) {
-      setError(err.message)
-      return null
-    } finally {
-      setCreating(false)
-    }
-  }, [orgId, childId])
+      try {
+        const note = await childrenApi.createNote(orgId, childId, text, tags)
+        setNotes((prev) => [note, ...prev])
+        return note
+      } catch (err: any) {
+        setError(err.message)
+        return null
+      } finally {
+        setCreating(false)
+      }
+    },
+    [orgId, childId]
+  )
 
   useEffect(() => {
     fetchNotes()

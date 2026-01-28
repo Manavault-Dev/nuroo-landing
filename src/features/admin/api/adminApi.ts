@@ -20,7 +20,10 @@ export const adminApi = {
   },
 
   createOrganization: (name: string, country?: string) => {
-    return apiClient.post<{ ok: boolean; orgId: string; name: string; country: string | null }>('/admin/organizations', { name, country })
+    return apiClient.post<{ ok: boolean; orgId: string; name: string; country: string | null }>(
+      '/admin/organizations',
+      { name, country }
+    )
   },
 
   // Invites
@@ -52,19 +55,34 @@ export const adminApi = {
 
   // Super Admin Management
   listSuperAdmins: () => {
-    return apiClient.get<{ ok: boolean; superAdmins: SuperAdmin[]; count: number }>('/admin/super-admin')
+    return apiClient.get<{ ok: boolean; superAdmins: SuperAdmin[]; count: number }>(
+      '/admin/super-admin'
+    )
   },
 
   grantSuperAdmin: (email: string) => {
-    return apiClient.post<{ ok: boolean; message: string; uid: string; email: string; note: string }>('/admin/super-admin', { email })
+    return apiClient.post<{
+      ok: boolean
+      message: string
+      uid: string
+      email: string
+      note: string
+    }>('/admin/super-admin', { email })
   },
 
   removeSuperAdmin: (uid: string) => {
-    return apiClient.delete<{ ok: boolean; message: string; uid: string; email: string }>(`/admin/super-admin/${uid}`)
+    return apiClient.delete<{ ok: boolean; message: string; uid: string; email: string }>(
+      `/admin/super-admin/${uid}`
+    )
   },
 
   // Dev check
   checkSuperAdmin: () => {
-    return apiClient.get<{ uid: string; email: string | undefined; isSuperAdmin: boolean; claims?: any }>('/dev/check-super-admin')
+    return apiClient.get<{
+      uid: string
+      email: string | undefined
+      isSuperAdmin: boolean
+      claims?: any
+    }>('/dev/check-super-admin')
   },
 }

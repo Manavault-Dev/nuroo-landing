@@ -6,7 +6,7 @@ export async function findParents(orgId: string) {
   const parentsRef = getOrgParentsRef(orgId)
   const parentsSnap = await parentsRef.get()
 
-  return parentsSnap.docs.map(doc => ({
+  return parentsSnap.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: toISOString(doc.data().createdAt),

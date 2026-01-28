@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
-import { Plus, Video, FileText, BookOpen, CheckSquare, Trash2, Edit2, Loader2, X } from 'lucide-react'
+import {
+  Plus,
+  Video,
+  FileText,
+  BookOpen,
+  CheckSquare,
+  Trash2,
+  Edit2,
+  Loader2,
+  X,
+} from 'lucide-react'
 
 type ContentType = 'tasks' | 'roadmaps' | 'materials' | 'videos'
 
@@ -184,18 +194,20 @@ export default function ContentPage() {
       const wasEditing = !!editingItem
       const action = wasEditing ? 'updated' : 'created'
       const contentType = activeTab.slice(0, -1)
-      
+
       setIsModalOpen(false)
       setEditingItem(null)
       setFormData({})
       await loadContent()
-      
+
       setTimeout(() => {
         alert(`Successfully ${action} ${contentType}!`)
       }, 100)
     } catch (error: any) {
       console.error('Error saving content:', error)
-      alert(error.message || `Failed to ${editingItem ? 'update' : 'create'} ${activeTab.slice(0, -1)}`)
+      alert(
+        error.message || `Failed to ${editingItem ? 'update' : 'create'} ${activeTab.slice(0, -1)}`
+      )
     } finally {
       setSaving(false)
     }
@@ -303,7 +315,9 @@ export default function ContentPage() {
               <input
                 type="number"
                 value={formData.estimatedDuration || ''}
-                onChange={(e) => updateFormField('estimatedDuration', parseInt(e.target.value) || undefined)}
+                onChange={(e) =>
+                  updateFormField('estimatedDuration', parseInt(e.target.value) || undefined)
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Enter duration"
               />
@@ -332,7 +346,9 @@ export default function ContentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Materials (one per line)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Materials (one per line)
+              </label>
               <textarea
                 value={formData.materials ? formData.materials.join('\n') : ''}
                 onChange={(e) => {
@@ -349,7 +365,9 @@ export default function ContentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (one per line)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Instructions (one per line)
+              </label>
               <textarea
                 value={formData.instructions ? formData.instructions.join('\n') : ''}
                 onChange={(e) => {
@@ -357,7 +375,10 @@ export default function ContentPage() {
                     .split('\n')
                     .map((i) => i.trim())
                     .filter((i) => i.length > 0)
-                  updateFormField('instructions', instructions.length > 0 ? instructions : undefined)
+                  updateFormField(
+                    'instructions',
+                    instructions.length > 0 ? instructions : undefined
+                  )
                 }}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -409,7 +430,9 @@ export default function ContentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tags (comma-separated)
+              </label>
               <input
                 type="text"
                 value={formData.tags ? formData.tags.join(', ') : ''}
@@ -429,7 +452,9 @@ export default function ContentPage() {
 
         {isRoadmap && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Steps (JSON format)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Steps (JSON format)
+            </label>
             <textarea
               value={formData.steps ? JSON.stringify(formData.steps, null, 2) : ''}
               onChange={(e) => {
@@ -456,7 +481,8 @@ export default function ContentPage() {
               placeholder='[{"order": 1, "title": "Step 1", "description": "..."}]'
             />
             <p className="mt-1 text-xs text-gray-500">
-              Enter steps as JSON array. Each step should have: order (number), title (string), description (optional), taskId (optional)
+              Enter steps as JSON array. Each step should have: order (number), title (string),
+              description (optional), taskId (optional)
             </p>
           </div>
         )}
@@ -487,7 +513,9 @@ export default function ContentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (seconds)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Duration (seconds)
+              </label>
               <input
                 type="number"
                 value={formData.duration || ''}
@@ -498,7 +526,9 @@ export default function ContentPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tags (comma-separated)
+              </label>
               <input
                 type="text"
                 value={formData.tags ? formData.tags.join(', ') : ''}
@@ -592,7 +622,8 @@ export default function ContentPage() {
   }
 
   const currentItems = getCurrentItems()
-  const contentTypeLabel = activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
+  const contentTypeLabel =
+    activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
 
   return (
     <div className="p-8">
@@ -720,7 +751,8 @@ export default function ContentPage() {
                 )}
                 {item.type && (
                   <div>
-                    <span className="font-medium">Type:</span> <span className="capitalize">{item.type}</span>
+                    <span className="font-medium">Type:</span>{' '}
+                    <span className="capitalize">{item.type}</span>
                   </div>
                 )}
                 {item.tags && item.tags.length > 0 && (
@@ -747,7 +779,8 @@ export default function ContentPage() {
                 )}
                 {item.instructions && item.instructions.length > 0 && (
                   <div>
-                    <span className="font-medium">Instructions:</span> {item.instructions.length} step(s)
+                    <span className="font-medium">Instructions:</span> {item.instructions.length}{' '}
+                    step(s)
                   </div>
                 )}
                 {item.steps && item.steps.length > 0 && (

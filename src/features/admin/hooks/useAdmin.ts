@@ -40,54 +40,66 @@ export function useAdmin() {
     }
   }, [])
 
-  const createOrganization = useCallback(async (name: string, country?: string) => {
-    try {
-      const result = await adminApi.createOrganization(name, country)
-      await fetchAll() // Refresh data
-      return result
-    } catch (err: any) {
-      setError(err.message)
-      throw err
-    }
-  }, [fetchAll])
+  const createOrganization = useCallback(
+    async (name: string, country?: string) => {
+      try {
+        const result = await adminApi.createOrganization(name, country)
+        await fetchAll() // Refresh data
+        return result
+      } catch (err: any) {
+        setError(err.message)
+        throw err
+      }
+    },
+    [fetchAll]
+  )
 
-  const generateInvite = useCallback(async (data: {
-    orgId: string
-    role: 'org_admin' | 'specialist' | 'parent'
-    expiresAt?: string
-    maxUses?: number
-  }) => {
-    try {
-      const result = await adminApi.generateInviteCode(data)
-      await fetchAll() // Refresh data
-      return result
-    } catch (err: any) {
-      setError(err.message)
-      throw err
-    }
-  }, [fetchAll])
+  const generateInvite = useCallback(
+    async (data: {
+      orgId: string
+      role: 'org_admin' | 'specialist' | 'parent'
+      expiresAt?: string
+      maxUses?: number
+    }) => {
+      try {
+        const result = await adminApi.generateInviteCode(data)
+        await fetchAll() // Refresh data
+        return result
+      } catch (err: any) {
+        setError(err.message)
+        throw err
+      }
+    },
+    [fetchAll]
+  )
 
-  const grantSuperAdmin = useCallback(async (email: string) => {
-    try {
-      const result = await adminApi.grantSuperAdmin(email)
-      await fetchAll() // Refresh data
-      return result
-    } catch (err: any) {
-      setError(err.message)
-      throw err
-    }
-  }, [fetchAll])
+  const grantSuperAdmin = useCallback(
+    async (email: string) => {
+      try {
+        const result = await adminApi.grantSuperAdmin(email)
+        await fetchAll() // Refresh data
+        return result
+      } catch (err: any) {
+        setError(err.message)
+        throw err
+      }
+    },
+    [fetchAll]
+  )
 
-  const removeSuperAdmin = useCallback(async (uid: string) => {
-    try {
-      const result = await adminApi.removeSuperAdmin(uid)
-      await fetchAll() // Refresh data
-      return result
-    } catch (err: any) {
-      setError(err.message)
-      throw err
-    }
-  }, [fetchAll])
+  const removeSuperAdmin = useCallback(
+    async (uid: string) => {
+      try {
+        const result = await adminApi.removeSuperAdmin(uid)
+        await fetchAll() // Refresh data
+        return result
+      } catch (err: any) {
+        setError(err.message)
+        throw err
+      }
+    },
+    [fetchAll]
+  )
 
   useEffect(() => {
     fetchAll()

@@ -1,11 +1,14 @@
 import { apiClient } from '@/src/shared/lib/api'
 
 export const invitesApi = {
-  createOrgInvite: (orgId: string, options?: {
-    role?: 'specialist' | 'admin'
-    maxUses?: number
-    expiresInDays?: number
-  }) => {
+  createOrgInvite: (
+    orgId: string,
+    options?: {
+      role?: 'specialist' | 'admin'
+      maxUses?: number
+      expiresInDays?: number
+    }
+  ) => {
     return apiClient.post<{
       ok: boolean
       inviteCode: string

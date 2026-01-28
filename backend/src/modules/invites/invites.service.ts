@@ -22,13 +22,7 @@ export async function createSpecialistOrgInvite(
   createdBy: string,
   input: CreateOrgInviteInput
 ) {
-  return createOrgInvite(
-    orgId,
-    input.role,
-    createdBy,
-    input.expiresInDays,
-    input.maxUses
-  )
+  return createOrgInvite(orgId, input.role, createdBy, input.expiresInDays, input.maxUses)
 }
 
 export async function joinOrganization(uid: string, email: string, input: JoinOrgInput) {
@@ -141,12 +135,18 @@ export async function acceptInviteCode(uid: string, email: string, input: Accept
   // Handle role-based joining
   if (role === 'org_admin' || role === 'specialist') {
     await createOrgMembership(orgId, uid, role === 'org_admin' ? 'org_admin' : 'specialist')
-    await upsertSpecialist(uid, email || '', orgId, role === 'org_admin' ? 'org_admin' : 'specialist')
+    await upsertSpecialist(
+      uid,
+      email || '',
+      orgId,
+      role === 'org_admin' ? 'org_admin' : 'specialist'
+    )
 
     console.log(`[INVITES] User ${uid} joined org ${orgId} as ${role}`)
   } else if (role === 'parent') {
     return {
-      error: 'Parent invites cannot be accepted through this endpoint. Parents are contact-only and do not authenticate. Please contact your organization admin to add parent contacts.',
+      error:
+        'Parent invites cannot be accepted through this endpoint. Parents are contact-only and do not authenticate. Please contact your organization admin to add parent contacts.',
       code: 400,
     }
   } else {

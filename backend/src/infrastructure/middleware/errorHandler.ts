@@ -2,18 +2,14 @@ import { FastifyError, FastifyReply, FastifyRequest } from 'fastify'
 import { ZodError } from 'zod'
 import { AppError } from '../../shared/errors/AppError.js'
 
-export function errorHandler(
-  error: FastifyError,
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
+export function errorHandler(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
   request.log.error(error)
 
   // Handle Zod validation errors
   if (error instanceof ZodError) {
     return reply.code(400).send({
       error: 'Validation error',
-      details: error.errors.map(e => ({
+      details: error.errors.map((e) => ({
         path: e.path.join('.'),
         message: e.message,
       })),

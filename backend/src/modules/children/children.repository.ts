@@ -9,7 +9,12 @@ import {
   getParentRef,
   getFirestore,
 } from '../../infrastructure/database/collections.js'
-import type { ChildSummary, ChildDetail, ActivityDay, ParentInfo } from '../../shared/types/common.js'
+import type {
+  ChildSummary,
+  ChildDetail,
+  ActivityDay,
+  ParentInfo,
+} from '../../shared/types/common.js'
 
 export async function findOrgChildren(orgId: string, role: string, uid: string): Promise<string[]> {
   const orgChildrenRef = getOrgChildrenRef(orgId)
@@ -24,7 +29,7 @@ export async function findOrgChildren(orgId: string, role: string, uid: string):
       .get()
   }
 
-  return assignedChildrenSnap.docs.map(doc => doc.id)
+  return assignedChildrenSnap.docs.map((doc) => doc.id)
 }
 
 export async function getChildSummary(childId: string): Promise<ChildSummary | null> {
@@ -83,7 +88,7 @@ export async function getChildDetail(childId: string, orgId: string): Promise<Ch
   const tasksRef = getChildTasksRef(childId)
   const tasksSnapshot = await tasksRef.orderBy('updatedAt', 'desc').limit(10).get()
 
-  const recentTasks = tasksSnapshot.docs.map(doc => {
+  const recentTasks = tasksSnapshot.docs.map((doc) => {
     const taskData = doc.data()
     return {
       id: doc.id,
@@ -168,7 +173,7 @@ export async function getChildTimeline(childId: string, days: number): Promise<A
 
   const activityMap = new Map<string, { attempted: number; completed: number }>()
 
-  tasksSnapshot.docs.forEach(doc => {
+  tasksSnapshot.docs.forEach((doc) => {
     const taskData = doc.data()
     const updatedAt = taskData.updatedAt?.toDate() || new Date()
     const dateKey = updatedAt.toISOString().split('T')[0]
@@ -187,13 +192,14 @@ export async function getChildTimeline(childId: string, days: number): Promise<A
 
   // Get feedback
   const feedbackRef = getChildFeedbackRef(childId)
-  const feedbackSnapshot = await feedbackRef
-    .where('timestamp', '>=', startTimestamp)
-    .get()
+  const feedbackSnapshot = await feedbackRef.where('timestamp', '>=', startTimestamp).get()
 
-  const feedbackMap = new Map<string, { mood: 'good' | 'ok' | 'hard'; comment?: string; timestamp: Date }>()
+  const feedbackMap = new Map<
+    string,
+    { mood: 'good' | 'ok' | 'hard'; comment?: string; timestamp: Date }
+  >()
 
-  feedbackSnapshot.docs.forEach(doc => {
+  feedbackSnapshot.docs.forEach((doc) => {
     const feedbackData = doc.data()
     const timestamp = feedbackData.timestamp?.toDate() || new Date()
     const dateKey = timestamp.toISOString().split('T')[0]
@@ -217,11 +223,13 @@ export async function getChildTimeline(childId: string, days: number): Promise<A
       date: dateKey,
       tasksAttempted: activity.attempted,
       tasksCompleted: activity.completed,
-      feedback: feedback ? {
-        mood: feedback.mood,
-        comment: feedback.comment,
-        timestamp: feedback.timestamp,
-      } : undefined,
+      feedback: feedback
+        ? {
+            mood: feedback.mood,
+            comment: feedback.comment,
+            timestamp: feedback.timestamp,
+          }
+        : undefined,
     })
   }
 

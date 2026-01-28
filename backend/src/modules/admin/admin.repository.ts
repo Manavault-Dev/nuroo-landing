@@ -15,12 +15,12 @@ export async function findOrganizationsByCreator(uid: string) {
   let orgsSnapshot
 
   interface OrgData {
-  name: string
-  country?: string | null
-  createdAt:  admin.firestore.Timestamp | null
-  createdBy?: string | null
-  isActive?: boolean
-}
+    name: string
+    country?: string | null
+    createdAt: admin.firestore.Timestamp | null
+    createdBy?: string | null
+    isActive?: boolean
+  }
 
   try {
     orgsSnapshot = await getOrganizationsRef()
@@ -31,9 +31,7 @@ export async function findOrganizationsByCreator(uid: string) {
     // If orderBy fails (missing index), try without orderBy
     if (error.code === 9 || error.message?.includes('index')) {
       console.warn('[ADMIN] Index missing, fetching without orderBy')
-      orgsSnapshot = await getOrganizationsRef()
-        .where('createdBy', '==', uid)
-        .get()
+      orgsSnapshot = await getOrganizationsRef().where('createdBy', '==', uid).get()
 
       // Sort manually
       const docs = orgsSnapshot.docs.sort((a, b) => {
@@ -103,7 +101,11 @@ export async function findOrganization(orgId: string) {
   return orgSnap.exists ? orgSnap.data()! : null
 }
 
-export async function createAdminInvite(uid: string, input: CreateAdminInviteInput, frontendUrl: string) {
+export async function createAdminInvite(
+  uid: string,
+  input: CreateAdminInviteInput,
+  frontendUrl: string
+) {
   const org = await findOrganization(input.orgId)
 
   if (!org) {
@@ -165,7 +167,11 @@ export async function createAdminInvite(uid: string, input: CreateAdminInviteInp
   }
 }
 
-export async function findInvitesByOrgIds(orgIds: string[], frontendUrl: string, limit: number = 50) {
+export async function findInvitesByOrgIds(
+  orgIds: string[],
+  frontendUrl: string,
+  limit: number = 50
+) {
   if (orgIds.length === 0) {
     return []
   }
@@ -219,8 +225,8 @@ export async function listSuperAdmins() {
   const listUsersResult = await auth.listUsers(1000)
 
   return listUsersResult.users
-    .filter(user => user.customClaims?.superAdmin === true)
-    .map(user => ({
+    .filter((user) => user.customClaims?.superAdmin === true)
+    .map((user) => ({
       uid: user.uid,
       email: user.email || '',
       displayName: user.displayName || null,
