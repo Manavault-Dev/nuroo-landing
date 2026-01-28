@@ -32,7 +32,7 @@ export function initializeFirebaseAdmin() {
       console.log(`📋 [FIREBASE] Using project: ${projectId}`)
       return app
     }
-    
+
     if (config.GOOGLE_APPLICATION_CREDENTIALS) {
       app = admin.initializeApp({
         credential: admin.credential.applicationDefault(),

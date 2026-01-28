@@ -17,6 +17,9 @@ import { parentsRoute } from './routes/parents.js'
 import { assignmentsRoute } from './routes/assignments.js'
 import { superAdminManagementRoute } from './routes/superAdminManagement.js'
 import { bootstrapRoute } from './routes/bootstrap.js'
+import { teamRoute } from './routes/team.js'
+import { groupsRoute } from './routes/groups.js'
+import { contentRoute } from './routes/content.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -34,9 +37,10 @@ async function buildServer() {
   initializeFirebaseAdmin()
 
   await fastify.register(cors, {
-    origin: config.NODE_ENV === 'production' 
-      ? ['https://usenuroo.com'] 
-      : ['http://localhost:3000', 'http://localhost:3001'],
+    origin:
+      config.NODE_ENV === 'production'
+        ? ['https://usenuroo.com']
+        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'],
     credentials: true,
   })
 
@@ -65,10 +69,10 @@ async function buildServer() {
       const token = authHeader.substring(7)
       const auth = getAuth()
       const decodedToken = await auth.verifyIdToken(token)
-      request.user = { 
-        uid: decodedToken.uid, 
+      request.user = {
+        uid: decodedToken.uid,
         email: decodedToken.email,
-        claims: decodedToken
+        claims: decodedToken,
       }
     } catch (error: any) {
       console.error('❌ [AUTH] Token verification failed:', error.message)
@@ -91,6 +95,9 @@ async function buildServer() {
   await fastify.register(assignmentsRoute)
   await fastify.register(superAdminManagementRoute)
   await fastify.register(bootstrapRoute)
+  await fastify.register(teamRoute)
+  await fastify.register(groupsRoute)
+  await fastify.register(contentRoute)
 
   return fastify
 }
@@ -108,4 +115,4 @@ async function start() {
   }
 }
 
-start()
+void start()
