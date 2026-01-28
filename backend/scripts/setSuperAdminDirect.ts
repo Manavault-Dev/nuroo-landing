@@ -1,10 +1,10 @@
 /**
  * Simple script to set Super Admin claim
  * Run this directly with Node.js (not through npm script)
- * 
+ *
  * Usage:
  *   node scripts/setSuperAdminDirect.js nuroo@gmail.com
- * 
+ *
  * Or with tsx:
  *   npx tsx scripts/setSuperAdminDirect.ts nuroo@gmail.com
  */
@@ -37,7 +37,9 @@ async function setSuperAdmin() {
 
     if (!projectId || !clientEmail || !privateKey) {
       console.error('❌ Firebase Admin credentials not found in .env file')
-      console.error('   Make sure you have FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY set')
+      console.error(
+        '   Make sure you have FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY set'
+      )
       process.exit(1)
     }
 
@@ -55,32 +57,37 @@ async function setSuperAdmin() {
     }
 
     const auth = admin.auth()
-    
+
     console.log(`🔍 Looking up user with email: ${email}`)
     const user = await auth.getUserByEmail(email)
-    
+
     console.log(`✅ Found user: ${user.uid} (${user.email})`)
-    
+
     // Set custom claim
     await auth.setCustomUserClaims(user.uid, { superAdmin: true })
-    
+
     console.log(`✅ Super Admin claim set for ${email}`)
     console.log(`\n📝 Important:`)
     console.log(`   - User must refresh their ID token for the claim to take effect`)
     console.log(`   - User should sign out and sign in again`)
     console.log(`   - Or call user.getIdToken(true) to force refresh`)
-    
+
     process.exit(0)
   } catch (error: any) {
     console.error('❌ Error:', error.message)
     if (error.code === 'auth/user-not-found') {
       console.error(`   User with email ${email} not found`)
       console.error(`   Make sure the user is registered first`)
-    } else if (error.code === 'auth/internal-error' || error.message?.includes('PERMISSION_DENIED')) {
+    } else if (
+      error.code === 'auth/internal-error' ||
+      error.message?.includes('PERMISSION_DENIED')
+    ) {
       console.error(`\n⚠️  Permission error detected.`)
       console.error(`   The service account needs additional permissions.`)
       console.error(`   Try using Firebase Console instead:`)
-      console.error(`   1. Go to: https://console.firebase.google.com/project/${process.env.FIREBASE_PROJECT_ID}/authentication/users`)
+      console.error(
+        `   1. Go to: https://console.firebase.google.com/project/${process.env.FIREBASE_PROJECT_ID}/authentication/users`
+      )
       console.error(`   2. Find user ${email}`)
       console.error(`   3. Click three dots → Edit → Custom claims`)
       console.error(`   4. Add: superAdmin = true`)
