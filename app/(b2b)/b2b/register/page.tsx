@@ -11,7 +11,7 @@ function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('invite') || searchParams.get('code') || ''
-  
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,19 +55,21 @@ function RegisterForm() {
       const userCredential = await register(email, password, name)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
-      
+
       // Step 2: Accept invite code (this creates membership)
       console.log('🔗 [REGISTER] Accepting invite code:', inviteCode.trim())
       try {
         const result = await apiClient.acceptInvite(inviteCode.trim())
         console.log('✅ [REGISTER] Successfully joined organization:', result.orgId)
-        
+
         // Redirect to dashboard
         router.push('/b2b')
         return
       } catch (acceptError: any) {
         console.error('❌ [REGISTER] Failed to accept invite:', acceptError)
-        setError(acceptError.message || 'Failed to join organization. Please check your invite code.')
+        setError(
+          acceptError.message || 'Failed to join organization. Please check your invite code.'
+        )
         setLoading(false)
         return
       }
@@ -188,7 +190,10 @@ function RegisterForm() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Confirm Password
               </label>
               <div className="relative">
@@ -224,7 +229,8 @@ function RegisterForm() {
                 placeholder="Enter your invite code"
               />
               <p className="mt-1 text-xs text-gray-500">
-                You need an invite code from your organization administrator to register. Contact them to get your invite code.
+                You need an invite code from your organization administrator to register. Contact
+                them to get your invite code.
               </p>
             </div>
 
@@ -242,7 +248,10 @@ function RegisterForm() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link href="/b2b/login" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link
+                href="/b2b/login"
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
                 Sign in
               </Link>
             </p>
@@ -261,14 +270,16 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <RegisterForm />
     </Suspense>
   )

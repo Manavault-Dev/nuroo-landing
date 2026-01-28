@@ -13,7 +13,8 @@ export default function OrganizationPage() {
   const [loading, setLoading] = useState(true)
 
   const currentOrgId = searchParams.get('orgId') || undefined
-  const currentOrg = profile?.organizations.find(org => org.orgId === currentOrgId) || profile?.organizations[0]
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
 
   useEffect(() => {
@@ -84,7 +85,9 @@ export default function OrganizationPage() {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <Users className="w-4 h-4" />
-                  <span>Your role: <span className="font-medium text-gray-900">Administrator</span></span>
+                  <span>
+                    Your role: <span className="font-medium text-gray-900">Administrator</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -139,5 +142,3 @@ export default function OrganizationPage() {
     </div>
   )
 }
-
-

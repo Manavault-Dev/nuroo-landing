@@ -23,15 +23,15 @@ export default function LoginPage() {
       const userCredential = await signIn(email, password)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
-      
+
       // Check if user is Super Admin first
       const idTokenForCheck = await getIdToken(true) // Force refresh to get latest claims
       apiClient.setToken(idTokenForCheck)
-      
+
       try {
         const superAdminCheck = await apiClient.checkSuperAdmin()
         console.log('🔍 [LOGIN] Super Admin check result:', superAdminCheck)
-        
+
         if (superAdminCheck.isSuperAdmin) {
           console.log('✅ [LOGIN] User is Super Admin, redirecting to admin panel')
           router.push('/b2b/admin')
@@ -43,19 +43,19 @@ export default function LoginPage() {
         console.error('❌ [LOGIN] Failed to check Super Admin status:', superAdminError)
         console.log('⚠️ [LOGIN] Assuming user is not Super Admin, checking organizations')
       }
-      
+
       // Check membership via /me endpoint
       try {
         const profile = await apiClient.getMe()
         console.log('✅ [LOGIN] Profile loaded:', profile)
-        
+
         // If user has no organizations, redirect to join
         if (!profile.organizations || profile.organizations.length === 0) {
           console.log('⚠️  [LOGIN] No organization membership, redirecting to join')
           router.push('/b2b/join')
           return
         }
-        
+
         // User has membership, go to dashboard
         router.push('/b2b')
       } catch (meError: any) {
@@ -150,7 +150,10 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <Link href="/b2b/register" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link
+                href="/b2b/register"
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
                 Register
               </Link>
             </p>
@@ -166,4 +169,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

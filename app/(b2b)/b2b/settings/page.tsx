@@ -60,7 +60,7 @@ export default function SettingsPage() {
       apiClient.setToken(idToken)
 
       await apiClient.createProfile(name)
-      
+
       const updatedProfile = await apiClient.getMe()
       setProfile(updatedProfile)
       setSuccess(true)
@@ -177,7 +177,9 @@ export default function SettingsPage() {
                 >
                   <div>
                     <p className="font-medium text-gray-900">{org.orgName}</p>
-                    <p className="text-sm text-gray-500">Role: {org.role === 'admin' ? 'Administrator' : 'Specialist'}</p>
+                    <p className="text-sm text-gray-500">
+                      Role: {org.role === 'admin' ? 'Administrator' : 'Specialist'}
+                    </p>
                   </div>
                   {org.role === 'admin' && (
                     <span className="px-3 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
@@ -195,5 +197,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-

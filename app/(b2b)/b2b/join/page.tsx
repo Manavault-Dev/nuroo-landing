@@ -29,9 +29,9 @@ export default function JoinPage() {
         }
         apiClient.setToken(idToken)
         const superAdminCheck = await apiClient.checkSuperAdmin()
-        
+
         console.log('🔍 [JOIN] Super Admin check result:', superAdminCheck)
-        
+
         if (superAdminCheck.isSuperAdmin) {
           console.log('✅ [JOIN] User is Super Admin, redirecting to admin panel')
           router.replace('/b2b/admin') // Use replace instead of push to avoid back button issues
@@ -52,7 +52,7 @@ export default function JoinPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    
+
     if (!inviteCode.trim()) {
       setError('Please enter an invite code')
       return
@@ -74,11 +74,11 @@ export default function JoinPage() {
       }
 
       apiClient.setToken(idToken)
-      
+
       // Use new invite acceptance endpoint
       const result = await apiClient.acceptInvite(inviteCode.trim())
       console.log('✅ [JOIN] Successfully joined organization:', result.orgId)
-      
+
       router.push('/b2b')
     } catch (err: any) {
       setError(err.message || 'Failed to join organization. Please check the invite code.')
@@ -150,7 +150,10 @@ export default function JoinPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/b2b/login" className="text-sm font-medium text-primary-600 hover:text-primary-500">
+            <Link
+              href="/b2b/login"
+              className="text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
               Sign out and use a different account
             </Link>
           </div>
@@ -166,6 +169,3 @@ export default function JoinPage() {
     </div>
   )
 }
-
-
-

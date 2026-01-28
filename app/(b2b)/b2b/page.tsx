@@ -49,14 +49,21 @@ export default function DashboardPage() {
 
         const orgId = searchParams.get('orgId') || profileData.organizations[0]?.orgId
         setCurrentOrgId(orgId)
+        console.log('🔍 [DASHBOARD] Loading children for orgId:', orgId)
+        console.log('🔍 [DASHBOARD] Profile organizations:', profileData.organizations)
         if (orgId) {
           try {
+            console.log('🔍 [DASHBOARD] Calling apiClient.getChildren with orgId:', orgId)
             const childrenData = await apiClient.getChildren(orgId)
+            console.log('✅ [DASHBOARD] Received children data:', childrenData)
+            console.log('✅ [DASHBOARD] Children count:', childrenData.length)
             setChildren(childrenData)
           } catch (error) {
-            console.error('Failed to load children:', error)
+            console.error('❌ [DASHBOARD] Failed to load children:', error)
+            console.error('❌ [DASHBOARD] Error details:', error)
           }
         } else {
+          console.warn('⚠️ [DASHBOARD] No orgId found, redirecting to join')
           router.push('/b2b/join')
         }
       } catch (error) {
@@ -82,7 +89,8 @@ export default function DashboardPage() {
   }
 
   const orgId = searchParams.get('orgId') || profile?.organizations[0]?.orgId || currentOrgId
-  const currentOrg = profile?.organizations.find(org => org.orgId === orgId) || profile?.organizations[0]
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === orgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
 
   return (
@@ -92,7 +100,9 @@ export default function DashboardPage() {
           Welcome back, {profile?.name || 'Specialist'}!
         </h2>
         <p className="text-gray-600 mt-2">
-          {isAdmin ? 'Manage your organization and track children\'s progress.' : 'Here\'s an overview of your assigned children.'}
+          {isAdmin
+            ? "Manage your organization and track children's progress."
+            : "Here's an overview of your assigned children."}
         </p>
       </div>
 
@@ -142,7 +152,10 @@ export default function DashboardPage() {
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-600">Total Tasks Completed</p>
               {(() => {
-                const totalTasks = children.reduce((sum, child) => sum + child.completedTasksCount, 0)
+                const totalTasks = children.reduce(
+                  (sum, child) => sum + child.completedTasksCount,
+                  0
+                )
                 return totalTasks === 0 && children.length === 0 ? (
                   <p className="text-sm text-gray-500 mt-2">No tasks completed yet</p>
                 ) : (
@@ -193,7 +206,13 @@ export default function DashboardPage() {
                       }
                       apiClient.setToken(idToken)
 
-                      const invite = await apiClient.createParentInvite()
+                      // Get current org ID
+                      const currentOrgId = profile?.organizations[0]?.orgId
+                      if (!currentOrgId) {
+                        alert('Please select an organization first')
+                        return
+                      }
+                      const invite = await apiClient.createParentInvite(currentOrgId)
                       setInviteCode(invite.inviteCode)
                       setInviteModalOpen(true)
                     } catch (error: any) {
@@ -208,7 +227,9 @@ export default function DashboardPage() {
                   <button
                     className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     onClick={() => {
-                      alert('Manual child addition will be available soon. For now, parents can connect via invite codes.')
+                      alert(
+                        'Manual child addition will be available soon. For now, parents can connect via invite codes.'
+                      )
                     }}
                   >
                     <UserPlus className="w-5 h-5" />
@@ -240,7 +261,9 @@ export default function DashboardPage() {
                     {child.lastActiveDate && (
                       <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                         <span className="text-xs text-gray-500">Last active:</span>
-                        <span className="text-xs font-medium text-gray-700">{new Date(child.lastActiveDate).toLocaleDateString()}</span>
+                        <span className="text-xs font-medium text-gray-700">
+                          {new Date(child.lastActiveDate).toLocaleDateString()}
+                        </span>
                       </div>
                     )}
                   </div>
