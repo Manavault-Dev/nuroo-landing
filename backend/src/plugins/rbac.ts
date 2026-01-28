@@ -15,10 +15,9 @@ function isSuperAdmin(request: FastifyRequest): boolean {
   const userEmail = (request.user.email || '').toLowerCase().trim()
   const hasClaim = request.user.claims?.superAdmin === true
 
-  const isWhitelisted = config.NODE_ENV !== 'production' &&
-    DEV_SUPER_ADMIN_WHITELIST.some(
-      email => email.toLowerCase().trim() === userEmail
-    )
+  const isWhitelisted =
+    config.NODE_ENV !== 'production' &&
+    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
 
   return hasClaim || isWhitelisted
 }
@@ -30,9 +29,9 @@ async function isOrgCreator(orgId: string, uid: string): Promise<boolean> {
   const db = getFirestore()
   const orgRef = db.doc(`organizations/${orgId}`)
   const orgSnap = await orgRef.get()
-  
+
   if (!orgSnap.exists) return false
-  
+
   const orgData = orgSnap.data()
   return orgData?.createdBy === uid
 }
@@ -171,7 +170,9 @@ export async function requireChildAccess(
 
     // If no assignedSpecialistId, only Org Admin can access
     if (!assignedSpecialistId) {
-      return reply.code(403).send({ error: 'Child is not assigned to any specialist. Please contact your organization admin.' }) as never
+      return reply.code(403).send({
+        error: 'Child is not assigned to any specialist. Please contact your organization admin.',
+      }) as never
     }
 
     return // Specialist has access
