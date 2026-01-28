@@ -1,0 +1,93 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+
+  # PR Title Convention Check
+
+  pr-title:
+    name: PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^.{1,80}$
+          subjectPatternError: |
+            PR title must be less than 80 characters.
+
+
+  # Changed Files Analysis
+
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'app/**'
+              - 'components/**'
+              - 'lib/**'
+              - 'public/**'
+              - 'package.json'
+              - 'next.config.js'
+              - 'tailwind.config.ts'
+            backend:
+              - 'backend/**'
+            docs:
+              - '**.md'
+              - 'docs/**'
+
+
+  # Size Check
+
+  size:
+    name: PR Size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        id: size
+        run: |
+          additions=$(gh pr view ${{ github.event.pull_request.number }} --json additions -q '.additions')
+          deletions=$(gh pr view ${{ github.event.pull_request.number }} --json deletions -q '.deletions')
+          total=$((additions + deletions))
+
+          echo "additions=$additions" >> $GITHUB_OUTPUT
+          echo "deletions=$deletions" >> $GITHUB_OUTPUT
+          echo "total=$total" >> $GITHUB_OUTPUT
+
+          if [ $total -gt 1000 ]; then
+            echo "::warning::Large PR detected ($total lines changed). Consider breaking it into smaller PRs."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
