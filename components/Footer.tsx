@@ -1,15 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { 
-  Heart, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Linkedin,
-  Instagram,
-  ArrowUp
-} from 'lucide-react'
+import { Heart, Mail, Phone, MapPin, Linkedin, Instagram, ArrowUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export function Footer() {
@@ -36,7 +28,7 @@ export function Footer() {
     support: [
       { name: 'Help Center', href: '/help' },
       { name: 'Contact Us', href: '/contact' },
-    ]
+    ],
   }
 
   const socialLinks = [
@@ -62,29 +54,37 @@ export function Footer() {
         <div className="py-6 md:py-8">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
             <Link href="/" className="flex items-center space-x-2">
-              <img
-                src="/logo.png"
-                alt="Nuroo Logo"
-                className="w-6 h-6 md:w-8 md:h-8 rounded-lg"
-              />
+              <img src="/logo.png" alt="Nuroo Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
               <span className="text-white font-semibold text-base md:text-lg">Nuroo</span>
             </Link>
-            
+
             <p className="text-white/80 text-xs md:text-sm text-center md:text-left">
               AI-powered support for children with special needs
             </p>
-            
+
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-              <Link href="#features" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+              <Link
+                href="#features"
+                className="text-white/80 hover:text-white text-xs md:text-sm transition-colors"
+              >
                 Features
               </Link>
-              <Link href="#solution-section" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+              <Link
+                href="#solution-section"
+                className="text-white/80 hover:text-white text-xs md:text-sm transition-colors"
+              >
                 How It Works
               </Link>
-              <Link href="/help" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+              <Link
+                href="/help"
+                className="text-white/80 hover:text-white text-xs md:text-sm transition-colors"
+              >
                 Help
               </Link>
-              <Link href="/privacy" className="text-white/80 hover:text-white text-xs md:text-sm transition-colors">
+              <Link
+                href="/privacy"
+                className="text-white/80 hover:text-white text-xs md:text-sm transition-colors"
+              >
                 Privacy
               </Link>
               <a
@@ -96,7 +96,7 @@ export function Footer() {
                 Download App
               </a>
             </div>
-            
+
             {/* Social Media Icons */}
             <div className="flex items-center space-x-2 md:space-x-3">
               {socialLinks.map((social) => {
@@ -116,7 +116,7 @@ export function Footer() {
               })}
             </div>
           </div>
-          
+
           {/* Copyright Line */}
           <div className="border-t border-white/20 mt-4 md:mt-6 pt-4 md:pt-6">
             <div className="text-center text-white/80 text-xs md:text-sm w-full">
@@ -124,8 +124,6 @@ export function Footer() {
             </div>
           </div>
         </div>
-
-
       </div>
     </footer>
   )

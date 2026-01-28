@@ -28,7 +28,7 @@ export function Header({ profile }: HeaderProps) {
         setIsSuperAdmin(false)
       }
     }
-    
+
     if (profile) {
       checkSuperAdmin()
     }
@@ -71,9 +71,11 @@ export function Header({ profile }: HeaderProps) {
             </div>
             <p className="text-xs text-gray-500">{profile?.email}</p>
           </div>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            isSuperAdmin ? 'bg-purple-100' : 'bg-primary-100'
-          }`}>
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              isSuperAdmin ? 'bg-purple-100' : 'bg-primary-100'
+            }`}
+          >
             {isSuperAdmin ? (
               <Shield className="w-5 h-5 text-purple-600" />
             ) : (
@@ -93,5 +95,3 @@ export function Header({ profile }: HeaderProps) {
     </header>
   )
 }
-
-

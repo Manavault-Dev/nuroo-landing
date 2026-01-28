@@ -18,14 +18,11 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-
   return (
     <header
       className={clsx(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-200',
-        isScrolled
-          ? 'bg-white/90 backdrop-blur-md shadow-sm'
-          : 'bg-transparent'
+        isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-transparent'
       )}
     >
       <nav className="container-custom">
@@ -35,11 +32,7 @@ export function Header() {
             href="/"
             className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text"
           >
-            <img 
-              src="/logo.png" 
-              alt="Nuroo Logo" 
-              className="w-6 h-6 md:w-8 md:h-8 rounded-lg"
-            />
+            <img src="/logo.png" alt="Nuroo Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
             <span>Nuroo</span>
           </Link>
 
@@ -86,7 +79,11 @@ export function Header() {
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
               aria-label="Toggle menu"
             >
-              {isMenuOpen ? <X className="h-4 w-4 md:h-5 md:w-5" /> : <Menu className="h-4 w-4 md:h-5 md:w-5" />}
+              {isMenuOpen ? (
+                <X className="h-4 w-4 md:h-5 md:w-5" />
+              ) : (
+                <Menu className="h-4 w-4 md:h-5 md:w-5" />
+              )}
             </button>
           </div>
         </div>
