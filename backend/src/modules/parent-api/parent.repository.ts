@@ -27,7 +27,10 @@ export interface LinkedOrganization {
 /**
  * Verify that the parent has access to this child
  */
-export async function verifyParentChildAccess(childId: string, parentUid: string): Promise<boolean> {
+export async function verifyParentChildAccess(
+  childId: string,
+  parentUid: string
+): Promise<boolean> {
   // Check if child document has this parentUid
   const childRef = getChildRef(childId)
   const childSnap = await childRef.get()
@@ -61,7 +64,9 @@ export async function verifyParentChildAccess(childId: string, parentUid: string
 /**
  * Get linked organizations for a parent
  */
-export async function getParentLinkedOrganizations(parentUid: string): Promise<LinkedOrganization[]> {
+export async function getParentLinkedOrganizations(
+  parentUid: string
+): Promise<LinkedOrganization[]> {
   const parentRef = getParentRef(parentUid)
   const parentSnap = await parentRef.get()
 
@@ -82,7 +87,10 @@ export async function getParentLinkedOrganizations(parentUid: string): Promise<L
 /**
  * Get specialists that have access to a child
  */
-export async function getChildSpecialists(childId: string, parentUid: string): Promise<LinkedSpecialist[]> {
+export async function getChildSpecialists(
+  childId: string,
+  parentUid: string
+): Promise<LinkedSpecialist[]> {
   // First verify parent has access
   const hasAccess = await verifyParentChildAccess(childId, parentUid)
   if (!hasAccess) {
@@ -144,7 +152,10 @@ export async function getChildSpecialists(childId: string, parentUid: string): P
 /**
  * Get notes for a child that are visible to the parent
  */
-export async function getChildNotesForParent(childId: string, parentUid: string): Promise<SpecialistNote[]> {
+export async function getChildNotesForParent(
+  childId: string,
+  parentUid: string
+): Promise<SpecialistNote[]> {
   // First verify parent has access
   const hasAccess = await verifyParentChildAccess(childId, parentUid)
   if (!hasAccess) {
@@ -153,17 +164,15 @@ export async function getChildNotesForParent(childId: string, parentUid: string)
 
   const notesRef = getChildNotesRef(childId)
   // Get notes that are visible to parent (default: true)
-  const notesSnapshot = await notesRef
-    .orderBy('createdAt', 'desc')
-    .get()
+  const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
   return notesSnapshot.docs
-    .filter(doc => {
+    .filter((doc) => {
       const data = doc.data()
       // If visibleToParent is not set, default to true
       return data.visibleToParent !== false
     })
-    .map(doc => {
+    .map((doc) => {
       const data = doc.data()
       return {
         id: doc.id,

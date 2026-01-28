@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { LogOut, User, Bell, Shield } from 'lucide-react'
 import { apiClient } from '@/src/shared/lib/api'
 import type { SpecialistProfile } from '@/src/shared/types'
@@ -56,9 +55,11 @@ export function Header({ profile, onSignOut }: HeaderProps) {
             </div>
             <p className="text-xs text-gray-500">{profile?.email}</p>
           </div>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            isSuperAdmin ? 'bg-purple-100' : 'bg-primary-100'
-          }`}>
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              isSuperAdmin ? 'bg-purple-100' : 'bg-primary-100'
+            }`}
+          >
             {isSuperAdmin ? (
               <Shield className="w-5 h-5 text-purple-600" />
             ) : (

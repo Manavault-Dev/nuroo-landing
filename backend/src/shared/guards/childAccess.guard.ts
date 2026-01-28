@@ -59,7 +59,9 @@ export async function requireChildAccess(
 
     // If no assignedSpecialistId, only Org Admin can access
     if (!assignedSpecialistId) {
-      return reply.code(403).send({ error: 'Child is not assigned to any specialist. Please contact your organization admin.' }) as never
+      return reply.code(403).send({
+        error: 'Child is not assigned to any specialist. Please contact your organization admin.',
+      }) as never
     }
 
     return

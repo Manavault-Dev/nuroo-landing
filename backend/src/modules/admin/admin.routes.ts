@@ -113,28 +113,25 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   // DELETE /admin/super-admin/:uid - Remove Super Admin rights
-  fastify.delete<{ Params: { uid: string } }>(
-    '/admin/super-admin/:uid',
-    async (request, reply) => {
-      await requireSuperAdmin(request, reply)
-      const { uid } = request.params
+  fastify.delete<{ Params: { uid: string } }>('/admin/super-admin/:uid', async (request, reply) => {
+    await requireSuperAdmin(request, reply)
+    const { uid } = request.params
 
-      try {
-        const result = await removeSuperAdmin(request.user!.uid, uid)
+    try {
+      const result = await removeSuperAdmin(request.user!.uid, uid)
 
-        if ('error' in result) {
-          return reply.code(result.code || 400).send({ error: result.error })
-        }
-
-        return result
-      } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-          return reply.code(404).send({ error: `User with uid ${uid} not found` })
-        }
-        throw error
+      if ('error' in result) {
+        return reply.code(result.code || 400).send({ error: result.error })
       }
+
+      return result
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        return reply.code(404).send({ error: `User with uid ${uid} not found` })
+      }
+      throw error
     }
-  )
+  })
 
   // POST /bootstrap/super-admin - One-time setup for first Super Admin
   fastify.post<{ Body: z.infer<typeof bootstrapSuperAdminSchema> }>(
@@ -157,8 +154,10 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (error.code === 'auth/internal-error' || error.message?.includes('PERMISSION_DENIED')) {
           return reply.code(500).send({
-            error: 'Service account lacks permissions. Please use Firebase Console or fix service account permissions.',
-            details: 'The Firebase Admin service account needs "Service Usage Consumer" role in Google Cloud Console.',
+            error:
+              'Service account lacks permissions. Please use Firebase Console or fix service account permissions.',
+            details:
+              'The Firebase Admin service account needs "Service Usage Consumer" role in Google Cloud Console.',
           })
         }
 
@@ -192,11 +191,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(401).send({ error: 'Unauthorized' })
       }
 
-      return checkSuperAdminStatus(
-        request.user.uid,
-        request.user.email,
-        request.user.claims
-      )
+      return checkSuperAdminStatus(request.user.uid, request.user.email, request.user.claims)
     })
   }
 }

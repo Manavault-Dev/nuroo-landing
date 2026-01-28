@@ -7,7 +7,10 @@ export const authApi = {
   },
 
   createProfile: (name?: string) => {
-    return apiClient.post<{ ok: boolean; specialist: SpecialistProfile; orgId?: string | null }>('/me', { name })
+    return apiClient.post<{ ok: boolean; specialist: SpecialistProfile; orgId?: string | null }>(
+      '/me',
+      { name }
+    )
   },
 
   getSession: () => {
@@ -19,10 +22,18 @@ export const authApi = {
   },
 
   acceptInvite: (code: string) => {
-    return apiClient.post<{ ok: boolean; orgId: string; role: string; orgName: string }>('/invites/accept', { code })
+    return apiClient.post<{ ok: boolean; orgId: string; role: string; orgName: string }>(
+      '/invites/accept',
+      { code }
+    )
   },
 
   checkSuperAdmin: () => {
-    return apiClient.get<{ uid: string; email: string | undefined; isSuperAdmin: boolean; claims?: any }>('/dev/check-super-admin')
+    return apiClient.get<{
+      uid: string
+      email: string | undefined
+      isSuperAdmin: boolean
+      claims?: any
+    }>('/dev/check-super-admin')
   },
 }

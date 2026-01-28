@@ -39,7 +39,9 @@ export async function requireOrgAdmin(
   const member = await requireOrgMember(request, reply, orgId)
 
   if (member.role !== 'org_admin') {
-    return reply.code(403).send({ error: 'Only organization admins can perform this action' }) as never
+    return reply
+      .code(403)
+      .send({ error: 'Only organization admins can perform this action' }) as never
   }
 
   return member

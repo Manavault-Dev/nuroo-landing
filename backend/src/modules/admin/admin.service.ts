@@ -43,7 +43,7 @@ export async function getInvites(uid: string) {
   console.log(`[ADMIN] Fetching invites for Super Admin: ${uid}`)
 
   const organizations = await findOrganizationsByCreator(uid)
-  const orgIds = organizations.map((org: {orgId: string}) => org.orgId)
+  const orgIds = organizations.map((org: { orgId: string }) => org.orgId)
 
   if (orgIds.length === 0) {
     return { ok: true, invites: [], count: 0 }
@@ -94,7 +94,9 @@ export async function removeSuperAdmin(requestingUid: string, targetUid: string)
   const auth = getAuth()
   const user = await auth.getUser(targetUid)
 
-  console.log(`[SUPER_ADMIN] Removing super admin from: ${user.email} (${targetUid}) by ${requestingUid}`)
+  console.log(
+    `[SUPER_ADMIN] Removing super admin from: ${user.email} (${targetUid}) by ${requestingUid}`
+  )
 
   const result = await revokeSuperAdminRepo(targetUid)
 
@@ -113,7 +115,8 @@ export async function bootstrapSuperAdmin(input: BootstrapSuperAdminInput) {
   const { email, secretKey } = input
 
   // Check secret key
-  const expectedSecretKey = config.BOOTSTRAP_SECRET_KEY ||
+  const expectedSecretKey =
+    config.BOOTSTRAP_SECRET_KEY ||
     (config.NODE_ENV === 'production' ? null : 'dev-bootstrap-key-2024')
 
   if (!expectedSecretKey) {
@@ -133,7 +136,7 @@ export async function bootstrapSuperAdmin(input: BootstrapSuperAdminInput) {
       const auth = getAuth()
       const listUsersResult = await auth.listUsers(10)
       const hasSuperAdmin = listUsersResult.users.some(
-        user => user.customClaims?.superAdmin === true
+        (user) => user.customClaims?.superAdmin === true
       )
 
       if (hasSuperAdmin) {
@@ -159,9 +162,10 @@ export async function bootstrapSuperAdmin(input: BootstrapSuperAdminInput) {
     uid: user.uid,
     email: user.email,
     note: 'User must refresh their ID token (sign out and sign in) for the claim to take effect',
-    warning: config.NODE_ENV === 'production'
-      ? 'Make sure to set a strong BOOTSTRAP_SECRET_KEY in production'
-      : undefined,
+    warning:
+      config.NODE_ENV === 'production'
+        ? 'Make sure to set a strong BOOTSTRAP_SECRET_KEY in production'
+        : undefined,
   }
 }
 
@@ -200,9 +204,7 @@ export function checkSuperAdminStatus(uid: string, email: string | undefined, cl
 
   const userEmail = (email || '').toLowerCase().trim()
   const isSuperAdmin = claims?.superAdmin === true
-  const isWhitelisted = DEV_SUPER_ADMIN_WHITELIST.some(
-    e => e.toLowerCase().trim() === userEmail
-  )
+  const isWhitelisted = DEV_SUPER_ADMIN_WHITELIST.some((e) => e.toLowerCase().trim() === userEmail)
 
   console.log(`[DEV] Checking Super Admin for: ${userEmail}`)
   console.log(`[DEV] Custom claim superAdmin: ${isSuperAdmin}`)

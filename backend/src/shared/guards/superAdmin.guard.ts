@@ -21,10 +21,9 @@ export async function requireSuperAdmin(
   const isSuperAdmin = request.user.claims?.superAdmin === true
 
   // In dev mode, also check whitelist if custom claim is not set
-  const isWhitelisted = config.NODE_ENV !== 'production' &&
-    DEV_SUPER_ADMIN_WHITELIST.some(
-      email => email.toLowerCase().trim() === userEmail
-    )
+  const isWhitelisted =
+    config.NODE_ENV !== 'production' &&
+    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
 
   console.log(`[SUPER_ADMIN] Checking access for: ${userEmail}`)
   console.log(`[SUPER_ADMIN] Custom claim: ${isSuperAdmin}`)
@@ -32,12 +31,16 @@ export async function requireSuperAdmin(
   console.log(`[SUPER_ADMIN] Environment: ${config.NODE_ENV}`)
 
   if (!isSuperAdmin && !isWhitelisted) {
-    console.log(`[SUPER_ADMIN] Access denied for uid: ${request.user.uid}, email: ${request.user.email}`)
+    console.log(
+      `[SUPER_ADMIN] Access denied for uid: ${request.user.uid}, email: ${request.user.email}`
+    )
     return reply.code(403).send({ error: 'Super admin access required' }) as never
   }
 
   if (isWhitelisted && !isSuperAdmin) {
-    console.log(`[SUPER_ADMIN] Access granted via dev whitelist for uid: ${request.user.uid}, email: ${request.user.email}`)
+    console.log(
+      `[SUPER_ADMIN] Access granted via dev whitelist for uid: ${request.user.uid}, email: ${request.user.email}`
+    )
   } else {
     console.log(`[SUPER_ADMIN] Access granted for uid: ${request.user.uid}`)
   }
@@ -52,10 +55,9 @@ export function isSuperAdmin(request: FastifyRequest): boolean {
   const userEmail = (request.user.email || '').toLowerCase().trim()
   const hasClaim = request.user.claims?.superAdmin === true
 
-  const isWhitelisted = config.NODE_ENV !== 'production' &&
-    DEV_SUPER_ADMIN_WHITELIST.some(
-      email => email.toLowerCase().trim() === userEmail
-    )
+  const isWhitelisted =
+    config.NODE_ENV !== 'production' &&
+    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
 
   return hasClaim || isWhitelisted
 }

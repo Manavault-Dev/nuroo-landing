@@ -26,7 +26,9 @@ export function futureTimestamp(days: number): admin.firestore.Timestamp {
 /**
  * Convert a Firestore timestamp to ISO string
  */
-export function toISOString(timestamp: admin.firestore.Timestamp | undefined | null): string | null {
+export function toISOString(
+  timestamp: admin.firestore.Timestamp | undefined | null
+): string | null {
   return timestamp?.toDate?.()?.toISOString() || null
 }
 

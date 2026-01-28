@@ -16,8 +16,8 @@ export function useOrganization(orgId: string | undefined) {
     try {
       const data = await organizationApi.getProfile()
       setProfile(data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch profile')
     } finally {
       setLoading(false)
     }
@@ -29,7 +29,9 @@ export function useOrganization(orgId: string | undefined) {
 
   const currentOrg = useMemo(() => {
     if (!profile) return null
-    return profile.organizations.find(org => org.orgId === orgId) || profile.organizations[0] || null
+    return (
+      profile.organizations.find((org) => org.orgId === orgId) || profile.organizations[0] || null
+    )
   }, [profile, orgId])
 
   const isAdmin = currentOrg?.role === 'admin'

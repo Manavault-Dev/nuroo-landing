@@ -8,7 +8,10 @@ import {
 import type { SpecialistProfile } from '../../shared/types/common.js'
 import type { UpdateProfileInput } from './users.types.js'
 
-export async function getProfile(uid: string, email: string | undefined): Promise<SpecialistProfile> {
+export async function getProfile(
+  uid: string,
+  email: string | undefined
+): Promise<SpecialistProfile> {
   const specialist = await findSpecialist(uid)
   let name = email?.split('@')[0] || 'Specialist'
 

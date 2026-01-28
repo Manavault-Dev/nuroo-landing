@@ -56,42 +56,36 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   // GET /api/parent/organizations - List organizations parent is linked to
-  fastify.get(
-    '/api/parent/organizations',
-    async (request, reply) => {
-      if (!request.user) {
-        return reply.code(401).send({ error: 'Unauthorized' })
-      }
-
-      const { uid: parentUid } = request.user
-
-      try {
-        const organizations = await listParentOrganizations(parentUid)
-        return { ok: true, organizations }
-      } catch (error: any) {
-        console.error('Error getting parent organizations:', error)
-        return reply.code(500).send({ error: error.message || 'Failed to get organizations' })
-      }
+  fastify.get('/api/parent/organizations', async (request, reply) => {
+    if (!request.user) {
+      return reply.code(401).send({ error: 'Unauthorized' })
     }
-  )
+
+    const { uid: parentUid } = request.user
+
+    try {
+      const organizations = await listParentOrganizations(parentUid)
+      return { ok: true, organizations }
+    } catch (error: any) {
+      console.error('Error getting parent organizations:', error)
+      return reply.code(500).send({ error: error.message || 'Failed to get organizations' })
+    }
+  })
 
   // GET /api/parent/children - List children linked to parent (via specialist invites)
-  fastify.get(
-    '/api/parent/children',
-    async (request, reply) => {
-      if (!request.user) {
-        return reply.code(401).send({ error: 'Unauthorized' })
-      }
-
-      const { uid: parentUid } = request.user
-
-      try {
-        const childIds = await listParentLinkedChildren(parentUid)
-        return { ok: true, childIds }
-      } catch (error: any) {
-        console.error('Error getting parent children:', error)
-        return reply.code(500).send({ error: error.message || 'Failed to get children' })
-      }
+  fastify.get('/api/parent/children', async (request, reply) => {
+    if (!request.user) {
+      return reply.code(401).send({ error: 'Unauthorized' })
     }
-  )
+
+    const { uid: parentUid } = request.user
+
+    try {
+      const childIds = await listParentLinkedChildren(parentUid)
+      return { ok: true, childIds }
+    } catch (error: any) {
+      console.error('Error getting parent children:', error)
+      return reply.code(500).send({ error: error.message || 'Failed to get children' })
+    }
+  })
 }

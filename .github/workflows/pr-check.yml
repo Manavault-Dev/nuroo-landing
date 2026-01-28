@@ -5,7 +5,6 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-
   # PR Title Convention Check
 
   pr-title:
@@ -33,7 +32,6 @@ jobs:
           subjectPattern: ^.{1,80}$
           subjectPatternError: |
             PR title must be less than 80 characters.
-
 
   # Changed Files Analysis
 
@@ -63,7 +61,6 @@ jobs:
             docs:
               - '**.md'
               - 'docs/**'
-
 
   # Size Check
 

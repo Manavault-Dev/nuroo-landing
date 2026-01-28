@@ -18,14 +18,20 @@ export interface ParentChildData {
 /**
  * Get specialists with access to a child
  */
-export async function listChildSpecialists(childId: string, parentUid: string): Promise<LinkedSpecialist[]> {
+export async function listChildSpecialists(
+  childId: string,
+  parentUid: string
+): Promise<LinkedSpecialist[]> {
   return getChildSpecialists(childId, parentUid)
 }
 
 /**
  * Get notes for a child visible to parent
  */
-export async function listChildNotes(childId: string, parentUid: string): Promise<SpecialistNote[]> {
+export async function listChildNotes(
+  childId: string,
+  parentUid: string
+): Promise<SpecialistNote[]> {
   return getChildNotesForParent(childId, parentUid)
 }
 
