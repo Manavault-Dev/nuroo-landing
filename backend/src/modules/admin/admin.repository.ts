@@ -26,9 +26,10 @@ export async function findOrganizationsByCreator(uid: string) {
       .where('createdBy', '==', uid)
       .orderBy('createdAt', 'desc')
       .get()
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If orderBy fails (missing index), try without orderBy
-    if (error.code === 9 || error.message?.includes('index')) {
+    const err = error as { code?: number; message?: string }
+    if (err.code === 9 || err.message?.includes('index')) {
       console.warn('[ADMIN] Index missing, fetching without orderBy')
       orgsSnapshot = await getOrganizationsRef().where('createdBy', '==', uid).get()
 
@@ -38,7 +39,7 @@ export async function findOrganizationsByCreator(uid: string) {
         const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0
         return bTime - aTime
       })
-      orgsSnapshot = { docs } as any
+      orgsSnapshot = { docs } as admin.firestore.QuerySnapshot<admin.firestore.DocumentData>
     } else {
       throw error
     }
@@ -122,15 +123,19 @@ export async function createAdminInvite(
   // Generate unique invite code
   let code: string
   let attempts = 0
-  do {
+  let isUnique = false
+  while (!isUnique) {
     code = generateInviteCode()
     const existingInvite = await getInviteRef(code).get()
-    if (!existingInvite.exists) break
+    if (!existingInvite.exists) {
+      isUnique = true
+      break
+    }
     attempts++
     if (attempts > 10) {
       return { error: 'Failed to generate unique invite code', code: 500 }
     }
-  } while (true)
+  }
 
   // Parse expiresAt if provided
   let expiresAt: admin.firestore.Timestamp | null = null
@@ -254,7 +259,7 @@ export async function revokeSuperAdmin(uid: string) {
     return { error: 'User is not a Super Admin', code: 400 }
   }
 
-  const { superAdmin, ...restClaims } = currentClaims
+  const { superAdmin: _superAdmin, ...restClaims } = currentClaims
   await auth.setCustomUserClaims(uid, restClaims)
 
   return {
