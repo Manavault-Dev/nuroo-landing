@@ -8,9 +8,10 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: {
     default: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    template: '%s | Nuroo'
+    template: '%s | Nuroo',
   },
-  description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+  description:
+    'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
   keywords: [
     'special needs support',
     'AI therapy',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     'autism support',
     'learning disabilities',
     'developmental support',
-    'AI chat support'
+    'AI chat support',
   ],
   authors: [{ name: 'Nuroo Team' }],
   creator: 'Nuroo',
@@ -41,7 +42,8 @@ export const metadata: Metadata = {
     url: 'https://usenuroo.com',
     siteName: 'Nuroo',
     title: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+    description:
+      'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
     images: [
       {
         url: '/mother-and-child.png',
@@ -54,7 +56,8 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+    description:
+      'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
     images: ['/mother-and-child.png'],
     creator: '@nuroo',
   },
@@ -74,11 +77,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -86,7 +85,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/logo.png" />
-        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#14b8a6" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>

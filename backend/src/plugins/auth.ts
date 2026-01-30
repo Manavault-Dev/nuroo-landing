@@ -1,5 +1,5 @@
 import { FastifyPluginAsync, FastifyRequest } from 'fastify'
-import { getAuth } from '../firebaseAdmin.js'
+import { getAuth } from '../infrastructure/database/firebase.js'
 import type { AuthenticatedUser } from '../types.js'
 
 declare module 'fastify' {

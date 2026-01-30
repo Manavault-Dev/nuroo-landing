@@ -7,7 +7,7 @@
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -19,48 +19,50 @@
   .btn-primary {
     @apply bg-primary-500 hover:bg-primary-600 text-white font-semibold py-2 px-4 md:py-3 md:px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm md:text-base;
   }
-  
+
   .btn-secondary {
     @apply bg-white hover:bg-gray-50 text-primary-500 font-semibold py-2 px-4 md:py-3 md:px-6 rounded-lg border border-primary-500 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-sm md:text-base;
   }
-  
+
   .section-padding {
     @apply py-12 md:py-16 lg:py-24 xl:py-32;
   }
-  
+
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
-  
+
   .gradient-text {
     @apply bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent;
   }
-  
+
   .card-hover {
     @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
   }
-  
+
   /* Mobile-specific improvements */
   @media (max-width: 640px) {
-    .btn-primary, .btn-secondary {
+    .btn-primary,
+    .btn-secondary {
       @apply text-sm py-2 px-4;
     }
-    
+
     .section-padding {
       @apply py-8;
     }
-    
+
     .container-custom {
       @apply px-4;
     }
   }
-  
+
   /* Touch-friendly interactions */
   @media (hover: none) and (pointer: coarse) {
-    .btn-primary, .btn-secondary {
+    .btn-primary,
+    .btn-secondary {
       @apply hover:scale-100 active:scale-95;
     }
-    
+
     .card-hover {
       @apply hover:shadow-lg hover:-translate-y-0 active:shadow-xl active:-translate-y-1;
     }

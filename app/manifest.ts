@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Nuroo - AI-Powered Support for Children with Special Needs',
     short_name: 'Nuroo',
-    description: 'AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs.',
+    description:
+      'AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

@@ -1,0 +1,144 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
+import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { Building2, Users } from 'lucide-react'
+
+export default function OrganizationPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const currentOrgId = searchParams.get('orgId') || undefined
+  const currentOrg =
+    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
+  const isAdmin = currentOrg?.role === 'admin'
+
+  useEffect(() => {
+    if (!isAdmin) {
+      router.push('/b2b')
+      return
+    }
+
+    const loadData = async () => {
+      const user = getCurrentUser()
+      if (!user) {
+        router.push('/b2b/login')
+        return
+      }
+
+      try {
+        const idToken = await getIdToken()
+        if (!idToken) {
+          router.push('/b2b/login')
+          return
+        }
+        apiClient.setToken(idToken)
+
+        const profileData = await apiClient.getMe()
+        setProfile(profileData)
+      } catch (error) {
+        console.error('Error loading organization data:', error)
+        router.push('/b2b/login')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [router, isAdmin])
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAdmin || !currentOrg) {
+    return null
+  }
+
+  return (
+    <div className="p-8">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">Organization Settings</h2>
+        <p className="text-gray-600 mt-2">Manage your organization details and preferences.</p>
+      </div>
+
+      <div className="max-w-4xl space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start space-x-4">
+            <div className="bg-primary-100 p-4 rounded-lg">
+              <Building2 className="w-8 h-8 text-primary-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">{currentOrg.orgName}</h3>
+              <p className="text-sm text-gray-600 mb-4">Organization ID: {currentOrg.orgId}</p>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Users className="w-4 h-4" />
+                  <span>
+                    Your role: <span className="font-medium text-gray-900">Administrator</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Organization Information</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Organization Name
+              </label>
+              <input
+                type="text"
+                value={currentOrg.orgName}
+                readOnly
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <p className="mt-1 text-xs text-gray-500">Organization name cannot be changed yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a
+              href={`/b2b/team?orgId=${currentOrgId}`}
+              className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+            >
+              <Users className="w-5 h-5 text-primary-600" />
+              <div>
+                <p className="font-medium text-gray-900">Manage Team</p>
+                <p className="text-sm text-gray-600">View and manage team members</p>
+              </div>
+            </a>
+
+            <a
+              href={`/b2b/invites?orgId=${currentOrgId}`}
+              className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+            >
+              <Building2 className="w-5 h-5 text-primary-600" />
+              <div>
+                <p className="font-medium text-gray-900">Invite Codes</p>
+                <p className="text-sm text-gray-600">Create and manage invite codes</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

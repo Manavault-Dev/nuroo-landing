@@ -53,12 +53,15 @@ Server will start on `http://localhost:3001`
 All endpoints require authentication via Firebase ID token in `Authorization: Bearer <token>` header (except `/health`).
 
 ### Health Check
+
 - `GET /health` - Health check (no auth required)
 
 ### Authentication
+
 - `GET /me` - Get current specialist profile and organizations
 
 ### Children
+
 - `GET /orgs/:orgId/children` - List children in organization
 - `GET /orgs/:orgId/children/:childId` - Get child detail
 - `GET /orgs/:orgId/children/:childId/notes` - List notes for a child
@@ -130,5 +133,3 @@ children/{childId}
 - The backend uses Firebase Admin SDK (server-side) to access Firestore
 - Client-side (Next.js B2B UI) uses Firebase Client SDK only for authentication
 - All data operations go through the backend API
-
-

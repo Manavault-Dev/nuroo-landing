@@ -11,7 +11,7 @@ export default function ChildrenPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const orgId = searchParams.get('orgId') || 'default-org'
-  
+
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -55,39 +55,30 @@ export default function ChildrenPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/b2b"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Children</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  {children.length} {children.length === 1 ? 'child' : 'children'} assigned
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="p-8">
+      <div className="mb-8">
+        <div className="flex items-center space-x-4 mb-2">
+          <Link href="/b2b" className="text-gray-600 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h2 className="text-2xl font-bold text-gray-900">Children</h2>
         </div>
-      </header>
+        <p className="text-gray-600">
+          {children.length} {children.length === 1 ? 'child' : 'children'} assigned
+        </p>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {children.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No children assigned</h3>
-            <p className="text-gray-600">Children assigned to your organization will appear here.</p>
+            <p className="text-gray-600">
+              Children assigned to your organization will appear here.
+            </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="divide-y divide-gray-200">
               {children.map((child) => (
                 <Link
@@ -97,22 +88,31 @@ export default function ChildrenPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{child.name}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Tasks completed:</span>{' '}
-                          <span className="text-gray-900">{child.completedTasksCount}</span>
-                        </div>
+                      <div className="flex items-center space-x-3 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{child.name}</h3>
+                        {child.age && (
+                          <span className="text-sm text-gray-500">Age {child.age}</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                         {child.speechStepNumber && (
                           <div>
-                            <span className="font-medium">Roadmap step:</span>{' '}
-                            <span className="text-gray-900">{child.speechStepNumber}</span>
+                            <span className="text-gray-600">Current step:</span>{' '}
+                            <span className="font-medium text-gray-900">
+                              Step {child.speechStepNumber}
+                            </span>
                           </div>
                         )}
+                        <div>
+                          <span className="text-gray-600">Tasks completed:</span>{' '}
+                          <span className="font-medium text-gray-900">
+                            {child.completedTasksCount}
+                          </span>
+                        </div>
                         {child.lastActiveDate && (
                           <div>
-                            <span className="font-medium">Last active:</span>{' '}
-                            <span className="text-gray-900">
+                            <span className="text-gray-600">Last active:</span>{' '}
+                            <span className="font-medium text-gray-900">
                               {new Date(child.lastActiveDate).toLocaleDateString()}
                             </span>
                           </div>
@@ -126,7 +126,7 @@ export default function ChildrenPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
   )
 }
