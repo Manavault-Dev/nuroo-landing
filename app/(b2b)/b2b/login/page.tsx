@@ -30,41 +30,29 @@ export default function LoginPage() {
 
       try {
         const superAdminCheck = await apiClient.checkSuperAdmin()
-        console.log('🔍 [LOGIN] Super Admin check result:', superAdminCheck)
-
         if (superAdminCheck.isSuperAdmin) {
-          console.log('✅ [LOGIN] User is Super Admin, redirecting to admin panel')
-          router.push('/b2b/admin')
+          router.push('/b2b/content')
           return
-        } else {
-          console.log('⚠️ [LOGIN] User is NOT Super Admin, checking organizations')
         }
-      } catch (superAdminError: any) {
-        console.error('❌ [LOGIN] Failed to check Super Admin status:', superAdminError)
-        console.log('⚠️ [LOGIN] Assuming user is not Super Admin, checking organizations')
+      } catch {
+        // Not Super Admin - continue checking organizations
       }
 
       // Check membership via /me endpoint
       try {
         const profile = await apiClient.getMe()
-        console.log('✅ [LOGIN] Profile loaded:', profile)
-
-        // If user has no organizations, redirect to join
         if (!profile.organizations || profile.organizations.length === 0) {
-          console.log('⚠️  [LOGIN] No organization membership, redirecting to join')
           router.push('/b2b/join')
           return
         }
-
-        // User has membership, go to dashboard
         router.push('/b2b')
-      } catch (meError: any) {
-        console.error('❌ [LOGIN] Failed to check membership:', meError)
-        // If /me fails, assume no membership and redirect to join
+      } catch {
         router.push('/b2b/join')
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
