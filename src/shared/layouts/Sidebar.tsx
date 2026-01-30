@@ -12,6 +12,7 @@ import {
   Building2,
   ChevronRight,
   Shield,
+  FileText,
 } from 'lucide-react'
 import { apiClient } from '@/src/shared/lib/api'
 import type { SpecialistProfile } from '@/src/shared/types'
@@ -75,7 +76,10 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     : []
 
   const superAdminItems = isSuperAdmin
-    ? [{ href: '/b2b/admin', label: 'Super Admin', icon: Shield }]
+    ? [
+        { href: '/b2b/content', label: 'Content Manager', icon: FileText },
+        { href: '/b2b/admin', label: 'Super Admin', icon: Shield },
+      ]
     : []
 
   const isActive = (href: string) => {

@@ -29,20 +29,12 @@ export default function JoinPage() {
         }
         apiClient.setToken(idToken)
         const superAdminCheck = await apiClient.checkSuperAdmin()
-
-        console.log('🔍 [JOIN] Super Admin check result:', superAdminCheck)
-
         if (superAdminCheck.isSuperAdmin) {
-          console.log('✅ [JOIN] User is Super Admin, redirecting to admin panel')
-          router.replace('/b2b/admin') // Use replace instead of push to avoid back button issues
+          router.replace('/b2b/content')
           return
-        } else {
-          console.log('⚠️ [JOIN] User is NOT Super Admin, showing join form')
         }
-      } catch (err: any) {
-        // Not Super Admin or error - continue with normal flow (show join form)
-        console.error('❌ [JOIN] Failed to check Super Admin:', err)
-        console.log('⚠️ [JOIN] Showing join form')
+      } catch {
+        // Not Super Admin or error - continue with normal flow
       }
     }
 
@@ -75,13 +67,14 @@ export default function JoinPage() {
 
       apiClient.setToken(idToken)
 
-      // Use new invite acceptance endpoint
-      const result = await apiClient.acceptInvite(inviteCode.trim())
-      console.log('✅ [JOIN] Successfully joined organization:', result.orgId)
-
+      await apiClient.acceptInvite(inviteCode.trim())
       router.push('/b2b')
-    } catch (err: any) {
-      setError(err.message || 'Failed to join organization. Please check the invite code.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Failed to join organization. Please check the invite code.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
