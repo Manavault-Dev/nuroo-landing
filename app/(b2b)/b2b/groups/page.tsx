@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
-import { Users, Plus, Edit2, Trash2, X, Save, UserPlus, Palette } from 'lucide-react'
+import { Users, Plus, Edit2, Trash2, X, Save, UserPlus } from 'lucide-react'
 
 interface Group {
   id: string
@@ -101,8 +101,7 @@ export default function GroupsPage() {
 
         setOrgId(orgIdParam)
         await loadGroups(orgIdParam)
-      } catch (error) {
-        console.error('Error loading groups:', error)
+      } catch {
         router.push('/b2b/login')
       } finally {
         setLoading(false)
@@ -116,9 +115,9 @@ export default function GroupsPage() {
     try {
       const data = await apiClient.getGroups(orgId)
       setGroups(data.groups || [])
-    } catch (error: any) {
-      console.error('Failed to load groups:', error)
-      alert(error.message || 'Failed to load groups')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load groups'
+      alert(errorMessage)
     }
   }
 
@@ -145,9 +144,9 @@ export default function GroupsPage() {
       await loadGroups(orgId)
       setShowGroupModal(false)
       resetGroupForm()
-    } catch (error: any) {
-      console.error('Failed to save group:', error)
-      alert(error.message || 'Failed to save group')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save group'
+      alert(errorMessage)
     }
   }
 
@@ -168,9 +167,9 @@ export default function GroupsPage() {
         setSelectedGroup(null)
         setGroupParents([])
       }
-    } catch (error: any) {
-      console.error('Failed to delete group:', error)
-      alert(error.message || 'Failed to delete group')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete group'
+      alert(errorMessage)
     }
   }
 
@@ -183,9 +182,9 @@ export default function GroupsPage() {
     try {
       const data = await apiClient.getGroup(orgId, group.id)
       setGroupParents(data.group.parents || [])
-    } catch (error: any) {
-      console.error('Failed to load group details:', error)
-      alert(error.message || 'Failed to load group details')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load group details'
+      alert(errorMessage)
     } finally {
       setLoadingGroupDetails(false)
     }
@@ -200,9 +199,9 @@ export default function GroupsPage() {
       const parentsData = await apiClient.getParents(orgId)
       setAvailableParents(parentsData.parents || [])
       setShowAddParentModal(true)
-    } catch (error: any) {
-      console.error('Failed to load parents:', error)
-      alert(error.message || 'Failed to load parents')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load parents'
+      alert(errorMessage)
     } finally {
       setLoadingParents(false)
     }
@@ -216,9 +215,9 @@ export default function GroupsPage() {
       await handleViewGroup(selectedGroup) // Reload group details
       setShowAddParentModal(false)
       setSelectedParentId('')
-    } catch (error: any) {
-      console.error('Failed to add parent:', error)
-      alert(error.message || 'Failed to add parent to group')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add parent to group'
+      alert(errorMessage)
     }
   }
 
@@ -229,9 +228,10 @@ export default function GroupsPage() {
     try {
       await apiClient.removeParentFromGroup(orgId, selectedGroup.id, parentUserId)
       await handleViewGroup(selectedGroup) // Reload group details
-    } catch (error: any) {
-      console.error('Failed to remove parent:', error)
-      alert(error.message || 'Failed to remove parent from group')
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to remove parent from group'
+      alert(errorMessage)
     }
   }
 

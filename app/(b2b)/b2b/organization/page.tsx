@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Building2, Users, Calendar, MapPin } from 'lucide-react'
+import { Building2, Users } from 'lucide-react'
 
 export default function OrganizationPage() {
   const router = useRouter()

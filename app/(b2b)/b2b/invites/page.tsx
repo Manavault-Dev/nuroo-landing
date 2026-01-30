@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Key, Plus, Copy, Check, Loader2, Trash2 } from 'lucide-react'
+import { Key, Plus, Copy, Check, Loader2 } from 'lucide-react'
 
 interface InviteCode {
   inviteCode: string
@@ -55,8 +55,7 @@ export default function InvitesPage() {
 
         const profileData = await apiClient.getMe()
         setProfile(profileData)
-      } catch (error) {
-        console.error('Error loading data:', error)
+      } catch {
         router.push('/b2b/login')
       } finally {
         setLoading(false)
@@ -64,7 +63,7 @@ export default function InvitesPage() {
     }
 
     loadData()
-  }, [router, isAdmin])
+  }, [router, isSpecialist])
 
   const handleCreateInvite = async (role: 'specialist' | 'admin' = 'specialist') => {
     if (!currentOrgId || !isAdmin) return
@@ -81,8 +80,9 @@ export default function InvitesPage() {
       })
 
       setInvites([...invites, { ...newInvite, type: 'specialist' }])
-    } catch (error: any) {
-      alert(error.message || 'Failed to create invite code')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create invite code'
+      alert(errorMessage)
     } finally {
       setCreating(false)
     }
@@ -100,8 +100,10 @@ export default function InvitesPage() {
       const newInvite = await apiClient.createParentInvite(currentOrgId)
 
       setParentInvites([...parentInvites, { ...newInvite, type: 'parent' }])
-    } catch (error: any) {
-      alert(error.message || 'Failed to create parent invite code')
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create parent invite code'
+      alert(errorMessage)
     } finally {
       setCreatingParentInvite(false)
     }

@@ -9,11 +9,9 @@ import {
   type ChildDetail,
   type SpecialistNote,
   type TimelineResponse,
-  type ParentInfo,
 } from '@/lib/b2b/api'
 import {
   ArrowLeft,
-  MessageSquare,
   Send,
   Calendar,
   CheckCircle,
@@ -68,9 +66,9 @@ export default function ChildDetailPage() {
         setChildDetail(detailData)
         setNotes(notesData)
         setTimeline(timelineData)
-      } catch (error: any) {
-        console.error('Error loading child profile:', error)
-        setError(error.message || 'Failed to load child profile')
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load child profile'
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }
@@ -94,19 +92,15 @@ export default function ChildDetailPage() {
       }
       apiClient.setToken(idToken)
 
-      const newNote = await apiClient.createNote(
-        orgId,
-        childId,
-        noteContent.trim(),
-        undefined,
-        visibleToParent
-      )
+      await apiClient.createNote(orgId, childId, noteContent.trim(), undefined, visibleToParent)
       const updatedNotes = await apiClient.getNotes(orgId, childId)
       setNotes(updatedNotes)
       setNoteContent('')
       setVisibleToParent(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save note. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to save note. Please try again.'
+      setError(errorMessage)
     } finally {
       setSubmittingNote(false)
     }

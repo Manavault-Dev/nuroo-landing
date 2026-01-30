@@ -6,17 +6,17 @@ import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import {
   Plus,
-  Video,
-  FileText,
   BookOpen,
   CheckSquare,
   Trash2,
   Edit2,
   Loader2,
   X,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 
-type ContentType = 'tasks' | 'roadmaps' | 'materials' | 'videos'
+type ContentType = 'tasks' | 'roadmaps'
 
 interface ContentItem {
   id: string
@@ -38,6 +38,7 @@ interface ContentItem {
   url?: string
   tags?: string[]
   steps?: Array<{ order: number; taskId?: string; title: string; description?: string }>
+  taskIds?: string[]
   createdAt?: string
   updatedAt?: string
 }
@@ -53,10 +54,10 @@ export default function ContentPage() {
 
   const [tasks, setTasks] = useState<ContentItem[]>([])
   const [roadmaps, setRoadmaps] = useState<ContentItem[]>([])
-  const [materials, setMaterials] = useState<ContentItem[]>([])
-  const [videos, setVideos] = useState<ContentItem[]>([])
 
-  const [formData, setFormData] = useState<any>({})
+  const [formData, setFormData] = useState<Record<string, unknown>>({})
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -82,8 +83,7 @@ export default function ContentPage() {
 
         setIsSuperAdmin(true)
         await loadContent()
-      } catch (error) {
-        console.error('Error checking access:', error)
+      } catch {
         router.push('/b2b/login')
       } finally {
         setLoading(false)
@@ -99,40 +99,48 @@ export default function ContentPage() {
       if (!idToken) return
       apiClient.setToken(idToken)
 
-      const [tasksData, roadmapsData, materialsData, videosData] = await Promise.all([
+      const [tasksData, roadmapsData] = await Promise.all([
         apiClient.getTasks(),
         apiClient.getRoadmaps(),
-        apiClient.getMaterials(),
-        apiClient.getVideos(),
       ])
 
       setTasks(tasksData.tasks || [])
       setRoadmaps(roadmapsData.roadmaps || [])
-      setMaterials(materialsData.materials || [])
-      setVideos(videosData.videos || [])
-    } catch (error: any) {
-      console.error('Error loading content:', error)
-      alert(error.message || 'Failed to load content')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load content'
+      alert(errorMessage)
     }
   }
 
   const handleCreate = () => {
     setEditingItem(null)
-    setFormData({})
+    setFormData({ taskIds: [] })
+    setMediaFile(null)
+    setUploadProgress(0)
     setIsModalOpen(true)
   }
 
   const handleEdit = (item: ContentItem) => {
     setEditingItem(item)
     const editData = { ...item }
+    if (!editData.taskIds && item.steps) {
+      editData.taskIds = item.steps.filter((step) => step.taskId).map((step) => step.taskId!)
+    }
+    if (!editData.taskIds) {
+      editData.taskIds = []
+    }
     setIsModalOpen(true)
     setFormData(editData)
+    setMediaFile(null)
+    setUploadProgress(0)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingItem(null)
     setFormData({})
+    setMediaFile(null)
+    setUploadProgress(0)
   }
 
   const handleSave = async () => {
@@ -144,12 +152,14 @@ export default function ContentPage() {
       alert('Title is required')
       return
     }
-    if (activeTab === 'materials' && !formData.type) {
-      alert('Type is required')
-      return
-    }
-    if (activeTab === 'videos' && !formData.videoUrl) {
-      alert('Video URL is required')
+    if (
+      activeTab === 'tasks' &&
+      !mediaFile &&
+      !editingItem &&
+      !formData.videoUrl &&
+      !formData.imageUrl
+    ) {
+      alert('Please upload a video or image file, or provide a URL')
       return
     }
 
@@ -162,31 +172,50 @@ export default function ContentPage() {
       if (editingItem) {
         switch (activeTab) {
           case 'tasks':
-            await apiClient.updateTask(editingItem.id, formData)
+            if (mediaFile) {
+              setUploadProgress(10)
+              await apiClient.uploadTaskMedia(
+                mediaFile,
+                formData.title || editingItem.title || '',
+                {
+                  description: formData.description,
+                  category: formData.category,
+                  difficulty: formData.difficulty,
+                  estimatedDuration: formData.estimatedDuration,
+                  ageRange: formData.ageRange,
+                  instructions: formData.instructions,
+                  taskId: editingItem.id,
+                }
+              )
+              setUploadProgress(100)
+            } else {
+              await apiClient.updateTask(editingItem.id, formData)
+            }
             break
           case 'roadmaps':
             await apiClient.updateRoadmap(editingItem.id, formData)
-            break
-          case 'materials':
-            await apiClient.updateMaterial(editingItem.id, formData)
-            break
-          case 'videos':
-            await apiClient.updateVideo(editingItem.id, formData)
             break
         }
       } else {
         switch (activeTab) {
           case 'tasks':
-            await apiClient.createTask(formData)
+            if (mediaFile) {
+              setUploadProgress(10)
+              await apiClient.uploadTaskMedia(mediaFile, formData.title, {
+                description: formData.description,
+                category: formData.category,
+                difficulty: formData.difficulty,
+                estimatedDuration: formData.estimatedDuration,
+                ageRange: formData.ageRange,
+                instructions: formData.instructions,
+              })
+              setUploadProgress(100)
+            } else {
+              await apiClient.createTask(formData)
+            }
             break
           case 'roadmaps':
             await apiClient.createRoadmap(formData)
-            break
-          case 'materials':
-            await apiClient.createMaterial(formData)
-            break
-          case 'videos':
-            await apiClient.createVideo(formData)
             break
         }
       }
@@ -198,16 +227,19 @@ export default function ContentPage() {
       setIsModalOpen(false)
       setEditingItem(null)
       setFormData({})
+      setMediaFile(null)
+      setUploadProgress(0)
       await loadContent()
 
       setTimeout(() => {
         alert(`Successfully ${action} ${contentType}!`)
       }, 100)
-    } catch (error: any) {
-      console.error('Error saving content:', error)
-      alert(
-        error.message || `Failed to ${editingItem ? 'update' : 'create'} ${activeTab.slice(0, -1)}`
-      )
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : `Failed to ${editingItem ? 'update' : 'create'} ${activeTab.slice(0, -1)}`
+      alert(errorMessage)
     } finally {
       setSaving(false)
     }
@@ -230,29 +262,21 @@ export default function ContentPage() {
           await apiClient.deleteRoadmap(id)
           setRoadmaps(roadmaps.filter((r) => r.id !== id))
           break
-        case 'materials':
-          await apiClient.deleteMaterial(id)
-          setMaterials(materials.filter((m) => m.id !== id))
-          break
-        case 'videos':
-          await apiClient.deleteVideo(id)
-          setVideos(videos.filter((v) => v.id !== id))
-          break
       }
-    } catch (error: any) {
-      alert(error.message || `Failed to delete ${type.slice(0, -1)}`)
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : `Failed to delete ${type.slice(0, -1)}`
+      alert(errorMessage)
     }
   }
 
-  const updateFormField = (field: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }))
+  const updateFormField = (field: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const renderForm = () => {
     const isTask = activeTab === 'tasks'
     const isRoadmap = activeTab === 'roadmaps'
-    const isMaterial = activeTab === 'materials'
-    const isVideo = activeTab === 'videos'
 
     return (
       <div className="space-y-4">
@@ -388,200 +412,171 @@ export default function ContentPage() {
           </>
         )}
 
-        {isMaterial && (
-          <>
+        {isRoadmap && (
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-              <select
-                value={formData.type || ''}
-                onChange={(e) => updateFormField('type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select type</option>
-                <option value="article">Article</option>
-                <option value="video">Video</option>
-                <option value="pdf">PDF</option>
-                <option value="image">Image</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
-              <input
-                type="url"
-                value={formData.url || ''}
-                onChange={(e) => updateFormField('url', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="https://..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-              <textarea
-                value={formData.content || ''}
-                onChange={(e) => updateFormField('content', e.target.value)}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter content"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (comma-separated)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tasks in Roadmap
               </label>
-              <input
-                type="text"
-                value={formData.tags ? formData.tags.join(', ') : ''}
+              <div className="border border-gray-300 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto bg-gray-50">
+                {formData.taskIds && formData.taskIds.length > 0 ? (
+                  <div className="space-y-2">
+                    {formData.taskIds.map((taskId: string, index: number) => {
+                      const task = tasks.find((t) => t.id === taskId)
+                      return (
+                        <div
+                          key={taskId}
+                          className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm"
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            <span className="text-sm font-medium text-gray-500 w-8">
+                              {index + 1}.
+                            </span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {task?.title || 'Unknown Task'}
+                              </p>
+                              {task?.description && (
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                  {task.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTaskIds = [...(formData.taskIds || [])]
+                                if (index > 0) {
+                                  ;[newTaskIds[index], newTaskIds[index - 1]] = [
+                                    newTaskIds[index - 1],
+                                    newTaskIds[index],
+                                  ]
+                                  updateFormField('taskIds', newTaskIds)
+                                }
+                              }}
+                              disabled={index === 0}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTaskIds = [...(formData.taskIds || [])]
+                                if (index < newTaskIds.length - 1) {
+                                  ;[newTaskIds[index], newTaskIds[index + 1]] = [
+                                    newTaskIds[index + 1],
+                                    newTaskIds[index],
+                                  ]
+                                  updateFormField('taskIds', newTaskIds)
+                                }
+                              }}
+                              disabled={index === (formData.taskIds || []).length - 1}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTaskIds = (formData.taskIds || []).filter(
+                                  (id: string) => id !== taskId
+                                )
+                                updateFormField('taskIds', newTaskIds.length > 0 ? newTaskIds : [])
+                              }}
+                              className="p-1 text-red-400 hover:text-red-600"
+                              title="Remove"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-8">
+                    No tasks added yet. Select tasks below to add them to this roadmap.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add Task to Roadmap
+              </label>
+              <select
+                value=""
                 onChange={(e) => {
-                  const tags = e.target.value
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter((t) => t.length > 0)
-                  updateFormField('tags', tags.length > 0 ? tags : undefined)
+                  const taskId = e.target.value
+                  if (taskId) {
+                    const currentTaskIds = formData.taskIds || []
+                    if (!currentTaskIds.includes(taskId)) {
+                      updateFormField('taskIds', [...currentTaskIds, taskId])
+                    }
+                    e.target.value = ''
+                  }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="tag1, tag2, tag3"
-              />
+              >
+                <option value="">Select a task to add...</option>
+                {tasks
+                  .filter((task) => !(formData.taskIds || []).includes(task.id))
+                  .map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.title || 'Untitled Task'}
+                    </option>
+                  ))}
+              </select>
+              {tasks.length === 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  No tasks available. Create tasks first before adding them to a roadmap.
+                </p>
+              )}
             </div>
-          </>
+          </div>
         )}
 
-        {isRoadmap && (
+        {isTask && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Steps (JSON format)
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Upload Media File (Video or Image) {!editingItem && '*'}
             </label>
-            <textarea
-              value={formData.steps ? JSON.stringify(formData.steps, null, 2) : ''}
+            <input
+              type="file"
+              accept="video/*,image/*"
               onChange={(e) => {
-                const value = e.target.value.trim()
-                if (!value) {
-                  updateFormField('steps', undefined)
-                  return
-                }
-                try {
-                  const parsed = JSON.parse(value)
-                  if (Array.isArray(parsed)) {
-                    updateFormField('steps', parsed)
-                  } else {
-                    updateFormField('steps', undefined)
+                const file = e.target.files?.[0]
+                if (file) {
+                  setMediaFile(file)
+                  if (!formData.title) {
+                    updateFormField('title', file.name.replace(/\.[^/.]+$/, ''))
                   }
-                } catch {
-                  updateFormField('steps', undefined)
                 }
               }}
-              rows={6}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-xs ${
-                formData.steps ? 'border-gray-300' : 'border-gray-300'
-              }`}
-              placeholder='[{"order": 1, "title": "Step 1", "description": "..."}]'
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Enter steps as JSON array. Each step should have: order (number), title (string),
-              description (optional), taskId (optional)
-            </p>
-          </div>
-        )}
-
-        {isVideo && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Video URL *</label>
-              <input
-                type="url"
-                value={formData.videoUrl || ''}
-                onChange={(e) => updateFormField('videoUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="https://..."
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail URL</label>
-              <input
-                type="url"
-                value={formData.thumbnailUrl || ''}
-                onChange={(e) => updateFormField('thumbnailUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="https://..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duration (seconds)
-              </label>
-              <input
-                type="number"
-                value={formData.duration || ''}
-                onChange={(e) => updateFormField('duration', parseInt(e.target.value) || undefined)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter duration"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={formData.tags ? formData.tags.join(', ') : ''}
-                onChange={(e) => {
-                  const tags = e.target.value
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter((t) => t.length > 0)
-                  updateFormField('tags', tags.length > 0 ? tags : undefined)
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="tag1, tag2, tag3"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Age Range Min</label>
-            <input
-              type="number"
-              min="0"
-              max="18"
-              value={formData.ageRange?.min || ''}
-              onChange={(e) =>
-                updateFormField('ageRange', {
-                  ...formData.ageRange,
-                  min: parseInt(e.target.value) || undefined,
-                  max: formData.ageRange?.max || 18,
-                })
-              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
+            {mediaFile && (
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {mediaFile.name} ({(mediaFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMediaFile(null)}
+                  className="text-red-600 hover:text-red-700 text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Age Range Max</label>
-            <input
-              type="number"
-              min="0"
-              max="18"
-              value={formData.ageRange?.max || ''}
-              onChange={(e) =>
-                updateFormField('ageRange', {
-                  ...formData.ageRange,
-                  min: formData.ageRange?.min || 0,
-                  max: parseInt(e.target.value) || undefined,
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-          </div>
-        </div>
+        )}
       </div>
     )
   }
@@ -604,8 +599,6 @@ export default function ContentPage() {
   const tabs = [
     { id: 'tasks' as ContentType, label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'roadmaps' as ContentType, label: 'Roadmaps', icon: BookOpen, count: roadmaps.length },
-    { id: 'materials' as ContentType, label: 'Materials', icon: FileText, count: materials.length },
-    { id: 'videos' as ContentType, label: 'Videos', icon: Video, count: videos.length },
   ]
 
   const getCurrentItems = () => {
@@ -614,10 +607,6 @@ export default function ContentPage() {
         return tasks
       case 'roadmaps':
         return roadmaps
-      case 'materials':
-        return materials
-      case 'videos':
-        return videos
     }
   }
 
@@ -629,9 +618,7 @@ export default function ContentPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Management</h1>
-        <p className="text-gray-600">
-          Manage global content: tasks, roadmaps, materials, and videos
-        </p>
+        <p className="text-gray-600">Manage global content: tasks and roadmaps</p>
       </div>
 
       <div className="mb-6 border-b border-gray-200">
@@ -710,7 +697,7 @@ export default function ContentPage() {
                     {item.title || item.name || 'Untitled'}
                   </h3>
                   {item.description && (
-                    <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
+                    <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                   )}
                 </div>
                 <div className="flex items-center space-x-2 ml-4">
@@ -783,8 +770,13 @@ export default function ContentPage() {
                     step(s)
                   </div>
                 )}
-                {item.steps && item.steps.length > 0 && (
-                  <div>
+                {item.taskIds && item.taskIds.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Tasks:</span> {item.taskIds.length} task(s)
+                  </div>
+                )}
+                {!item.taskIds && item.steps && item.steps.length > 0 && (
+                  <div className="text-sm text-gray-600">
                     <span className="font-medium">Steps:</span> {item.steps.length} step(s)
                   </div>
                 )}
@@ -797,6 +789,18 @@ export default function ContentPage() {
                       className="text-purple-600 hover:text-purple-700 underline"
                     >
                       View Video →
+                    </a>
+                  </div>
+                )}
+                {item.imageUrl && (
+                  <div className="pt-2">
+                    <a
+                      href={item.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-600 hover:text-purple-700 underline"
+                    >
+                      View Image →
                     </a>
                   </div>
                 )}
@@ -855,8 +859,27 @@ export default function ContentPage() {
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>{saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}</span>
+                <span>
+                  {saving
+                    ? activeTab === 'tasks' && mediaFile
+                      ? `Uploading... ${uploadProgress}%`
+                      : 'Saving...'
+                    : editingItem
+                      ? 'Update'
+                      : 'Create'}
+                </span>
               </button>
+              {activeTab === 'tasks' && mediaFile && uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-2 w-full">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Uploading video... {uploadProgress}%</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { register, getIdToken } from '@/lib/b2b/authClient'
+import { register } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import Link from 'next/link'
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react'
@@ -50,34 +50,28 @@ function RegisterForm() {
     setLoading(true)
 
     try {
-      // Step 1: Create Firebase Auth account
-      console.log('🔐 [REGISTER] Creating Firebase Auth account...')
       const userCredential = await register(email, password, name)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      // Step 2: Accept invite code (this creates membership)
-      console.log('🔗 [REGISTER] Accepting invite code:', inviteCode.trim())
       try {
-        const result = await apiClient.acceptInvite(inviteCode.trim())
-        console.log('✅ [REGISTER] Successfully joined organization:', result.orgId)
-
-        // Redirect to dashboard
+        await apiClient.acceptInvite(inviteCode.trim())
         router.push('/b2b')
         return
-      } catch (acceptError: any) {
-        console.error('❌ [REGISTER] Failed to accept invite:', acceptError)
-        setError(
-          acceptError.message || 'Failed to join organization. Please check your invite code.'
-        )
+      } catch (acceptError: unknown) {
+        const errorMessage =
+          acceptError instanceof Error
+            ? acceptError.message
+            : 'Failed to join organization. Please check your invite code.'
+        setError(errorMessage)
         setLoading(false)
         return
       }
-    } catch (err: any) {
-      console.error('Registration error:', err)
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string; message?: string }
       let errorMessage = 'Failed to create account. Please try again.'
-      if (err.code) {
-        switch (err.code) {
+      if (firebaseError.code) {
+        switch (firebaseError.code) {
           case 'auth/email-already-in-use':
             errorMessage = 'This email is already registered. Please sign in instead.'
             break
@@ -91,10 +85,10 @@ function RegisterForm() {
             errorMessage = 'Email/password sign-up is not enabled. Please contact support.'
             break
           default:
-            errorMessage = err.message || errorMessage
+            errorMessage = firebaseError.message || errorMessage
         }
-      } else {
-        errorMessage = err.message || errorMessage
+      } else if (firebaseError.message) {
+        errorMessage = firebaseError.message
       }
       setError(errorMessage)
     } finally {

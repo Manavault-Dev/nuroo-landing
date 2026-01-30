@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { apiClient } from '@/lib/b2b/api'
 import {
   Building2,
   Plus,
   Key,
   Copy,
   Check,
-  X,
-  Calendar,
   Users,
   Shield,
   UserPlus,
@@ -80,8 +78,8 @@ export default function AdminPage() {
 
   // Organization details state
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
-  const [orgSpecialists, setOrgSpecialists] = useState<Record<string, any[]>>({})
-  const [orgParents, setOrgParents] = useState<Record<string, any[]>>({})
+  const [orgSpecialists, setOrgSpecialists] = useState<Record<string, unknown[]>>({})
+  const [orgParents, setOrgParents] = useState<Record<string, unknown[]>>({})
   const [loadingOrgData, setLoadingOrgData] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -109,13 +107,13 @@ export default function AdminPage() {
 
         setIsSuperAdmin(true)
         await loadData()
-      } catch (err: any) {
-        console.error('Error checking super admin:', err)
-        if (err.message?.includes('403') || err.message?.includes('Super admin')) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        if (errorMessage.includes('403') || errorMessage.includes('Super admin')) {
           router.push('/b2b')
           return
         }
-        setError(err.message || 'Failed to check super admin status')
+        setError(errorMessage || 'Failed to check super admin status')
       } finally {
         setLoading(false)
       }
@@ -126,23 +124,17 @@ export default function AdminPage() {
 
   const loadData = async () => {
     try {
-      // Load Organizations
-      const orgsData = await apiClient.listOrganizations()
+      const [orgsData, invitesData, superAdminsData] = await Promise.all([
+        apiClient.listOrganizations(),
+        apiClient.listInvites(),
+        apiClient.listSuperAdmins(),
+      ])
       setOrganizations(orgsData.organizations)
-      console.log('✅ Loaded organizations:', orgsData.organizations)
-
-      // Load Invites
-      const invitesData = await apiClient.listInvites()
       setInvites(invitesData.invites)
-      console.log('✅ Loaded invites:', invitesData.invites)
-
-      // Load Super Admins
-      const superAdminsData = await apiClient.listSuperAdmins()
       setSuperAdmins(superAdminsData.superAdmins)
-      console.log('✅ Loaded super admins:', superAdminsData.superAdmins)
-    } catch (err: any) {
-      console.error('Failed to load data:', err)
-      setError(err.message || 'Failed to load data')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load data'
+      setError(errorMessage)
     }
   }
 
@@ -156,7 +148,6 @@ export default function AdminPage() {
         orgName.trim(),
         orgCountry.trim() || undefined
       )
-      console.log('✅ Organization created:', result)
 
       // Reset form
       setOrgName('')
@@ -168,8 +159,9 @@ export default function AdminPage() {
 
       // Show success message
       alert(`Organization "${result.name}" created successfully!`)
-    } catch (err: any) {
-      setError(err.message || 'Failed to create organization')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create organization'
+      setError(errorMessage)
     } finally {
       setCreatingOrg(false)
     }
@@ -194,8 +186,6 @@ export default function AdminPage() {
         maxUses: inviteMaxUses ? parseInt(inviteMaxUses) : undefined,
       })
 
-      console.log('✅ Invite code generated:', result)
-
       // Add to invites list
       setInvites([result, ...invites])
 
@@ -208,8 +198,9 @@ export default function AdminPage() {
 
       // Copy to clipboard
       await copyToClipboard(result.inviteLink)
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate invite code')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate invite code'
+      setError(errorMessage)
     } finally {
       setGeneratingInvite(false)
     }
@@ -222,20 +213,15 @@ export default function AdminPage() {
 
     try {
       const result = await apiClient.grantSuperAdmin(newSuperAdminEmail.trim())
-      console.log('✅ Super Admin granted:', result)
-
-      // Reload Super Admins list
       await loadData()
-
-      // Reset form
       setNewSuperAdminEmail('')
       setShowAddSuperAdmin(false)
-
       alert(
         `Super Admin rights granted to ${result.email}. They need to sign out and sign in again.`
       )
-    } catch (err: any) {
-      setError(err.message || 'Failed to grant Super Admin rights')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to grant Super Admin rights'
+      setError(errorMessage)
     } finally {
       setAddingSuperAdmin(false)
     }
@@ -250,13 +236,12 @@ export default function AdminPage() {
     setError('')
 
     try {
-      const result = await apiClient.removeSuperAdmin(uid)
-      console.log('✅ Super Admin removed:', result)
-
-      // Reload Super Admins list
+      await apiClient.removeSuperAdmin(uid)
       await loadData()
-    } catch (err: any) {
-      setError(err.message || 'Failed to remove Super Admin rights')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to remove Super Admin rights'
+      setError(errorMessage)
     } finally {
       setRemovingSuperAdmin(null)
     }
@@ -264,35 +249,18 @@ export default function AdminPage() {
 
   const loadOrgData = async (orgId: string) => {
     if (orgSpecialists[orgId] && orgParents[orgId]) {
-      console.log(`ℹ️ [ADMIN] Data already loaded for org ${orgId}`)
-      return // Already loaded
+      return
     }
 
-    console.log(`🔍 [ADMIN] Loading data for org ${orgId}`)
     setLoadingOrgData((prev) => ({ ...prev, [orgId]: true }))
     try {
       const [specialistsData, parentsData] = await Promise.all([
-        apiClient.getOrgSpecialists(orgId).catch((err) => {
-          console.error(`❌ [ADMIN] Failed to load specialists for org ${orgId}:`, err)
-          return { ok: true, specialists: [], count: 0 }
-        }),
-        apiClient.getOrgParents(orgId).catch((err) => {
-          console.error(`❌ [ADMIN] Failed to load parents for org ${orgId}:`, err)
-          return { ok: true, parents: [], count: 0 }
-        }),
+        apiClient.getOrgSpecialists(orgId).catch(() => ({ ok: true, specialists: [], count: 0 })),
+        apiClient.getOrgParents(orgId).catch(() => ({ ok: true, parents: [], count: 0 })),
       ])
-
-      console.log(`✅ [ADMIN] Loaded data for org ${orgId}:`, {
-        specialists: specialistsData.specialists?.length || 0,
-        parents: parentsData.parents?.length || 0,
-      })
-      console.log(`📋 [ADMIN] Specialists data:`, specialistsData)
-      console.log(`📋 [ADMIN] Parents data:`, parentsData)
 
       setOrgSpecialists((prev) => ({ ...prev, [orgId]: specialistsData.specialists || [] }))
       setOrgParents((prev) => ({ ...prev, [orgId]: parentsData.parents || [] }))
-    } catch (err: any) {
-      console.error(`❌ [ADMIN] Failed to load data for org ${orgId}:`, err)
     } finally {
       setLoadingOrgData((prev) => ({ ...prev, [orgId]: false }))
     }
@@ -313,8 +281,8 @@ export default function AdminPage() {
       const code = text.split('code=')[1]?.split('&')[0] || text
       setCopiedCode(code)
       setTimeout(() => setCopiedCode(null), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
+    } catch {
+      // Clipboard API not available
     }
   }
 
@@ -463,7 +431,9 @@ export default function AdminPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role *</label>
                 <select
                   value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as any)}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as 'org_admin' | 'specialist' | 'parent')
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="org_admin">Organization Admin</option>

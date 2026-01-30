@@ -49,25 +49,17 @@ export default function DashboardPage() {
 
         const orgId = searchParams.get('orgId') || profileData.organizations[0]?.orgId
         setCurrentOrgId(orgId)
-        console.log('🔍 [DASHBOARD] Loading children for orgId:', orgId)
-        console.log('🔍 [DASHBOARD] Profile organizations:', profileData.organizations)
         if (orgId) {
           try {
-            console.log('🔍 [DASHBOARD] Calling apiClient.getChildren with orgId:', orgId)
             const childrenData = await apiClient.getChildren(orgId)
-            console.log('✅ [DASHBOARD] Received children data:', childrenData)
-            console.log('✅ [DASHBOARD] Children count:', childrenData.length)
             setChildren(childrenData)
-          } catch (error) {
-            console.error('❌ [DASHBOARD] Failed to load children:', error)
-            console.error('❌ [DASHBOARD] Error details:', error)
+          } catch {
+            // Failed to load children - continue with empty list
           }
         } else {
-          console.warn('⚠️ [DASHBOARD] No orgId found, redirecting to join')
           router.push('/b2b/join')
         }
-      } catch (error) {
-        console.error('Error loading dashboard:', error)
+      } catch {
         router.push('/b2b/login')
       } finally {
         setLoading(false)
