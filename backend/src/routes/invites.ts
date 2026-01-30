@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
 import { z } from 'zod'
 
@@ -641,68 +641,71 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // GET /api/specialist/connections - Get parent connections for specialist (mobile app compatibility)
-  fastify.get('/api/specialist/connections', async (request, reply) => {
-    if (!request.user) {
-      return reply.code(401).send({ error: 'Unauthorized' })
-    }
+  fastify.get<{ Querystring: { orgId?: string } }>(
+    '/api/specialist/connections',
+    async (request, reply) => {
+      if (!request.user) {
+        return reply.code(401).send({ error: 'Unauthorized' })
+      }
 
-    try {
-      const db = getFirestore()
-      const specialistUid = request.user.uid
-      const orgId = request.query.orgId as string | undefined
+      try {
+        const db = getFirestore()
+        const specialistUid = request.user.uid
+        const orgId = request.query.orgId
 
-      console.log(
-        '🔍 [SPECIALIST_CONNECTIONS] Getting connections for specialist:',
-        specialistUid,
-        'orgId:',
-        orgId
-      )
+        console.log(
+          '🔍 [SPECIALIST_CONNECTIONS] Getting connections for specialist:',
+          specialistUid,
+          'orgId:',
+          orgId
+        )
 
-      if (!orgId) {
-        // If no orgId provided, get all organizations where specialist is a member
-        const orgsSnapshot = await db.collection('organizations').get()
-        const allConnections: any[] = []
+        if (!orgId) {
+          // If no orgId provided, get all organizations where specialist is a member
+          const orgsSnapshot = await db.collection('organizations').get()
+          const allConnections: any[] = []
 
-        for (const orgDoc of orgsSnapshot.docs) {
-          const orgId = orgDoc.id
-          const memberRef = db.doc(`organizations/${orgId}/members/${specialistUid}`)
-          const memberSnap = await memberRef.get()
+          for (const orgDoc of orgsSnapshot.docs) {
+            const orgId = orgDoc.id
+            const memberRef = db.doc(`organizations/${orgId}/members/${specialistUid}`)
+            const memberSnap = await memberRef.get()
 
-          if (memberSnap.exists) {
-            // Get connections for this org
-            const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
-            allConnections.push(
-              ...connections.map((conn) => ({
-                ...conn,
-                orgId,
-                orgName: orgDoc.data().name || orgId,
-              }))
-            )
+            if (memberSnap.exists) {
+              // Get connections for this org
+              const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
+              allConnections.push(
+                ...connections.map((conn) => ({
+                  ...conn,
+                  orgId,
+                  orgName: orgDoc.data().name || orgId,
+                }))
+              )
+            }
+          }
+
+          return {
+            ok: true,
+            connections: allConnections,
+            count: allConnections.length,
+          }
+        } else {
+          // Get connections for specific org
+          const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
+          return {
+            ok: true,
+            connections,
+            count: connections.length,
           }
         }
-
-        return {
-          ok: true,
-          connections: allConnections,
-          count: allConnections.length,
-        }
-      } else {
-        // Get connections for specific org
-        const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
-        return {
-          ok: true,
-          connections,
-          count: connections.length,
-        }
+      } catch (error: any) {
+        console.error('❌ [SPECIALIST_CONNECTIONS] Error getting connections:', error)
+        return reply.code(500).send({
+          error: 'Failed to get connections',
+          message: error.message,
+        })
       }
-    } catch (error: any) {
-      console.error('❌ [SPECIALIST_CONNECTIONS] Error getting connections:', error)
-      return reply.code(500).send({
-        error: 'Failed to get connections',
-        message: error.message,
-      })
     }
-  })
+  )
 
   // Helper function to get connections for specialist
   async function getConnectionsForSpecialist(

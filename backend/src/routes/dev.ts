@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 
-import { getAuth } from '../firebaseAdmin.js'
+import { getAuth } from '../infrastructure/database/firebase.js'
 import { config } from '../config.js'
 import { z } from 'zod'
 
@@ -22,48 +22,48 @@ function isWhitelisted(email: string | undefined): boolean {
 }
 
 export const devRoute: FastifyPluginAsync = async (fastify) => {
-  if (config.NODE_ENV === 'production') {
-    return
-  }
+  const isProduction = config.NODE_ENV === 'production'
 
-  fastify.post<{ Body: z.infer<typeof setSuperAdminSchema> }>(
-    '/dev/set-super-admin',
-    async (request, reply) => {
-      const body = setSuperAdminSchema.parse(request.body)
-      const { email } = body
-
-      try {
-        const auth = getAuth()
-        const user = await auth.getUserByEmail(email)
+  if (!isProduction) {
+    fastify.post<{ Body: z.infer<typeof setSuperAdminSchema> }>(
+      '/dev/set-super-admin',
+      async (request, reply) => {
+        const body = setSuperAdminSchema.parse(request.body)
+        const { email } = body
 
         try {
-          await auth.setCustomUserClaims(user.uid, { superAdmin: true })
+          const auth = getAuth()
+          const user = await auth.getUserByEmail(email)
 
-          return {
-            ok: true,
-            message: `Super Admin claim set for ${email}`,
-            uid: user.uid,
-            note: 'User must refresh their ID token (sign out and sign in) for the claim to take effect',
+          try {
+            await auth.setCustomUserClaims(user.uid, { superAdmin: true })
+
+            return {
+              ok: true,
+              message: `Super Admin claim set for ${email}`,
+              uid: user.uid,
+              note: 'User must refresh their ID token (sign out and sign in) for the claim to take effect',
+            }
+          } catch (claimError: any) {
+            return {
+              ok: true,
+              message: `Super Admin access granted via dev whitelist for ${email}`,
+              uid: user.uid,
+              note: 'Custom claim could not be set, but user is added to dev whitelist. User must refresh their ID token (sign out and sign in) for the claim to take effect.',
+              warning: 'Using dev whitelist - this only works in development mode',
+            }
           }
-        } catch (claimError: any) {
-          return {
-            ok: true,
-            message: `Super Admin access granted via dev whitelist for ${email}`,
-            uid: user.uid,
-            note: 'Custom claim could not be set, but user is added to dev whitelist. User must refresh their ID token (sign out and sign in) for the claim to take effect.',
-            warning: 'Using dev whitelist - this only works in development mode',
+        } catch (error: any) {
+          if (error.code === 'auth/user-not-found') {
+            return reply.code(404).send({
+              error: `User with email ${email} not found`,
+            })
           }
+          throw error
         }
-      } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-          return reply.code(404).send({
-            error: `User with email ${email} not found`,
-          })
-        }
-        throw error
       }
-    }
-  )
+    )
+  }
 
   fastify.get('/dev/check-super-admin', async (request, reply) => {
     try {
@@ -73,7 +73,7 @@ export const devRoute: FastifyPluginAsync = async (fastify) => {
 
       const userEmail = request.user.email
       const isSuperAdmin = request.user.claims?.superAdmin === true
-      const isWhitelistedUser = isWhitelisted(userEmail)
+      const isWhitelistedUser = !isProduction && isWhitelisted(userEmail)
 
       return {
         uid: request.user.uid,
@@ -81,6 +81,7 @@ export const devRoute: FastifyPluginAsync = async (fastify) => {
         isSuperAdmin: isSuperAdmin || isWhitelistedUser,
         claims: request.user.claims,
         isWhitelisted: isWhitelistedUser,
+        environment: config.NODE_ENV,
         note: isWhitelistedUser ? 'Using dev whitelist (custom claim not set)' : undefined,
       }
     } catch (error: any) {

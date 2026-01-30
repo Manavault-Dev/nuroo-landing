@@ -1,7 +1,7 @@
 import { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import admin from 'firebase-admin'
 
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 import { config } from '../config.js'
 import type { SpecialistProfile } from '../types.js'
 import { z } from 'zod'

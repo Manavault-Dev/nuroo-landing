@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
 
 const DEFAULT_GROUP_COLOR = '#6366f1'

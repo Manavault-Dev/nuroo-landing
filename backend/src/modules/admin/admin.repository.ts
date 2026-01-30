@@ -9,7 +9,6 @@ import { getAuth } from '../../infrastructure/database/firebase.js'
 import { nowTimestamp, toISOString, toTimestamp } from '../../shared/utils/timestamp.js'
 import { generateInviteCode } from '../../shared/utils/inviteCode.js'
 import type { CreateOrgInput, CreateAdminInviteInput } from './admin.schema.js'
-import { QueryDocumentSnapshot } from 'firebase/firestore'
 
 export async function findOrganizationsByCreator(uid: string) {
   let orgsSnapshot
@@ -45,7 +44,7 @@ export async function findOrganizationsByCreator(uid: string) {
     }
   }
 
-  return orgsSnapshot.docs.map((doc: QueryDocumentSnapshot<OrgData>) => {
+  return orgsSnapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot<OrgData>) => {
     const data = doc.data()
     return {
       orgId: doc.id,

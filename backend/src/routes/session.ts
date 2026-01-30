@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 
 const COLLECTIONS = {
   SPECIALISTS: 'specialists',

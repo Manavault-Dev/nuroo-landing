@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireSuperAdmin } from '../plugins/superAdmin.js'
 import { config } from '../config.js'
 import { z } from 'zod'

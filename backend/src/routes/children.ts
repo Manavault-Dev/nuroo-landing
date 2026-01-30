@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 
-import { getFirestore } from '../firebaseAdmin.js'
+import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
 

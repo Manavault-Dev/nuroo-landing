@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { getAuth } from '../firebaseAdmin.js'
+import { getAuth } from '../infrastructure/database/firebase.js'
 import { requireSuperAdmin } from '../plugins/superAdmin.js'
 
 const MAX_USERS_PER_PAGE = 1000

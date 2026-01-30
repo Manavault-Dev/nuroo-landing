@@ -33,18 +33,13 @@ export function initializeFirebaseAdmin() {
       return app
     }
 
-    if (config.GOOGLE_APPLICATION_CREDENTIALS) {
-      app = admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
-        projectId,
-      })
-      console.log(`[FIREBASE] Firebase Admin initialized using application default credentials`)
-      console.log(`[FIREBASE] Using project: ${projectId}`)
-      return app
-    }
-
-    console.warn('Firebase Admin credentials incomplete')
-    return null
+    app = admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId,
+    })
+    console.log(`[FIREBASE] Firebase Admin initialized using application default credentials`)
+    console.log(`[FIREBASE] Using project: ${projectId}`)
+    return app
   } catch (error) {
     console.error('Failed to initialize Firebase Admin:', error)
     return null
@@ -61,6 +56,18 @@ export function getAuth() {
   if (!app) app = initializeFirebaseAdmin()
   if (!app) throw new Error('Firebase Admin not initialized')
   return admin.auth()
+}
+
+export function getStorage() {
+  if (!app) app = initializeFirebaseAdmin()
+  if (!app) throw new Error('Firebase Admin not initialized')
+  return admin.storage()
+}
+
+export function getApp() {
+  if (!app) app = initializeFirebaseAdmin()
+  if (!app) throw new Error('Firebase Admin not initialized')
+  return app
 }
 
 export { admin }
