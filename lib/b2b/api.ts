@@ -59,6 +59,8 @@ export interface ActivityDay {
   feedback?: { mood: 'good' | 'ok' | 'hard'; comment?: string; timestamp: string }
 }
 
+export type TimelineResponse = { days: ActivityDay[] }
+
 // API Client
 export class ApiClient {
   private baseUrl: string
