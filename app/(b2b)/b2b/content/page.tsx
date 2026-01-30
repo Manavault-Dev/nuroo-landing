@@ -55,7 +55,7 @@ export default function ContentPage() {
   const [tasks, setTasks] = useState<ContentItem[]>([])
   const [roadmaps, setRoadmaps] = useState<ContentItem[]>([])
 
-  const [formData, setFormData] = useState<Record<string, unknown>>({})
+  const [formData, setFormData] = useState<Record<string, any>>({})
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
 
@@ -176,14 +176,14 @@ export default function ContentPage() {
               setUploadProgress(10)
               await apiClient.uploadTaskMedia(
                 mediaFile,
-                formData.title || editingItem.title || '',
+                (formData.title as string) || editingItem.title || '',
                 {
-                  description: formData.description,
-                  category: formData.category,
-                  difficulty: formData.difficulty,
-                  estimatedDuration: formData.estimatedDuration,
-                  ageRange: formData.ageRange,
-                  instructions: formData.instructions,
+                  description: formData.description as string | undefined,
+                  category: formData.category as string | undefined,
+                  difficulty: formData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
+                  estimatedDuration: formData.estimatedDuration as number | undefined,
+                  ageRange: formData.ageRange as { min: number; max: number } | undefined,
+                  instructions: formData.instructions as string[] | undefined,
                   taskId: editingItem.id,
                 }
               )
@@ -201,13 +201,13 @@ export default function ContentPage() {
           case 'tasks':
             if (mediaFile) {
               setUploadProgress(10)
-              await apiClient.uploadTaskMedia(mediaFile, formData.title, {
-                description: formData.description,
-                category: formData.category,
-                difficulty: formData.difficulty,
-                estimatedDuration: formData.estimatedDuration,
-                ageRange: formData.ageRange,
-                instructions: formData.instructions,
+              await apiClient.uploadTaskMedia(mediaFile, (formData.title as string) || '', {
+                description: formData.description as string | undefined,
+                category: formData.category as string | undefined,
+                difficulty: formData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
+                estimatedDuration: formData.estimatedDuration as number | undefined,
+                ageRange: formData.ageRange as { min: number; max: number } | undefined,
+                instructions: formData.instructions as string[] | undefined,
               })
               setUploadProgress(100)
             } else {
