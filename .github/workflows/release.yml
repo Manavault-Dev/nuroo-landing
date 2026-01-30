@@ -11,11 +11,9 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
-  # ============================================
-  # Create Release
-  # ============================================
   release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -27,10 +25,9 @@ jobs:
         id: release
         with:
           release-type: node
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ============================================
-  # Build & Deploy (only on release)
-  # ============================================
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
@@ -60,15 +57,6 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      # Uncomment and configure for Vercel deployment
-      # - name: Deploy to Vercel
-      #   uses: amondnet/vercel-action@v25
-      #   with:
-      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
-      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-      #     vercel-args: '--prod'
-
       - name: Deployment placeholder
         run: echo "Frontend build successful. Configure deployment in workflow."
 
@@ -96,20 +84,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      # Uncomment and configure for Cloud Run deployment
-      # - name: Setup Google Cloud
-      #   uses: google-github-actions/setup-gcloud@v2
-      #   with:
-      #     project_id: ${{ secrets.GCP_PROJECT_ID }}
-      #     service_account_key: ${{ secrets.GCP_SA_KEY }}
-      #
-      # - name: Deploy to Cloud Run
-      #   run: |
-      #     gcloud run deploy nuroo-api \
-      #       --source . \
-      #       --region us-central1 \
-      #       --allow-unauthenticated
 
       - name: Deployment placeholder
         run: echo "Backend build successful. Configure deployment in workflow."
