@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { register, getIdToken } from '@/lib/b2b/authClient'
+import { register } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import Link from 'next/link'
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react'
@@ -11,7 +11,7 @@ function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('invite') || searchParams.get('code') || ''
-  
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,6 +24,13 @@ function RegisterForm() {
     e.preventDefault()
     setError('')
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       return
@@ -34,31 +41,37 @@ function RegisterForm() {
       return
     }
 
+    // NEW FLOW: Invite code is REQUIRED for registration
+    if (!inviteCode.trim()) {
+      setError('Invite code is required. Please contact your administrator to get an invite code.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const userCredential = await register(email, password, name)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
-      await apiClient.createProfile(name)
-      
-      if (inviteCode.trim()) {
-        try {
-          await apiClient.joinOrganization(inviteCode.trim())
-        } catch (joinError: any) {
-          console.warn('Failed to join organization:', joinError)
-          setError(joinError.message || 'Account created but failed to join organization. Please join manually.')
-          setLoading(false)
-          return
-        }
+
+      try {
+        await apiClient.acceptInvite(inviteCode.trim())
+        router.push('/b2b')
+        return
+      } catch (acceptError: unknown) {
+        const errorMessage =
+          acceptError instanceof Error
+            ? acceptError.message
+            : 'Failed to join organization. Please check your invite code.'
+        setError(errorMessage)
+        setLoading(false)
+        return
       }
-      
-      router.push('/b2b')
-    } catch (err: any) {
-      console.error('Registration error:', err)
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string; message?: string }
       let errorMessage = 'Failed to create account. Please try again.'
-      if (err.code) {
-        switch (err.code) {
+      if (firebaseError.code) {
+        switch (firebaseError.code) {
           case 'auth/email-already-in-use':
             errorMessage = 'This email is already registered. Please sign in instead.'
             break
@@ -72,10 +85,10 @@ function RegisterForm() {
             errorMessage = 'Email/password sign-up is not enabled. Please contact support.'
             break
           default:
-            errorMessage = err.message || errorMessage
+            errorMessage = firebaseError.message || errorMessage
         }
-      } else {
-        errorMessage = err.message || errorMessage
+      } else if (firebaseError.message) {
+        errorMessage = firebaseError.message
       }
       setError(errorMessage)
     } finally {
@@ -171,7 +184,10 @@ function RegisterForm() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Confirm Password
               </label>
               <div className="relative">
@@ -194,19 +210,21 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-                Invite Code <span className="text-gray-400 font-normal">(optional)</span>
+                Invite Code <span className="text-red-500">*</span>
               </label>
               <input
                 id="inviteCode"
                 name="inviteCode"
                 type="text"
+                required
                 value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Enter invite code if you have one"
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
+                placeholder="Enter your invite code"
               />
               <p className="mt-1 text-xs text-gray-500">
-                If you have an invite code, enter it here to join an organization automatically
+                You need an invite code from your organization administrator to register. Contact
+                them to get your invite code.
               </p>
             </div>
 
@@ -224,7 +242,10 @@ function RegisterForm() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link href="/b2b/login" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link
+                href="/b2b/login"
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
                 Sign in
               </Link>
             </p>
@@ -243,14 +264,16 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <RegisterForm />
     </Suspense>
   )

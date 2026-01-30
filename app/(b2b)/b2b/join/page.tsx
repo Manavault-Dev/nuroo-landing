@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
@@ -13,10 +13,38 @@ export default function JoinPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    // Check if user is Super Admin on mount - redirect immediately if Super Admin
+    const checkSuperAdmin = async () => {
+      const user = getCurrentUser()
+      if (!user) {
+        router.push('/b2b/login')
+        return
+      }
+
+      try {
+        const idToken = await getIdToken(true)
+        if (!idToken) {
+          return
+        }
+        apiClient.setToken(idToken)
+        const superAdminCheck = await apiClient.checkSuperAdmin()
+        if (superAdminCheck.isSuperAdmin) {
+          router.replace('/b2b/content')
+          return
+        }
+      } catch {
+        // Not Super Admin or error - continue with normal flow
+      }
+    }
+
+    checkSuperAdmin()
+  }, [router])
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    
+
     if (!inviteCode.trim()) {
       setError('Please enter an invite code')
       return
@@ -38,11 +66,15 @@ export default function JoinPage() {
       }
 
       apiClient.setToken(idToken)
-      await apiClient.joinOrganization(inviteCode.trim())
-      
+
+      await apiClient.acceptInvite(inviteCode.trim())
       router.push('/b2b')
-    } catch (err: any) {
-      setError(err.message || 'Failed to join organization. Please check the invite code.')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Failed to join organization. Please check the invite code.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -111,7 +143,10 @@ export default function JoinPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/b2b/login" className="text-sm font-medium text-primary-600 hover:text-primary-500">
+            <Link
+              href="/b2b/login"
+              className="text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
               Sign out and use a different account
             </Link>
           </div>
@@ -127,4 +162,3 @@ export default function JoinPage() {
     </div>
   )
 }
-

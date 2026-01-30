@@ -2,6 +2,8 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
 
+// Next.js automatically loads .env.local, .env.development, .env.production
+// based on NODE_ENV, so we just use the standard variable names
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -16,10 +18,14 @@ let auth: Auth | undefined
 let db: Firestore | undefined
 
 if (typeof window !== 'undefined') {
+  const env = process.env.NODE_ENV || 'development'
+
   if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     try {
       if (getApps().length === 0) {
         app = initializeApp(firebaseConfig)
+        console.log(`✅ [FIREBASE] Frontend initialized for ${env} environment`)
+        console.log(`📋 [FIREBASE] Using project: ${firebaseConfig.projectId}`)
       } else {
         app = getApps()[0]
       }
@@ -29,7 +35,9 @@ if (typeof window !== 'undefined') {
       console.error('❌ Failed to initialize Firebase:', error)
     }
   } else {
-    console.warn('⚠️ Firebase config is missing. B2B authentication will not work. Add Firebase config to .env.local')
+    console.warn(
+      '⚠️ Firebase config is missing. B2B authentication will not work. Add Firebase config to .env files'
+    )
   }
 }
 

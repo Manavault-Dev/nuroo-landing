@@ -1,12 +1,106 @@
-import { FastifyPluginAsync } from 'fastify'
+import { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import admin from 'firebase-admin'
-import { getFirestore } from '../firebaseAdmin.js'
+
+import { getFirestore } from '../infrastructure/database/firebase.js'
+import { config } from '../config.js'
 import type { SpecialistProfile } from '../types.js'
 import { z } from 'zod'
+
+const COLLECTIONS = {
+  SPECIALISTS: 'specialists',
+  ORGANIZATIONS: 'organizations',
+  ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
+} as const
+
+const DEV_SUPER_ADMIN_WHITELIST = ['nuroo@gmail.com']
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 })
+
+function isSuperAdmin(request: FastifyRequest): boolean {
+  if (!request.user) return false
+
+  const userEmail = (request.user.email || '').toLowerCase().trim()
+  const hasClaim = request.user.claims?.superAdmin === true
+
+  const isWhitelisted =
+    config.NODE_ENV !== 'production' &&
+    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
+
+  return hasClaim || isWhitelisted
+}
+
+function extractName(
+  specialistData: admin.firestore.DocumentData | null | undefined,
+  email: string | undefined
+): string {
+  if (specialistData?.fullName) return specialistData.fullName
+  if (specialistData?.name) return specialistData.name
+  return email?.split('@')[0] || 'Specialist'
+}
+
+function normalizeRole(role: string): 'admin' | 'specialist' {
+  return role === 'org_admin' ? 'admin' : 'specialist'
+}
+
+async function findOrganizationsForUser(
+  db: admin.firestore.Firestore,
+  uid: string,
+  isUserSuperAdmin: boolean
+): Promise<Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }>> {
+  const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
+  const organizations: Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }> = []
+
+  for (const orgDoc of orgsSnapshot.docs) {
+    const orgId = orgDoc.id
+    const orgData = orgDoc.data()
+
+    if (isUserSuperAdmin && orgData.createdBy === uid) {
+      organizations.push({
+        orgId,
+        orgName: orgData.name || orgId,
+        role: 'admin',
+      })
+      continue
+    }
+
+    const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
+    const memberSnap = await memberRef.get()
+
+    if (!memberSnap.exists) continue
+
+    const memberData = memberSnap.data()
+    if (memberData?.status !== 'active') continue
+
+    organizations.push({
+      orgId,
+      orgName: orgData.name || orgId,
+      role: normalizeRole(memberData.role),
+    })
+  }
+
+  return organizations
+}
+
+function buildProfileUpdateData(name: string, now: Date) {
+  return {
+    fullName: name,
+    name,
+    updatedAt: admin.firestore.Timestamp.fromDate(now),
+  }
+}
+
+function buildNewProfileData(uid: string, email: string | undefined, name: string, now: Date) {
+  return {
+    uid,
+    email: email || '',
+    fullName: name,
+    name,
+    createdAt: admin.firestore.Timestamp.fromDate(now),
+    updatedAt: admin.firestore.Timestamp.fromDate(now),
+  }
+}
 
 export const meRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/me', async (request, reply) => {
@@ -17,36 +111,21 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const db = getFirestore()
     const { uid, email } = request.user
 
-    const specialistRef = db.doc(`specialists/${uid}`)
+    const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
     const specialistSnap = await specialistRef.get()
-    
-    let name = email?.split('@')[0] || 'Specialist'
-    if (specialistSnap.exists) {
-      name = specialistSnap.data()?.name || name
+    const specialistData = specialistSnap.exists ? specialistSnap.data() : null
+    const name = extractName(specialistData, email)
+
+    const userIsSuperAdmin = isSuperAdmin(request)
+    const organizations = await findOrganizationsForUser(db, uid, userIsSuperAdmin)
+
+    const profile: SpecialistProfile = {
+      uid,
+      email: email || '',
+      name,
+      organizations,
     }
 
-    const orgsSnapshot = await db.collection('organizations').get()
-    const organizations: Array<{ orgId: string; orgName: string; role: 'specialist' | 'admin' }> = []
-    
-    for (const orgDoc of orgsSnapshot.docs) {
-      const orgId = orgDoc.id
-      const orgData = orgDoc.data()
-      const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
-      const memberSnap = await memberRef.get()
-      
-      if (!memberSnap.exists) continue
-      
-      const memberData = memberSnap.data()
-      if (memberData?.status !== 'active') continue
-
-      organizations.push({
-        orgId,
-        orgName: orgData.name || orgId,
-        role: memberData.role === 'admin' ? 'admin' : 'specialist',
-      })
-    }
-
-    const profile: SpecialistProfile = { uid, email: email || '', name, organizations }
     return profile
   })
 
@@ -58,31 +137,34 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const db = getFirestore()
     const { uid, email } = request.user
     const body = updateProfileSchema.parse(request.body)
-
-    const specialistRef = db.doc(`specialists/${uid}`)
-    const specialistSnap = await specialistRef.get()
     const now = new Date()
 
+    const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
+    const specialistSnap = await specialistRef.get()
+
     if (specialistSnap.exists) {
-      const updateData: Record<string, unknown> = { updatedAt: admin.firestore.Timestamp.fromDate(now) }
-      if (body.name) updateData.name = body.name
-      await specialistRef.update(updateData)
+      if (body.name) {
+        await specialistRef.update(buildProfileUpdateData(body.name, now))
+      }
+
       const data = (await specialistRef.get()).data()
       return {
         ok: true,
-        specialist: { uid, email: email || '', name: data?.name || email?.split('@')[0] || 'Specialist' },
-        orgId: data?.orgId || null,
+        specialist: {
+          uid,
+          email: email || '',
+          name: extractName(data, email),
+        },
       }
     }
 
-    const newData = {
-      uid,
-      email: email || '',
-      name: body.name || email?.split('@')[0] || 'Specialist',
-      createdAt: admin.firestore.Timestamp.fromDate(now),
-      updatedAt: admin.firestore.Timestamp.fromDate(now),
-    }
+    const name = body.name || email?.split('@')[0] || 'Specialist'
+    const newData = buildNewProfileData(uid, email, name, now)
     await specialistRef.set(newData)
-    return { ok: true, specialist: { uid, email: email || '', name: newData.name }, orgId: null }
+
+    return {
+      ok: true,
+      specialist: { uid, email: email || '', name: newData.fullName },
+    }
   })
 }

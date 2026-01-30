@@ -1,11 +1,15 @@
 export interface AuthenticatedUser {
   uid: string
   email: string | undefined
+  claims?: {
+    superAdmin?: boolean
+    [key: string]: unknown
+  }
 }
 
 export interface OrgMember {
   uid: string
-  role: 'admin' | 'specialist'
+  role: 'org_admin' | 'specialist'
   status: 'active' | 'inactive'
   addedAt: Date
 }
@@ -20,8 +24,16 @@ export interface ChildSummary {
   completedTasksCount: number
 }
 
+export interface ParentInfo {
+  uid: string
+  displayName?: string
+  email?: string
+  linkedAt?: Date
+}
+
 export interface ChildDetail extends ChildSummary {
   organizationId: string
+  parentInfo?: ParentInfo
   recentTasks: Array<{
     id: string
     title: string
@@ -38,6 +50,7 @@ export interface SpecialistNote {
   specialistName: string
   text: string
   tags?: string[]
+  visibleToParent?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -51,4 +64,21 @@ export interface SpecialistProfile {
     orgName: string
     role: 'admin' | 'specialist'
   }>
+}
+
+export interface ParentFeedback {
+  mood: 'good' | 'ok' | 'hard'
+  comment?: string
+  timestamp: Date
+}
+
+export interface ActivityDay {
+  date: string
+  tasksAttempted: number
+  tasksCompleted: number
+  feedback?: ParentFeedback
+}
+
+export interface TimelineResponse {
+  days: ActivityDay[]
 }

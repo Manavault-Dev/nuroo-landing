@@ -1,56 +1,36 @@
 import admin from 'firebase-admin'
 import { config } from './config.js'
 
-let app: admin.app.App | null = null
+function getAdminApp(): admin.app.App {
+  if (!admin.apps.length) {
+    const {
+      FIREBASE_PROJECT_ID,
+      FIREBASE_CLIENT_EMAIL,
+      FIREBASE_PRIVATE_KEY,
+      FIREBASE_STORAGE_BUCKET,
+    } = config
 
-export function initializeFirebaseAdmin() {
-  if (app) return app
+    const storageBucket =
+      FIREBASE_STORAGE_BUCKET ||
+      (FIREBASE_PROJECT_ID ? `${FIREBASE_PROJECT_ID}.appspot.com` : undefined)
 
-  if (!config.FIREBASE_PROJECT_ID && !config.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.warn('⚠️ Firebase Admin not configured')
-    return null
-  }
-
-  try {
-    if (config.FIREBASE_CLIENT_EMAIL && config.FIREBASE_PRIVATE_KEY && config.FIREBASE_PROJECT_ID) {
-      const privateKey = config.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      app = admin.initializeApp({
+    if (FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY && FIREBASE_PROJECT_ID) {
+      admin.initializeApp({
         credential: admin.credential.cert({
-          projectId: config.FIREBASE_PROJECT_ID,
-          clientEmail: config.FIREBASE_CLIENT_EMAIL,
-          privateKey,
+          projectId: FIREBASE_PROJECT_ID,
+          clientEmail: FIREBASE_CLIENT_EMAIL,
+          privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
-        projectId: config.FIREBASE_PROJECT_ID,
+        projectId: FIREBASE_PROJECT_ID,
+        storageBucket,
       })
-      console.log('✅ Firebase Admin initialized')
-      return app
-    }
-    
-    if (config.GOOGLE_APPLICATION_CREDENTIALS) {
-      app = admin.initializeApp({
+    } else {
+      admin.initializeApp({
         credential: admin.credential.applicationDefault(),
-        projectId: config.FIREBASE_PROJECT_ID,
+        projectId: FIREBASE_PROJECT_ID,
+        storageBucket,
       })
-      console.log('✅ Firebase Admin initialized')
-      return app
     }
-
-    console.warn('⚠️ Firebase Admin credentials incomplete')
-    return null
-  } catch (error) {
-    console.error('❌ Failed to initialize Firebase Admin:', error)
-    return null
   }
-}
-
-export function getFirestore() {
-  if (!app) app = initializeFirebaseAdmin()
-  if (!app) throw new Error('Firebase Admin not initialized')
-  return admin.firestore()
-}
-
-export function getAuth() {
-  if (!app) app = initializeFirebaseAdmin()
-  if (!app) throw new Error('Firebase Admin not initialized')
-  return admin.auth()
+  return admin.app()
 }

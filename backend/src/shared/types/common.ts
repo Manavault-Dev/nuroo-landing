@@ -1,0 +1,106 @@
+export interface AuthenticatedUser {
+  uid: string
+  email: string | undefined
+  claims?: {
+    superAdmin?: boolean
+    [key: string]: unknown
+  }
+}
+
+export interface OrgMember {
+  uid: string
+  role: 'org_admin' | 'specialist'
+  status: 'active' | 'inactive'
+  addedAt: Date
+}
+
+export interface ChildSummary {
+  id: string
+  name: string
+  age?: number
+  speechStepId?: string
+  speechStepNumber?: number
+  lastActiveDate?: Date
+  completedTasksCount: number
+}
+
+export interface ParentInfo {
+  uid: string
+  displayName?: string
+  email?: string
+  linkedAt?: Date
+}
+
+export interface ChildDetail extends ChildSummary {
+  organizationId: string
+  parentInfo?: ParentInfo
+  recentTasks: Array<{
+    id: string
+    title: string
+    status: 'completed' | 'pending' | 'in-progress'
+    completedAt?: Date
+  }>
+}
+
+export interface SpecialistNote {
+  id: string
+  childId: string
+  orgId: string
+  specialistId: string
+  specialistName: string
+  text: string
+  tags?: string[]
+  visibleToParent?: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface SpecialistProfile {
+  uid: string
+  email: string
+  name: string
+  organizations: Array<{
+    orgId: string
+    orgName: string
+    role: 'admin' | 'specialist'
+  }>
+}
+
+export interface ParentFeedback {
+  mood: 'good' | 'ok' | 'hard'
+  comment?: string
+  timestamp: Date
+}
+
+export interface ActivityDay {
+  date: string
+  tasksAttempted: number
+  tasksCompleted: number
+  feedback?: ParentFeedback
+}
+
+export interface TimelineResponse {
+  days: ActivityDay[]
+}
+
+export interface Organization {
+  id: string
+  name: string
+  country?: string
+  createdBy: string
+  createdAt: Date
+  isActive: boolean
+  billingPlan?: string | null
+}
+
+export interface Invite {
+  code: string
+  orgId: string
+  role: 'org_admin' | 'specialist' | 'parent'
+  createdBy: string
+  createdAt: Date
+  expiresAt?: Date | null
+  maxUses?: number | null
+  usedCount: number
+  isActive: boolean
+}
