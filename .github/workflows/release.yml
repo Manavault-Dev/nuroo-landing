@@ -27,7 +27,6 @@ jobs:
         id: release
         with:
           release-type: node
-          package-name: nuroo-platform
 
   # ============================================
   # Build & Deploy (only on release)
