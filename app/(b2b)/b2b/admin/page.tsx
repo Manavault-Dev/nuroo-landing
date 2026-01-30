@@ -186,8 +186,9 @@ export default function AdminPage() {
         maxUses: inviteMaxUses ? parseInt(inviteMaxUses) : undefined,
       })
 
-      // Add to invites list
-      setInvites([result, ...invites])
+      // Reload invites list to get full data
+      const invitesData = await apiClient.listInvites()
+      setInvites(invitesData.invites)
 
       // Reset form
       setSelectedOrgId('')
