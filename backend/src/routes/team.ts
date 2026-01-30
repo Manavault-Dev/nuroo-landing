@@ -72,12 +72,13 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
       )
 
       return teamMembers
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; stack?: string }
       console.error('[TEAM] Error fetching team members:', error)
       return reply.code(500).send({
         error: 'Failed to fetch team members',
-        message: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        message: err.message || 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
       })
     }
   })
