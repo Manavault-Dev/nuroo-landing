@@ -21,7 +21,7 @@ RUN addgroup -g 1001 -S nodejs && \
 
 COPY package*.json ./
 
-RUN npm ci --only=production && \
+RUN npm ci --only=production --ignore-scripts && \
     npm cache clean --force
 
 
