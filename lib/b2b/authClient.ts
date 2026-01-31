@@ -7,6 +7,7 @@ import {
   UserCredential,
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase/config'
+import { apiClient } from './api'
 
 export async function signIn(email: string, password: string): Promise<UserCredential> {
   if (!auth) {
@@ -33,7 +34,9 @@ export async function signOut(): Promise<void> {
     return
   }
   const authInstance = auth
-  return firebaseSignOut(authInstance)
+  await firebaseSignOut(authInstance)
+  // Clear token from localStorage
+  apiClient.setToken(null)
 }
 
 export function getCurrentUser(): User | null {

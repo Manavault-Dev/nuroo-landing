@@ -1,75 +1,75 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { onAuthChange, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { User } from 'firebase/auth'
+import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
 import { Sidebar } from '@/components/b2b/Sidebar'
 import { Header } from '@/components/b2b/Header'
+
+const AUTH_PAGES = ['/b2b/login', '/b2b/register', '/b2b/join']
+const ADMIN_PAGES = ['/b2b/content', '/b2b/admin']
+
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  )
+}
 
 function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, profile, isSuperAdmin, isLoading } = useAuth()
 
+  const isAuthPage = AUTH_PAGES.includes(pathname)
+
+  // Handle redirects based on auth state
   useEffect(() => {
-    const unsubscribe = onAuthChange(async (currentUser) => {
-      setUser(currentUser)
+    if (isLoading) return
 
-      if (currentUser) {
-        const idToken = await getIdToken()
-        apiClient.setToken(idToken || null)
+    // Not logged in - redirect to login (except on auth pages)
+    if (!user && !isAuthPage) {
+      router.push('/b2b/login')
+      return
+    }
 
-        try {
-          const profileData = await apiClient.getMe()
-          setProfile(profileData)
-        } catch (error) {
-          console.error('Failed to load profile:', error)
-          // If /me fails, profile will be null - that's OK for Super Admin
-        }
-      } else {
-        apiClient.setToken(null)
-        setProfile(null)
+    // Logged in on auth page - redirect based on role
+    if (user && isAuthPage) {
+      if (isSuperAdmin) {
+        router.replace('/b2b/content')
+      } else if (profile?.organizations?.length) {
+        router.replace('/b2b')
       }
+      return
+    }
 
-      setLoading(false)
+    // Super admin on dashboard - redirect to content
+    if (user && isSuperAdmin && pathname === '/b2b') {
+      router.replace('/b2b/content')
+    }
+  }, [user, profile, isSuperAdmin, isLoading, pathname, isAuthPage, router])
 
-      const isAuthPage =
-        pathname === '/b2b/login' || pathname === '/b2b/register' || pathname === '/b2b/join'
-      if (!currentUser && !isAuthPage) {
-        router.push('/b2b/login')
-      }
-    })
-
-    return () => unsubscribe()
-  }, [router, pathname])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
+  // Loading state
+  if (isLoading) {
+    return <LoadingSpinner />
   }
 
-  const isAuthPage =
-    pathname === '/b2b/login' || pathname === '/b2b/register' || pathname === '/b2b/join'
+  // Auth pages don't need sidebar/header
   if (isAuthPage) {
     return <>{children}</>
   }
 
+  // Not authenticated
   if (!user) {
     return null
   }
 
-  const currentOrgId = searchParams.get('orgId') || undefined
+  const currentOrgId = searchParams.get('orgId') || profile?.organizations[0]?.orgId
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -84,17 +84,10 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function B2BLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      }
-    >
-      <B2BLayoutContent>{children}</B2BLayoutContent>
-    </Suspense>
+    <AuthProvider>
+      <Suspense fallback={<LoadingSpinner />}>
+        <B2BLayoutContent>{children}</B2BLayoutContent>
+      </Suspense>
+    </AuthProvider>
   )
 }
