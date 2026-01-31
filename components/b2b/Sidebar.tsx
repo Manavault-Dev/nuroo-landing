@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import {
   Grid,
   Users,
@@ -15,11 +15,10 @@ import {
   FileText,
   BookOpen,
   CheckSquare,
-  BarChart3,
   Sparkles,
 } from 'lucide-react'
-import { type SpecialistProfile, apiClient } from '@/lib/b2b/api'
-import { getIdToken } from '@/lib/b2b/authClient'
+import { type SpecialistProfile } from '@/lib/b2b/api'
+import { useAuth } from '@/lib/b2b/AuthContext'
 
 interface SidebarProps {
   profile: SpecialistProfile | null
@@ -28,30 +27,10 @@ interface SidebarProps {
 
 export function Sidebar({ profile, currentOrgId }: SidebarProps) {
   const pathname = usePathname()
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const { isSuperAdmin } = useAuth()
   const currentOrg =
     profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
   const isOrgAdmin = currentOrg?.role === 'admin'
-
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      try {
-        const idToken = await getIdToken(true)
-        if (idToken) {
-          apiClient.setToken(idToken)
-          const result = await apiClient.checkSuperAdmin()
-          setIsSuperAdmin(result.isSuperAdmin)
-        }
-      } catch (err) {
-        // Not super admin or error - ignore
-        setIsSuperAdmin(false)
-      }
-    }
-
-    if (profile) {
-      checkSuperAdmin()
-    }
-  }, [profile])
 
   const isActive = (href: string) => {
     if (href === '/b2b') {
@@ -86,10 +65,12 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
         <div className="p-6 border-b border-gray-200 bg-white">
           <Link href="/b2b/content" className="flex items-center space-x-3 mb-4 group">
             <div className="relative">
-              <img
+              <Image
                 src="/logo.png"
                 alt="Nuroo Logo"
-                className="w-11 h-11 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200"
+                width={44}
+                height={44}
+                className="rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200"
               />
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full border-2 border-white shadow-sm"></div>
             </div>
@@ -250,7 +231,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <Link href="/b2b" className="flex items-center space-x-3 mb-4">
-          <img src="/logo.png" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
+          <Image src="/logo.png" alt="Nuroo Logo" width={32} height={32} className="rounded-lg" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
             <p className="text-xs text-gray-500">B2B Platform</p>

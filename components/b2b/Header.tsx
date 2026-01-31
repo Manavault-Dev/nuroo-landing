@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { signOut, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient } from '@/lib/b2b/api'
 import { useRouter } from 'next/navigation'
 import { LogOut, User, Bell, Shield } from 'lucide-react'
+import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 
 interface HeaderProps {
@@ -13,35 +11,11 @@ interface HeaderProps {
 
 export function Header({ profile }: HeaderProps) {
   const router = useRouter()
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
-
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      try {
-        const idToken = await getIdToken(true)
-        if (idToken) {
-          apiClient.setToken(idToken)
-          const result = await apiClient.checkSuperAdmin()
-          setIsSuperAdmin(result.isSuperAdmin)
-        }
-      } catch (err) {
-        setIsSuperAdmin(false)
-      }
-    }
-
-    if (profile) {
-      checkSuperAdmin()
-    }
-  }, [profile])
+  const { isSuperAdmin, logout } = useAuth()
 
   const handleSignOut = async () => {
-    try {
-      await signOut()
-      apiClient.setToken(null)
-      router.push('/b2b/login')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
+    await logout()
+    router.push('/b2b/login')
   }
 
   return (

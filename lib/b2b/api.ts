@@ -61,7 +61,80 @@ export interface ActivityDay {
 
 export type TimelineResponse = { days: ActivityDay[] }
 
-// API Client
+// Cache entry type
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+  ttl: number
+}
+
+// In-flight request tracking to prevent duplicate requests
+const inFlightRequests = new Map<string, Promise<unknown>>()
+
+// Simple in-memory cache for API responses
+class ApiCache {
+  private cache = new Map<string, CacheEntry<unknown>>()
+
+  // Cache TTLs in milliseconds
+  private static TTL = {
+    profile: 5 * 60 * 1000, // 5 minutes for user profile
+    superAdmin: 5 * 60 * 1000, // 5 minutes for super admin check
+    children: 60 * 1000, // 1 minute for children list
+    childDetail: 30 * 1000, // 30 seconds for child details
+    organizations: 2 * 60 * 1000, // 2 minutes for org list
+    default: 30 * 1000, // 30 seconds default
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key)
+    if (!entry) return null
+
+    const now = Date.now()
+    if (now - entry.timestamp > entry.ttl) {
+      this.cache.delete(key)
+      return null
+    }
+
+    return entry.data as T
+  }
+
+  set<T>(key: string, data: T, ttlKey?: keyof typeof ApiCache.TTL): void {
+    const ttl = ttlKey ? ApiCache.TTL[ttlKey] : ApiCache.TTL.default
+    this.cache.set(key, { data, timestamp: Date.now(), ttl })
+  }
+
+  invalidate(pattern?: string): void {
+    if (!pattern) {
+      this.cache.clear()
+      return
+    }
+    const keys = Array.from(this.cache.keys())
+    keys.forEach((key) => {
+      if (key.includes(pattern)) {
+        this.cache.delete(key)
+      }
+    })
+  }
+
+  // Invalidate on mutations
+  invalidateOnMutation(endpoint: string): void {
+    if (endpoint.includes('/notes')) {
+      this.invalidate('/notes')
+    } else if (endpoint.includes('/children')) {
+      this.invalidate('/children')
+    } else if (endpoint.includes('/invites')) {
+      this.invalidate('/invites')
+    } else if (endpoint.includes('/organizations')) {
+      this.invalidate('/organizations')
+    } else if (endpoint.includes('/groups')) {
+      this.invalidate('/groups')
+    }
+  }
+}
+
+const cache = new ApiCache()
+
+// API Client with caching and request deduplication
 export class ApiClient {
   private baseUrl: string
   private token: string | null = null
@@ -77,6 +150,10 @@ export class ApiClient {
     this.token = token
     if (typeof window !== 'undefined') {
       token ? localStorage.setItem('b2b_token', token) : localStorage.removeItem('b2b_token')
+    }
+    // Clear cache when token changes (user switch)
+    if (!token) {
+      cache.invalidate()
     }
   }
 
@@ -96,16 +173,49 @@ export class ApiClient {
     return response.json()
   }
 
+  // Cached GET request with deduplication
+  private async cachedRequest<T>(
+    endpoint: string,
+    cacheKey: string,
+    ttlKey?: 'profile' | 'superAdmin' | 'children' | 'childDetail' | 'organizations' | 'default'
+  ): Promise<T> {
+    // Check cache first
+    const cached = cache.get<T>(cacheKey)
+    if (cached) return cached
+
+    // Check for in-flight request to prevent duplicates
+    const inFlight = inFlightRequests.get(cacheKey)
+    if (inFlight) {
+      return inFlight as Promise<T>
+    }
+
+    // Make the request
+    const requestPromise = this.request<T>(endpoint)
+      .then((data) => {
+        cache.set(cacheKey, data, ttlKey)
+        inFlightRequests.delete(cacheKey)
+        return data
+      })
+      .catch((error) => {
+        inFlightRequests.delete(cacheKey)
+        throw error
+      })
+
+    inFlightRequests.set(cacheKey, requestPromise)
+    return requestPromise
+  }
+
   // Auth & Profile
   async health() {
     return this.request<{ status: string; timestamp: string }>('/health')
   }
 
   async getMe() {
-    return this.request<SpecialistProfile>('/me')
+    return this.cachedRequest<SpecialistProfile>('/me', 'profile:me', 'profile')
   }
 
   async createProfile(name?: string) {
+    cache.invalidate('profile')
     return this.request<{ ok: boolean; specialist: SpecialistProfile }>('/me', {
       method: 'POST',
       body: JSON.stringify({ name }),
@@ -117,6 +227,7 @@ export class ApiClient {
   }
 
   async joinOrganization(inviteCode: string) {
+    cache.invalidate()
     return this.request<{ ok: boolean; orgId: string }>('/join', {
       method: 'POST',
       body: JSON.stringify({ inviteCode }),
@@ -124,6 +235,7 @@ export class ApiClient {
   }
 
   async acceptInvite(code: string) {
+    cache.invalidate()
     return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>(
       '/invites/accept',
       { method: 'POST', body: JSON.stringify({ code }) }
@@ -132,22 +244,36 @@ export class ApiClient {
 
   // Children
   async getChildren(orgId: string) {
-    return this.request<ChildSummary[]>(`/orgs/${orgId}/children`)
+    return this.cachedRequest<ChildSummary[]>(
+      `/orgs/${orgId}/children`,
+      `children:${orgId}`,
+      'children'
+    )
   }
 
   async getChildDetail(orgId: string, childId: string) {
-    return this.request<ChildDetail>(`/orgs/${orgId}/children/${childId}`)
+    return this.cachedRequest<ChildDetail>(
+      `/orgs/${orgId}/children/${childId}`,
+      `child:${orgId}:${childId}`,
+      'childDetail'
+    )
   }
 
   async getTimeline(orgId: string, childId: string, days = 30) {
-    return this.request<{ days: ActivityDay[] }>(
-      `/orgs/${orgId}/children/${childId}/timeline?days=${days}`
+    return this.cachedRequest<{ days: ActivityDay[] }>(
+      `/orgs/${orgId}/children/${childId}/timeline?days=${days}`,
+      `timeline:${orgId}:${childId}:${days}`,
+      'default'
     )
   }
 
   // Notes
   async getNotes(orgId: string, childId: string) {
-    return this.request<SpecialistNote[]>(`/orgs/${orgId}/children/${childId}/notes`)
+    return this.cachedRequest<SpecialistNote[]>(
+      `/orgs/${orgId}/children/${childId}/notes`,
+      `notes:${orgId}:${childId}`,
+      'default'
+    )
   }
 
   async createNote(
@@ -157,6 +283,7 @@ export class ApiClient {
     tags?: string[],
     visibleToParent = true
   ) {
+    cache.invalidate(`notes:${orgId}:${childId}`)
     return this.request<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
       method: 'POST',
       body: JSON.stringify({ text, tags, visibleToParent }),
@@ -168,6 +295,7 @@ export class ApiClient {
     orgId: string,
     options?: { role?: string; maxUses?: number; expiresInDays?: number }
   ) {
+    cache.invalidate('invites')
     return this.request<{ ok: boolean; inviteCode: string; expiresAt: string }>(
       `/orgs/${orgId}/invites`,
       {
@@ -182,6 +310,7 @@ export class ApiClient {
   }
 
   async createParentInvite(orgId: string) {
+    cache.invalidate('invites')
     return this.request<{ ok: boolean; inviteCode: string; expiresAt: string }>(
       `/orgs/${orgId}/parent-invites`,
       {
@@ -192,30 +321,50 @@ export class ApiClient {
   }
 
   // Parents & Connections
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getParents(orgId: string) {
-    return this.request<{ ok: boolean; parents: any[] }>(`/orgs/${orgId}/parents`)
+    return this.cachedRequest<{ ok: boolean; parents: any[] }>(
+      `/orgs/${orgId}/parents`,
+      `parents:${orgId}`,
+      'default'
+    )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getConnections(orgId: string) {
-    return this.request<{ ok: boolean; connections: any[]; count: number }>(
-      `/orgs/${orgId}/connections`
+    return this.cachedRequest<{ ok: boolean; connections: any[]; count: number }>(
+      `/orgs/${orgId}/connections`,
+      `connections:${orgId}`,
+      'default'
     )
   }
 
   // Groups
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getGroups(orgId: string) {
-    return this.request<{ ok: boolean; groups: any[]; count: number }>(`/orgs/${orgId}/groups`)
+    return this.cachedRequest<{ ok: boolean; groups: any[]; count: number }>(
+      `/orgs/${orgId}/groups`,
+      `groups:${orgId}`,
+      'default'
+    )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createGroup(orgId: string, name: string, description?: string, color?: string) {
+    cache.invalidate(`groups:${orgId}`)
     return this.request<{ ok: boolean; group: any }>(`/orgs/${orgId}/groups`, {
       method: 'POST',
       body: JSON.stringify({ name, description, color }),
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getGroup(orgId: string, groupId: string) {
-    return this.request<{ ok: boolean; group: any }>(`/orgs/${orgId}/groups/${groupId}`)
+    return this.cachedRequest<{ ok: boolean; group: any }>(
+      `/orgs/${orgId}/groups/${groupId}`,
+      `group:${orgId}:${groupId}`,
+      'default'
+    )
   }
 
   async updateGroup(
@@ -223,6 +372,8 @@ export class ApiClient {
     groupId: string,
     updates: { name?: string; description?: string; color?: string }
   ) {
+    cache.invalidate(`groups:${orgId}`)
+    cache.invalidate(`group:${orgId}:${groupId}`)
     return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
@@ -230,6 +381,7 @@ export class ApiClient {
   }
 
   async deleteGroup(orgId: string, groupId: string) {
+    cache.invalidate(`groups:${orgId}`)
     return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}`, { method: 'DELETE' })
   }
 
@@ -239,6 +391,7 @@ export class ApiClient {
     parentUserId: string,
     childIds?: string[]
   ) {
+    cache.invalidate(`group:${orgId}:${groupId}`)
     return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}/parents`, {
       method: 'POST',
       body: JSON.stringify({ parentUserId, childIds }),
@@ -246,6 +399,7 @@ export class ApiClient {
   }
 
   async removeParentFromGroup(orgId: string, groupId: string, parentUserId: string) {
+    cache.invalidate(`group:${orgId}:${groupId}`)
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/groups/${groupId}/parents/${parentUserId}`,
       { method: 'DELETE' }
@@ -253,40 +407,58 @@ export class ApiClient {
   }
 
   // Admin: Organizations
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async listOrganizations() {
-    return this.request<{ ok: boolean; organizations: any[]; count: number }>(
-      '/admin/organizations'
+    return this.cachedRequest<{ ok: boolean; organizations: any[]; count: number }>(
+      '/admin/organizations',
+      'admin:organizations',
+      'organizations'
     )
   }
 
   async createOrganization(name: string, country?: string) {
+    cache.invalidate('admin:organizations')
     return this.request<{ ok: boolean; orgId: string; name: string }>('/admin/organizations', {
       method: 'POST',
       body: JSON.stringify({ name, country }),
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getOrgSpecialists(orgId: string) {
-    return this.request<{ ok: boolean; specialists: any[]; count: number }>(
-      `/admin/orgs/${orgId}/specialists`
+    return this.cachedRequest<{ ok: boolean; specialists: any[]; count: number }>(
+      `/admin/orgs/${orgId}/specialists`,
+      `admin:specialists:${orgId}`,
+      'default'
     )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getOrgParents(orgId: string) {
-    return this.request<{ ok: boolean; parents: any[]; count: number }>(
-      `/admin/orgs/${orgId}/parents`
+    return this.cachedRequest<{ ok: boolean; parents: any[]; count: number }>(
+      `/admin/orgs/${orgId}/parents`,
+      `admin:parents:${orgId}`,
+      'default'
     )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getOrgChildren(orgId: string) {
-    return this.request<{ ok: boolean; children: any[]; count: number }>(
-      `/admin/orgs/${orgId}/children`
+    return this.cachedRequest<{ ok: boolean; children: any[]; count: number }>(
+      `/admin/orgs/${orgId}/children`,
+      `admin:children:${orgId}`,
+      'default'
     )
   }
 
   // Admin: Invites
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async listInvites() {
-    return this.request<{ ok: boolean; invites: any[]; count: number }>('/admin/invites')
+    return this.cachedRequest<{ ok: boolean; invites: any[]; count: number }>(
+      '/admin/invites',
+      'admin:invites',
+      'default'
+    )
   }
 
   async generateInviteCode(data: {
@@ -295,6 +467,7 @@ export class ApiClient {
     expiresAt?: string
     maxUses?: number
   }) {
+    cache.invalidate('admin:invites')
     return this.request<{ ok: boolean; code: string; inviteLink: string }>('/admin/invites', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -303,16 +476,24 @@ export class ApiClient {
 
   // Admin: Super Admin
   async checkSuperAdmin() {
-    return this.request<{ uid: string; email?: string; isSuperAdmin: boolean }>(
-      '/dev/check-super-admin'
+    return this.cachedRequest<{ uid: string; email?: string; isSuperAdmin: boolean }>(
+      '/dev/check-super-admin',
+      'superAdmin:check',
+      'superAdmin'
     )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async listSuperAdmins() {
-    return this.request<{ ok: boolean; superAdmins: any[]; count: number }>('/admin/super-admin')
+    return this.cachedRequest<{ ok: boolean; superAdmins: any[]; count: number }>(
+      '/admin/super-admin',
+      'admin:superAdmins',
+      'default'
+    )
   }
 
   async grantSuperAdmin(email: string) {
+    cache.invalidate('admin:superAdmins')
     return this.request<{ ok: boolean; uid: string; email: string }>('/admin/super-admin', {
       method: 'POST',
       body: JSON.stringify({ email }),
@@ -320,22 +501,32 @@ export class ApiClient {
   }
 
   async removeSuperAdmin(uid: string) {
+    cache.invalidate('admin:superAdmins')
     return this.request<{ ok: boolean }>(`/admin/super-admin/${uid}`, { method: 'DELETE' })
   }
 
   // Admin: Content
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getTasks() {
-    return this.request<{ ok: boolean; tasks: any[]; count: number }>('/admin/content/tasks')
+    return this.cachedRequest<{ ok: boolean; tasks: any[]; count: number }>(
+      '/admin/content/tasks',
+      'admin:tasks',
+      'default'
+    )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createTask(task: any) {
+    cache.invalidate('admin:tasks')
     return this.request<{ ok: boolean; task: any }>('/admin/content/tasks', {
       method: 'POST',
       body: JSON.stringify(task),
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateTask(taskId: string, updates: any) {
+    cache.invalidate('admin:tasks')
     return this.request<{ ok: boolean; task: any }>(`/admin/content/tasks/${taskId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
@@ -343,21 +534,31 @@ export class ApiClient {
   }
 
   async deleteTask(taskId: string) {
+    cache.invalidate('admin:tasks')
     return this.request<{ ok: boolean }>(`/admin/content/tasks/${taskId}`, { method: 'DELETE' })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getRoadmaps() {
-    return this.request<{ ok: boolean; roadmaps: any[]; count: number }>('/admin/content/roadmaps')
+    return this.cachedRequest<{ ok: boolean; roadmaps: any[]; count: number }>(
+      '/admin/content/roadmaps',
+      'admin:roadmaps',
+      'default'
+    )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createRoadmap(roadmap: any) {
+    cache.invalidate('admin:roadmaps')
     return this.request<{ ok: boolean; roadmap: any }>('/admin/content/roadmaps', {
       method: 'POST',
       body: JSON.stringify(roadmap),
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateRoadmap(roadmapId: string, updates: any) {
+    cache.invalidate('admin:roadmaps')
     return this.request<{ ok: boolean; roadmap: any }>(`/admin/content/roadmaps/${roadmapId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
@@ -365,6 +566,7 @@ export class ApiClient {
   }
 
   async deleteRoadmap(roadmapId: string) {
+    cache.invalidate('admin:roadmaps')
     return this.request<{ ok: boolean }>(`/admin/content/roadmaps/${roadmapId}`, {
       method: 'DELETE',
     })
@@ -411,7 +613,13 @@ export class ApiClient {
       throw new Error(error.error || error.details || 'Upload failed')
     }
 
+    cache.invalidate('admin:tasks')
     return response.json()
+  }
+
+  // Clear all cache (useful for logout)
+  clearCache() {
+    cache.invalidate()
   }
 }
 
