@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn, getIdToken } from '@/lib/b2b/authClient'
+import { signIn, getIdToken, getCurrentUser } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import Link from 'next/link'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
@@ -13,6 +13,67 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingToken, setCheckingToken] = useState(true)
+
+  useEffect(() => {
+    const checkExistingToken = async () => {
+      try {
+        // Check if token exists in localStorage
+        const storedToken = typeof window !== 'undefined' ? localStorage.getItem('b2b_token') : null
+        const currentUser = getCurrentUser()
+
+        if (storedToken || currentUser) {
+          try {
+            const idToken = currentUser ? await getIdToken() : storedToken
+            if (idToken) {
+              apiClient.setToken(idToken)
+
+              // Check if user is Super Admin
+              try {
+                const superAdminCheck = await apiClient.checkSuperAdmin()
+                if (superAdminCheck.isSuperAdmin) {
+                  router.replace('/b2b/content')
+                  return
+                }
+              } catch {
+                // Not Super Admin - continue checking
+              }
+
+              // Check if user has organizations
+              try {
+                const profile = await apiClient.getMe()
+                if (profile.organizations && profile.organizations.length > 0) {
+                  router.replace('/b2b')
+                  return
+                }
+              } catch {
+                // No organizations - stay on login page
+              }
+            }
+          } catch {
+            // Token invalid - clear it
+            apiClient.setToken(null)
+          }
+        }
+      } catch (error) {
+        // Any error - clear token and continue
+        console.error('Error checking token:', error)
+        apiClient.setToken(null)
+      } finally {
+        // Always set checking to false
+        setCheckingToken(false)
+      }
+    }
+
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      setCheckingToken(false)
+    }, 5000) // 5 second timeout
+
+    checkExistingToken().finally(() => {
+      clearTimeout(timeout)
+    })
+  }, [router])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -56,6 +117,17 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
