@@ -57,30 +57,17 @@ This repository contains the **B2B Web Platform** and **Backend API**.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Nuroo Platform                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐ │
-│  │   Landing Page  │    │  B2B Dashboard  │    │ Mobile App  │ │
-│  │   (Next.js)     │    │   (Next.js)     │    │ (Expo RN)   │ │
-│  └────────┬────────┘    └────────┬────────┘    └──────┬──────┘ │
-│           │                      │                     │        │
-│           └──────────────────────┼─────────────────────┘        │
-│                                  │                              │
-│                         ┌────────▼────────┐                     │
-│                         │  Backend API    │                     │
-│                         │   (Fastify)     │                     │
-│                         └────────┬────────┘                     │
-│                                  │                              │
-│                         ┌────────▼────────┐                     │
-│                         │    Firebase     │                     │
-│                         │  Auth + Firestore                     │
-│                         └─────────────────┘                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="public/architecture.png" alt="Nuroo Platform Architecture" width="800" />
+</p>
+
+The platform consists of three main components:
+
+- **Landing Page** (Next.js) - Public-facing marketing site
+- **B2B Dashboard** (Next.js) - Web platform for specialists and organizations
+- **Mobile App** (React Native) - Parent-facing mobile application
+- **Backend API** (Fastify) - RESTful API serving all clients
+- **Firebase** - Authentication and Firestore database
 
 ## Tech Stack
 
