@@ -18,10 +18,10 @@ env:
   GCP_SERVICE_NAME: 'nuroo-api-staging'
 
 jobs:
-  # Frontend Staging Deployment
+  # Frontend Staging (CI Checks Only)
 
   deploy-frontend-staging:
-    name: Deploy Frontend (Staging)
+    name: Frontend Staging (CI)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,29 +41,16 @@ jobs:
           npm run lint
           npm run typecheck
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Project
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build (Verify)
+        run: npm run build
         env:
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY || secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.STAGING_FIREBASE_AUTH_DOMAIN || secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID || secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.STAGING_FIREBASE_STORAGE_BUCKET || secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.STAGING_FIREBASE_MESSAGING_SENDER_ID || secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.STAGING_FIREBASE_APP_ID || secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
-
-      - name: Deploy to Vercel (Staging)
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --meta environment=staging)
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Deployed staging to: $URL"
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY || secrets.NEXT_PUBLIC_FIREBASE_API_KEY || 'mock-api-key' }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.STAGING_FIREBASE_AUTH_DOMAIN || secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'mock.firebaseapp.com' }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID || secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'mock-project' }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.STAGING_FIREBASE_STORAGE_BUCKET || secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'mock.appspot.com' }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.STAGING_FIREBASE_MESSAGING_SENDER_ID || secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.STAGING_FIREBASE_APP_ID || secrets.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL || 'http://localhost:3001' }}
 
   # Backend Staging Deployment
 
@@ -99,8 +86,7 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -163,9 +149,9 @@ jobs:
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.deploy-frontend-staging.result }}" == "success" ]; then
-            echo "| Frontend | Deployed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Frontend | CI Passed (Vercel auto-deploys) |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Frontend | Failed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Frontend | CI Failed |" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ needs.deploy-backend-staging.result }}" == "success" ]; then

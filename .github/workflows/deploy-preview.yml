@@ -45,10 +45,10 @@ jobs:
             backend:
               - 'backend/**'
 
-  # Frontend Preview Deployment
+  # Frontend Preview (CI Checks Only)
 
   preview-frontend:
-    name: Frontend Preview
+    name: Frontend Preview (CI)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
@@ -62,47 +62,43 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Lint
+        run: npm run lint
 
-      - name: Build Project
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Type Check
+        run: npm run typecheck
+
+      - name: Build (Verify)
+        run: npm run build
         env:
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.PREVIEW_API_URL || secrets.NEXT_PUBLIC_API_URL }}
-
-      - name: Deploy Preview
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Deployed preview to: $URL"
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY || 'mock-api-key' }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'mock.firebaseapp.com' }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'mock-project' }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'mock.appspot.com' }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.PREVIEW_API_URL || secrets.NEXT_PUBLIC_API_URL || 'http://localhost:3001' }}
 
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
           script: |
-            const url = '${{ steps.deploy.outputs.url }}';
-            const body = `## Frontend Preview Deployment
+            const body = `## Frontend Preview Check
 
-            | Status | URL |
-            |--------|-----|
-            | Deployed | [${url}](${url}) |
+            | Check | Status |
+            |-------|--------|
+            | Lint | Passed |
+            | TypeScript | Passed |
+            | Build | Passed |
 
             **Commit:** \`${{ github.sha }}\`
 
-            ---
-            _This preview will be automatically updated on new commits._`;
+            > Frontend preview is automatically deployed by Vercel via GitHub integration.
+            > Check the Vercel bot comment or PR checks for the preview URL.`;
 
-            // Find existing comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -110,7 +106,7 @@ jobs:
             });
 
             const botComment = comments.find(c =>
-              c.user.type === 'Bot' && c.body.includes('Frontend Preview Deployment')
+              c.user.type === 'Bot' && c.body.includes('Frontend Preview Check')
             );
 
             if (botComment) {
@@ -228,9 +224,9 @@ jobs:
 
           if [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
             if [ "${{ needs.preview-frontend.result }}" == "success" ]; then
-              echo "| Frontend | Deployed |" >> $GITHUB_STEP_SUMMARY
+              echo "| Frontend | CI Passed (Vercel auto-deploys) |" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| Frontend | Failed |" >> $GITHUB_STEP_SUMMARY
+              echo "| Frontend | CI Failed |" >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "| Frontend | No changes |" >> $GITHUB_STEP_SUMMARY
