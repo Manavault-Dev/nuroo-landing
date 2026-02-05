@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type ChildSummary } from '@/lib/b2b/api'
+import { apiClient, type ChildSummary, type SpecialistProfile } from '@/lib/b2b/api'
 import { Users, ArrowLeft, ChevronRight } from 'lucide-react'
 
 export default function ChildrenPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const orgId = searchParams.get('orgId') || 'default-org'
-
+  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [loading, setLoading] = useState(true)
+
+  const orgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
 
   useEffect(() => {
     const loadData = async () => {
@@ -31,7 +32,17 @@ export default function ChildrenPage() {
         }
         apiClient.setToken(idToken)
 
-        const childrenData = await apiClient.getChildren(orgId)
+        const profileData = await apiClient.getMe()
+        setProfile(profileData)
+
+        const effectiveOrgId = searchParams.get('orgId') || profileData.organizations?.[0]?.orgId
+        if (!effectiveOrgId) {
+          setLoading(false)
+          router.push('/b2b/onboarding')
+          return
+        }
+
+        const childrenData = await apiClient.getChildren(effectiveOrgId)
         setChildren(childrenData)
       } catch (error) {
         console.error('Error loading children:', error)
@@ -41,7 +52,7 @@ export default function ChildrenPage() {
     }
 
     loadData()
-  }, [router, orgId])
+  }, [router, searchParams])
 
   if (loading) {
     return (
@@ -54,11 +65,16 @@ export default function ChildrenPage() {
     )
   }
 
+  const dashboardHref = orgId ? `/b2b?orgId=${orgId}` : '/b2b'
+
   return (
     <div className="p-8">
       <div className="mb-8">
         <div className="flex items-center space-x-4 mb-2">
-          <Link href="/b2b" className="text-gray-600 hover:text-gray-900 transition-colors">
+          <Link
+            href={dashboardHref}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-900">Children</h2>
@@ -83,7 +99,7 @@ export default function ChildrenPage() {
               {children.map((child) => (
                 <Link
                   key={child.id}
-                  href={`/b2b/children/${child.id}?orgId=${orgId}`}
+                  href={`/b2b/children/${child.id}${orgId ? `?orgId=${orgId}` : ''}`}
                   className="block p-6 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">

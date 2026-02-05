@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Users, UserCog, Mail, Crown, Shield } from 'lucide-react'
+import { Users, UserCog, Mail, Crown, Shield, UserPlus, Trash2, Loader2 } from 'lucide-react'
 
 interface TeamMember {
   uid: string
   email: string
   name: string
   role: 'admin' | 'specialist'
-  joinedAt: Date
+  joinedAt: Date | string
 }
 
 export default function TeamPage() {
@@ -20,19 +21,46 @@ export default function TeamPage() {
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [removingUid, setRemovingUid] = useState<string | null>(null)
+  const [updatingUid, setUpdatingUid] = useState<string | null>(null)
 
-  const currentOrgId = searchParams.get('orgId') || undefined
+  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
-    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
+    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
   const isAdmin = currentOrg?.role === 'admin'
+  const currentUid = profile?.uid || getCurrentUser()?.uid
+
+  const loadData = useCallback(async () => {
+    const user = getCurrentUser()
+    if (!user) return
+
+    const idToken = await getIdToken()
+    if (!idToken) return
+    apiClient.setToken(idToken)
+
+    const profileData = await apiClient.getMe()
+    setProfile(profileData)
+
+    const orgId = searchParams.get('orgId') || profileData.organizations?.[0]?.orgId
+    if (orgId) {
+      try {
+        const members = await apiClient.getTeam(orgId)
+        setTeamMembers(
+          members.map((m) => ({
+            ...m,
+            joinedAt: typeof m.joinedAt === 'string' ? new Date(m.joinedAt) : (m.joinedAt as Date),
+          }))
+        )
+      } catch {
+        setTeamMembers([])
+      }
+    } else {
+      setTeamMembers([])
+    }
+  }, [searchParams])
 
   useEffect(() => {
-    if (!isAdmin) {
-      router.push('/b2b')
-      return
-    }
-
-    const loadData = async () => {
+    const init = async () => {
       const user = getCurrentUser()
       if (!user) {
         router.push('/b2b/login')
@@ -46,43 +74,52 @@ export default function TeamPage() {
           return
         }
         apiClient.setToken(idToken)
-
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-
-        if (currentOrgId) {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'}/orgs/${currentOrgId}/team`,
-            {
-              headers: {
-                Authorization: `Bearer ${idToken}`,
-              },
-            }
-          )
-          if (response.ok) {
-            const members = await response.json()
-            setTeamMembers(
-              members.map((m: any) => ({
-                ...m,
-                joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
-              }))
-            )
-          } else {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: 'Failed to load team members' }))
-            console.error('Failed to load team members:', errorData)
-          }
-        }
-      } catch (error) {
-        console.error('Error loading team data:', error)
+        await loadData()
+      } catch {
+        router.push('/b2b/login')
       } finally {
         setLoading(false)
       }
     }
 
-    loadData()
-  }, [router, isAdmin, currentOrgId])
+    init()
+  }, [router, loadData])
+
+  useEffect(() => {
+    if (!loading && !isAdmin && profile) {
+      router.push('/b2b')
+    }
+  }, [loading, isAdmin, profile, router])
+
+  const handleRemove = async (uid: string) => {
+    if (!currentOrgId || !confirm(`Remove this member from the organization?`)) return
+    setRemovingUid(uid)
+    try {
+      await apiClient.removeMember(currentOrgId, uid)
+      setTeamMembers((prev) => prev.filter((m) => m.uid !== uid))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to remove member')
+    } finally {
+      setRemovingUid(null)
+    }
+  }
+
+  const handleChangeRole = async (uid: string, newRole: 'org_admin' | 'specialist') => {
+    if (!currentOrgId) return
+    setUpdatingUid(uid)
+    try {
+      await apiClient.updateMemberRole(currentOrgId, uid, newRole)
+      setTeamMembers((prev) =>
+        prev.map((m) =>
+          m.uid === uid ? { ...m, role: newRole === 'org_admin' ? 'admin' : 'specialist' } : m
+        )
+      )
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update role')
+    } finally {
+      setUpdatingUid(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -148,8 +185,15 @@ export default function TeamPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h3 className="text-lg font-semibold text-gray-900">Team Members</h3>
+          <Link
+            href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          >
+            <UserPlus className="w-4 h-4" />
+            Invite Specialist
+          </Link>
         </div>
 
         <div className="p-6">
@@ -157,41 +201,106 @@ export default function TeamPage() {
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
-              <p className="text-gray-600">
-                Create invite codes to add specialists to your organization.
+              <p className="text-gray-600 mb-6">
+                Create invite codes to add specialists and admins to your organization.
               </p>
+              <Link
+                href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+              >
+                <UserPlus className="w-4 h-4" />
+                Invite Specialist
+              </Link>
             </div>
           ) : (
             <div className="space-y-3">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.uid}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-                      <UserCog className="w-5 h-5 text-primary-600" />
+              {teamMembers.map((member) => {
+                const joinedDate =
+                  member.joinedAt instanceof Date
+                    ? member.joinedAt.toLocaleDateString()
+                    : new Date(member.joinedAt as string).toLocaleDateString()
+                const isCurrentUser = member.uid === currentUid
+                return (
+                  <div
+                    key={member.uid}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors gap-4"
+                  >
+                    <div className="flex items-center space-x-4 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                        <UserCog className="w-5 h-5 text-primary-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-gray-900">{member.name}</p>
+                          {member.role === 'admin' && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
+                              Admin
+                            </span>
+                          )}
+                          {member.role === 'specialist' && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                              Specialist
+                            </span>
+                          )}
+                          {isCurrentUser && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                          <p className="text-sm text-gray-600 truncate">{member.email}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Joined: {joinedDate}</p>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium text-gray-900">{member.name}</p>
-                        {member.role === 'admin' && (
-                          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
-                            Admin
-                          </span>
+                    {!isCurrentUser && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        {member.role === 'specialist' ? (
+                          <button
+                            onClick={() => handleChangeRole(member.uid, 'org_admin')}
+                            disabled={!!updatingUid}
+                            className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {updatingUid === member.uid ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Crown className="w-3 h-3" />
+                            )}
+                            Make Admin
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleChangeRole(member.uid, 'specialist')}
+                            disabled={!!updatingUid}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {updatingUid === member.uid ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Shield className="w-3 h-3" />
+                            )}
+                            Make Specialist
+                          </button>
                         )}
+                        <button
+                          onClick={() => handleRemove(member.uid)}
+                          disabled={!!removingUid}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                          title="Remove from organization"
+                        >
+                          {removingUid === member.uid ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <p className="text-sm text-gray-600">{member.email}</p>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Joined: {member.joinedAt.toLocaleDateString()}
-                      </p>
-                    </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

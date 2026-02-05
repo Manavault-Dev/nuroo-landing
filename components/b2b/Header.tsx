@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { LogOut, User, Bell, Shield } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
@@ -9,8 +9,22 @@ interface HeaderProps {
   profile: SpecialistProfile | null
 }
 
+const PAGE_TITLES: Record<string, string> = {
+  '/b2b': 'Dashboard',
+  '/b2b/children': 'Children',
+  '/b2b/groups': 'Groups',
+  '/b2b/team': 'Team Management',
+  '/b2b/invites': 'Invite Codes',
+  '/b2b/organization': 'Organization',
+  '/b2b/settings': 'Settings',
+  '/b2b/content': 'Content Management',
+  '/b2b/admin': 'Admin Panel',
+  '/b2b/onboarding': 'Welcome',
+}
+
 export function Header({ profile }: HeaderProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isSuperAdmin, logout } = useAuth()
 
   const handleSignOut = async () => {
@@ -18,10 +32,25 @@ export function Header({ profile }: HeaderProps) {
     router.push('/b2b/login')
   }
 
+  // Get page title based on current path
+  const getPageTitle = () => {
+    if (PAGE_TITLES[pathname]) {
+      return PAGE_TITLES[pathname]
+    }
+    // Check for child routes (e.g., /b2b/children/123)
+    const basePath = Object.keys(PAGE_TITLES).find(
+      (path) => path !== '/b2b' && pathname.startsWith(path)
+    )
+    if (basePath) {
+      return PAGE_TITLES[basePath]
+    }
+    return 'Dashboard'
+  }
+
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6">
       <div className="flex items-center space-x-4">
-        <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{getPageTitle()}</h2>
       </div>
 
       <div className="flex items-center space-x-4">
