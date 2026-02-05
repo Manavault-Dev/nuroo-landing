@@ -9,7 +9,7 @@ import { Key, Plus, Copy, Check, Loader2 } from 'lucide-react'
 interface InviteCode {
   inviteCode: string
   expiresAt: string
-  role?: 'specialist' | 'admin'
+  role?: 'specialist' | 'org_admin' | 'admin'
   maxUses?: number | null
   orgId?: string
   type?: 'specialist' | 'parent'
@@ -26,18 +26,13 @@ export default function InvitesPage() {
   const [creatingParentInvite, setCreatingParentInvite] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
-  const currentOrgId = searchParams.get('orgId') || undefined
+  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
-    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
+    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
   const isAdmin = currentOrg?.role === 'admin'
   const isSpecialist = currentOrg?.role === 'specialist' || isAdmin
 
   useEffect(() => {
-    if (!isSpecialist) {
-      router.push('/b2b')
-      return
-    }
-
     const loadData = async () => {
       const user = getCurrentUser()
       if (!user) {
@@ -63,9 +58,23 @@ export default function InvitesPage() {
     }
 
     loadData()
-  }, [router, isSpecialist])
+  }, [router])
 
-  const handleCreateInvite = async (role: 'specialist' | 'admin' = 'specialist') => {
+  useEffect(() => {
+    if (!loading && profile) {
+      if (!profile.organizations?.length) {
+        router.push('/b2b/onboarding')
+        return
+      }
+      if (!isSpecialist) {
+        router.push(
+          profile.organizations[0] ? `/b2b?orgId=${profile.organizations[0].orgId}` : '/b2b'
+        )
+      }
+    }
+  }, [loading, profile, isSpecialist, router])
+
+  const handleCreateInvite = async (role: 'specialist' | 'org_admin' = 'specialist') => {
     if (!currentOrgId || !isAdmin) return
 
     setCreating(true)
@@ -165,6 +174,25 @@ export default function InvitesPage() {
               )}
             </button>
           )}
+          {isAdmin && (
+            <button
+              onClick={() => handleCreateInvite('org_admin')}
+              disabled={creating || !currentOrgId}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>New Admin Invite</span>
+                </>
+              )}
+            </button>
+          )}
           <button
             onClick={handleCreateParentInvite}
             disabled={creatingParentInvite || !currentOrgId}
@@ -229,7 +257,9 @@ export default function InvitesPage() {
                           <p>
                             Role:{' '}
                             <span className="font-medium">
-                              {invite.role === 'admin' ? 'Administrator' : 'Specialist'}
+                              {invite.role === 'org_admin' || invite.role === 'admin'
+                                ? 'Administrator'
+                                : 'Specialist'}
                             </span>
                           </p>
                           <p>
