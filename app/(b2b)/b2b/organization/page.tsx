@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Building2, Users } from 'lucide-react'
+import { Building2, Users, UserCog, Key } from 'lucide-react'
 
 export default function OrganizationPage() {
   const router = useRouter()
@@ -12,17 +13,12 @@ export default function OrganizationPage() {
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const currentOrgId = searchParams.get('orgId') || undefined
+  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
-    profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
+    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
   const isAdmin = currentOrg?.role === 'admin'
 
   useEffect(() => {
-    if (!isAdmin) {
-      router.push('/b2b')
-      return
-    }
-
     const loadData = async () => {
       const user = getCurrentUser()
       if (!user) {
@@ -49,7 +45,21 @@ export default function OrganizationPage() {
     }
 
     loadData()
-  }, [router, isAdmin])
+  }, [router])
+
+  useEffect(() => {
+    if (!loading && profile) {
+      if (!profile.organizations?.length) {
+        router.push('/b2b/onboarding')
+        return
+      }
+      if (!isAdmin) {
+        router.push(
+          profile.organizations[0] ? `/b2b?orgId=${profile.organizations[0].orgId}` : '/b2b'
+        )
+      }
+    }
+  }, [loading, profile, isAdmin, router])
 
   if (loading) {
     return (
@@ -115,27 +125,27 @@ export default function OrganizationPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <a
-              href={`/b2b/team?orgId=${currentOrgId}`}
+            <Link
+              href={`/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
               className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
             >
-              <Users className="w-5 h-5 text-primary-600" />
+              <UserCog className="w-5 h-5 text-primary-600" />
               <div>
-                <p className="font-medium text-gray-900">Manage Team</p>
+                <p className="font-medium text-gray-900">Manage Specialists</p>
                 <p className="text-sm text-gray-600">View and manage team members</p>
               </div>
-            </a>
+            </Link>
 
-            <a
-              href={`/b2b/invites?orgId=${currentOrgId}`}
+            <Link
+              href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
               className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
             >
-              <Building2 className="w-5 h-5 text-primary-600" />
+              <Key className="w-5 h-5 text-primary-600" />
               <div>
                 <p className="font-medium text-gray-900">Invite Codes</p>
                 <p className="text-sm text-gray-600">Create and manage invite codes</p>
               </div>
-            </a>
+            </Link>
           </div>
         </div>
       </div>

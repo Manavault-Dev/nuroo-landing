@@ -41,12 +41,6 @@ function RegisterForm() {
       return
     }
 
-    // NEW FLOW: Invite code is REQUIRED for registration
-    if (!inviteCode.trim()) {
-      setError('Invite code is required. Please contact your administrator to get an invite code.')
-      return
-    }
-
     setLoading(true)
 
     try {
@@ -54,19 +48,25 @@ function RegisterForm() {
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      try {
-        await apiClient.acceptInvite(inviteCode.trim())
-        router.push('/b2b')
-        return
-      } catch (acceptError: unknown) {
-        const errorMessage =
-          acceptError instanceof Error
-            ? acceptError.message
-            : 'Failed to join organization. Please check your invite code.'
-        setError(errorMessage)
-        setLoading(false)
-        return
+      // Invite code is optional: if present, link account to an organization.
+      if (inviteCode.trim()) {
+        try {
+          await apiClient.acceptInvite(inviteCode.trim())
+          router.push('/b2b')
+          return
+        } catch (acceptError: unknown) {
+          const errorMessage =
+            acceptError instanceof Error
+              ? acceptError.message
+              : 'Failed to join organization. Please check your invite code.'
+          setError(errorMessage)
+          setLoading(false)
+          return
+        }
       }
+
+      // No invite yet: user will need to join an organization later.
+      router.push('/b2b/onboarding')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string }
       let errorMessage = 'Failed to create account. Please try again.'
@@ -106,7 +106,9 @@ function RegisterForm() {
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="mt-2 text-sm text-gray-600">Register as a specialist</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Create an account. If you have an invite code, you can join your organization now.
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -210,21 +212,20 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-                Invite Code <span className="text-red-500">*</span>
+                Invite Code <span className="text-gray-400">(optional)</span>
               </label>
               <input
                 id="inviteCode"
                 name="inviteCode"
                 type="text"
-                required
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
                 placeholder="Enter your invite code"
               />
               <p className="mt-1 text-xs text-gray-500">
-                You need an invite code from your organization administrator to register. Contact
-                them to get your invite code.
+                If you don’t have an invite code yet, you can create your account now and join an
+                organization later.
               </p>
             </div>
 

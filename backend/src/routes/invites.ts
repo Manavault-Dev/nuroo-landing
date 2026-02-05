@@ -5,7 +5,9 @@ import { requireOrgMember } from '../plugins/rbac.js'
 import { z } from 'zod'
 
 const createInviteSchema = z.object({
-  role: z.enum(['specialist', 'admin']).default('specialist'),
+  // NOTE: the registration flow uses /invites/accept which understands `org_admin` + `specialist`.
+  // Keep `admin` for backward compatibility but normalize it to `org_admin`.
+  role: z.enum(['specialist', 'org_admin', 'admin']).default('specialist'),
   maxUses: z.number().min(1).max(1000).optional(),
   expiresInDays: z.number().min(1).max(365).default(30),
 })
@@ -29,15 +31,24 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const body = createInviteSchema.parse(request.body)
-      const inviteCode = `${orgId}-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      let inviteCode = ''
+      for (let i = 0; i < 8; i++) {
+        inviteCode += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
 
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + body.expiresInDays)
 
-      const inviteRef = db.doc(`orgInvites/${inviteCode}`)
+      const normalizedRole = body.role === 'admin' ? 'org_admin' : body.role
+
+      // IMPORTANT: write into the same collection used by /invites/accept.
+      // This keeps org-admin invites compatible with /b2b/register (frontend).
+      const inviteRef = db.doc(`invites/${inviteCode}`)
       await inviteRef.set({
         orgId,
-        role: body.role,
+        role: normalizedRole,
+        isActive: true,
         maxUses: body.maxUses || null,
         usedCount: 0,
         expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
@@ -49,7 +60,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         ok: true,
         inviteCode,
         expiresAt: expiresAt.toISOString(),
-        role: body.role,
+        role: normalizedRole,
         maxUses: body.maxUses || null,
       }
     }
