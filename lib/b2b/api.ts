@@ -290,6 +290,32 @@ export class ApiClient {
     })
   }
 
+  // Team
+  async getTeam(orgId: string) {
+    return this.cachedRequest<
+      Array<{
+        uid: string
+        email: string
+        name: string
+        role: 'admin' | 'specialist'
+        joinedAt: string
+      }>
+    >(`/orgs/${orgId}/team`, `team:${orgId}`, 'default')
+  }
+
+  async removeMember(orgId: string, uid: string) {
+    cache.invalidate(`team:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/members/${uid}`, { method: 'DELETE' })
+  }
+
+  async updateMemberRole(orgId: string, uid: string, role: 'org_admin' | 'specialist') {
+    cache.invalidate(`team:${orgId}`)
+    return this.request<{ ok: boolean; role: string }>(`/orgs/${orgId}/members/${uid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    })
+  }
+
   // Invites
   async createInvite(
     orgId: string,
@@ -305,6 +331,19 @@ export class ApiClient {
           maxUses: options?.maxUses,
           expiresInDays: options?.expiresInDays || 30,
         }),
+      }
+    )
+  }
+
+  // Self-serve: create org and become org admin
+  async createMyOrganization(name: string, country?: string) {
+    cache.invalidate('profile')
+    cache.invalidate('organizations')
+    return this.request<{ ok: boolean; orgId: string; name: string; country: string | null }>(
+      '/orgs',
+      {
+        method: 'POST',
+        body: JSON.stringify({ name, country }),
       }
     )
   }
