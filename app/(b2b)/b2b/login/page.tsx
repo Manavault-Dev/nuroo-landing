@@ -46,6 +46,8 @@ export default function LoginPage() {
                   router.replace('/b2b')
                   return
                 }
+                // Logged in but no org yet: go to onboarding
+                router.replace('/b2b/onboarding')
               } catch {
                 // No organizations - stay on login page
               }
@@ -103,12 +105,12 @@ export default function LoginPage() {
       try {
         const profile = await apiClient.getMe()
         if (!profile.organizations || profile.organizations.length === 0) {
-          router.push('/b2b/join')
+          router.push('/b2b/onboarding')
           return
         }
         router.push('/b2b')
       } catch {
-        router.push('/b2b/join')
+        router.push('/b2b/onboarding')
       }
     } catch (err: unknown) {
       const errorMessage =
