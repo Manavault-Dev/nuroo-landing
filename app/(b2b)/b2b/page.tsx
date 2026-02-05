@@ -5,7 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile, type ChildSummary } from '@/lib/b2b/api'
-import { Users, ArrowRight, TrendingUp, CheckCircle, UserPlus, Mail } from 'lucide-react'
+import {
+  Users,
+  ArrowRight,
+  TrendingUp,
+  CheckCircle,
+  Mail,
+  Building2,
+  UserCog,
+  Key,
+} from 'lucide-react'
 import { InviteModal } from '@/components/b2b/InviteModal'
 
 export default function DashboardPage() {
@@ -13,6 +22,7 @@ export default function DashboardPage() {
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [children, setChildren] = useState<ChildSummary[]>([])
+  const [teamCount, setTeamCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
@@ -37,7 +47,7 @@ export default function DashboardPage() {
         try {
           const session = await apiClient.getSession()
           if (!session.hasOrg) {
-            router.push('/b2b/join')
+            router.push('/b2b/onboarding')
             return
           }
         } catch (sessionError) {
@@ -51,13 +61,17 @@ export default function DashboardPage() {
         setCurrentOrgId(orgId)
         if (orgId) {
           try {
-            const childrenData = await apiClient.getChildren(orgId)
+            const [childrenData, teamData] = await Promise.all([
+              apiClient.getChildren(orgId),
+              apiClient.getTeam(orgId).catch(() => []),
+            ])
             setChildren(childrenData)
+            setTeamCount(Array.isArray(teamData) ? teamData.length : 0)
           } catch {
-            // Failed to load children - continue with empty list
+            // Failed to load - continue with empty
           }
         } else {
-          router.push('/b2b/join')
+          router.push('/b2b/onboarding')
         }
       } catch {
         router.push('/b2b/login')
@@ -85,17 +99,154 @@ export default function DashboardPage() {
     profile?.organizations.find((org) => org.orgId === orgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
 
+  // ========== ORG ADMIN DASHBOARD ==========
+  if (isAdmin && currentOrg) {
+    return (
+      <div className="p-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {currentOrg.orgName} — Administration
+          </h2>
+          <p className="text-gray-600 mt-2">
+            You created this organization. Manage settings, specialists, and children.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Link
+            href={`/b2b/organization?orgId=${orgId}`}
+            className="block bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600">Organization</p>
+                <p className="text-lg font-bold text-gray-900 mt-2">{currentOrg.orgName}</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">Edit settings →</p>
+              </div>
+              <div className="bg-primary-100 p-3 rounded-lg">
+                <Building2 className="w-6 h-6 text-primary-600" />
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href={`/b2b/team?orgId=${orgId}`}
+            className="block bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600">Specialists</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{teamCount}</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">Manage team →</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <UserCog className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href={`/b2b/children?orgId=${orgId}`}
+            className="block bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600">Children</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{children.length}</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">View all →</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-lg">
+                <Users className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Link
+            href={`/b2b/team?orgId=${orgId}`}
+            className="flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all"
+          >
+            <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+              <UserCog className="w-6 h-6 text-primary-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900">Manage Specialists</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Add, remove, and change roles of team members.
+              </p>
+            </div>
+            <ArrowRight className="w-5 h-5 text-gray-400 shrink-0" />
+          </Link>
+
+          <Link
+            href={`/b2b/invites?orgId=${orgId}`}
+            className="flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all"
+          >
+            <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <Key className="w-6 h-6 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900">Invite Codes</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Create invites for specialists and parents.
+              </p>
+            </div>
+            <ArrowRight className="w-5 h-5 text-gray-400 shrink-0" />
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Children in organization</h3>
+              <Link
+                href={`/b2b/children?orgId=${orgId}`}
+                className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center"
+              >
+                View all
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+          <div className="p-6">
+            {children.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600">
+                  No children yet. Specialists can invite parents to connect children.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {children.slice(0, 6).map((child) => (
+                  <Link
+                    key={child.id}
+                    href={`/b2b/children/${child.id}?orgId=${orgId}`}
+                    className="block p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-sm transition-all"
+                  >
+                    <h4 className="font-semibold text-gray-900">{child.name}</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {child.completedTasksCount} tasks completed
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ========== SPECIALIST DASHBOARD ==========
   return (
     <div className="p-8">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900">
           Welcome back, {profile?.name || 'Specialist'}!
         </h2>
-        <p className="text-gray-600 mt-2">
-          {isAdmin
-            ? "Manage your organization and track children's progress."
-            : "Here's an overview of your assigned children."}
-        </p>
+        <p className="text-gray-600 mt-2">Here&apos;s an overview of your assigned children.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -186,56 +337,34 @@ export default function DashboardPage() {
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 Invite parents to connect their child and start tracking progress.
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <button
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                  onClick={async () => {
-                    try {
-                      const idToken = await getIdToken()
-                      if (!idToken) {
-                        router.push('/b2b/login')
-                        return
-                      }
-                      apiClient.setToken(idToken)
-
-                      // Get current org ID
-                      const currentOrgId = profile?.organizations[0]?.orgId
-                      if (!currentOrgId) {
-                        alert('Please select an organization first')
-                        return
-                      }
-                      const invite = await apiClient.createParentInvite(currentOrgId)
-                      setInviteCode(invite.inviteCode)
-                      setInviteModalOpen(true)
-                    } catch (error: any) {
-                      alert(error.message || 'Failed to create invite code. Please try again.')
+              <button
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                onClick={async () => {
+                  try {
+                    const idToken = await getIdToken()
+                    if (!idToken) {
+                      router.push('/b2b/login')
+                      return
                     }
-                  }}
-                >
-                  <Mail className="w-5 h-5" />
-                  <span>Invite Parent</span>
-                </button>
-                {isAdmin && (
-                  <button
-                    className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    onClick={() => {
-                      alert(
-                        'Manual child addition will be available soon. For now, parents can connect via invite codes.'
-                      )
-                    }}
-                  >
-                    <UserPlus className="w-5 h-5" />
-                    <span>Add Child</span>
-                  </button>
-                )}
-              </div>
+                    apiClient.setToken(idToken)
+                    const invite = await apiClient.createParentInvite(orgId!)
+                    setInviteCode(invite.inviteCode)
+                    setInviteModalOpen(true)
+                  } catch (error: unknown) {
+                    alert(error instanceof Error ? error.message : 'Failed to create invite code.')
+                  }
+                }}
+              >
+                <Mail className="w-5 h-5" />
+                <span>Invite Parent</span>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {children.slice(0, 6).map((child) => (
                 <Link
                   key={child.id}
-                  href={`/b2b/children/${child.id}?orgId=${currentOrgId}`}
+                  href={`/b2b/children/${child.id}?orgId=${orgId}`}
                   className="block p-5 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-md transition-all bg-white"
                 >
                   <h4 className="font-semibold text-gray-900 mb-3">{child.name}</h4>
@@ -266,7 +395,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {inviteCode && (
+      {inviteCode && orgId && (
         <InviteModal
           isOpen={inviteModalOpen}
           onClose={() => {
