@@ -22,6 +22,7 @@ import { bootstrapRoute } from './routes/bootstrap.js'
 import { teamRoute } from './routes/team.js'
 import { groupsRoute } from './routes/groups.js'
 import { contentRoute } from './routes/content.js'
+import { orgsRoute } from './routes/orgs.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -108,6 +109,7 @@ async function buildServer() {
     teamRoute,
     groupsRoute,
     contentRoute,
+    orgsRoute,
   ]
 
   for (const route of routes) {
