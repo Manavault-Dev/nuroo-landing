@@ -62,12 +62,15 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Set GCP Project ID for Docker
+        run: echo "GCP_PROJECT_ID=$(gcloud config get-value project -q)" >> $GITHUB_ENV
+
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
       - name: Tag Backend Image with Version
         run: |
-          IMAGE_BASE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}"
+          IMAGE_BASE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}"
 
           # Pull latest image
           docker pull "${IMAGE_BASE}:latest" || exit 0
