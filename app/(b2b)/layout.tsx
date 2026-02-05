@@ -6,8 +6,8 @@ import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
 import { Sidebar } from '@/components/b2b/Sidebar'
 import { Header } from '@/components/b2b/Header'
 
-const AUTH_PAGES = ['/b2b/login', '/b2b/register', '/b2b/join']
-const ADMIN_PAGES = ['/b2b/content', '/b2b/admin']
+// Pages that should render without sidebar/header chrome
+const NO_CHROME_PAGES = ['/b2b/login', '/b2b/register', '/b2b/onboarding', '/b2b/join']
 
 function LoadingSpinner() {
   return (
@@ -24,27 +24,25 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { user, profile, isSuperAdmin, isLoading } = useAuth()
+  const { user, profile, isSuperAdmin, isLoading, currentOrgId: authOrgId } = useAuth()
 
-  const isAuthPage = AUTH_PAGES.includes(pathname)
+  const isNoChromePage = NO_CHROME_PAGES.includes(pathname)
 
   // Handle redirects based on auth state
   useEffect(() => {
     if (isLoading) return
 
-    // Not logged in - redirect to login (except on auth pages)
-    if (!user && !isAuthPage) {
+    // Not logged in - redirect to login (except on no-chrome pages)
+    if (!user && !isNoChromePage) {
       router.push('/b2b/login')
       return
     }
 
-    // Logged in on auth page - redirect based on role
-    if (user && isAuthPage) {
-      if (isSuperAdmin) {
-        router.replace('/b2b/content')
-      } else if (profile?.organizations?.length) {
-        router.replace('/b2b')
-      }
+    // Logged in on no-chrome pages - send user to correct destination
+    if (user && isNoChromePage) {
+      if (isSuperAdmin) return router.replace('/b2b/content')
+      if (profile?.organizations?.length) return router.replace('/b2b')
+      if (pathname !== '/b2b/onboarding') return router.replace('/b2b/onboarding')
       return
     }
 
@@ -52,15 +50,15 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     if (user && isSuperAdmin && pathname === '/b2b') {
       router.replace('/b2b/content')
     }
-  }, [user, profile, isSuperAdmin, isLoading, pathname, isAuthPage, router])
+  }, [user, profile, isSuperAdmin, isLoading, pathname, isNoChromePage, router])
 
   // Loading state
   if (isLoading) {
     return <LoadingSpinner />
   }
 
-  // Auth pages don't need sidebar/header
-  if (isAuthPage) {
+  // No-chrome pages don't need sidebar/header
+  if (isNoChromePage) {
     return <>{children}</>
   }
 
@@ -69,7 +67,8 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  const currentOrgId = searchParams.get('orgId') || profile?.organizations[0]?.orgId
+  const currentOrgId =
+    searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || authOrgId || undefined
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

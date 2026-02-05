@@ -6,12 +6,12 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - 'dependencies'
       - 'frontend'
     groups:
-      minor-and-patch:
+      frontend-dependencies:
         patterns:
           - '*'
         update-types:
@@ -27,12 +27,12 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - 'dependencies'
       - 'backend'
     groups:
-      minor-and-patch:
+      backend-dependencies:
         patterns:
           - '*'
         update-types:
@@ -47,6 +47,15 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 3
     labels:
       - 'dependencies'
       - 'ci'
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
