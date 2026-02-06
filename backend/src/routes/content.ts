@@ -87,6 +87,66 @@ async function getStorageBucket() {
 export const contentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
+  //  Public parent content
+
+  fastify.get('/api/parent/content/roadmaps', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+    const db = getFirestore()
+    const snap = await db.collection(COLLECTIONS.ROADMAPS).orderBy('createdAt', 'desc').get()
+    return { ok: true, roadmaps: snap.docs.map(transformDoc), count: snap.size }
+  })
+
+  fastify.get('/api/parent/content/roadmaps/:roadmapId', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+    const db = getFirestore()
+    const { roadmapId } = request.params as { roadmapId: string }
+    const ref = db.doc(`${COLLECTIONS.ROADMAPS}/${roadmapId}`)
+    const snap = await ref.get()
+    if (!snap.exists) return reply.code(404).send({ error: 'Roadmap not found' })
+    const roadmap = transformDoc(snap) as Record<string, unknown>
+    const taskIds = (roadmap.taskIds as string[] | undefined) || []
+    if (taskIds.length > 0) {
+      const taskSnaps = await Promise.all(
+        taskIds.map((id) => db.doc(`${COLLECTIONS.TASKS}/${id}`).get())
+      )
+      const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
+      return { ok: true, roadmap: { ...roadmap, tasks } }
+    }
+    return { ok: true, roadmap: { ...roadmap, tasks: [] } }
+  })
+
+  fastify.get('/api/parent/content/tasks', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+    const db = getFirestore()
+    const { ids } = request.query as { ids?: string }
+    if (ids) {
+      const taskIds = ids
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      if (taskIds.length === 0) return { ok: true, tasks: [], count: 0 }
+      const taskSnaps = await Promise.all(
+        taskIds.map((id) => db.doc(`${COLLECTIONS.TASKS}/${id}`).get())
+      )
+      const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
+      return { ok: true, tasks, count: tasks.length }
+    }
+    const snap = await db.collection(COLLECTIONS.TASKS).orderBy('createdAt', 'desc').get()
+    return { ok: true, tasks: snap.docs.map(transformDoc), count: snap.size }
+  })
+
+  fastify.get('/api/parent/content/tasks/:taskId', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+    const db = getFirestore()
+    const { taskId } = request.params as { taskId: string }
+    const ref = db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
+    const snap = await ref.get()
+    if (!snap.exists) return reply.code(404).send({ error: 'Task not found' })
+    return { ok: true, task: transformDoc(snap) }
+  })
+
+  // ─── Admin content (Super Admin only) ────────────────────────────────────
+
   // Tasks CRUD
   fastify.get('/admin/content/tasks', async (request, reply) => {
     await requireSuperAdmin(request, reply)
