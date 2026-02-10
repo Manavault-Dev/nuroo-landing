@@ -46,7 +46,12 @@ async function buildServer() {
   }
 
   // CORS - Always include localhost for development, add production origins
-  const defaultOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001']
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+  ]
   const productionOrigins = config.CORS_ORIGIN
     ? config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     : ['https://usenuroo.com']
@@ -70,6 +75,8 @@ async function buildServer() {
     if (url === '/health' || method === 'OPTIONS') return
     if (!isProduction && url.startsWith('/dev/set-super-admin')) return
     if (url.startsWith('/bootstrap/')) return
+    // Public parent content endpoints (no auth required)
+    if (url.startsWith('/api/parent/content/')) return
 
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
