@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { X, Copy, Check, Mail } from 'lucide-react'
 
 interface InviteModalProps {
@@ -12,6 +13,7 @@ interface InviteModalProps {
 
 export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
   const [copied, setCopied] = useState(false)
+  const t = useTranslations('b2b.pages.inviteModal')
 
   useEffect(() => {
     if (copied) {
@@ -37,7 +39,7 @@ export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
         document.execCommand('copy')
         setCopied(true)
       } catch {
-        alert('Please copy manually: ' + text)
+        alert(t('copyManually') + ' ' + text)
       }
       document.body.removeChild(textarea)
     }
@@ -55,19 +57,21 @@ export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <Mail className="w-5 h-5 text-primary-600" />
-            <h3 className="text-xl font-bold text-gray-900">Invite Parent</h3>
+            <h3 className="text-xl font-bold text-gray-900">{t('title')}</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label={t('close')}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-gray-600 mb-6">
-          Share this invite code with parents to connect their child to your practice.
-        </p>
+        <p className="text-gray-600 mb-6">{t('shareHint')}</p>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Invite Code</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">{t('inviteCode')}</label>
           <div className="flex items-center space-x-2">
             <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3">
               <code className="text-2xl font-bold text-gray-900 tracking-wider">{inviteCode}</code>
@@ -75,7 +79,7 @@ export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
             <button
               onClick={() => handleCopy(inviteCode)}
               className="flex items-center justify-center w-12 h-12 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg transition-colors"
-              title="Copy code"
+              title={t('copyCode')}
             >
               {copied ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
             </button>
