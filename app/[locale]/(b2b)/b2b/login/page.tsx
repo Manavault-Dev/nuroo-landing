@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, FormEvent, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { signIn, getIdToken, getCurrentUser } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
+  const t = useTranslations('b2b.login')
+  const tCommon = useTranslations('b2b.common')
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -126,7 +129,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking authentication...</p>
+          <p className="mt-4 text-gray-600">{tCommon('checkingAuth')}</p>
         </div>
       </div>
     )
@@ -141,8 +144,8 @@ export default function LoginPage() {
               <LogIn className="w-8 h-8 text-primary-600" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Specialist Portal</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to access your dashboard</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
+          <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -156,7 +159,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email address
+                {t('email')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -178,7 +181,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -204,19 +207,19 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? t('signingIn') : t('signIn')}
               </button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              {t('noAccount')}{' '}
               <Link
                 href="/b2b/register"
                 className="font-medium text-primary-600 hover:text-primary-500"
               >
-                Register
+                {t('register')}
               </Link>
             </p>
           </div>
@@ -224,7 +227,7 @@ export default function LoginPage() {
 
         <div className="text-center">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-            ← Back to Nuroo Home
+            {t('backToHome')}
           </Link>
         </div>
       </div>

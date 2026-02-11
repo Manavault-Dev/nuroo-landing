@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, FormEvent, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { register } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react'
 
 function RegisterForm() {
+  const t = useTranslations('b2b.register')
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('invite') || searchParams.get('code') || ''
@@ -105,10 +108,8 @@ function RegisterForm() {
               <UserPlus className="w-8 h-8 text-primary-600" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Create an account. If you have an invite code, you can join your organization now.
-          </p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
+          <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -122,7 +123,7 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+                {t('fullName')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -143,7 +144,7 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email address
+                {t('email')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -165,7 +166,7 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -190,7 +191,7 @@ function RegisterForm() {
                 htmlFor="confirmPassword"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Confirm Password
+                {t('confirmPassword')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -212,7 +213,7 @@ function RegisterForm() {
 
             <div>
               <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-2">
-                Invite Code <span className="text-gray-400">(optional)</span>
+                {t('inviteCode')} <span className="text-gray-400">{t('inviteCodeOptional')}</span>
               </label>
               <input
                 id="inviteCode"
@@ -235,19 +236,19 @@ function RegisterForm() {
                 disabled={loading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Creating account...' : 'Create account'}
+                {loading ? t('creating') : t('createAccount')}
               </button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Already have an account?{' '}
+              {t('hasAccount')}{' '}
               <Link
                 href="/b2b/login"
                 className="font-medium text-primary-600 hover:text-primary-500"
               >
-                Sign in
+                {t('signIn')}
               </Link>
             </p>
           </div>
@@ -255,7 +256,7 @@ function RegisterForm() {
 
         <div className="text-center">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-            ← Back to Nuroo Home
+            {t('backToHome')}
           </Link>
         </div>
       </div>

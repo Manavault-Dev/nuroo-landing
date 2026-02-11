@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
+import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile, type ChildSummary } from '@/lib/b2b/api'
 import {
@@ -20,6 +22,8 @@ import { InviteModal } from '@/components/b2b/InviteModal'
 export default function DashboardPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('b2b.pages.dashboard')
+  const tHeader = useTranslations('b2b.header')
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [teamCount, setTeamCount] = useState<number>(0)
@@ -85,7 +89,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-32 bg-gray-200 rounded"></div>
@@ -102,14 +106,12 @@ export default function DashboardPage() {
   // ========== ORG ADMIN DASHBOARD ==========
   if (isAdmin && currentOrg) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900">
-            {currentOrg.orgName} — Administration
+            {currentOrg.orgName} — {t('administration')}
           </h2>
-          <p className="text-gray-600 mt-2">
-            You created this organization. Manage settings, specialists, and children.
-          </p>
+          <p className="text-gray-600 mt-2">{t('youCreated')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -119,9 +121,9 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600">Organization</p>
+                <p className="text-sm font-medium text-gray-600">{t('organization')}</p>
                 <p className="text-lg font-bold text-gray-900 mt-2">{currentOrg.orgName}</p>
-                <p className="text-sm text-primary-600 mt-2 font-medium">Edit settings →</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">{t('editSettings')}</p>
               </div>
               <div className="bg-primary-100 p-3 rounded-lg">
                 <Building2 className="w-6 h-6 text-primary-600" />
@@ -135,9 +137,9 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600">Specialists</p>
+                <p className="text-sm font-medium text-gray-600">{t('specialists')}</p>
                 <p className="text-3xl font-bold text-gray-900 mt-2">{teamCount}</p>
-                <p className="text-sm text-primary-600 mt-2 font-medium">Manage team →</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">{t('manageTeam')}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
                 <UserCog className="w-6 h-6 text-blue-600" />
@@ -151,9 +153,9 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600">Children</p>
+                <p className="text-sm font-medium text-gray-600">{t('children')}</p>
                 <p className="text-3xl font-bold text-gray-900 mt-2">{children.length}</p>
-                <p className="text-sm text-primary-600 mt-2 font-medium">View all →</p>
+                <p className="text-sm text-primary-600 mt-2 font-medium">{t('viewAll')}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-lg">
                 <Users className="w-6 h-6 text-green-600" />
@@ -171,10 +173,8 @@ export default function DashboardPage() {
               <UserCog className="w-6 h-6 text-primary-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900">Manage Specialists</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Add, remove, and change roles of team members.
-              </p>
+              <h3 className="font-semibold text-gray-900">{t('manageSpecialists')}</h3>
+              <p className="text-sm text-gray-600 mt-1">{t('addRemoveRoles')}</p>
             </div>
             <ArrowRight className="w-5 h-5 text-gray-400 shrink-0" />
           </Link>
@@ -187,10 +187,8 @@ export default function DashboardPage() {
               <Key className="w-6 h-6 text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900">Invite Codes</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Create invites for specialists and parents.
-              </p>
+              <h3 className="font-semibold text-gray-900">{t('inviteCodes')}</h3>
+              <p className="text-sm text-gray-600 mt-1">{t('createInvites')}</p>
             </div>
             <ArrowRight className="w-5 h-5 text-gray-400 shrink-0" />
           </Link>
@@ -199,12 +197,12 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Children in organization</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('childrenInOrg')}</h3>
               <Link
                 href={`/b2b/children?orgId=${orgId}`}
                 className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center"
               >
-                View all
+                {t('viewAll')}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </div>
@@ -213,9 +211,7 @@ export default function DashboardPage() {
             {children.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">
-                  No children yet. Specialists can invite parents to connect children.
-                </p>
+                <p className="text-gray-600">{t('noChildrenYet')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -227,7 +223,7 @@ export default function DashboardPage() {
                   >
                     <h4 className="font-semibold text-gray-900">{child.name}</h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      {child.completedTasksCount} tasks completed
+                      {child.completedTasksCount} {t('tasksCompleted')}
                     </p>
                   </Link>
                 ))}
@@ -241,21 +237,21 @@ export default function DashboardPage() {
 
   // ========== SPECIALIST DASHBOARD ==========
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900">
-          Welcome back, {profile?.name || 'Specialist'}!
+          {t('welcomeBack', { name: profile?.name || tHeader('specialist') })}
         </h2>
-        <p className="text-gray-600 mt-2">Here&apos;s an overview of your assigned children.</p>
+        <p className="text-gray-600 mt-2">{t('overviewAssigned')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Total Children</p>
+              <p className="text-sm font-medium text-gray-600">{t('totalChildren')}</p>
               {children.length === 0 ? (
-                <p className="text-sm text-gray-500 mt-2">No children yet</p>
+                <p className="text-sm text-gray-500 mt-2">{t('noChildrenYetShort')}</p>
               ) : (
                 <p className="text-3xl font-bold text-gray-900 mt-2">{children.length}</p>
               )}
@@ -269,7 +265,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Active This Week</p>
+              <p className="text-sm font-medium text-gray-600">{t('activeThisWeek')}</p>
               {(() => {
                 const activeCount = children.filter((child) => {
                   if (!child.lastActiveDate) return false
@@ -278,7 +274,7 @@ export default function DashboardPage() {
                   return new Date(child.lastActiveDate) > weekAgo
                 }).length
                 return activeCount === 0 && children.length === 0 ? (
-                  <p className="text-sm text-gray-500 mt-2">No activity yet</p>
+                  <p className="text-sm text-gray-500 mt-2">{t('noActivityYet')}</p>
                 ) : (
                   <p className="text-3xl font-bold text-gray-900 mt-2">{activeCount}</p>
                 )
@@ -293,14 +289,14 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Total Tasks Completed</p>
+              <p className="text-sm font-medium text-gray-600">{t('totalTasksCompleted')}</p>
               {(() => {
                 const totalTasks = children.reduce(
                   (sum, child) => sum + child.completedTasksCount,
                   0
                 )
                 return totalTasks === 0 && children.length === 0 ? (
-                  <p className="text-sm text-gray-500 mt-2">No tasks completed yet</p>
+                  <p className="text-sm text-gray-500 mt-2">{t('noTasksYet')}</p>
                 ) : (
                   <p className="text-3xl font-bold text-gray-900 mt-2">{totalTasks}</p>
                 )
@@ -316,13 +312,13 @@ export default function DashboardPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Assigned Children</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('assignedChildren')}</h3>
             {currentOrg && (
               <Link
                 href={`/b2b/children?orgId=${currentOrg.orgId}`}
                 className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center"
               >
-                View all
+                {t('viewAll')}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             )}
@@ -333,10 +329,8 @@ export default function DashboardPage() {
           {children.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No children assigned</h3>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Invite parents to connect their child and start tracking progress.
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noChildrenAssigned')}</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">{t('inviteParentsConnect')}</p>
               <button
                 className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 onClick={async () => {
@@ -356,7 +350,7 @@ export default function DashboardPage() {
                 }}
               >
                 <Mail className="w-5 h-5" />
-                <span>Invite Parent</span>
+                <span>{t('inviteParent')}</span>
               </button>
             </div>
           ) : (
@@ -370,18 +364,18 @@ export default function DashboardPage() {
                   <h4 className="font-semibold text-gray-900 mb-3">{child.name}</h4>
                   <div className="space-y-2 text-sm text-gray-600">
                     <div className="flex items-center justify-between">
-                      <span>Tasks completed:</span>
+                      <span>{t('tasksCompleted')}:</span>
                       <span className="font-medium">{child.completedTasksCount}</span>
                     </div>
                     {child.speechStepNumber && (
                       <div className="flex items-center justify-between">
-                        <span>Roadmap step:</span>
+                        <span>{t('roadmapStep')}</span>
                         <span className="font-medium">{child.speechStepNumber}</span>
                       </div>
                     )}
                     {child.lastActiveDate && (
                       <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                        <span className="text-xs text-gray-500">Last active:</span>
+                        <span className="text-xs text-gray-500">{t('lastActive')}</span>
                         <span className="text-xs font-medium text-gray-700">
                           {new Date(child.lastActiveDate).toLocaleDateString()}
                         </span>

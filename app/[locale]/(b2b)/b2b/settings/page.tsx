@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
 import { Save, User, Mail, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
+  const t = useTranslations('b2b.pages.settings')
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -74,7 +76,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -84,10 +86,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Profile Settings</h2>
-        <p className="text-gray-600 mt-2">Manage your personal information and account settings.</p>
+        <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
+        <p className="text-gray-600 mt-2">{t('subtitle')}</p>
       </div>
 
       <div className="max-w-2xl">
@@ -95,7 +97,7 @@ export default function SettingsPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {success && (
               <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                Profile updated successfully!
+                {t('profileUpdated')}
               </div>
             )}
 
@@ -107,7 +109,7 @@ export default function SettingsPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+                {t('emailAddress')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -121,12 +123,12 @@ export default function SettingsPage() {
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">Email address cannot be changed</p>
+              <p className="mt-1 text-xs text-gray-500">{t('emailCannotChange')}</p>
             </div>
 
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+                {t('fullName')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -139,7 +141,7 @@ export default function SettingsPage() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="John Doe"
+                  placeholder={t('fullNamePlaceholder')}
                 />
               </div>
             </div>
@@ -153,12 +155,12 @@ export default function SettingsPage() {
                 {saving ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Saving...</span>
+                    <span>{t('saving')}</span>
                   </>
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    <span>Save Changes</span>
+                    <span>{t('saveChanges')}</span>
                   </>
                 )}
               </button>
@@ -167,7 +169,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Organizations</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('organizations')}</h3>
           {profile && profile.organizations.length > 0 ? (
             <div className="space-y-3">
               {profile.organizations.map((org) => (
@@ -178,7 +180,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium text-gray-900">{org.orgName}</p>
                     <p className="text-sm text-gray-500">
-                      Role: {org.role === 'admin' ? 'Administrator' : 'Specialist'}
+                      {t('role')}: {org.role === 'admin' ? t('administrator') : t('specialist')}
                     </p>
                   </div>
                   {org.role === 'admin' && (
@@ -190,7 +192,7 @@ export default function SettingsPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">You are not a member of any organization.</p>
+            <p className="text-gray-500">{t('notInOrg')}</p>
           )}
         </div>
       </div>
