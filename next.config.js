@@ -1,10 +1,9 @@
+const withNextIntl = require('next-intl/plugin')('./i18n/request.ts')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Performance optimizations
   compress: true,
   poweredByHeader: false,
-
-  // Image optimization
   images: {
     remotePatterns: [
       {
@@ -21,45 +20,17 @@ const nextConfig = {
       },
     ],
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60 * 60 * 24, // 24 hours
+    minimumCacheTTL: 60 * 60 * 24,
   },
-
-  // Experimental features for performance
   experimental: {},
-
-  // Webpack optimizations
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
     }
 
-    // Tree shaking for smaller bundles
-    if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            firebase: {
-              test: /[\\/]node_modules[\\/]firebase/,
-              name: 'firebase',
-              priority: 20,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: 10,
-            },
-          },
-        },
-      }
-    }
-
     return config
   },
-
-  // Headers for caching
   async headers() {
     return [
       {
@@ -84,4 +55,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withNextIntl(nextConfig)
