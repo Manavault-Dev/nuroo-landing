@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { ConditionalHeader } from '@/components/ConditionalHeader'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -89,10 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#14b8a6" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={inter.className}>
-        <ConditionalHeader />
-        <main>{children}</main>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
