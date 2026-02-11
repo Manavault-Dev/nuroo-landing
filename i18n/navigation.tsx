@@ -1,7 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname as useNextPathname, useRouter as useNextRouter, useParams } from 'next/navigation'
+import {
+  usePathname as useNextPathname,
+  useRouter as useNextRouter,
+  useParams,
+} from 'next/navigation'
 import type { ComponentProps } from 'react'
 
 const LOCALES = ['en', 'ru', 'ky'] as const
@@ -39,12 +43,20 @@ export function useRouter() {
   return {
     push: (href: string, options?: { locale?: string }) => {
       const loc = options?.locale ?? locale
-      const url = href.startsWith('#') ? `${pathname}${href}` : href.startsWith('http') ? href : `/${loc}${href === '/' ? '' : href}`
+      const url = href.startsWith('#')
+        ? `${pathname}${href}`
+        : href.startsWith('http')
+          ? href
+          : `/${loc}${href === '/' ? '' : href}`
       return nextRouter.push(url)
     },
     replace: (href: string, options?: { locale?: string }) => {
       const loc = options?.locale ?? locale
-      const url = href.startsWith('#') ? `${pathname}${href}` : href.startsWith('http') ? href : `/${loc}${href === '/' ? '' : href}`
+      const url = href.startsWith('#')
+        ? `${pathname}${href}`
+        : href.startsWith('http')
+          ? href
+          : `/${loc}${href === '/' ? '' : href}`
       return nextRouter.replace(url)
     },
     back: () => nextRouter.back(),
