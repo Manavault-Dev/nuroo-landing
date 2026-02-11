@@ -1,3 +1,5 @@
+const withNextIntl = require('next-intl/plugin')('./i18n/request.ts')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Performance optimizations
@@ -28,32 +30,10 @@ const nextConfig = {
   experimental: {},
 
   // Webpack optimizations
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
-    }
-
-    // Tree shaking for smaller bundles
-    if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            firebase: {
-              test: /[\\/]node_modules[\\/]firebase/,
-              name: 'firebase',
-              priority: 20,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: 10,
-            },
-          },
-        },
-      }
     }
 
     return config
@@ -84,4 +64,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withNextIntl(nextConfig)
