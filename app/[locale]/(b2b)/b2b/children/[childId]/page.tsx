@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, FormEvent } from 'react'
-import { useRouter, useParams, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter } from '@/i18n/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
+import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import {
   apiClient,
@@ -40,6 +42,7 @@ export default function ChildDetailPage() {
   const [visibleToParent, setVisibleToParent] = useState(true)
   const [submittingNote, setSubmittingNote] = useState(false)
   const [error, setError] = useState('')
+  const t = useTranslations('b2b.pages.childDetail')
 
   useEffect(() => {
     const loadData = async () => {
@@ -67,7 +70,7 @@ export default function ChildDetailPage() {
         setNotes(notesData)
         setTimeline(timelineData)
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load child profile'
+        const errorMessage = error instanceof Error ? error.message : t('failedToLoad')
         setError(errorMessage)
       } finally {
         setLoading(false)
@@ -130,7 +133,7 @@ export default function ChildDetailPage() {
             href={`/b2b/children?orgId=${orgId}`}
             className="text-primary-600 hover:text-primary-700 font-medium"
           >
-            ← Back to Children
+            {t('backToChildren')}
           </Link>
         </div>
       </div>
@@ -175,7 +178,7 @@ export default function ChildDetailPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <div className="flex items-center space-x-4 mb-2">
           <Link

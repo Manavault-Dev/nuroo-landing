@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
 import { Building2, Users, UserCog, Key } from 'lucide-react'
@@ -10,6 +12,7 @@ import { Building2, Users, UserCog, Key } from 'lucide-react'
 export default function OrganizationPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('b2b.pages.organization')
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -63,7 +66,7 @@ export default function OrganizationPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -77,10 +80,10 @@ export default function OrganizationPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Organization Settings</h2>
-        <p className="text-gray-600 mt-2">Manage your organization details and preferences.</p>
+        <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
+        <p className="text-gray-600 mt-2">{t('subtitle')}</p>
       </div>
 
       <div className="max-w-4xl space-y-6">
@@ -91,12 +94,15 @@ export default function OrganizationPage() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">{currentOrg.orgName}</h3>
-              <p className="text-sm text-gray-600 mb-4">Organization ID: {currentOrg.orgId}</p>
+              <p className="text-sm text-gray-600 mb-4">
+                {t('organizationId')} {currentOrg.orgId}
+              </p>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <Users className="w-4 h-4" />
                   <span>
-                    Your role: <span className="font-medium text-gray-900">Administrator</span>
+                    {t('yourRole')}{' '}
+                    <span className="font-medium text-gray-900">{t('administrator')}</span>
                   </span>
                 </div>
               </div>
@@ -105,25 +111,23 @@ export default function OrganizationPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Organization Information</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('orgInfo')}</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Organization Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('orgName')}</label>
               <input
                 type="text"
                 value={currentOrg.orgName}
                 readOnly
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
               />
-              <p className="mt-1 text-xs text-gray-500">Organization name cannot be changed yet.</p>
+              <p className="mt-1 text-xs text-gray-500">{t('orgNameCannotChange')}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('quickActions')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               href={`/b2b/team${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
@@ -131,8 +135,8 @@ export default function OrganizationPage() {
             >
               <UserCog className="w-5 h-5 text-primary-600" />
               <div>
-                <p className="font-medium text-gray-900">Manage Specialists</p>
-                <p className="text-sm text-gray-600">View and manage team members</p>
+                <p className="font-medium text-gray-900">{t('manageSpecialists')}</p>
+                <p className="text-sm text-gray-600">{t('viewManageTeam')}</p>
               </div>
             </Link>
 
@@ -142,8 +146,8 @@ export default function OrganizationPage() {
             >
               <Key className="w-5 h-5 text-primary-600" />
               <div>
-                <p className="font-medium text-gray-900">Invite Codes</p>
-                <p className="text-sm text-gray-600">Create and manage invite codes</p>
+                <p className="font-medium text-gray-900">{t('inviteCodes')}</p>
+                <p className="text-sm text-gray-600">{t('createManageInvites')}</p>
               </div>
             </Link>
           </div>

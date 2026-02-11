@@ -583,7 +583,7 @@ export default function ContentPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -615,7 +615,7 @@ export default function ContentPage() {
     activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Management</h1>
         <p className="text-gray-600">Manage global content: tasks and roadmaps</p>
@@ -689,15 +689,23 @@ export default function ContentPage() {
           {currentItems.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3
+                    className="text-lg font-semibold text-gray-900 mb-1 truncate"
+                    title={item.title || item.name || undefined}
+                  >
                     {item.title || item.name || 'Untitled'}
                   </h3>
                   {item.description && (
-                    <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                    <p
+                      className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
+                      title={item.description}
+                    >
+                      {item.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center space-x-2 ml-4">
