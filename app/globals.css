@@ -5,11 +5,17 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
   }
 
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    overflow-x: hidden;
+    min-width: 0;
   }
 }
 
@@ -27,7 +33,10 @@
   }
 
   .container-custom {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    box-sizing: border-box;
   }
 
   .gradient-text {
@@ -38,15 +47,14 @@
     @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
   }
 
-  /* Mobile-specific improvements */
   @media (max-width: 640px) {
     .btn-primary,
     .btn-secondary {
-      @apply text-sm py-2 px-4;
+      @apply text-sm py-3 px-5 min-h-[44px] inline-flex items-center justify-center;
     }
 
     .section-padding {
-      @apply py-8;
+      @apply py-10;
     }
 
     .container-custom {
@@ -54,7 +62,6 @@
     }
   }
 
-  /* Touch-friendly interactions */
   @media (hover: none) and (pointer: coarse) {
     .btn-primary,
     .btn-secondary {
@@ -64,5 +71,16 @@
     .card-hover {
       @apply hover:shadow-lg hover:-translate-y-0 active:shadow-xl active:-translate-y-1;
     }
+  }
+
+  @media (max-width: 768px) {
+    body {
+      overflow-x: hidden;
+    }
+  }
+
+  section {
+    min-width: 0;
+    overflow-x: hidden;
   }
 }

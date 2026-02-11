@@ -1,12 +1,13 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname as useNextPathname } from 'next/navigation'
 import { Header } from './Header'
 
 export function ConditionalHeader() {
-  const pathname = usePathname()
+  const fullPathname = useNextPathname() ?? ''
+  const pathname = fullPathname.replace(/^\/(en|ru|ky)/, '') || '/'
 
-  if (pathname?.startsWith('/b2b')) {
+  if (pathname.startsWith('/b2b')) {
     return null
   }
 
