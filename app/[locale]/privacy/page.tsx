@@ -28,7 +28,6 @@ export default async function PrivacyPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gentle-50 via-white to-primary-50">
-      {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -47,14 +46,12 @@ export default async function PrivacyPage({ params }: Props) {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Hero Section */}
         <div className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">{t('title')}</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">{t('subtitle')}</p>
           <p className="text-sm text-gray-500 mt-4">{t('lastUpdated')}</p>
         </div>
 
-        {/* Security Highlights */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
             <Shield className="h-6 w-6 text-primary-600 mr-3" />
@@ -79,7 +76,6 @@ export default async function PrivacyPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Privacy Policy Content */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="prose prose-lg max-w-none">
             <section className="mb-8">
@@ -231,7 +227,6 @@ export default async function PrivacyPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Footer Actions */}
         <div className="mt-12 text-center">
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

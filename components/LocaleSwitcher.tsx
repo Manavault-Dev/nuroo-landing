@@ -31,7 +31,6 @@ export function LocaleSwitcher() {
     setIsOpen(false)
   }
 
-  // Close on click outside (button or dropdown)
   useEffect(() => {
     if (!isOpen) return
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -52,7 +51,6 @@ export function LocaleSwitcher() {
     }
   }, [isOpen])
 
-  // Position dropdown under the button (for portal)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
   useLayoutEffect(() => {
     if (!isOpen || !buttonRef.current) {

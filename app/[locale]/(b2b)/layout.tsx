@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
 import { Sidebar } from '@/components/b2b/Sidebar'
 import { Header } from '@/components/b2b/Header'
 
-// Pages that should render without sidebar/header chrome
 const NO_CHROME_PAGES = ['/b2b/login', '/b2b/register', '/b2b/onboarding', '/b2b/join']
 
 function LoadingSpinner() {
@@ -51,7 +50,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     }, 300)
   }
 
-  // Fade-in overlay after mount
   useEffect(() => {
     if (sidebarOpen && !isClosing) {
       const id = requestAnimationFrame(() => setOverlayVisible(true))
@@ -59,48 +57,35 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [sidebarOpen, isClosing])
 
-  // Close mobile sidebar when route changes (immediate, no animation)
   useEffect(() => {
     setSidebarOpen(false)
     setIsClosing(false)
     setOverlayVisible(false)
   }, [pathname])
 
-  // Handle redirects based on auth state
   useEffect(() => {
     if (isLoading) return
-
-    // Not logged in - redirect to login (except on no-chrome pages)
     if (!user && !isNoChromePage) {
       router.push('/b2b/login')
       return
     }
-
-    // Logged in on no-chrome pages - send user to correct destination
     if (user && isNoChromePage) {
       if (isSuperAdmin) return router.replace('/b2b/content')
       if (profile?.organizations?.length) return router.replace('/b2b')
       if (pathForMatch !== '/b2b/onboarding') return router.replace('/b2b/onboarding')
       return
     }
-
-    // Super admin on dashboard - redirect to content
     if (user && isSuperAdmin && (pathForMatch === '/b2b' || pathForMatch === '/b2b/')) {
       router.replace('/b2b/content')
     }
   }, [user, profile, isSuperAdmin, isLoading, pathname, pathForMatch, isNoChromePage, router])
 
-  // Loading state
   if (isLoading) {
     return <LoadingSpinner />
   }
-
-  // No-chrome pages don't need sidebar/header
   if (isNoChromePage) {
     return <>{children}</>
   }
-
-  // Not authenticated
   if (!user) {
     return null
   }

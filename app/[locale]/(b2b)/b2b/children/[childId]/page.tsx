@@ -315,7 +315,6 @@ export default function ChildDetailPage() {
           </div>
 
           <div className="space-y-6">
-            {/* Parent Info Section */}
             {childDetail.parentInfo && (
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center space-x-2 mb-4">
@@ -362,7 +361,6 @@ export default function ChildDetailPage() {
               </div>
             )}
 
-            {/* Show placeholder if no parent linked */}
             {!childDetail.parentInfo && (
               <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-6">
                 <div className="flex items-center space-x-2 mb-3">

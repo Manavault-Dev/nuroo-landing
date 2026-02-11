@@ -21,7 +21,6 @@ export default function LoginPage() {
   useEffect(() => {
     const checkExistingToken = async () => {
       try {
-        // Check if token exists in localStorage
         const storedToken = typeof window !== 'undefined' ? localStorage.getItem('b2b_token') : null
         const currentUser = getCurrentUser()
 
@@ -31,49 +30,38 @@ export default function LoginPage() {
             if (idToken) {
               apiClient.setToken(idToken)
 
-              // Check if user is Super Admin
               try {
                 const superAdminCheck = await apiClient.checkSuperAdmin()
                 if (superAdminCheck.isSuperAdmin) {
                   router.replace('/b2b/content')
                   return
                 }
-              } catch {
-                // Not Super Admin - continue checking
-              }
+              } catch {}
 
-              // Check if user has organizations
               try {
                 const profile = await apiClient.getMe()
                 if (profile.organizations && profile.organizations.length > 0) {
                   router.replace('/b2b')
                   return
                 }
-                // Logged in but no org yet: go to onboarding
                 router.replace('/b2b/onboarding')
-              } catch {
-                // No organizations - stay on login page
-              }
+              } catch {}
             }
           } catch {
-            // Token invalid - clear it
             apiClient.setToken(null)
           }
         }
       } catch (error) {
-        // Any error - clear token and continue
         console.error('Error checking token:', error)
         apiClient.setToken(null)
       } finally {
-        // Always set checking to false
         setCheckingToken(false)
       }
     }
 
-    // Add timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       setCheckingToken(false)
-    }, 5000) // 5 second timeout
+    }, 5000)
 
     checkExistingToken().finally(() => {
       clearTimeout(timeout)
@@ -90,8 +78,7 @@ export default function LoginPage() {
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      // Check if user is Super Admin first
-      const idTokenForCheck = await getIdToken(true) // Force refresh to get latest claims
+      const idTokenForCheck = await getIdToken(true)
       apiClient.setToken(idTokenForCheck)
 
       try {
@@ -100,11 +87,8 @@ export default function LoginPage() {
           router.push('/b2b/content')
           return
         }
-      } catch {
-        // Not Super Admin - continue checking organizations
-      }
+      } catch {}
 
-      // Check membership via /me endpoint
       try {
         const profile = await apiClient.getMe()
         if (!profile.organizations || profile.organizations.length === 0) {

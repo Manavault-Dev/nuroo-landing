@@ -7,7 +7,6 @@ export default function JoinPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Backward-compatible alias. Real onboarding is /b2b/onboarding.
     router.replace('/b2b/onboarding')
   }, [router])
 

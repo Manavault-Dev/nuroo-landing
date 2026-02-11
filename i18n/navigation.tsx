@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname as useNextPathname, useRouter as useNextRouter, useParams } from 'next/navigation'
 import type { ComponentProps } from 'react'
 
-// Server-safe constants (can be imported from navigation-config.ts if needed)
 const LOCALES = ['en', 'ru', 'ky'] as const
 const DEFAULT_LOCALE = 'en'
 
@@ -15,7 +14,6 @@ function getLocaleFromPathname(pathname: string): string {
 
 export type Locale = (typeof LOCALES)[number]
 
-/** Pathname without locale prefix (e.g. /en/b2b/login -> /b2b/login) */
 export function usePathname(): string {
   const pathname = useNextPathname() ?? ''
   const locale = getLocaleFromPathname(pathname)
@@ -26,7 +24,6 @@ export function usePathname(): string {
   return pathname || '/'
 }
 
-/** Current locale from URL segment */
 export function useLocale(): string {
   const params = useParams()
   const locale = params?.locale
@@ -60,7 +57,6 @@ export function useRouter() {
   }
 }
 
-/** Link that prepends current locale to internal hrefs */
 function LocaleLink({ href, ...rest }: ComponentProps<typeof Link>) {
   const pathname = useNextPathname() ?? ''
   const locale = getLocaleFromPathname(pathname)
@@ -83,7 +79,6 @@ function LocaleLink({ href, ...rest }: ComponentProps<typeof Link>) {
 
 export { LocaleLink as Link }
 
-/** Client-only: throws. Use next/navigation redirect() in Server Components. */
 export function redirect(_url: string): never {
   throw new Error(
     'redirect() from i18n/navigation is client-only and not supported. Use redirect() from next/navigation in Server Components.'
