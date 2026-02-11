@@ -90,14 +90,12 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   //  Public parent content
 
   fastify.get('/api/parent/content/roadmaps', async (request, reply) => {
-    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
     const db = getFirestore()
     const snap = await db.collection(COLLECTIONS.ROADMAPS).orderBy('createdAt', 'desc').get()
     return { ok: true, roadmaps: snap.docs.map(transformDoc), count: snap.size }
   })
 
   fastify.get('/api/parent/content/roadmaps/:roadmapId', async (request, reply) => {
-    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
     const db = getFirestore()
     const { roadmapId } = request.params as { roadmapId: string }
     const ref = db.doc(`${COLLECTIONS.ROADMAPS}/${roadmapId}`)
@@ -116,7 +114,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/api/parent/content/tasks', async (request, reply) => {
-    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
     const db = getFirestore()
     const { ids } = request.query as { ids?: string }
     if (ids) {
@@ -136,7 +133,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/api/parent/content/tasks/:taskId', async (request, reply) => {
-    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
     const db = getFirestore()
     const { taskId } = request.params as { taskId: string }
     const ref = db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
