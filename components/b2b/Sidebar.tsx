@@ -53,7 +53,6 @@ export function Sidebar({
     return pathForMatch.startsWith(path)
   }
 
-  // Super Admin: Professional Content Management Sidebar
   if (isSuperAdmin) {
     const contentNavItems = [
       { href: '/b2b/admin', labelKey: 'adminPanel' as const, icon: Shield, badge: null },
@@ -193,10 +192,7 @@ export function Sidebar({
     )
   }
 
-  // Build org-scoped URL helper
   const withOrg = (path: string) => (currentOrgId ? `${path}?orgId=${currentOrgId}` : path)
-
-  // Regular users (Specialist or Org Admin) — main nav includes admin items for org admins
   const specialistNavItems = [
     {
       href: currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b',
@@ -213,7 +209,6 @@ export function Sidebar({
       labelKey: 'groups' as const,
       icon: Users2,
     },
-    // Org admin: specialists & organization management
     ...(isOrgAdmin
       ? [
           { href: withOrg('/b2b/team'), labelKey: 'specialists' as const, icon: UserCog },

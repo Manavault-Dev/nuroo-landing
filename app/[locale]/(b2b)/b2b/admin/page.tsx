@@ -53,13 +53,11 @@ export default function AdminPage() {
   const [invites, setInvites] = useState<InviteCode[]>([])
   const [superAdmins, setSuperAdmins] = useState<SuperAdmin[]>([])
 
-  // Create organization form
   const [showCreateOrg, setShowCreateOrg] = useState(false)
   const [orgName, setOrgName] = useState('')
   const [orgCountry, setOrgCountry] = useState('')
   const [creatingOrg, setCreatingOrg] = useState(false)
 
-  // Generate invite form
   const [showGenerateInvite, setShowGenerateInvite] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [inviteRole, setInviteRole] = useState<'org_admin' | 'specialist' | 'parent'>('org_admin')
@@ -76,7 +74,6 @@ export default function AdminPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  // Organization details state
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
   const [orgSpecialists, setOrgSpecialists] = useState<Record<string, unknown[]>>({})
   const [orgParents, setOrgParents] = useState<Record<string, unknown[]>>({})
@@ -91,14 +88,13 @@ export default function AdminPage() {
       }
 
       try {
-        const idToken = await getIdToken(true) // Force refresh to get latest claims
+        const idToken = await getIdToken(true)
         if (!idToken) {
           router.push('/b2b/login')
           return
         }
         apiClient.setToken(idToken)
 
-        // Check if user is Super Admin
         const checkResult = await apiClient.checkSuperAdmin()
         if (!checkResult.isSuperAdmin) {
           router.push('/b2b')
@@ -149,15 +145,12 @@ export default function AdminPage() {
         orgCountry.trim() || undefined
       )
 
-      // Reset form
       setOrgName('')
       setOrgCountry('')
       setShowCreateOrg(false)
 
-      // Reload data
       await loadData()
 
-      // Show success message
       alert(`Organization "${result.name}" created successfully!`)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create organization'
@@ -186,18 +179,15 @@ export default function AdminPage() {
         maxUses: inviteMaxUses ? parseInt(inviteMaxUses) : undefined,
       })
 
-      // Reload invites list to get full data
       const invitesData = await apiClient.listInvites()
       setInvites(invitesData.invites)
 
-      // Reset form
       setSelectedOrgId('')
       setInviteRole('org_admin')
       setInviteExpiresAt('')
       setInviteMaxUses('')
       setShowGenerateInvite(false)
 
-      // Copy to clipboard
       await copyToClipboard(result.inviteLink)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate invite code'
@@ -282,9 +272,7 @@ export default function AdminPage() {
       const code = text.split('code=')[1]?.split('&')[0] || text
       setCopiedCode(code)
       setTimeout(() => setCopiedCode(null), 2000)
-    } catch {
-      // Clipboard API not available
-    }
+    } catch {}
   }
 
   if (loading) {
@@ -342,7 +330,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Create Organization Modal */}
       {showCreateOrg && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -399,7 +386,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Generate Invite Modal */}
       {showGenerateInvite && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -494,7 +480,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Add Super Admin Modal */}
       {showAddSuperAdmin && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -540,7 +525,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Organizations List */}
       <div className="mb-8">
         <h2 className="text-xl font-bold mb-4">Organizations</h2>
         {organizations.length === 0 ? (
@@ -588,7 +572,6 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {/* Specialists */}
                         <div>
                           <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                             <Users className="w-5 h-5 mr-2" />
@@ -623,7 +606,6 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        {/* Parents */}
                         <div>
                           <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                             <UserPlus className="w-5 h-5 mr-2" />
@@ -648,7 +630,6 @@ export default function AdminPage() {
                                         </p>
                                       )}
 
-                                      {/* Children for this parent */}
                                       {parent.linkedChildren && parent.linkedChildren.length > 0 ? (
                                         <div className="mt-3 pt-3 border-t border-gray-100">
                                           <p className="text-xs font-medium text-gray-700 mb-2">
@@ -698,7 +679,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Recent Invite Codes */}
       {invites.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4">Recent Invite Codes</h2>
@@ -761,7 +741,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Super Admin Management */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Super Admins</h2>

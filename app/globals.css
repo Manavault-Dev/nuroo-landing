@@ -6,7 +6,6 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
-    /* Safe area for notched devices */
     padding-left: env(safe-area-inset-left, 0);
     padding-right: env(safe-area-inset-right, 0);
   }
@@ -48,7 +47,6 @@
     @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
   }
 
-  /* Mobile-specific improvements */
   @media (max-width: 640px) {
     .btn-primary,
     .btn-secondary {
@@ -64,7 +62,6 @@
     }
   }
 
-  /* Touch-friendly interactions */
   @media (hover: none) and (pointer: coarse) {
     .btn-primary,
     .btn-secondary {
@@ -76,14 +73,12 @@
     }
   }
 
-  /* Prevent horizontal overflow and allow word break for long text (e.g. RU/KY) */
   @media (max-width: 768px) {
     body {
       overflow-x: hidden;
     }
   }
 
-  /* Landing sections: contain overflow and break long words */
   section {
     min-width: 0;
     overflow-x: hidden;

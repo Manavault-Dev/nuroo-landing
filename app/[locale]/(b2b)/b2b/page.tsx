@@ -72,7 +72,8 @@ export default function DashboardPage() {
             setChildren(childrenData)
             setTeamCount(Array.isArray(teamData) ? teamData.length : 0)
           } catch {
-            // Failed to load - continue with empty
+            setChildren([])
+            setTeamCount(0)
           }
         } else {
           router.push('/b2b/onboarding')
@@ -103,7 +104,6 @@ export default function DashboardPage() {
     profile?.organizations.find((org) => org.orgId === orgId) || profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
 
-  // ========== ORG ADMIN DASHBOARD ==========
   if (isAdmin && currentOrg) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
@@ -235,7 +235,6 @@ export default function DashboardPage() {
     )
   }
 
-  // ========== SPECIALIST DASHBOARD ==========
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">

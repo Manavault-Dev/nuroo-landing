@@ -212,7 +212,6 @@ export default function InvitesPage() {
       </div>
 
       <div className="max-w-4xl space-y-6">
-        {/* Specialist Invites Section (Admin only) */}
         {isAdmin && (
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('specialistInvites')}</h3>
@@ -309,7 +308,6 @@ export default function InvitesPage() {
           </div>
         )}
 
-        {/* Parent Invites Section (Specialist & Admin) */}
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('parentInvites')}</h3>
           {parentInvites.length === 0 ? (

@@ -53,10 +53,8 @@ export function Footer() {
       )}
 
       <div className="container-custom min-w-0">
-        {/* Main block: logo + tagline | nav | social */}
         <div className="py-8 sm:py-10">
           <div className="flex flex-col gap-8 lg:gap-10 min-w-0">
-            {/* Top row: logo + tagline, then social on desktop */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
                 <I18nLink href="/" className="flex items-center gap-2 w-fit flex-shrink-0">
@@ -88,7 +86,6 @@ export function Footer() {
               </div>
             </div>
 
-            {/* Nav links: wrap cleanly with spacing */}
             <nav
               className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-2 text-sm min-w-0 break-words"
               aria-label="Footer navigation"
@@ -118,7 +115,6 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Copyright */}
         <div className="border-t border-white/20 py-4 sm:py-5">
           <p className="text-center text-white/70 text-xs sm:text-sm">{t('copyright')}</p>
         </div>

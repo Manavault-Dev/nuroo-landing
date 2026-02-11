@@ -27,7 +27,6 @@ function RegisterForm() {
     e.preventDefault()
     setError('')
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address')
@@ -51,7 +50,6 @@ function RegisterForm() {
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      // Invite code is optional: if present, link account to an organization.
       if (inviteCode.trim()) {
         try {
           await apiClient.acceptInvite(inviteCode.trim())
@@ -68,7 +66,6 @@ function RegisterForm() {
         }
       }
 
-      // No invite yet: user will need to join an organization later.
       router.push('/b2b/onboarding')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string }

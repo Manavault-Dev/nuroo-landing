@@ -36,33 +36,28 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [orgId, setOrgId] = useState<string | null>(null)
 
-  // Create/Edit group modal
   const [showGroupModal, setShowGroupModal] = useState(false)
   const [editingGroup, setEditingGroup] = useState<Group | null>(null)
   const [groupName, setGroupName] = useState('')
   const [groupDescription, setGroupDescription] = useState('')
   const [groupColor, setGroupColor] = useState('#6366f1')
-
-  // View group modal
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [groupParents, setGroupParents] = useState<Parent[]>([])
   const [loadingGroupDetails, setLoadingGroupDetails] = useState(false)
-
-  // Add parent modal
   const [showAddParentModal, setShowAddParentModal] = useState(false)
   const [availableParents, setAvailableParents] = useState<any[]>([])
   const [selectedParentId, setSelectedParentId] = useState('')
   const [loadingParents, setLoadingParents] = useState(false)
 
   const presetColors = [
-    '#6366f1', // Indigo
-    '#8b5cf6', // Purple
-    '#ec4899', // Pink
-    '#f59e0b', // Amber
-    '#10b981', // Emerald
-    '#3b82f6', // Blue
-    '#ef4444', // Red
-    '#14b8a6', // Teal
+    '#6366f1',
+    '#8b5cf6',
+    '#ec4899',
+    '#f59e0b',
+    '#10b981',
+    '#3b82f6',
+    '#ef4444',
+    '#14b8a6',
   ]
 
   useEffect(() => {
@@ -83,7 +78,6 @@ export default function GroupsPage() {
 
         const orgIdParam = searchParams.get('orgId')
         if (!orgIdParam) {
-          // Try to get orgId from profile
           try {
             const profile = await apiClient.getMe()
             const firstOrg = profile.organizations[0]
@@ -195,7 +189,6 @@ export default function GroupsPage() {
 
     setLoadingParents(true)
     try {
-      // Get all parents in the organization
       const parentsData = await apiClient.getParents(orgId)
       setAvailableParents(parentsData.parents || [])
       setShowAddParentModal(true)
@@ -349,7 +342,6 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Create/Edit Group Modal */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -444,7 +436,6 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* View Group Modal */}
       {selectedGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -532,7 +523,6 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Add Parent Modal */}
       {showAddParentModal && selectedGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
