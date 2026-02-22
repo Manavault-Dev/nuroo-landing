@@ -16,6 +16,7 @@ import { parentsRoutes } from './modules/parents/index.js'
 import { assignmentsRoutes } from './modules/assignments/index.js'
 import { adminRoutes } from './modules/admin/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
+import { paymentsRoutes } from './modules/payments/index.js'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -46,6 +47,7 @@ export async function buildApp() {
   await fastify.register(assignmentsRoutes)
   await fastify.register(adminRoutes)
   await fastify.register(parentApiRoutes)
+  await fastify.register(paymentsRoutes)
 
   return fastify
 }

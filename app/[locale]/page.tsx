@@ -2,6 +2,7 @@ import { Hero } from '@/components/Hero'
 import { Problem } from '@/components/Problem'
 import { Solution } from '@/components/Solution'
 import { Platform } from '@/components/Platform'
+import { Pricing } from '@/components/Pricing'
 import { Features } from '@/components/Features'
 import { Testimonials } from '@/components/Testimonials'
 import { Footer } from '@/components/Footer'
@@ -17,6 +18,7 @@ export default function Home({ params }: Props) {
       <Problem />
       <Solution />
       <Platform />
+      <Pricing />
       <Features />
       <Testimonials />
       <Footer />

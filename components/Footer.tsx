@@ -26,6 +26,7 @@ export function Footer() {
     { href: '#features', labelKey: 'features' as const },
     { href: '#solution-section', labelKey: 'howItWorks' as const },
     { href: '#platform-section', labelKey: 'forProfessionals' as const },
+    { href: '#pricing', labelKey: 'pricing' as const },
     { href: '/help', labelKey: 'help' as const },
     { href: '/privacy', labelKey: 'privacy' as const },
     {

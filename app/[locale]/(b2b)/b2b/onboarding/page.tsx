@@ -12,8 +12,9 @@ import { useAuth } from '@/lib/b2b/AuthContext'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { isSuperAdmin, isLoading: authLoading } = useAuth()
+  const { isSuperAdmin, isLoading: authLoading, logout } = useAuth()
   const t = useTranslations('b2b.pages.onboarding')
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const [inviteCode, setInviteCode] = useState('')
   const [orgName, setOrgName] = useState('')
@@ -158,9 +159,22 @@ export default function OnboardingPage() {
         </div>
 
         <div className="text-center">
-          <Link href="/b2b/login" className="text-sm text-gray-500 hover:text-gray-700">
-            {t('backToLogin')}
-          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              setLoggingOut(true)
+              try {
+                await logout()
+                router.push('/b2b/login')
+              } finally {
+                setLoggingOut(false)
+              }
+            }}
+            disabled={loggingOut}
+            className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            {loggingOut ? '...' : t('backToLogin')}
+          </button>
         </div>
       </div>
     </div>
