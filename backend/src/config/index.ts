@@ -1,7 +1,10 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
 import { envSchema, type Env } from './env.js'
 
-dotenv.config()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const rawConfig = envSchema.parse(process.env)
 

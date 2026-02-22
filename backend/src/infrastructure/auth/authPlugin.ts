@@ -10,7 +10,7 @@ declare module 'fastify' {
 }
 
 // Routes that don't require authentication
-const PUBLIC_ROUTES = ['/health']
+const PUBLIC_ROUTES = ['/health', '/plans']
 
 // Routes that require special handling
 const SKIP_AUTH_PATTERNS = [

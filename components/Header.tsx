@@ -58,6 +58,12 @@ export function Header() {
               {t('forProfessionals')}
             </Link>
             <Link
+              href="#pricing"
+              className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
+            >
+              {t('pricing')}
+            </Link>
+            <Link
               href="/help"
               className="text-gray-600 hover:text-primary-500 transition-colors text-sm"
             >
@@ -129,6 +135,13 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {t('forProfessionals')}
+              </Link>
+              <Link
+                href="#pricing"
+                className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 transition-colors text-sm font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {t('pricing')}
               </Link>
               <Link
                 href="/help"

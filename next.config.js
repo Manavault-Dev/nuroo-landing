@@ -4,6 +4,7 @@ const withNextIntl = require('next-intl/plugin')('./i18n/request.ts')
 const nextConfig = {
   compress: true,
   poweredByHeader: false,
+  transpilePackages: ['next-intl'],
   images: {
     remotePatterns: [
       {
