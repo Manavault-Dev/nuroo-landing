@@ -1,3 +1,4 @@
+/** Alternative app builder (not used by npm run dev/start). Entry point is index.ts. */
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { config } from './config/index.js'

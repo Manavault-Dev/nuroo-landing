@@ -88,8 +88,8 @@ npm run dev
 backend/
 ├── src/
 │   ├── index.ts           # Server entry point
-│   ├── config.ts          # Environment config
-│   ├── firebaseAdmin.ts   # Firebase Admin initialization
+│   ├── config/            # Environment config (index.ts, env.ts)
+│   ├── firebaseAdmin.ts   # Firebase Admin (scripts)
 │   ├── types.ts           # TypeScript types
 │   ├── plugins/
 │   │   ├── auth.ts        # Auth plugin (token verification)
