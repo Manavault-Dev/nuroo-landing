@@ -14,9 +14,19 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  KeyRound,
+  Copy,
+  Check,
 } from 'lucide-react'
 
-type ContentType = 'tasks' | 'roadmaps'
+type ContentType = 'tasks' | 'roadmaps' | 'alphakids'
+
+interface AlphakidsCodeRow {
+  code: string
+  duration: string
+  expiresAt: string | null
+  createdAt: string | null
+}
 
 interface ContentItem {
   id: string
@@ -54,6 +64,11 @@ export default function ContentPage() {
 
   const [tasks, setTasks] = useState<ContentItem[]>([])
   const [roadmaps, setRoadmaps] = useState<ContentItem[]>([])
+  const [alphakidsCodes, setAlphakidsCodes] = useState<AlphakidsCodeRow[]>([])
+  const [lastGeneratedCode, setLastGeneratedCode] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [loadingCodes, setLoadingCodes] = useState(false)
+  const [generatingCode, setGeneratingCode] = useState(false)
 
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [mediaFile, setMediaFile] = useState<File | null>(null)
@@ -99,13 +114,15 @@ export default function ContentPage() {
       if (!idToken) return
       apiClient.setToken(idToken)
 
-      const [tasksData, roadmapsData] = await Promise.all([
+      const [tasksData, roadmapsData, codesData] = await Promise.all([
         apiClient.getTasks(),
         apiClient.getRoadmaps(),
+        apiClient.getAlphakidsCodes().catch(() => ({ ok: true, codes: [], count: 0 })),
       ])
 
       setTasks(tasksData.tasks || [])
       setRoadmaps(roadmapsData.roadmaps || [])
+      setAlphakidsCodes(codesData.codes || [])
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load content'
       alert(errorMessage)
@@ -596,9 +613,48 @@ export default function ContentPage() {
     return null
   }
 
+  const loadAlphakidsCodes = async () => {
+    setLoadingCodes(true)
+    try {
+      const res = await apiClient.getAlphakidsCodes()
+      setAlphakidsCodes(res.codes || [])
+    } catch {
+      setAlphakidsCodes([])
+    } finally {
+      setLoadingCodes(false)
+    }
+  }
+
+  const handleGenerateAlphakidsCode = async (duration: '7d' | '30d' | 'forever') => {
+    setGeneratingCode(true)
+    setLastGeneratedCode(null)
+    try {
+      const res = await apiClient.createAlphakidsCode(duration)
+      setLastGeneratedCode(res.code)
+      await loadAlphakidsCodes()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to generate code')
+    } finally {
+      setGeneratingCode(false)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCode(text)
+      setTimeout(() => setCopiedCode(null), 2000)
+    })
+  }
+
   const tabs = [
     { id: 'tasks' as ContentType, label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'roadmaps' as ContentType, label: 'Roadmaps', icon: BookOpen, count: roadmaps.length },
+    {
+      id: 'alphakids' as ContentType,
+      label: 'Alphakids (parent codes)',
+      icon: KeyRound,
+      count: alphakidsCodes.length,
+    },
   ]
 
   const getCurrentItems = () => {
@@ -607,12 +663,16 @@ export default function ContentPage() {
         return tasks
       case 'roadmaps':
         return roadmaps
+      case 'alphakids':
+        return []
     }
   }
 
   const currentItems = getCurrentItems()
   const contentTypeLabel =
-    activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
+    activeTab === 'alphakids'
+      ? 'Code'
+      : activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -654,17 +714,128 @@ export default function ContentPage() {
         </nav>
       </div>
 
-      <div className="mb-4 flex justify-end">
-        <button
-          onClick={handleCreate}
-          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Create {contentTypeLabel}</span>
-        </button>
-      </div>
+      {activeTab !== 'alphakids' && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={handleCreate}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create {contentTypeLabel}</span>
+          </button>
+        </div>
+      )}
 
-      {currentItems.length === 0 ? (
+      {activeTab === 'alphakids' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            Alphakids — коды для родителей
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Сгенерируйте код доступа. Родители используют его в приложении для просмотра материалов
+            (roadmap и задачи). Код можно выдать на 7 дней, 30 дней или навсегда.
+          </p>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <button
+              onClick={() => handleGenerateAlphakidsCode('7d')}
+              disabled={generatingCode}
+              className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors disabled:opacity-50 font-medium"
+            >
+              {generatingCode ? <Loader2 className="w-4 h-4 animate-spin inline mr-1" /> : null}7
+              дней
+            </button>
+            <button
+              onClick={() => handleGenerateAlphakidsCode('30d')}
+              disabled={generatingCode}
+              className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 font-medium"
+            >
+              30 дней
+            </button>
+            <button
+              onClick={() => handleGenerateAlphakidsCode('forever')}
+              disabled={generatingCode}
+              className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50 font-medium"
+            >
+              Навсегда
+            </button>
+          </div>
+          {lastGeneratedCode && (
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg mb-4">
+              <code className="text-lg font-mono font-bold text-gray-900">{lastGeneratedCode}</code>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(lastGeneratedCode)}
+                className="p-2 text-gray-500 hover:text-gray-700 rounded"
+                title="Copy"
+              >
+                {copiedCode === lastGeneratedCode ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          )}
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Последние коды</h3>
+          {loadingCodes ? (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin" /> Загрузка...
+            </div>
+          ) : alphakidsCodes.length === 0 ? (
+            <p className="text-sm text-gray-500">Кодов пока нет. Нажмите кнопку выше.</p>
+          ) : (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Код</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Срок</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Действует до</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Создан</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {alphakidsCodes.map((row) => (
+                    <tr key={row.code} className="border-t border-gray-100">
+                      <td className="py-2 px-3 font-mono">{row.code}</td>
+                      <td className="py-2 px-3">
+                        {row.duration === '7d'
+                          ? '7 дней'
+                          : row.duration === '30d'
+                            ? '30 дней'
+                            : 'Навсегда'}
+                      </td>
+                      <td className="py-2 px-3 text-gray-600">
+                        {row.expiresAt ? new Date(row.expiresAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-gray-600">
+                        {row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(row.code)}
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                          title="Copy"
+                        >
+                          {copiedCode === row.code ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab !== 'alphakids' && currentItems.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {(() => {
@@ -684,7 +855,7 @@ export default function ContentPage() {
             Create {contentTypeLabel}
           </button>
         </div>
-      ) : (
+      ) : activeTab !== 'alphakids' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentItems.map((item) => (
             <div
@@ -834,7 +1005,7 @@ export default function ContentPage() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
