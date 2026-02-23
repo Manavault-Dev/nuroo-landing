@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { config } from '../config.js'
+import { config } from '../config/index.js'
 
 // Dev-only whitelist for testing without custom claims
 const DEV_WHITELIST = ['nuroo@gmail.com']

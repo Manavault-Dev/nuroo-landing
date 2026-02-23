@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 
 import { getAuth } from '../infrastructure/database/firebase.js'
-import { config } from '../config.js'
+import { config } from '../config/index.js'
 import { z } from 'zod'
 
 const DEV_SUPER_ADMIN_WHITELIST = ['nuroo@gmail.com']

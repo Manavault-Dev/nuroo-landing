@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import type { OrgMember } from '../types.js'
-import { config } from '../config.js'
+import { config } from '../config/index.js'
 
 // TEMPORARY: Whitelist for dev mode
 const DEV_SUPER_ADMIN_WHITELIST = ['nuroo@gmail.com']

@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireSuperAdmin } from '../plugins/superAdmin.js'
-import { config } from '../config.js'
+import { config } from '../config/index.js'
 import { z } from 'zod'
 
 const createOrgSchema = z.object({

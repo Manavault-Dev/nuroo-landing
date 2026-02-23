@@ -8,7 +8,9 @@ export const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
+  FIREBASE_STORAGE_BUCKET: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  CORS_ORIGIN: z.string().optional(),
 
   // Development Firebase (optional, overrides FIREBASE_PROJECT_ID in dev)
   FIREBASE_DEV_PROJECT_ID: z.string().optional(),
