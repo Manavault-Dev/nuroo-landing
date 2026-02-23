@@ -1,4 +1,3 @@
-// Characters that are easy to read and don't confuse (excludes 0, O, I, 1, L)
 const INVITE_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
 /**
