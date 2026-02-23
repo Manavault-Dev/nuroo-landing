@@ -4,7 +4,6 @@ import { config } from './config.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
 import type { AuthenticatedUser } from './types.js'
 
-// Routes
 import { healthRoute } from './routes/health.js'
 import { meRoute } from './routes/me.js'
 import { joinRoute } from './routes/join.js'
@@ -39,13 +38,10 @@ async function buildServer() {
 
   try {
     initializeFirebaseAdmin()
-    console.log('✅ Firebase Admin initialized')
-  } catch (error) {
-    console.warn('⚠️ Firebase Admin initialization failed:', error)
-    console.warn('⚠️ Will retry on first use (ADC in Cloud Run)')
+  } catch {
+    // Will retry on first use (e.g. ADC in Cloud Run)
   }
 
-  // CORS - Always include localhost for development, add production origins
   const defaultOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
@@ -67,16 +63,14 @@ async function buildServer() {
     strictPreflight: false,
   })
 
-  // Auth middleware
   fastify.addHook('preHandler', async (request, reply) => {
     const { url, method } = request
 
-    // Skip auth for these routes
     if (url === '/health' || method === 'OPTIONS') return
     if (!isProduction && url.startsWith('/dev/set-super-admin')) return
     if (url.startsWith('/bootstrap/')) return
-    // Public parent content endpoints (no auth required)
     if (url.startsWith('/api/parent/content/')) return
+    if (url.startsWith('/api/parent/alphakids/')) return
 
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
@@ -91,13 +85,11 @@ async function buildServer() {
         email: decoded.email,
         claims: decoded,
       }
-    } catch (authError) {
-      console.error('[AUTH] Token verification failed:', authError)
+    } catch {
       return reply.code(401).send({ error: 'Invalid token' })
     }
   })
 
-  // Register routes
   const routes = [
     healthRoute,
     meRoute,
@@ -133,11 +125,7 @@ async function start() {
     const host = config.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'
 
     await server.listen({ port, host })
-    console.log(`🚀 Server running at http://${host}:${port}`)
-    console.log(`📋 Environment: ${config.NODE_ENV}`)
-    console.log(`🔧 Port: ${port}`)
-  } catch (error) {
-    console.error('❌ Failed to start server:', error)
+  } catch {
     process.exit(1)
   }
 }

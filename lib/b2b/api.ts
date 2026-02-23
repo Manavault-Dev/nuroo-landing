@@ -656,6 +656,27 @@ export class ApiClient {
     return response.json()
   }
 
+  // Alphakids access codes for parents (7d / 30d / forever)
+  async createAlphakidsCode(duration: '7d' | '30d' | 'forever') {
+    return this.request<{ ok: boolean; code: string; duration: string; expiresAt: string | null }>(
+      '/admin/content/alphakids-codes',
+      { method: 'POST', body: JSON.stringify({ duration }) }
+    )
+  }
+
+  async getAlphakidsCodes() {
+    return this.request<{
+      ok: boolean
+      codes: Array<{
+        code: string
+        duration: string
+        expiresAt: string | null
+        createdAt: string | null
+      }>
+      count: number
+    }>('/admin/content/alphakids-codes')
+  }
+
   // Clear all cache (useful for logout)
   clearCache() {
     cache.invalidate()
