@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const createPaymentSchema = z.object({
-  planId: z.enum(['basic', 'professional', 'enterprise']),
+  planId: z.enum(['starter', 'growth']),
   orgId: z.string().min(1),
 })
 

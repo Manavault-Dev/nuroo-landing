@@ -1,8 +1,17 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { requireOrgMember } from '../../shared/guards/index.js'
-import { createPayment, handleWebhook, verifyPayment, getPlanPrices, getPlanNames } from './payments.service.js'
+import {
+  createPayment,
+  handleWebhook,
+  verifyPayment,
+  getPlanPrices,
+  getPlanNames,
+} from './payments.service.js'
+import { PLAN_LIMITS, type PlanId } from './planLimits.js'
 import { createPaymentSchema, webhookSchema } from './payments.schema.js'
+import { getSubscriptionStatus, getPlanLimits } from './planLimits.js'
+import { getBillingPlan } from './payments.repository.js'
 
 export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/plans', async (request, reply) => {
@@ -10,22 +19,47 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
       const prices = getPlanPrices()
       const names = getPlanNames()
 
-      const plans = Object.keys(prices).map((planId) => ({
-        id: planId,
-        name: names[planId],
-        price: prices[planId],
-        currency: 'KGS',
-      }))
-
-      console.log('[PAYMENTS] Returning plans:', plans)
+      const plans = (Object.keys(prices) as PlanId[]).map((planId) => {
+        const limits = PLAN_LIMITS[planId]
+        return {
+          id: planId,
+          name: names[planId],
+          price: prices[planId],
+          currency: 'KGS',
+          limits: limits
+            ? { children: limits.children, specialists: limits.specialists }
+            : null,
+        }
+      })
 
       return {
         ok: true,
         plans,
       }
-    } catch (error: any) {
-      console.error('[PAYMENTS] Error getting plans:', error)
-      return reply.code(500).send({ ok: false, error: error.message || 'Failed to get plans' })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to get plans'
+      return reply.code(500).send({ ok: false, error: message })
+    }
+  })
+
+  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/billing/status', async (request, reply) => {
+    if (!request.user) {
+      return reply.code(401).send({ error: 'Unauthorized' })
+    }
+    const { orgId } = request.params
+    await requireOrgMember(request, reply, orgId)
+    const status = await getSubscriptionStatus(orgId)
+    const billing = await getBillingPlan(orgId)
+    const limits = status.planId ? getPlanLimits(status.planId) : null
+    return {
+      ok: true,
+      active: status.active,
+      planId: status.planId ?? null,
+      error: status.error ?? null,
+      expiresAt: billing?.expiresAt?.toDate?.()?.toISOString() ?? null,
+      limits: limits
+        ? { children: limits.children, specialists: limits.specialists }
+        : null,
     }
   })
 
@@ -61,38 +95,44 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  fastify.get<{ Params: { paymentId: string } }>('/payments/:paymentId/verify', async (request, reply) => {
-    if (!request.user) {
-      return reply.code(401).send({ error: 'Unauthorized' })
-    }
-
-    const { paymentId } = request.params
-
-    try {
-      const result = await verifyPayment(paymentId)
-      if (!result.ok) {
-        return reply.code(404).send({ error: result.error })
-      }
-      return result
-    } catch (error: any) {
-      console.error('Error verifying payment:', error)
-      return reply.code(500).send({ error: error.message || 'Failed to verify payment' })
-    }
-  })
-
-  fastify.post<{ Body: z.infer<typeof webhookSchema> }>('/webhooks/finik', async (request, reply) => {
-    try {
-      const body = webhookSchema.parse(request.body)
-      const result = await handleWebhook(body)
-
-      if (!result.ok) {
-        return reply.code(400).send({ error: result.error })
+  fastify.get<{ Params: { paymentId: string } }>(
+    '/payments/:paymentId/verify',
+    async (request, reply) => {
+      if (!request.user) {
+        return reply.code(401).send({ error: 'Unauthorized' })
       }
 
-      return { ok: true }
-    } catch (error: any) {
-      console.error('Error handling webhook:', error)
-      return reply.code(400).send({ error: error.message || 'Invalid webhook data' })
+      const { paymentId } = request.params
+
+      try {
+        const result = await verifyPayment(paymentId)
+        if (!result.ok) {
+          return reply.code(404).send({ error: result.error })
+        }
+        return result
+      } catch (error: any) {
+        console.error('Error verifying payment:', error)
+        return reply.code(500).send({ error: error.message || 'Failed to verify payment' })
+      }
     }
-  })
+  )
+
+  fastify.post<{ Body: z.infer<typeof webhookSchema> }>(
+    '/webhooks/finik',
+    async (request, reply) => {
+      try {
+        const body = webhookSchema.parse(request.body)
+        const result = await handleWebhook(body)
+
+        if (!result.ok) {
+          return reply.code(400).send({ error: result.error })
+        }
+
+        return { ok: true }
+      } catch (error: any) {
+        console.error('Error handling webhook:', error)
+        return reply.code(400).send({ error: error.message || 'Invalid webhook data' })
+      }
+    }
+  )
 }
