@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -13,6 +13,7 @@ interface Plan {
   name: string
   price: number
   currency: string
+  limits?: { children: number; specialists: number | null } | null
 }
 
 export default function BillingPage() {
@@ -24,6 +25,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true)
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const plansFetchedRef = useRef(false)
 
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
@@ -49,22 +51,26 @@ export default function BillingPage() {
         const profileData = await apiClient.getMe()
         setProfile(profileData)
 
-        try {
-          const plansData = await apiClient.getPlans()
-          console.log('Plans data:', plansData)
-          if (plansData.ok && plansData.plans && plansData.plans.length > 0) {
-            setPlans(plansData.plans)
-          } else {
-            console.warn('No plans received:', plansData)
-            setError('No subscription plans available. Please contact support.')
+        if (!plansFetchedRef.current) {
+          plansFetchedRef.current = true
+          try {
+            const plansData = await apiClient.getPlans()
+            if (plansData.ok && plansData.plans && plansData.plans.length > 0) {
+              setPlans(plansData.plans)
+            } else {
+              setError('No subscription plans available. Please contact support.')
+            }
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            setError(
+              msg === 'Failed to fetch'
+                ? 'Cannot reach the server. Check that the backend is running and NEXT_PUBLIC_API_URL is correct.'
+                : `Failed to load subscription plans: ${msg}`
+            )
           }
-        } catch (err: any) {
-          console.error('Error loading plans:', err)
-          setError(`Failed to load subscription plans: ${err.message || 'Unknown error'}`)
         }
-      } catch (error: any) {
-        console.error('Error loading billing data:', error)
-        setError(error.message || 'Failed to load billing data')
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load billing data')
       } finally {
         setLoading(false)
       }
@@ -87,7 +93,7 @@ export default function BillingPage() {
     }
   }, [loading, profile, isAdmin, router])
 
-  const handleSubscribe = async (planId: 'basic' | 'professional' | 'enterprise') => {
+  const handleSubscribe = async (planId: 'starter' | 'growth') => {
     if (!currentOrgId) {
       setError('Organization ID is missing')
       return
@@ -173,20 +179,22 @@ export default function BillingPage() {
   }
 
   const planFeatures: Record<string, string[]> = {
-    basic: ['Up to 10 children', 'Basic progress tracking', 'Email support', 'Mobile app access'],
-    professional: [
-      'Up to 50 children',
-      'Advanced analytics',
-      'Priority support',
-      'Custom roadmaps',
-      'Team collaboration',
+    starter: [
+      'Up to 30 children',
+      'Up to 3 specialists',
+      'Groups and assignments',
+      'Parents get tasks in app',
+      'Photo/video from parents',
+      'Basic dashboard',
+      'Email support',
     ],
-    enterprise: [
-      'Unlimited children',
-      'Full analytics suite',
-      '24/7 support',
-      'Custom integrations',
-      'Dedicated account manager',
+    growth: [
+      'Up to 80 children',
+      'Unlimited specialists',
+      'Extended reports',
+      'Materials attached to tasks',
+      'Priority support',
+      'Org branding',
     ],
   }
 
@@ -227,10 +235,10 @@ export default function BillingPage() {
             No subscription plans available. Please contact support.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {plans.map((plan) => {
-              const planId = plan.id as 'basic' | 'professional' | 'enterprise'
-              const features = planFeatures[planId] || []
+              const planId = plan.id as 'starter' | 'growth'
+              const features = planFeatures[planId] ?? []
               const isCurrent = false
 
               return (
