@@ -10,183 +10,148 @@ import {
 } from './payments.repository.js'
 import type { CreatePaymentInput, WebhookInput } from './payments.schema.js'
 
-// Finik Acquiring API: https://www.finik.kg/for-developers/
-const FINIK_BASE_URL = (config.FINIK_API_URL || 'https://api.acquiring.averspay.kg').replace(/\/payment\/?$/, '')
+// Configuration
+const FINIK_HOST = 'api.acquiring.averspay.kg'
+const FINIK_PATH = '/v1/payment'
+const FINIK_URL = `https://${FINIK_HOST}${FINIK_PATH}`
 const FINIK_API_KEY = config.FINIK_API_KEY
 const FINIK_ACCOUNT_ID = config.FINIK_ACCOUNT_ID
-// Ensure PEM has real newlines (dotenv may leave literal \n in some setups)
-const FINIK_PRIVATE_PEM = config.FINIK_PRIVATE_PEM?.replace(/\\n/g, '\n')
-const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
-// Webhook URL for Finik: explicit FINIK_WEBHOOK_URL or BACKEND_PUBLIC_URL + /webhooks/finik
+const FINIK_PRIVATE_KEY = config.FINIK_PRIVATE_PEM?.replace(/\\n/g, '\n')
 const FINIK_WEBHOOK_URL =
   config.FINIK_WEBHOOK_URL ||
   (config.BACKEND_PUBLIC_URL ? `${config.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/webhooks/finik` : undefined)
+const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 
-/** JSON with sorted keys so canonical string is deterministic (Finik may verify the same way). */
-function canonicalJson(obj: unknown): string {
-  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj)
-  if (Array.isArray(obj)) return '[' + obj.map(canonicalJson).join(',') + ']'
-  const keys = Object.keys(obj as object).sort()
-  const o = obj as Record<string, unknown>
-  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalJson(o[k])).join(',') + '}'
+const PLANS: Record<string, { price: number; name: string }> = {
+  starter: { price: 1500, name: 'Starter' },
+  growth: { price: 3500, name: 'Growth' },
 }
 
-/**
- * Sign request for Finik Acquiring API (RSA-SHA256).
- * Try: only x-api-* headers in canonical string (request only sends those + signature).
- * stringToSign = Method + "\n" + Path + "\n" + Headers + "\n" + Body.
- */
-function signFinikRequest(
+// Signature utilities
+function deepSort(obj: unknown): unknown {
+  if (obj === null || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(deepSort)
+  return Object.keys(obj as Record<string, unknown>)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = deepSort((obj as Record<string, unknown>)[key])
+      return acc
+    }, {} as Record<string, unknown>)
+}
+
+function buildCanonicalString(
   method: string,
   path: string,
-  apiKey: string,
-  timestamp: string,
-  bodyJson: string,
-  privatePem: string
+  headers: Record<string, string>,
+  body: Record<string, unknown>
 ): string {
-  const headerLines = [`x-api-key:${apiKey}`, `x-api-timestamp:${timestamp}`].join('\n')
-  const stringToSign = [method, path, headerLines, bodyJson].join('\n')
-  if (config.FINIK_DEBUG_SIGNATURE === '1') {
-    const masked = stringToSign.replace(apiKey, '[API_KEY]')
-    console.log('[Finik debug] String we sign (masked):\n---\n' + masked + '\n---')
-  }
-  const sign = crypto.createSign('RSA-SHA256')
-  sign.update(stringToSign, 'utf8')
-  return sign.sign({ key: privatePem }, 'base64')
+  const headerStr = Object.entries(headers)
+    .map(([k, v]) => [k.toLowerCase(), v] as const)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join('&')
+
+  return `${method.toLowerCase()}\n${path}\n${headerStr}\n${JSON.stringify(deepSort(body))}`
 }
 
-const PLAN_PRICES: Record<string, number> = {
-  basic: 1000,
-  professional: 3000,
-  enterprise: 8000,
+function sign(data: string, privateKey: string): string {
+  const signer = crypto.createSign('RSA-SHA256')
+  signer.update(data, 'utf8')
+  signer.end()
+  return signer.sign(privateKey, 'base64')
 }
 
-const PLAN_NAMES: Record<string, string> = {
-  basic: 'Basic Plan',
-  professional: 'Professional Plan',
-  enterprise: 'Enterprise Plan',
-}
-
-function randomUuid(): string {
-  const hex = (n: number) => Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(n, '0')
-  return `${hex(8)}-${hex(4)}-4${hex(3)}-${['8', '9', 'a', 'b'][Math.floor(Math.random() * 4)]}${hex(3)}-${hex(12)}`
-}
-
+// Payment service
 export async function createPayment(input: CreatePaymentInput, userId: string) {
-  const missing: string[] = []
-  if (!FINIK_API_KEY) missing.push('FINIK_API_KEY')
-  if (!FINIK_ACCOUNT_ID) missing.push('FINIK_ACCOUNT_ID')
-  if (!FINIK_PRIVATE_PEM) missing.push('FINIK_PRIVATE_PEM')
-  if (missing.length > 0) {
-    throw new Error(
-      `Finik payment system is not configured. Add to backend/.env: ${missing.join(', ')}`
-    )
+  if (!FINIK_API_KEY || !FINIK_ACCOUNT_ID || !FINIK_PRIVATE_KEY) {
+    throw new Error('Finik payment system is not configured')
   }
 
-  const amount = PLAN_PRICES[input.planId]
-  const planName = PLAN_NAMES[input.planId]
-
-  if (!amount) {
-    throw new Error(`Invalid plan ID: ${input.planId}`)
+  const plan = PLANS[input.planId]
+  if (!plan) {
+    throw new Error(`Invalid plan: ${input.planId}`)
   }
 
-  const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-  const finikPaymentId = randomUuid()
-  const successUrl = `${B2B_URL}/b2b/billing/success?paymentId=${paymentId}`
+  const paymentId = `pay_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`
+  const finikPaymentId = crypto.randomUUID()
   const timestamp = Date.now().toString()
 
-  const host = new URL(FINIK_BASE_URL).host
-  const path = '/v1/payment'
-  const dataObj: Record<string, unknown> = {
-    accountId: FINIK_ACCOUNT_ID,
-    merchantCategoryCode: '0742',
-    name_en: `Nuroo: ${planName}`,
-    description: planName,
-  }
-  if (FINIK_WEBHOOK_URL) dataObj.webhookUrl = FINIK_WEBHOOK_URL
-
   const body: Record<string, unknown> = {
-    Amount: amount * 100, // tiyiyn (1 KGS = 100 tiyiyn)
+    Amount: plan.price,
     CardType: 'FINIK_QR',
+    Data: {
+      accountId: FINIK_ACCOUNT_ID,
+      description: plan.name,
+      merchantCategoryCode: '0742',
+      name_en: `Nuroo: ${plan.name}`,
+      ...(FINIK_WEBHOOK_URL && { webhookUrl: FINIK_WEBHOOK_URL }),
+    },
     PaymentId: finikPaymentId,
-    RedirectUrl: successUrl,
-    Data: dataObj,
+    RedirectUrl: `${B2B_URL}/b2b/billing/success?paymentId=${paymentId}`,
   }
 
-  try {
-    // Use canonical (sorted-key) JSON so signature matches what Finik expects
-    const bodyStr = canonicalJson(body)
-    const signature = signFinikRequest('POST', path, FINIK_API_KEY, timestamp, bodyStr, FINIK_PRIVATE_PEM)
-    const url = `${FINIK_BASE_URL}${path}`
-    const finikResponse = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Host: host,
-        'x-api-key': FINIK_API_KEY,
-        'x-api-timestamp': timestamp,
-        signature,
-      },
-      body: bodyStr,
-      redirect: 'manual',
-    })
+  const headers = {
+    host: FINIK_HOST,
+    'x-api-key': FINIK_API_KEY,
+    'x-api-timestamp': timestamp,
+  }
 
-    if (!finikResponse.ok && finikResponse.status !== 302) {
-      const errorText = await finikResponse.text()
-      throw new Error(`Finik API error: ${errorText}`)
-    }
+  const canonical = buildCanonicalString('POST', FINIK_PATH, headers, body)
+  const signature = sign(canonical, FINIK_PRIVATE_KEY)
 
-    const paymentRecord: Omit<PaymentRecord, 'createdAt' | 'updatedAt'> = {
-      paymentId,
-      orgId: input.orgId,
-      planId: input.planId,
-      amount,
-      currency: 'KGS',
-      status: 'pending',
-      finikTransactionId: finikPaymentId,
-    }
-    await createPaymentRecord(paymentRecord)
+  const response = await fetch(FINIK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Host: FINIK_HOST,
+      'x-api-key': FINIK_API_KEY,
+      'x-api-timestamp': timestamp,
+      signature,
+    },
+    body: JSON.stringify(deepSort(body)),
+    redirect: 'manual',
+  })
 
-    let paymentUrl: string | undefined
-    if (finikResponse.status === 302) {
-      paymentUrl = finikResponse.headers.get('location') ?? undefined
-    } else {
-      try {
-        const finikData = await finikResponse.json() as { paymentUrl?: string; url?: string; redirectUrl?: string }
-        paymentUrl = finikData.paymentUrl ?? finikData.url ?? finikData.redirectUrl
-      } catch {
-        // ignore
-      }
-    }
+  if (response.status !== 302 && !response.ok) {
+    const error = await response.text()
+    throw new Error(`Finik API error: ${error}`)
+  }
 
-    return {
-      ok: true,
-      paymentId,
-      paymentUrl: paymentUrl ?? url,
-      qrCode: undefined,
-      transactionId: finikPaymentId,
-    }
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error)
-    console.error('Error creating payment:', error)
-    throw new Error(`Failed to create payment: ${msg}`)
+  await createPaymentRecord({
+    paymentId,
+    orgId: input.orgId,
+    planId: input.planId,
+    amount: plan.price,
+    currency: 'KGS',
+    status: 'pending',
+    finikTransactionId: finikPaymentId,
+  })
+
+  const paymentUrl =
+    response.status === 302
+      ? response.headers.get('location')
+      : ((await response.json().catch(() => ({}))) as { paymentUrl?: string }).paymentUrl
+
+  return {
+    ok: true,
+    paymentId,
+    paymentUrl: paymentUrl ?? FINIK_URL,
+    transactionId: finikPaymentId,
   }
 }
 
 export async function handleWebhook(input: WebhookInput) {
   const payment = await getPaymentByFinikTransaction(input.paymentId)
-
   if (!payment) {
-    console.warn(`Payment not found for transaction: ${input.paymentId}`)
     return { ok: false, error: 'Payment not found' }
   }
 
   await updatePaymentStatus(payment.paymentId, input.status, input.paymentId)
 
   if (input.status === 'completed' && payment.orgId && payment.planId) {
-    await createOrUpdateBillingPlan(payment.orgId, payment.planId as any, 30)
+    if (payment.planId === 'starter' || payment.planId === 'growth') {
+      await createOrUpdateBillingPlan(payment.orgId, payment.planId, 30)
+    }
   }
 
   return { ok: true, paymentId: payment.paymentId }
@@ -194,7 +159,6 @@ export async function handleWebhook(input: WebhookInput) {
 
 export async function verifyPayment(paymentId: string) {
   const payment = await getPayment(paymentId)
-
   if (!payment) {
     return { ok: false, error: 'Payment not found' }
   }
@@ -211,10 +175,5 @@ export async function verifyPayment(paymentId: string) {
   }
 }
 
-export function getPlanPrices() {
-  return PLAN_PRICES
-}
-
-export function getPlanNames() {
-  return PLAN_NAMES
-}
+export const getPlanPrices = () => Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.price]))
+export const getPlanNames = () => Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.name]))

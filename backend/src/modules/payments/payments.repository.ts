@@ -16,11 +16,13 @@ export interface PaymentRecord {
   completedAt?: admin.firestore.Timestamp
 }
 
+export type BillingPlanId = 'starter' | 'growth'
+
 export interface BillingPlan {
   planId: string
   orgId: string
   status: 'active' | 'expired' | 'cancelled'
-  currentPlan: 'basic' | 'professional' | 'enterprise' | null
+  currentPlan: BillingPlanId | null
   expiresAt?: admin.firestore.Timestamp
   createdAt: admin.firestore.Timestamp
   updatedAt: admin.firestore.Timestamp
@@ -110,7 +112,7 @@ export async function getBillingPlan(orgId: string) {
 
 export async function createOrUpdateBillingPlan(
   orgId: string,
-  planId: 'basic' | 'professional' | 'enterprise',
+  planId: BillingPlanId,
   expiresInDays: number = 30
 ) {
   const billingRef = db.collection('organizations').doc(orgId).collection('billing').doc('current')
