@@ -234,6 +234,38 @@ export class ApiClient {
     })
   }
 
+  async getPlans() {
+    return this.cachedRequest<{
+      ok: boolean
+      plans: Array<{
+        id: string
+        name: string
+        price: number
+        currency: string
+        limits?: { children: number; specialists: number | null } | null
+      }>
+    }>('/plans', 'billing:plans', 'default')
+  }
+
+  async createPayment(orgId: string, planId: 'starter' | 'growth') {
+    cache.invalidate()
+    return this.request<{ paymentUrl?: string; error?: string }>(`/orgs/${orgId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({ orgId, planId }),
+    })
+  }
+
+  async getBillingStatus(orgId: string) {
+    return this.request<{
+      ok: boolean
+      active: boolean
+      planId: string | null
+      error: string | null
+      expiresAt: string | null
+      limits: { children: number; specialists: number | null } | null
+    }>(`/orgs/${orgId}/billing/status`)
+  }
+
   async acceptInvite(code: string) {
     cache.invalidate()
     return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>(
