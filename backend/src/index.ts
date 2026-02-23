@@ -1,6 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-import { config } from './config.js'
+import { config } from './config/index.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
 import type { AuthenticatedUser } from './types.js'
 
