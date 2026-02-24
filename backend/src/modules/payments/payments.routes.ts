@@ -26,9 +26,7 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
           name: names[planId],
           price: prices[planId],
           currency: 'KGS',
-          limits: limits
-            ? { children: limits.children, specialists: limits.specialists }
-            : null,
+          limits: limits ? { children: limits.children, specialists: limits.specialists } : null,
         }
       })
 
@@ -42,26 +40,27 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/billing/status', async (request, reply) => {
-    if (!request.user) {
-      return reply.code(401).send({ error: 'Unauthorized' })
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/billing/status',
+    async (request, reply) => {
+      if (!request.user) {
+        return reply.code(401).send({ error: 'Unauthorized' })
+      }
+      const { orgId } = request.params
+      await requireOrgMember(request, reply, orgId)
+      const status = await getSubscriptionStatus(orgId)
+      const billing = await getBillingPlan(orgId)
+      const limits = status.planId ? getPlanLimits(status.planId) : null
+      return {
+        ok: true,
+        active: status.active,
+        planId: status.planId ?? null,
+        error: status.error ?? null,
+        expiresAt: billing?.expiresAt?.toDate?.()?.toISOString() ?? null,
+        limits: limits ? { children: limits.children, specialists: limits.specialists } : null,
+      }
     }
-    const { orgId } = request.params
-    await requireOrgMember(request, reply, orgId)
-    const status = await getSubscriptionStatus(orgId)
-    const billing = await getBillingPlan(orgId)
-    const limits = status.planId ? getPlanLimits(status.planId) : null
-    return {
-      ok: true,
-      active: status.active,
-      planId: status.planId ?? null,
-      error: status.error ?? null,
-      expiresAt: billing?.expiresAt?.toDate?.()?.toISOString() ?? null,
-      limits: limits
-        ? { children: limits.children, specialists: limits.specialists }
-        : null,
-    }
-  })
+  )
 
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof createPaymentSchema> }>(
     '/orgs/:orgId/payments',

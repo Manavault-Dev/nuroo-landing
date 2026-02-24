@@ -6,7 +6,6 @@ import {
   getPayment,
   getPaymentByFinikTransaction,
   createOrUpdateBillingPlan,
-  type PaymentRecord,
 } from './payments.repository.js'
 import type { CreatePaymentInput, WebhookInput } from './payments.schema.js'
 
@@ -19,7 +18,9 @@ const FINIK_ACCOUNT_ID = config.FINIK_ACCOUNT_ID
 const FINIK_PRIVATE_KEY = config.FINIK_PRIVATE_PEM?.replace(/\\n/g, '\n')
 const FINIK_WEBHOOK_URL =
   config.FINIK_WEBHOOK_URL ||
-  (config.BACKEND_PUBLIC_URL ? `${config.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/webhooks/finik` : undefined)
+  (config.BACKEND_PUBLIC_URL
+    ? `${config.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/webhooks/finik`
+    : undefined)
 const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 
 const PLANS: Record<string, { price: number; name: string }> = {
@@ -33,10 +34,13 @@ function deepSort(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(deepSort)
   return Object.keys(obj as Record<string, unknown>)
     .sort()
-    .reduce((acc, key) => {
-      acc[key] = deepSort((obj as Record<string, unknown>)[key])
-      return acc
-    }, {} as Record<string, unknown>)
+    .reduce(
+      (acc, key) => {
+        acc[key] = deepSort((obj as Record<string, unknown>)[key])
+        return acc
+      },
+      {} as Record<string, unknown>
+    )
 }
 
 function buildCanonicalString(
@@ -175,5 +179,7 @@ export async function verifyPayment(paymentId: string) {
   }
 }
 
-export const getPlanPrices = () => Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.price]))
-export const getPlanNames = () => Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.name]))
+export const getPlanPrices = () =>
+  Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.price]))
+export const getPlanNames = () =>
+  Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.name]))
