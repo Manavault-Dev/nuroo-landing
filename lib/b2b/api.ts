@@ -266,6 +266,14 @@ export class ApiClient {
     }>(`/orgs/${orgId}/billing/status`)
   }
 
+  async verifyPayment(paymentId: string) {
+    return this.request<{
+      ok: boolean
+      payment: { id: string; status: string; planId: string; amount: number; currency: string }
+      error?: string
+    }>(`/payments/${paymentId}/verify`)
+  }
+
   async acceptInvite(code: string) {
     cache.invalidate()
     return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>(
