@@ -47,9 +47,8 @@ export default function PaymentSuccessPage() {
         } else {
           setError(t('paymentFailedMessage'))
         }
-      } catch (error: any) {
-        console.error('Error verifying payment:', error)
-        setError(error.message || t('paymentFailedMessage'))
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : t('paymentFailedMessage'))
       } finally {
         setVerifying(false)
       }
