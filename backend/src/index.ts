@@ -21,8 +21,12 @@ import { bootstrapRoute } from './routes/bootstrap.js'
 import { teamRoute } from './routes/team.js'
 import { groupsRoute } from './routes/groups.js'
 import { contentRoute } from './routes/content.js'
+import { orgContentRoute } from './routes/orgContent.js'
 import { orgsRoute } from './routes/orgs.js'
+import { reportsRoute } from './routes/reports.js'
+import { parentTasksRoute } from './routes/parentTasks.js'
 import { paymentsRoutes } from './modules/payments/index.js'
+import { parentApiRoutes } from './modules/parent-api/index.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -72,6 +76,7 @@ async function buildServer() {
     if (url.startsWith('/bootstrap/')) return
     if (url.startsWith('/api/parent/content/')) return
     if (url.startsWith('/api/parent/alphakids/')) return
+    if (url.startsWith('/api/parent/access/')) return
 
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
@@ -109,8 +114,12 @@ async function buildServer() {
     teamRoute,
     groupsRoute,
     contentRoute,
+    orgContentRoute,
     orgsRoute,
+    reportsRoute,
+    parentTasksRoute,
     paymentsRoutes,
+    parentApiRoutes,
   ]
 
   for (const route of routes) {
@@ -127,7 +136,10 @@ async function start() {
     const host = config.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'
 
     await server.listen({ port, host })
-  } catch {
+    console.log(`\n✅ Backend (Fastify) running at http://${host}:${port}`)
+    console.log(`   Health: http://${host}:${port}/health\n`)
+  } catch (err) {
+    console.error('\n❌ Backend failed to start:', err)
     process.exit(1)
   }
 }
