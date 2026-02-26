@@ -56,6 +56,22 @@ export interface SpecialistNote {
   updatedAt: string
 }
 
+export interface ChildTask {
+  id: string
+  title: string
+  description: string | null
+  status: 'pending' | 'completed'
+  createdBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  completedAt: string | null
+}
+
+export type ChildTaskResponse = ChildTask & {
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ActivityDay {
   date: string
   tasksAttempted: number
@@ -334,6 +350,28 @@ export class ApiClient {
     })
   }
 
+  // Child tasks (assignments from specialist to parent)
+  async getChildTasks(orgId: string, childId: string) {
+    return this.cachedRequest<{ tasks: ChildTask[] }>(
+      `/orgs/${orgId}/children/${childId}/tasks`,
+      `childTasks:${orgId}:${childId}`,
+      'default'
+    )
+  }
+
+  async createChildTask(
+    orgId: string,
+    childId: string,
+    payload: { title: string; description?: string }
+  ) {
+    cache.invalidate(`childTasks:${orgId}:${childId}`)
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<ChildTaskResponse>(`/orgs/${orgId}/children/${childId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
   // Team
   async getTeam(orgId: string) {
     return this.cachedRequest<
@@ -432,6 +470,55 @@ export class ApiClient {
     )
   }
 
+  async getReports(orgId: string, days = 30) {
+    return this.request<{
+      ok: boolean
+      days: number
+      childCompletion: Array<{
+        childId: string
+        childName: string
+        parentName: string | null
+        totalTasks: number
+        completedTasks: number
+        percent: number
+      }>
+      groupCompletion: Array<{
+        groupId: string
+        groupName: string
+        totalTasks: number
+        completedTasks: number
+        percent: number
+        childCount: number
+        specialistName?: string
+        ownerId?: string
+      }>
+      parentActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      topParents: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      lowActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      contentActivity: {
+        totalCompleted: number
+        completedLast7Days: number
+        completedLast30Days: number
+        byChild: Array<{ childId: string; count: number }>
+      }
+    }>(`/orgs/${orgId}/reports?days=${days}`)
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createGroup(orgId: string, name: string, description?: string, color?: string) {
     cache.invalidate(`groups:${orgId}`)
@@ -442,10 +529,12 @@ export class ApiClient {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getGroup(orgId: string, groupId: string) {
+  async getGroup(orgId: string, groupId: string, ownerId?: string) {
+    const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
+    const cacheKey = ownerId ? `group:${orgId}:${groupId}:${ownerId}` : `group:${orgId}:${groupId}`
     return this.cachedRequest<{ ok: boolean; group: any }>(
-      `/orgs/${orgId}/groups/${groupId}`,
-      `group:${orgId}:${groupId}`,
+      `/orgs/${orgId}/groups/${groupId}${query}`,
+      cacheKey,
       'default'
     )
   }
@@ -651,6 +740,75 @@ export class ApiClient {
   async deleteRoadmap(roadmapId: string) {
     cache.invalidate('admin:roadmaps')
     return this.request<{ ok: boolean }>(`/admin/content/roadmaps/${roadmapId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Org content (tasks & roadmaps for parents by org code)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentTasks(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; tasks: any[]; count: number }>(
+      `/orgs/${orgId}/content/tasks`,
+      `orgContent:tasks:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentTask(orgId: string, task: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(task),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentTask(orgId: string, taskId: string, updates: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteOrgContentTask(orgId: string, taskId: string) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentRoadmaps(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; roadmaps: any[]; count: number }>(
+      `/orgs/${orgId}/content/roadmaps`,
+      `orgContent:roadmaps:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentRoadmap(orgId: string, roadmap: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(`/orgs/${orgId}/content/roadmaps`, {
+      method: 'POST',
+      body: JSON.stringify(roadmap),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentRoadmap(orgId: string, roadmapId: string, updates: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(
+      `/orgs/${orgId}/content/roadmaps/${roadmapId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async deleteOrgContentRoadmap(orgId: string, roadmapId: string) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/roadmaps/${roadmapId}`, {
       method: 'DELETE',
     })
   }
