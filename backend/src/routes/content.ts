@@ -11,6 +11,9 @@ const COLLECTIONS = {
   ROADMAPS: 'content/roadmaps/items',
   ALPHAKIDS_ACCESS_CODES: 'alphakidsAccessCodes',
   ALPHAKIDS_TASK_COMPLETIONS: 'alphakidsTaskCompletions',
+  PARENT_INVITES: 'parentInvites',
+  ORG_TASKS: (orgId: string) => `organizations/${orgId}/contentTasks`,
+  ORG_ROADMAPS: (orgId: string) => `organizations/${orgId}/contentRoadmaps`,
 } as const
 
 const ALPHAKIDS_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -45,6 +48,54 @@ async function getAlphakidsCodeDoc(
   const expiresAt = data.expiresAt?.toDate?.() ?? null
   if (expiresAt !== null && expiresAt !== undefined && expiresAt < new Date()) return null
   return { expiresAt, duration: (data.duration as string) || 'forever' }
+}
+
+async function getParentInviteDoc(
+  db: admin.firestore.Firestore,
+  code: string
+): Promise<{ orgId: string; specialistId: string; expiresAt: Date | null } | null> {
+  const normalized = code.trim().toUpperCase()
+  if (!normalized) return null
+  const ref = db.collection(COLLECTIONS.PARENT_INVITES).doc(normalized)
+  const snap = await ref.get()
+  if (!snap.exists) return null
+  const data = snap.data()!
+  const expiresAt = data.expiresAt?.toDate?.() ?? null
+  if (expiresAt !== null && expiresAt < new Date()) return null
+  return {
+    orgId: data.orgId as string,
+    specialistId: data.specialistId as string,
+    expiresAt,
+  }
+}
+
+/** Resolve code to either AlphaKids or org (parent invite). One entry point for "access by code". */
+async function resolveAccessCode(
+  db: admin.firestore.Firestore,
+  code: string
+): Promise<
+  | { valid: true; type: 'alphakids'; expiresAt: Date | null; duration: string }
+  | { valid: true; type: 'org'; orgId: string; specialistId: string; expiresAt: Date | null }
+  | { valid: false }
+> {
+  const alphakids = await getAlphakidsCodeDoc(db, code)
+  if (alphakids)
+    return {
+      valid: true,
+      type: 'alphakids',
+      expiresAt: alphakids.expiresAt,
+      duration: alphakids.duration,
+    }
+  const orgInvite = await getParentInviteDoc(db, code)
+  if (orgInvite)
+    return {
+      valid: true,
+      type: 'org',
+      orgId: orgInvite.orgId,
+      specialistId: orgInvite.specialistId,
+      expiresAt: orgInvite.expiresAt,
+    }
+  return { valid: false }
 }
 
 const taskSchema = z.object({
@@ -120,6 +171,35 @@ async function getStorageBucket() {
 export const contentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
+  /** Unified: validate any access code (AlphaKids or org parent invite). App uses this for single "Enter code" flow. */
+  fastify.post('/api/parent/access/validate', async (request, reply) => {
+    const db = getFirestore()
+    const body = (request.body as { code?: string }) || {}
+    const code = body.code?.trim()
+    if (!code) {
+      return reply.code(400).send({ ok: false, error: 'code is required' })
+    }
+    const resolved = await resolveAccessCode(db, code)
+    if (!resolved.valid) {
+      return reply.code(401).send({ ok: false, error: 'Invalid or expired code' })
+    }
+    if (resolved.type === 'alphakids') {
+      return reply.send({
+        ok: true,
+        type: 'alphakids',
+        expiresAt: resolved.expiresAt?.toISOString() ?? null,
+        duration: resolved.duration,
+      })
+    }
+    return reply.send({
+      ok: true,
+      type: 'org',
+      orgId: resolved.orgId,
+      expiresAt: resolved.expiresAt?.toISOString() ?? null,
+    })
+  })
+
+  /** @deprecated Use POST /api/parent/access/validate instead. This endpoint only validates AlphaKids codes. */
   fastify.post('/api/parent/alphakids/validate', async (request, reply) => {
     const db = getFirestore()
     const body = (request.body as { code?: string }) || {}
@@ -131,14 +211,19 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     if (!doc) {
       return reply.code(401).send({ error: 'Invalid or expired code', ok: false })
     }
+    // Add deprecation header
+    reply.header('Deprecation', 'true')
+    reply.header('Sunset', '2025-06-01')
+    reply.header('Link', '</api/parent/access/validate>; rel="successor-version"')
     return reply.send({
       ok: true,
       expiresAt: doc.expiresAt?.toISOString() ?? null,
       duration: doc.duration,
+      _deprecated: 'This endpoint is deprecated. Use POST /api/parent/access/validate instead.',
     })
   })
 
-  async function requireAlphakidsCode(
+  async function requireAccessCode(
     request: { query?: { code?: string } },
     reply: { code: (n: number) => { send: (body: unknown) => unknown } }
   ): Promise<admin.firestore.Firestore | null> {
@@ -148,20 +233,56 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
       reply.code(401).send({ error: 'Access code required. Use query param: ?code=YOUR_CODE' })
       return null
     }
-    const valid = await validateAlphakidsCode(db, code)
-    if (!valid) {
+    const resolved = await resolveAccessCode(db, code)
+    if (!resolved.valid) {
       reply.code(401).send({ error: 'Invalid or expired access code' })
       return null
     }
     return db
   }
 
-  async function requireAlphakidsCodeAndAuth(
+  async function requireAccessCodeWithSource(
+    request: { query?: { code?: string } },
+    reply: { code: (n: number) => { send: (body: unknown) => unknown } }
+  ): Promise<{ db: admin.firestore.Firestore; type: 'alphakids' | 'org'; orgId?: string } | null> {
+    const db = getFirestore()
+    const code = request.query?.code
+    if (!code) {
+      reply.code(401).send({ error: 'Access code required. Use query param: ?code=YOUR_CODE' })
+      return null
+    }
+    const resolved = await resolveAccessCode(db, code)
+    if (!resolved.valid) {
+      reply.code(401).send({ error: 'Invalid or expired access code' })
+      return null
+    }
+    return {
+      db,
+      type: resolved.type,
+      ...(resolved.type === 'org' && { orgId: resolved.orgId }),
+    }
+  }
+
+  async function requireAccessCodeAndAuth(
     request: { query?: { code?: string }; headers?: { authorization?: string } },
     reply: { code: (n: number) => { send: (body: unknown) => unknown } }
-  ): Promise<{ db: admin.firestore.Firestore; parentId: string } | null> {
-    const db = await requireAlphakidsCode(request, reply)
-    if (!db) return null
+  ): Promise<{
+    db: admin.firestore.Firestore
+    parentId: string
+    accessType: 'alphakids' | 'org'
+    orgId?: string
+  } | null> {
+    const db = getFirestore()
+    const code = request.query?.code
+    if (!code) {
+      reply.code(401).send({ error: 'Access code required. Use query param: ?code=YOUR_CODE' })
+      return null
+    }
+    const resolved = await resolveAccessCode(db, code)
+    if (!resolved.valid) {
+      reply.code(401).send({ error: 'Invalid or expired access code' })
+      return null
+    }
     const authHeader = request.headers?.authorization
     if (!authHeader?.startsWith('Bearer ')) {
       reply.code(401).send({ error: 'Unauthorized', message: 'Bearer token required' })
@@ -170,7 +291,12 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const token = authHeader.substring(7)
       const decoded = await getAuth().verifyIdToken(token)
-      return { db, parentId: decoded.uid }
+      return {
+        db,
+        parentId: decoded.uid,
+        accessType: resolved.type,
+        ...(resolved.type === 'org' && { orgId: resolved.orgId }),
+      }
     } catch {
       reply.code(401).send({ error: 'Unauthorized', message: 'Invalid token' })
       return null
@@ -178,25 +304,36 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   }
 
   fastify.get('/api/parent/content/roadmaps', async (request, reply) => {
-    const db = await requireAlphakidsCode(request, reply)
-    if (!db) return
-    const snap = await db.collection(COLLECTIONS.ROADMAPS).orderBy('createdAt', 'desc').get()
+    const ctx = await requireAccessCodeWithSource(request, reply)
+    if (!ctx) return
+    const { db, type, orgId } = ctx
+    const collection =
+      type === 'org' && orgId
+        ? db.collection(COLLECTIONS.ORG_ROADMAPS(orgId))
+        : db.collection(COLLECTIONS.ROADMAPS)
+    const snap = await collection.orderBy('createdAt', 'desc').get()
     return { ok: true, roadmaps: snap.docs.map(transformDoc), count: snap.size }
   })
 
   fastify.get('/api/parent/content/roadmaps/:roadmapId', async (request, reply) => {
-    const db = await requireAlphakidsCode(request, reply)
-    if (!db) return
+    const ctx = await requireAccessCodeWithSource(request, reply)
+    if (!ctx) return
+    const { db, type, orgId } = ctx
     const { roadmapId } = request.params as { roadmapId: string }
-    const ref = db.doc(`${COLLECTIONS.ROADMAPS}/${roadmapId}`)
+    const ref =
+      type === 'org' && orgId
+        ? db.doc(`${COLLECTIONS.ORG_ROADMAPS(orgId)}/${roadmapId}`)
+        : db.doc(`${COLLECTIONS.ROADMAPS}/${roadmapId}`)
     const snap = await ref.get()
     if (!snap.exists) return reply.code(404).send({ error: 'Roadmap not found' })
     const roadmap = transformDoc(snap) as Record<string, unknown>
     const taskIds = (roadmap.taskIds as string[] | undefined) || []
+    const tasksCollection =
+      type === 'org' && orgId
+        ? db.collection(COLLECTIONS.ORG_TASKS(orgId))
+        : db.collection(COLLECTIONS.TASKS)
     if (taskIds.length > 0) {
-      const taskSnaps = await Promise.all(
-        taskIds.map((id) => db.doc(`${COLLECTIONS.TASKS}/${id}`).get())
-      )
+      const taskSnaps = await Promise.all(taskIds.map((id) => tasksCollection.doc(id).get()))
       const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
       return { ok: true, roadmap: { ...roadmap, tasks } }
     }
@@ -204,8 +341,13 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/api/parent/content/tasks', async (request, reply) => {
-    const db = await requireAlphakidsCode(request, reply)
-    if (!db) return
+    const ctx = await requireAccessCodeWithSource(request, reply)
+    if (!ctx) return
+    const { db, type, orgId } = ctx
+    const tasksCollection =
+      type === 'org' && orgId
+        ? db.collection(COLLECTIONS.ORG_TASKS(orgId))
+        : db.collection(COLLECTIONS.TASKS)
     const { ids } = request.query as { ids?: string }
     if (ids) {
       const taskIds = ids
@@ -213,24 +355,30 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
         .map((s) => s.trim())
         .filter(Boolean)
       if (taskIds.length === 0) return { ok: true, tasks: [], count: 0 }
-      const taskSnaps = await Promise.all(
-        taskIds.map((id) => db.doc(`${COLLECTIONS.TASKS}/${id}`).get())
-      )
+      const taskSnaps = await Promise.all(taskIds.map((id) => tasksCollection.doc(id).get()))
       const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
       return { ok: true, tasks, count: tasks.length }
     }
-    const snap = await db.collection(COLLECTIONS.TASKS).orderBy('createdAt', 'desc').get()
+    const snap = await tasksCollection.orderBy('createdAt', 'desc').get()
     return { ok: true, tasks: snap.docs.map(transformDoc), count: snap.size }
   })
 
   fastify.get('/api/parent/content/tasks/completed', async (request, reply) => {
-    const ctx = await requireAlphakidsCodeAndAuth(request, reply)
+    const ctx = await requireAccessCodeAndAuth(request, reply)
     if (!ctx) return
-    const { db, parentId } = ctx
-    const { roadmapId, fromDate, toDate } = request.query as {
+    const { db, parentId, accessType, orgId: ctxOrgId } = ctx
+    const {
+      roadmapId,
+      fromDate,
+      toDate,
+      orgId: queryOrgId,
+      childId,
+    } = request.query as {
       roadmapId?: string
       fromDate?: string
       toDate?: string
+      orgId?: string
+      childId?: string
     }
     const snap = await db
       .collection(COLLECTIONS.ALPHAKIDS_TASK_COMPLETIONS)
@@ -243,11 +391,17 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
       const data = d.data()
       return {
         taskId: data.taskId,
+        childId: data.childId ?? null,
+        orgId: data.orgId ?? null,
         completed: true,
         completedAt: data.completedAt?.toDate?.()?.toISOString() ?? null,
         roadmapId: data.roadmapId ?? null,
       }
     })
+    // P1 fix: filter by orgId (from query or from access code context)
+    const filterOrgId = queryOrgId || (accessType === 'org' ? ctxOrgId : undefined)
+    if (filterOrgId) items = items.filter((i) => i.orgId === filterOrgId)
+    if (childId) items = items.filter((i) => i.childId === childId)
     if (roadmapId) items = items.filter((i) => i.roadmapId === roadmapId)
     if (fromDate) {
       const from = new Date(fromDate)
@@ -263,27 +417,36 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/api/parent/content/tasks/:taskId/complete', async (request, reply) => {
-    const ctx = await requireAlphakidsCodeAndAuth(request, reply)
+    const ctx = await requireAccessCodeAndAuth(request, reply)
     if (!ctx) return
-    const { db, parentId } = ctx
+    const { db, parentId, accessType, orgId } = ctx
     const { taskId } = request.params as { taskId: string }
-    const taskRef = db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
+    const { childId } = request.query as { childId?: string }
+
+    // P0 fix: use correct collection based on accessType (same logic as POST)
+    const taskRef =
+      accessType === 'org' && orgId
+        ? db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`)
+        : db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
     if (!(await taskRef.get()).exists) {
       return reply
         .code(404)
         .send({ ok: false, error: 'Not Found', message: 'Task not found or not accessible' })
     }
-    const docId = `${taskId}_${parentId}`
+
+    // P0 fix: use same docId logic as POST (include childId if provided)
+    const docId = childId ? `${taskId}_${parentId}_${childId}` : `${taskId}_${parentId}`
     const compRef = db.collection(COLLECTIONS.ALPHAKIDS_TASK_COMPLETIONS).doc(docId)
     const compSnap = await compRef.get()
     if (!compSnap.exists) {
-      return reply.send({ ok: true, completed: false, completedAt: null })
+      return reply.send({ ok: true, completed: false, completedAt: null, childId: childId ?? null })
     }
     const data = compSnap.data()!
     return reply.send({
       ok: true,
       completed: data.completed === true,
       completedAt: data.completedAt?.toDate?.()?.toISOString() ?? null,
+      childId: data.childId ?? null,
     })
   })
 
@@ -294,7 +457,7 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/api/parent/content/tasks/:taskId/complete', async (request, reply) => {
-    const ctx = await requireAlphakidsCodeAndAuth(request, reply)
+    const ctx = await requireAccessCodeAndAuth(request, reply)
     if (!ctx) return
     const { db, parentId } = ctx
     const { taskId } = request.params as { taskId: string }
@@ -307,7 +470,10 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
     const { completed, childId, roadmapId } = parseResult.data
-    const taskRef = db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
+    const taskRef =
+      ctx.accessType === 'org' && ctx.orgId
+        ? db.doc(`${COLLECTIONS.ORG_TASKS(ctx.orgId)}/${taskId}`)
+        : db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
     const taskSnap = await taskRef.get()
     if (!taskSnap.exists) {
       return reply
@@ -325,6 +491,7 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     }
     if (childId) update.childId = childId
     if (roadmapId) update.roadmapId = roadmapId
+    if (ctx.accessType === 'org' && ctx.orgId) update.orgId = ctx.orgId
     if (completed) {
       update.completedAt = now
     } else {
@@ -340,10 +507,14 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/api/parent/content/tasks/:taskId', async (request, reply) => {
-    const db = await requireAlphakidsCode(request, reply)
-    if (!db) return
+    const ctx = await requireAccessCodeWithSource(request, reply)
+    if (!ctx) return
+    const { db, type, orgId } = ctx
     const { taskId } = request.params as { taskId: string }
-    const ref = db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
+    const ref =
+      type === 'org' && orgId
+        ? db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`)
+        : db.doc(`${COLLECTIONS.TASKS}/${taskId}`)
     const snap = await ref.get()
     if (!snap.exists) return reply.code(404).send({ error: 'Task not found' })
     return { ok: true, task: transformDoc(snap) }
