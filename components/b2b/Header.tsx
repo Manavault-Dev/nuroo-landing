@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, User, Bell, Shield, Menu, X } from 'lucide-react'
+import { LogOut, User, Bell, Menu, X } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { LocaleSwitcher } from '@/components/LocaleSwitcher'
@@ -22,6 +22,8 @@ const PAGE_PATH_KEYS: Record<string, string> = {
   '/b2b/organization': 'organization',
   '/b2b/settings': 'settings',
   '/b2b/content': 'content',
+  '/b2b/reports': 'reports',
+  '/b2b/assignments': 'assignments',
   '/b2b/admin': 'admin',
   '/b2b/onboarding': 'onboarding',
 }
@@ -29,7 +31,7 @@ const PAGE_PATH_KEYS: Record<string, string> = {
 export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { isSuperAdmin, logout } = useAuth()
+  const { logout } = useAuth()
   const t = useTranslations('b2b.header')
 
   const handleSignOut = async () => {
@@ -97,33 +99,15 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
               <p className="text-sm font-medium text-gray-900 truncate">
                 {profile?.name || t('specialist')}
               </p>
-              {isSuperAdmin && (
-                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded flex-shrink-0">
-                  <Shield className="w-3 h-3 mr-1" />
-                  {t('superAdmin')}
-                </span>
-              )}
             </div>
             <p className="text-xs text-gray-500 truncate">{profile?.email}</p>
           </div>
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-              isSuperAdmin ? 'bg-purple-100' : 'bg-primary-100'
-            }`}
-          >
-            {isSuperAdmin ? (
-              <Shield className="w-5 h-5 text-purple-600" />
-            ) : (
-              <User className="w-5 h-5 text-primary-600" />
-            )}
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-primary-100">
+            <User className="w-5 h-5 text-primary-600" />
           </div>
         </div>
         <div className="flex sm:hidden w-9 h-9 rounded-full bg-primary-100 items-center justify-center flex-shrink-0">
-          {isSuperAdmin ? (
-            <Shield className="w-4 h-4 text-purple-600" />
-          ) : (
-            <User className="w-4 h-4 text-primary-600" />
-          )}
+          <User className="w-4 h-4 text-primary-600" />
         </div>
 
         <button

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
+import { useState, FormEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/b2b/AuthContext'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { isSuperAdmin, isLoading: authLoading, logout } = useAuth()
+  const { isLoading: authLoading, logout } = useAuth()
   const t = useTranslations('b2b.pages.onboarding')
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -22,10 +22,6 @@ export default function OnboardingPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (authLoading) return
-    if (isSuperAdmin) router.replace('/b2b/content')
-  }, [authLoading, isSuperAdmin, router])
 
   const ensureToken = async () => {
     const user = getCurrentUser()
