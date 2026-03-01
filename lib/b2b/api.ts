@@ -81,6 +81,33 @@ export interface ActivityDay {
 
 export type TimelineResponse = { days: ActivityDay[] }
 
+export interface Branch {
+  id: string
+  name: string
+  address?: string | null
+  phone?: string | null
+  contactPerson?: string | null
+  createdAt?: string | null
+}
+
+export interface AttendanceRecord {
+  childId: string
+  childName: string
+  status: 'present' | 'absent' | 'late' | null
+  note?: string | null
+  markedAt?: string | null
+}
+
+export interface FeeRecord {
+  childId: string
+  childName: string
+  amount: number
+  currency: string
+  status: 'paid' | 'pending' | 'overdue'
+  paidAt?: string | null
+  note?: string | null
+}
+
 // Cache entry type
 interface CacheEntry<T> {
   data: T
@@ -267,7 +294,7 @@ export class ApiClient {
     }>('/plans', 'billing:plans', 'default')
   }
 
-  async createPayment(orgId: string, planId: 'starter' | 'growth') {
+  async createPayment(orgId: string, planId: 'starter' | 'growth' | 'enterprise') {
     cache.invalidate()
     return this.request<{ paymentUrl?: string; error?: string }>(`/orgs/${orgId}/payments`, {
       method: 'POST',
@@ -646,37 +673,6 @@ export class ApiClient {
     })
   }
 
-  // Admin: Super Admin
-  async checkSuperAdmin() {
-    return this.cachedRequest<{ uid: string; email?: string; isSuperAdmin: boolean }>(
-      '/dev/check-super-admin',
-      'superAdmin:check',
-      'superAdmin'
-    )
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async listSuperAdmins() {
-    return this.cachedRequest<{ ok: boolean; superAdmins: any[]; count: number }>(
-      '/admin/super-admin',
-      'admin:superAdmins',
-      'default'
-    )
-  }
-
-  async grantSuperAdmin(email: string) {
-    cache.invalidate('admin:superAdmins')
-    return this.request<{ ok: boolean; uid: string; email: string }>('/admin/super-admin', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    })
-  }
-
-  async removeSuperAdmin(uid: string) {
-    cache.invalidate('admin:superAdmins')
-    return this.request<{ ok: boolean }>(`/admin/super-admin/${uid}`, { method: 'DELETE' })
-  }
-
   // Admin: Content
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getTasks() {
@@ -761,6 +757,49 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(task),
     })
+  }
+
+  /** Upload media file and create org task in one request. */
+  async uploadOrgTaskMedia(
+    orgId: string,
+    file: File,
+    options: {
+      title: string
+      description?: string
+      category?: string
+      difficulty?: 'easy' | 'medium' | 'hard'
+      estimatedDuration?: number
+      ageRange?: { min: number; max: number }
+      instructions?: string[]
+    }
+  ) {
+    const formData = new FormData()
+    formData.append('title', options.title)
+    if (options.description) formData.append('description', options.description)
+    if (options.category) formData.append('category', options.category)
+    if (options.difficulty) formData.append('difficulty', options.difficulty)
+    if (options.estimatedDuration != null)
+      formData.append('estimatedDuration', options.estimatedDuration.toString())
+    if (options.ageRange) {
+      formData.append('ageRangeMin', options.ageRange.min.toString())
+      formData.append('ageRangeMax', options.ageRange.max.toString())
+    }
+    if (options.instructions?.length)
+      formData.append('instructions', JSON.stringify(options.instructions))
+    formData.append('media', file)
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/content/tasks/upload`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(err.error || err.message || 'Upload failed')
+    }
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return response.json()
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -858,25 +897,86 @@ export class ApiClient {
     return response.json()
   }
 
-  // Alphakids access codes for parents (7d / 30d / forever)
-  async createAlphakidsCode(duration: '7d' | '30d' | 'forever') {
-    return this.request<{ ok: boolean; code: string; duration: string; expiresAt: string | null }>(
-      '/admin/content/alphakids-codes',
-      { method: 'POST', body: JSON.stringify({ duration }) }
+  // Branches
+  async getBranches(orgId: string) {
+    return this.request<{ ok: boolean; branches: Branch[] }>(`/orgs/${orgId}/branches`)
+  }
+
+  async createBranch(
+    orgId: string,
+    data: { name: string; address?: string; phone?: string; contactPerson?: string }
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean; branch: Branch }>(`/orgs/${orgId}/branches`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateBranch(
+    orgId: string,
+    branchId: string,
+    data: Partial<{ name: string; address: string; phone: string; contactPerson: string }>
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteBranch(orgId: string, branchId: string) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Finance — Attendance
+  async getAttendance(orgId: string, date: string) {
+    return this.request<{ ok: boolean; date: string; records: AttendanceRecord[] }>(
+      `/orgs/${orgId}/attendance?date=${date}`
     )
   }
 
-  async getAlphakidsCodes() {
-    return this.request<{
-      ok: boolean
-      codes: Array<{
-        code: string
-        duration: string
-        expiresAt: string | null
-        createdAt: string | null
-      }>
-      count: number
-    }>('/admin/content/alphakids-codes')
+  async saveAttendance(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      date: string
+      status: 'present' | 'absent' | 'late'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Finance — Monthly Fees
+  async getMonthlyFees(orgId: string, month: string) {
+    return this.request<{ ok: boolean; month: string; records: FeeRecord[] }>(
+      `/orgs/${orgId}/finance?month=${month}`
+    )
+  }
+
+  async saveFee(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      month: string
+      amount: number
+      status: 'paid' | 'pending' | 'overdue'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/finance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 
   // Clear all cache (useful for logout)
