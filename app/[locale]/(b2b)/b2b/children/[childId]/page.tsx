@@ -11,6 +11,7 @@ import {
   type ChildDetail,
   type SpecialistNote,
   type TimelineResponse,
+  type ChildTask,
 } from '@/lib/b2b/api'
 import {
   ArrowLeft,
@@ -41,6 +42,10 @@ export default function ChildDetailPage() {
   const [noteContent, setNoteContent] = useState('')
   const [visibleToParent, setVisibleToParent] = useState(true)
   const [submittingNote, setSubmittingNote] = useState(false)
+  const [tasks, setTasks] = useState<ChildTask[]>([])
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskDescription, setTaskDescription] = useState('')
+  const [submittingTask, setSubmittingTask] = useState(false)
   const [error, setError] = useState('')
   const t = useTranslations('b2b.pages.childDetail')
 
@@ -60,15 +65,17 @@ export default function ChildDetailPage() {
         }
         apiClient.setToken(idToken)
 
-        const [detailData, notesData, timelineData] = await Promise.all([
+        const [detailData, notesData, timelineData, tasksRes] = await Promise.all([
           apiClient.getChildDetail(orgId, childId),
           apiClient.getNotes(orgId, childId),
           apiClient.getTimeline(orgId, childId, 30),
+          apiClient.getChildTasks(orgId, childId),
         ])
 
         setChildDetail(detailData)
         setNotes(notesData)
         setTimeline(timelineData)
+        setTasks(tasksRes.tasks)
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : t('failedToLoad')
         setError(errorMessage)
@@ -106,6 +113,41 @@ export default function ChildDetailPage() {
       setError(errorMessage)
     } finally {
       setSubmittingNote(false)
+    }
+  }
+
+  const handleCreateTask = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!taskTitle.trim() || !childDetail) return
+
+    setError('')
+    setSubmittingTask(true)
+
+    try {
+      const idToken = await getIdToken()
+      if (!idToken) {
+        router.push('/b2b/login')
+        return
+      }
+      apiClient.setToken(idToken)
+
+      await apiClient.createChildTask(orgId, childId, {
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || undefined,
+      })
+      const [updatedDetail, tasksRes] = await Promise.all([
+        apiClient.getChildDetail(orgId, childId),
+        apiClient.getChildTasks(orgId, childId),
+      ])
+      setChildDetail(updatedDetail)
+      setTasks(tasksRes.tasks)
+      setTaskTitle('')
+      setTaskDescription('')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create task.'
+      setError(msg)
+    } finally {
+      setSubmittingTask(false)
     }
   }
 
@@ -275,12 +317,39 @@ export default function ChildDetailPage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Tasks</h2>
-              {childDetail.recentTasks.length === 0 ? (
-                <p className="text-gray-600 text-sm">No recent tasks available.</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Assignments for parent</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Create tasks for the parent to complete with the child. Parent sees them in the app and marks them complete.
+              </p>
+              <form onSubmit={handleCreateTask} className="space-y-3 mb-6">
+                <input
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  placeholder="Task title (e.g. Practice sound “R” 5 min)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+                <textarea
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  placeholder="Description (optional)"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={submittingTask || !taskTitle.trim()}
+                  className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{submittingTask ? 'Creating...' : 'Create assignment'}</span>
+                </button>
+              </form>
+              {tasks.length === 0 ? (
+                <p className="text-gray-600 text-sm">No assignments yet. Create one above.</p>
               ) : (
                 <div className="space-y-3">
-                  {childDetail.recentTasks.map((task) => (
+                  {tasks.map((task) => (
                     <div
                       key={task.id}
                       className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
@@ -289,8 +358,11 @@ export default function ChildDetailPage() {
                         {getTaskStatusIcon(task.status)}
                         <div>
                           <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs text-gray-600 mt-0.5">{task.description}</p>
+                          )}
                           {task.completedAt && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 mt-1">
                               Completed {new Date(task.completedAt).toLocaleDateString()}
                             </p>
                           )}
@@ -300,9 +372,7 @@ export default function ChildDetailPage() {
                         className={`text-xs font-medium px-2 py-1 rounded ${
                           task.status === 'completed'
                             ? 'bg-success-100 text-success-700'
-                            : task.status === 'in-progress'
-                              ? 'bg-primary-100 text-primary-700'
-                              : 'bg-gray-100 text-gray-700'
+                            : 'bg-gray-100 text-gray-700'
                         }`}
                       >
                         {task.status}

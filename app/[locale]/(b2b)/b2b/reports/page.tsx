@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { BarChart3, Users, UserX, Loader2, TrendingUp, Target, BookOpen } from 'lucide-react'
+import { BarChart3, Users, UserX, Loader2, TrendingUp, Target, BookOpen, Printer, Download } from 'lucide-react'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 
@@ -135,14 +135,46 @@ function ReportsContent() {
     )
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const handleDownloadCsv = () => {
+    if (!data) return
+    const rows = data.childCompletion
+    const header = [t('child'), t('parent'), t('tasks'), t('percent')]
+    const csvRows = rows.map((row) => [
+      row.childName,
+      row.parentName ?? '',
+      `${row.completedTasks}/${row.totalTasks}`,
+      `${row.percent}%`,
+    ])
+    const csvContent = [header, ...csvRows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `nuroo-report-${days}d.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <style>{`
+        @media print {
+          [data-print-hide] { display: none !important; }
+          header, aside, nav { display: none !important; }
+        }
+      `}</style>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <BarChart3 className="w-7 h-7 text-primary-600" />
           {t('title')}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-600">{t('period')}</span>
           <select
             value={days}
@@ -152,6 +184,26 @@ function ReportsContent() {
             <option value={7}>7 {t('days')}</option>
             <option value={30}>30 {t('days')}</option>
           </select>
+          {data && (
+            <>
+              <button
+                onClick={handleDownloadCsv}
+                data-print-hide
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                CSV
+              </button>
+              <button
+                onClick={handlePrint}
+                data-print-hide
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                PDF
+              </button>
+            </>
+          )}
         </div>
       </div>
 
