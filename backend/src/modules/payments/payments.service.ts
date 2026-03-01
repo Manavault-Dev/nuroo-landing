@@ -154,8 +154,9 @@ export async function handleWebhook(input: WebhookInput) {
   await updatePaymentStatus(payment.paymentId, input.status, input.paymentId)
 
   if (input.status === 'completed' && payment.orgId && payment.planId) {
-    if (['starter', 'growth', 'enterprise'].includes(payment.planId)) {
-      await createOrUpdateBillingPlan(payment.orgId, payment.planId, 30)
+    const planId = payment.planId
+    if (planId === 'starter' || planId === 'growth' || planId === 'enterprise') {
+      await createOrUpdateBillingPlan(payment.orgId, planId, 30)
     }
   }
 

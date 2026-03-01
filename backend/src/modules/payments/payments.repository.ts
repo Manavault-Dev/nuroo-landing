@@ -16,7 +16,7 @@ export interface PaymentRecord {
   completedAt?: admin.firestore.Timestamp
 }
 
-export type BillingPlanId = 'starter' | 'growth'
+export type BillingPlanId = 'starter' | 'growth' | 'enterprise'
 
 export interface BillingPlan {
   planId: string
