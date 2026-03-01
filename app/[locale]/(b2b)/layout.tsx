@@ -26,7 +26,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { user, profile, isSuperAdmin, isLoading, currentOrgId: authOrgId } = useAuth()
+  const { user, profile, isLoading, currentOrgId: authOrgId } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(false)
@@ -70,15 +70,11 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       return
     }
     if (user && isNoChromePage) {
-      if (isSuperAdmin) return router.replace('/b2b/content')
       if (profile?.organizations?.length) return router.replace('/b2b')
       if (pathForMatch !== '/b2b/onboarding') return router.replace('/b2b/onboarding')
       return
     }
-    if (user && isSuperAdmin && (pathForMatch === '/b2b' || pathForMatch === '/b2b/')) {
-      router.replace('/b2b/content')
-    }
-  }, [user, profile, isSuperAdmin, isLoading, pathname, pathForMatch, isNoChromePage, router])
+  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, router])
 
   if (isLoading) {
     return <LoadingSpinner />

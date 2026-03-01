@@ -1,8 +1,7 @@
-import { FastifyPluginAsync, FastifyRequest } from 'fastify'
+import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
-import { config } from '../config.js'
 import type { SpecialistProfile } from '../types.js'
 import { z } from 'zod'
 
@@ -12,24 +11,9 @@ const COLLECTIONS = {
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
 } as const
 
-const DEV_SUPER_ADMIN_WHITELIST = ['nuroo@gmail.com']
-
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 })
-
-function isSuperAdmin(request: FastifyRequest): boolean {
-  if (!request.user) return false
-
-  const userEmail = (request.user.email || '').toLowerCase().trim()
-  const hasClaim = request.user.claims?.superAdmin === true
-
-  const isWhitelisted =
-    config.NODE_ENV !== 'production' &&
-    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
-
-  return hasClaim || isWhitelisted
-}
 
 function extractName(
   specialistData: admin.firestore.DocumentData | null | undefined,
@@ -46,8 +30,7 @@ function normalizeRole(role: string): 'admin' | 'specialist' {
 
 async function findOrganizationsForUser(
   db: admin.firestore.Firestore,
-  uid: string,
-  isUserSuperAdmin: boolean
+  uid: string
 ): Promise<Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }>> {
   const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
   const organizations: Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }> = []
@@ -55,15 +38,6 @@ async function findOrganizationsForUser(
   for (const orgDoc of orgsSnapshot.docs) {
     const orgId = orgDoc.id
     const orgData = orgDoc.data()
-
-    if (isUserSuperAdmin && orgData.createdBy === uid) {
-      organizations.push({
-        orgId,
-        orgName: orgData.name || orgId,
-        role: 'admin',
-      })
-      continue
-    }
 
     const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
     const memberSnap = await memberRef.get()
@@ -116,8 +90,7 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
     const name = extractName(specialistData, email)
 
-    const userIsSuperAdmin = isSuperAdmin(request)
-    const organizations = await findOrganizationsForUser(db, uid, userIsSuperAdmin)
+    const organizations = await findOrganizationsForUser(db, uid)
 
     const profile: SpecialistProfile = {
       uid,

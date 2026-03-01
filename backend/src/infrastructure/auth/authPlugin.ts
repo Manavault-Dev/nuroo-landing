@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { getAuth } from '../database/firebase.js'
-import { config } from '../../config/index.js'
 import type { AuthenticatedUser } from '../../shared/types/common.js'
 
 declare module 'fastify' {
@@ -10,13 +9,10 @@ declare module 'fastify' {
 }
 
 // Routes that don't require authentication
-const PUBLIC_ROUTES = ['/health']
+const PUBLIC_ROUTES = ['/health', '/plans']
 
 // Routes that require special handling
-const SKIP_AUTH_PATTERNS = [
-  { path: '/dev/set-super-admin', onlyInDev: true },
-  { path: '/bootstrap/', prefix: true },
-]
+const SKIP_AUTH_PATTERNS = [{ path: '/bootstrap/', prefix: true }]
 
 function shouldSkipAuth(url: string, method: string): boolean {
   // Allow health check and OPTIONS
@@ -26,9 +22,6 @@ function shouldSkipAuth(url: string, method: string): boolean {
 
   // Check special patterns
   for (const pattern of SKIP_AUTH_PATTERNS) {
-    if (pattern.onlyInDev && config.NODE_ENV === 'production') {
-      continue
-    }
     if (pattern.prefix && url.startsWith(pattern.path)) {
       return true
     }

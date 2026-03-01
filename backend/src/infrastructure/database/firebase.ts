@@ -64,6 +64,27 @@ export function getStorage() {
   return admin.storage()
 }
 
+export async function getStorageBucket() {
+  const storage = getStorage()
+  const projectId = getApp().options.projectId
+  const configuredBucket = getApp().options.storageBucket
+  const candidates = [
+    configuredBucket,
+    `${projectId}.firebasestorage.app`,
+    `${projectId}.appspot.com`,
+  ].filter(Boolean) as string[]
+  for (const name of candidates) {
+    try {
+      const bucket = storage.bucket(name)
+      const [exists] = await bucket.exists()
+      if (exists) return bucket
+    } catch {
+      continue
+    }
+  }
+  throw new Error('Storage bucket not found. Check FIREBASE_STORAGE_BUCKET config.')
+}
+
 export function getApp() {
   if (!app) app = initializeFirebaseAdmin()
   if (!app) throw new Error('Firebase Admin not initialized')

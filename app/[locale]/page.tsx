@@ -1,9 +1,7 @@
 import { Hero } from '@/components/Hero'
-import { Problem } from '@/components/Problem'
 import { Solution } from '@/components/Solution'
 import { Platform } from '@/components/Platform'
-import { Features } from '@/components/Features'
-import { Testimonials } from '@/components/Testimonials'
+import { Pricing } from '@/components/Pricing'
 import { Footer } from '@/components/Footer'
 import { setRequestLocale } from 'next-intl/server'
 
@@ -14,11 +12,9 @@ export default function Home({ params }: Props) {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 min-w-0 overflow-x-hidden">
       <Hero />
-      <Problem />
       <Solution />
       <Platform />
-      <Features />
-      <Testimonials />
+      <Pricing />
       <Footer />
     </div>
   )

@@ -8,7 +8,11 @@ export interface SpecialistProfile {
   uid: string
   email: string
   name: string
-  organizations: Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }>
+  organizations: Array<{
+    orgId: string
+    orgName: string
+    role: 'admin' | 'org_admin' | 'specialist'
+  }>
 }
 
 export interface ChildSummary {
@@ -52,6 +56,22 @@ export interface SpecialistNote {
   updatedAt: string
 }
 
+export interface ChildTask {
+  id: string
+  title: string
+  description: string | null
+  status: 'pending' | 'completed'
+  createdBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  completedAt: string | null
+}
+
+export type ChildTaskResponse = ChildTask & {
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ActivityDay {
   date: string
   tasksAttempted: number
@@ -60,6 +80,33 @@ export interface ActivityDay {
 }
 
 export type TimelineResponse = { days: ActivityDay[] }
+
+export interface Branch {
+  id: string
+  name: string
+  address?: string | null
+  phone?: string | null
+  contactPerson?: string | null
+  createdAt?: string | null
+}
+
+export interface AttendanceRecord {
+  childId: string
+  childName: string
+  status: 'present' | 'absent' | 'late' | null
+  note?: string | null
+  markedAt?: string | null
+}
+
+export interface FeeRecord {
+  childId: string
+  childName: string
+  amount: number
+  currency: string
+  status: 'paid' | 'pending' | 'overdue'
+  paidAt?: string | null
+  note?: string | null
+}
 
 // Cache entry type
 interface CacheEntry<T> {
@@ -234,6 +281,46 @@ export class ApiClient {
     })
   }
 
+  async getPlans() {
+    return this.cachedRequest<{
+      ok: boolean
+      plans: Array<{
+        id: string
+        name: string
+        price: number
+        currency: string
+        limits?: { children: number; specialists: number | null } | null
+      }>
+    }>('/plans', 'billing:plans', 'default')
+  }
+
+  async createPayment(orgId: string, planId: 'starter' | 'growth' | 'enterprise') {
+    cache.invalidate()
+    return this.request<{ paymentUrl?: string; error?: string }>(`/orgs/${orgId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({ orgId, planId }),
+    })
+  }
+
+  async getBillingStatus(orgId: string) {
+    return this.request<{
+      ok: boolean
+      active: boolean
+      planId: string | null
+      error: string | null
+      expiresAt: string | null
+      limits: { children: number; specialists: number | null } | null
+    }>(`/orgs/${orgId}/billing/status`)
+  }
+
+  async verifyPayment(paymentId: string) {
+    return this.request<{
+      ok: boolean
+      payment: { id: string; status: string; planId: string; amount: number; currency: string }
+      error?: string
+    }>(`/payments/${paymentId}/verify`)
+  }
+
   async acceptInvite(code: string) {
     cache.invalidate()
     return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>(
@@ -287,6 +374,28 @@ export class ApiClient {
     return this.request<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
       method: 'POST',
       body: JSON.stringify({ text, tags, visibleToParent }),
+    })
+  }
+
+  // Child tasks (assignments from specialist to parent)
+  async getChildTasks(orgId: string, childId: string) {
+    return this.cachedRequest<{ tasks: ChildTask[] }>(
+      `/orgs/${orgId}/children/${childId}/tasks`,
+      `childTasks:${orgId}:${childId}`,
+      'default'
+    )
+  }
+
+  async createChildTask(
+    orgId: string,
+    childId: string,
+    payload: { title: string; description?: string }
+  ) {
+    cache.invalidate(`childTasks:${orgId}:${childId}`)
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<ChildTaskResponse>(`/orgs/${orgId}/children/${childId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     })
   }
 
@@ -388,6 +497,55 @@ export class ApiClient {
     )
   }
 
+  async getReports(orgId: string, days = 30) {
+    return this.request<{
+      ok: boolean
+      days: number
+      childCompletion: Array<{
+        childId: string
+        childName: string
+        parentName: string | null
+        totalTasks: number
+        completedTasks: number
+        percent: number
+      }>
+      groupCompletion: Array<{
+        groupId: string
+        groupName: string
+        totalTasks: number
+        completedTasks: number
+        percent: number
+        childCount: number
+        specialistName?: string
+        ownerId?: string
+      }>
+      parentActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      topParents: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      lowActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      contentActivity: {
+        totalCompleted: number
+        completedLast7Days: number
+        completedLast30Days: number
+        byChild: Array<{ childId: string; count: number }>
+      }
+    }>(`/orgs/${orgId}/reports?days=${days}`)
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createGroup(orgId: string, name: string, description?: string, color?: string) {
     cache.invalidate(`groups:${orgId}`)
@@ -398,10 +556,12 @@ export class ApiClient {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getGroup(orgId: string, groupId: string) {
+  async getGroup(orgId: string, groupId: string, ownerId?: string) {
+    const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
+    const cacheKey = ownerId ? `group:${orgId}:${groupId}:${ownerId}` : `group:${orgId}:${groupId}`
     return this.cachedRequest<{ ok: boolean; group: any }>(
-      `/orgs/${orgId}/groups/${groupId}`,
-      `group:${orgId}:${groupId}`,
+      `/orgs/${orgId}/groups/${groupId}${query}`,
+      cacheKey,
       'default'
     )
   }
@@ -513,37 +673,6 @@ export class ApiClient {
     })
   }
 
-  // Admin: Super Admin
-  async checkSuperAdmin() {
-    return this.cachedRequest<{ uid: string; email?: string; isSuperAdmin: boolean }>(
-      '/dev/check-super-admin',
-      'superAdmin:check',
-      'superAdmin'
-    )
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async listSuperAdmins() {
-    return this.cachedRequest<{ ok: boolean; superAdmins: any[]; count: number }>(
-      '/admin/super-admin',
-      'admin:superAdmins',
-      'default'
-    )
-  }
-
-  async grantSuperAdmin(email: string) {
-    cache.invalidate('admin:superAdmins')
-    return this.request<{ ok: boolean; uid: string; email: string }>('/admin/super-admin', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    })
-  }
-
-  async removeSuperAdmin(uid: string) {
-    cache.invalidate('admin:superAdmins')
-    return this.request<{ ok: boolean }>(`/admin/super-admin/${uid}`, { method: 'DELETE' })
-  }
-
   // Admin: Content
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getTasks() {
@@ -611,6 +740,118 @@ export class ApiClient {
     })
   }
 
+  // Org content (tasks & roadmaps for parents by org code)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentTasks(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; tasks: any[]; count: number }>(
+      `/orgs/${orgId}/content/tasks`,
+      `orgContent:tasks:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentTask(orgId: string, task: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(task),
+    })
+  }
+
+  /** Upload media file and create org task in one request. */
+  async uploadOrgTaskMedia(
+    orgId: string,
+    file: File,
+    options: {
+      title: string
+      description?: string
+      category?: string
+      difficulty?: 'easy' | 'medium' | 'hard'
+      estimatedDuration?: number
+      ageRange?: { min: number; max: number }
+      instructions?: string[]
+    }
+  ) {
+    const formData = new FormData()
+    formData.append('title', options.title)
+    if (options.description) formData.append('description', options.description)
+    if (options.category) formData.append('category', options.category)
+    if (options.difficulty) formData.append('difficulty', options.difficulty)
+    if (options.estimatedDuration != null)
+      formData.append('estimatedDuration', options.estimatedDuration.toString())
+    if (options.ageRange) {
+      formData.append('ageRangeMin', options.ageRange.min.toString())
+      formData.append('ageRangeMax', options.ageRange.max.toString())
+    }
+    if (options.instructions?.length)
+      formData.append('instructions', JSON.stringify(options.instructions))
+    formData.append('media', file)
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/content/tasks/upload`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(err.error || err.message || 'Upload failed')
+    }
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return response.json()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentTask(orgId: string, taskId: string, updates: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteOrgContentTask(orgId: string, taskId: string) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentRoadmaps(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; roadmaps: any[]; count: number }>(
+      `/orgs/${orgId}/content/roadmaps`,
+      `orgContent:roadmaps:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentRoadmap(orgId: string, roadmap: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(`/orgs/${orgId}/content/roadmaps`, {
+      method: 'POST',
+      body: JSON.stringify(roadmap),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentRoadmap(orgId: string, roadmapId: string, updates: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(
+      `/orgs/${orgId}/content/roadmaps/${roadmapId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async deleteOrgContentRoadmap(orgId: string, roadmapId: string) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/roadmaps/${roadmapId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async uploadTaskMedia(
     file: File,
     title: string,
@@ -656,25 +897,86 @@ export class ApiClient {
     return response.json()
   }
 
-  // Alphakids access codes for parents (7d / 30d / forever)
-  async createAlphakidsCode(duration: '7d' | '30d' | 'forever') {
-    return this.request<{ ok: boolean; code: string; duration: string; expiresAt: string | null }>(
-      '/admin/content/alphakids-codes',
-      { method: 'POST', body: JSON.stringify({ duration }) }
+  // Branches
+  async getBranches(orgId: string) {
+    return this.request<{ ok: boolean; branches: Branch[] }>(`/orgs/${orgId}/branches`)
+  }
+
+  async createBranch(
+    orgId: string,
+    data: { name: string; address?: string; phone?: string; contactPerson?: string }
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean; branch: Branch }>(`/orgs/${orgId}/branches`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateBranch(
+    orgId: string,
+    branchId: string,
+    data: Partial<{ name: string; address: string; phone: string; contactPerson: string }>
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteBranch(orgId: string, branchId: string) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Finance — Attendance
+  async getAttendance(orgId: string, date: string) {
+    return this.request<{ ok: boolean; date: string; records: AttendanceRecord[] }>(
+      `/orgs/${orgId}/attendance?date=${date}`
     )
   }
 
-  async getAlphakidsCodes() {
-    return this.request<{
-      ok: boolean
-      codes: Array<{
-        code: string
-        duration: string
-        expiresAt: string | null
-        createdAt: string | null
-      }>
-      count: number
-    }>('/admin/content/alphakids-codes')
+  async saveAttendance(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      date: string
+      status: 'present' | 'absent' | 'late'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Finance — Monthly Fees
+  async getMonthlyFees(orgId: string, month: string) {
+    return this.request<{ ok: boolean; month: string; records: FeeRecord[] }>(
+      `/orgs/${orgId}/finance?month=${month}`
+    )
+  }
+
+  async saveFee(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      month: string
+      amount: number
+      status: 'paid' | 'pending' | 'overdue'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/finance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 
   // Clear all cache (useful for logout)

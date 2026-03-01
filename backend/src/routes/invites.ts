@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { checkOrgCanAddChild, getSubscriptionStatus } from '../modules/payments/planLimits.js'
 import { z } from 'zod'
 
 const createInviteSchema = z.object({
@@ -28,6 +29,13 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (member.role !== 'org_admin') {
         return reply.code(403).send({ error: 'Only organization admins can create invite codes' })
+      }
+
+      const subscription = await getSubscriptionStatus(orgId)
+      if (!subscription.active) {
+        return reply
+          .code(403)
+          .send({ error: subscription.error ?? 'Subscription required. Pay in Billing.' })
       }
 
       const body = createInviteSchema.parse(request.body)
@@ -359,6 +367,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       const now = new Date()
 
       if (!orgChildrenSnap.exists) {
+        const canAdd = await checkOrgCanAddChild(orgId)
+        if (!canAdd.ok) {
+          return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
+        }
         await orgChildrenRef.set({
           assigned: true,
           assignedAt: admin.firestore.Timestamp.fromDate(now),
@@ -539,6 +551,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       if (!orgChildrenSnap.exists) {
+        const canAdd = await checkOrgCanAddChild(orgId)
+        if (!canAdd.ok) {
+          return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
+        }
         console.log('📝 [ACCEPT] Creating child-org link')
         await orgChildrenRef.set(childLinkData)
         console.log('✅ [ACCEPT] Child-org link created:', childLinkData)

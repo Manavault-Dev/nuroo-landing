@@ -42,15 +42,17 @@ export function Solution() {
             <span className="gradient-text ml-2 md:ml-3">{t('titleBrand')}</span>
           </h2>
           <p
-            className={`text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-3 sm:mb-4 md:mb-6 transition-all duration-700 delay-300 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            className={`text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 md:mb-12 transition-all duration-700 delay-300 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             {t('intro')}
           </p>
-          <p
-            className={`text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 md:mb-12 transition-all duration-700 delay-350 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          >
-            {t('platformIntro')}
-          </p>
+          {t('platformIntro') ? (
+            <p
+              className={`text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 md:mb-12 transition-all duration-700 delay-350 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            >
+              {t('platformIntro')}
+            </p>
+          ) : null}
         </div>
 
         <div
