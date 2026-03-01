@@ -11,12 +11,10 @@ import { sessionRoute } from './routes/session.js'
 import { childrenRoute } from './routes/children.js'
 import { notesRoute } from './routes/notes.js'
 import { invitesRoute } from './routes/invites.js'
-import { adminRoute } from './routes/admin.js'
 import { invitesAcceptRoute } from './routes/invitesAccept.js'
 import { devRoute } from './routes/dev.js'
 import { parentsRoute } from './routes/parents.js'
 import { assignmentsRoute } from './routes/assignments.js'
-import { superAdminManagementRoute } from './routes/superAdminManagement.js'
 import { bootstrapRoute } from './routes/bootstrap.js'
 import { teamRoute } from './routes/team.js'
 import { groupsRoute } from './routes/groups.js'
@@ -27,6 +25,8 @@ import { reportsRoute } from './routes/reports.js'
 import { parentTasksRoute } from './routes/parentTasks.js'
 import { paymentsRoutes } from './modules/payments/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
+import { branchesRoute } from './routes/branches.js'
+import { financeRoute } from './routes/finance.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -72,7 +72,6 @@ async function buildServer() {
     const { url, method } = request
 
     if (url === '/health' || method === 'OPTIONS') return
-    if (!isProduction && url.startsWith('/dev/set-super-admin')) return
     if (url.startsWith('/bootstrap/')) return
     if (url.startsWith('/api/parent/content/')) return
     if (url.startsWith('/api/parent/alphakids/')) return
@@ -104,12 +103,10 @@ async function buildServer() {
     childrenRoute,
     notesRoute,
     invitesRoute,
-    adminRoute,
     invitesAcceptRoute,
     devRoute,
     parentsRoute,
     assignmentsRoute,
-    superAdminManagementRoute,
     bootstrapRoute,
     teamRoute,
     groupsRoute,
@@ -120,6 +117,8 @@ async function buildServer() {
     parentTasksRoute,
     paymentsRoutes,
     parentApiRoutes,
+    branchesRoute,
+    financeRoute,
   ]
 
   for (const route of routes) {
