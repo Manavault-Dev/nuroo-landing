@@ -229,7 +229,7 @@ export function Features() {
             </p>
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
               <AppStoreButton />
-              <GooglePlayButton disabled />
+              <GooglePlayButton />
             </div>
           </div>
         </div>
