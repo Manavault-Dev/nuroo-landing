@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
-import { Users, Plus, Edit2, Trash2, X, Save, UserPlus } from 'lucide-react'
+import { Users, Plus, Edit2, Trash2, X, Save, UserPlus, UserCircle } from 'lucide-react'
 
 interface Group {
   id: string
@@ -15,6 +15,9 @@ interface Group {
   parentCount: number
   createdAt: string | null
   updatedAt: string | null
+  /** For org_admin: specialist who leads this group */
+  ownerId?: string
+  ownerName?: string
 }
 
 interface Parent {
@@ -174,7 +177,7 @@ export default function GroupsPage() {
     setLoadingGroupDetails(true)
 
     try {
-      const data = await apiClient.getGroup(orgId, group.id)
+      const data = await apiClient.getGroup(orgId, group.id, group.ownerId)
       setGroupParents(data.group.parents || [])
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load group details'
@@ -299,32 +302,43 @@ export default function GroupsPage() {
               onClick={() => handleViewGroup(group)}
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: group.color }} />
-                  <h3 className="font-semibold text-gray-900">{group.name}</h3>
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900">{group.name}</h3>
+                    {group.ownerName && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <UserCircle className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="text-xs font-medium text-gray-600">Specialist:</span>
+                        <span className="text-xs text-gray-700">{group.ownerName}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openEditModal(group)
-                    }}
-                    className="p-1 text-gray-400 hover:text-primary-600 transition-colors"
-                    title="Edit group"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteGroup(group.id)
-                    }}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                    title="Delete group"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {!group.ownerId && (
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditModal(group)
+                      }}
+                      className="p-1 text-gray-400 hover:text-primary-600 transition-colors"
+                      title="Edit group"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteGroup(group.id)
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete group"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {group.description && (
@@ -442,10 +456,19 @@ export default function GroupsPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div
-                  className="w-4 h-4 rounded-full"
+                  className="w-4 h-4 rounded-full shrink-0"
                   style={{ backgroundColor: selectedGroup.color }}
                 />
-                <h2 className="text-xl font-bold">{selectedGroup.name}</h2>
+                <div>
+                  <h2 className="text-xl font-bold">{selectedGroup.name}</h2>
+                  {selectedGroup.ownerName && (
+                    <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-gray-100 w-fit">
+                      <UserCircle className="w-4 h-4 text-primary-600 shrink-0" />
+                      <span className="text-sm font-medium text-gray-700">Group lead:</span>
+                      <span className="text-sm text-gray-900">{selectedGroup.ownerName}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -464,13 +487,15 @@ export default function GroupsPage() {
 
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Parents ({groupParents.length})</h3>
-              <button
-                onClick={handleOpenAddParent}
-                className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Add Parent</span>
-              </button>
+              {!selectedGroup.ownerId && (
+                <button
+                  onClick={handleOpenAddParent}
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add Parent</span>
+                </button>
+              )}
             </div>
 
             {loadingGroupDetails ? (
@@ -507,13 +532,15 @@ export default function GroupsPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleRemoveParent(parent.parentUserId)}
-                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Remove from group"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {!selectedGroup.ownerId && (
+                        <button
+                          onClick={() => handleRemoveParent(parent.parentUserId)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Remove from group"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

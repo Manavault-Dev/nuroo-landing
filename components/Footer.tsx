@@ -23,7 +23,7 @@ export function Footer() {
   ]
 
   const navLinks = [
-    { href: '#features', labelKey: 'features' as const },
+    { href: '#platform-section', labelKey: 'features' as const },
     { href: '#solution-section', labelKey: 'howItWorks' as const },
     { href: '#platform-section', labelKey: 'forProfessionals' as const },
     { href: '#pricing', labelKey: 'pricing' as const },
