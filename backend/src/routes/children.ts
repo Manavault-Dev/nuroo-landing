@@ -1,9 +1,15 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
+import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
+
+const createTaskSchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(2000).optional(),
+})
 
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
@@ -424,6 +430,90 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       console.error('[CHILDREN] Error fetching timeline:', error)
       return reply.code(500).send({
         error: 'Failed to fetch timeline',
+        details: error.message,
+      })
+    }
+  })
+
+  // ——— Tasks: list and create (specialist/org_admin) ———
+  fastify.get<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/children/:childId/tasks',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        await requireChildAccess(request, reply, orgId, childId)
+
+        const db = getFirestore()
+        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(childId))
+        const snapshot = await tasksRef.orderBy('updatedAt', 'desc').get()
+
+        const tasks = snapshot.docs.map((doc) => {
+          const d = doc.data()
+          return {
+            id: doc.id,
+            title: d.title || 'Untitled Task',
+            description: d.description ?? null,
+            status: d.status || 'pending',
+            createdBy: d.createdBy ?? null,
+            createdAt: d.createdAt?.toDate() ?? null,
+            updatedAt: d.updatedAt?.toDate() ?? null,
+            completedAt: d.completedAt?.toDate() ?? null,
+          }
+        })
+        return { tasks }
+      } catch (error: any) {
+        console.error('[CHILDREN] Error listing tasks:', error)
+        return reply.code(500).send({
+          error: 'Failed to list tasks',
+          details: error.message,
+        })
+      }
+    }
+  )
+
+  fastify.post<{
+    Params: { orgId: string; childId: string }
+    Body: z.infer<typeof createTaskSchema>
+  }>('/orgs/:orgId/children/:childId/tasks', async (request, reply) => {
+    try {
+      const { orgId, childId } = request.params
+      const member = await requireOrgMember(request, reply, orgId)
+      await requireChildAccess(request, reply, orgId, childId)
+      if (!request.user) return
+
+      const parse = createTaskSchema.safeParse(request.body)
+      if (!parse.success) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Invalid body: title required (1–500 chars), description optional',
+        })
+      }
+      const { title, description } = parse.data
+
+      const db = getFirestore()
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+      const taskData = {
+        title,
+        description: description ?? null,
+        status: 'pending',
+        createdBy: request.user.uid,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+      }
+      const taskRef = await db.collection(COLLECTIONS.CHILD_TASKS(childId)).add(taskData)
+
+      return reply.code(201).send({
+        id: taskRef.id,
+        ...taskData,
+        createdAt: taskData.createdAt.toDate(),
+        updatedAt: taskData.updatedAt.toDate(),
+      })
+    } catch (error: any) {
+      console.error('[CHILDREN] Error creating task:', error)
+      return reply.code(500).send({
+        error: 'Failed to create task',
         details: error.message,
       })
     }
