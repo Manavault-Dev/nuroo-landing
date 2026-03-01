@@ -4,7 +4,13 @@ import dotenv from 'dotenv'
 import { envSchema, type Env } from './env.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+// Load .env from backend folder (works when running from repo root or from backend/)
+const backendDir = path.resolve(__dirname, '../..')
+const envPath = path.join(backendDir, '.env')
+const loaded = dotenv.config({ path: envPath })
+if (loaded.error && process.env.NODE_ENV !== 'production') {
+  console.warn('[config] No .env file at', envPath, '- using process.env')
+}
 
 const rawConfig = envSchema.parse(process.env)
 

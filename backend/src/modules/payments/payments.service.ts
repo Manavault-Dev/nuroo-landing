@@ -26,6 +26,7 @@ const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 const PLANS: Record<string, { price: number; name: string }> = {
   starter: { price: 1500, name: 'Starter' },
   growth: { price: 3500, name: 'Growth' },
+  enterprise: { price: 10000, name: 'Enterprise' },
 }
 
 // Signature utilities
@@ -153,7 +154,7 @@ export async function handleWebhook(input: WebhookInput) {
   await updatePaymentStatus(payment.paymentId, input.status, input.paymentId)
 
   if (input.status === 'completed' && payment.orgId && payment.planId) {
-    if (payment.planId === 'starter' || payment.planId === 'growth') {
+    if (['starter', 'growth', 'enterprise'].includes(payment.planId)) {
       await createOrUpdateBillingPlan(payment.orgId, payment.planId, 30)
     }
   }

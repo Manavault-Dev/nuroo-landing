@@ -11,6 +11,8 @@ const COLLECTIONS = {
   SPECIALIST_GROUPS: (uid: string) => `specialists/${uid}/groups`,
   GROUP_PARENTS: (uid: string, groupId: string) => `specialists/${uid}/groups/${groupId}/parents`,
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
+  ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
+  SPECIALISTS: 'specialists',
   CHILDREN: 'children',
 } as const
 
@@ -56,14 +58,67 @@ async function fetchGroupsWithFallback(db: admin.firestore.Firestore, uid: strin
   }
 }
 
+async function getSpecialistDisplayName(
+  db: admin.firestore.Firestore,
+  specialistUid: string
+): Promise<string> {
+  const ref = db.doc(`${COLLECTIONS.SPECIALISTS}/${specialistUid}`)
+  const snap = await ref.get()
+  if (!snap.exists) return specialistUid.slice(0, 8)
+  const d = snap.data()
+  return (d?.fullName || d?.name || specialistUid.slice(0, 8)) as string
+}
+
+/** For org_admin: fetch all groups in the org (from all specialists), with owner info */
+async function fetchAllOrgGroups(
+  db: admin.firestore.Firestore,
+  orgId: string
+): Promise<Array<{ doc: admin.firestore.QueryDocumentSnapshot; ownerId: string }>> {
+  const membersSnap = await db.collection(COLLECTIONS.ORG_MEMBERS(orgId)).get()
+  const result: Array<{ doc: admin.firestore.QueryDocumentSnapshot; ownerId: string }> = []
+
+  for (const memberDoc of membersSnap.docs) {
+    const ownerId = memberDoc.id
+    let snap: admin.firestore.QuerySnapshot
+    try {
+      snap = await db
+        .collection(COLLECTIONS.SPECIALIST_GROUPS(ownerId))
+        .where('orgId', '==', orgId)
+        .orderBy('createdAt', 'desc')
+        .get()
+    } catch (error: any) {
+      if (isIndexError(error)) {
+        const plain = await db
+          .collection(COLLECTIONS.SPECIALIST_GROUPS(ownerId))
+          .where('orgId', '==', orgId)
+          .get()
+        snap = { docs: sortByCreatedAt(plain.docs) } as any
+      } else throw error
+    }
+    for (const doc of snap.docs) {
+      result.push({ doc, ownerId })
+    }
+  }
+  result.sort((a, b) => {
+    const aTime = a.doc.data().createdAt?.toDate?.()?.getTime() ?? 0
+    const bTime = b.doc.data().createdAt?.toDate?.()?.getTime() ?? 0
+    return bTime - aTime
+  })
+  return result
+}
+
 async function countGroupParents(db: admin.firestore.Firestore, uid: string, groupId: string) {
   const parentsSnapshot = await db.collection(COLLECTIONS.GROUP_PARENTS(uid, groupId)).get()
   return parentsSnapshot.docs.length
 }
 
-function transformGroup(doc: admin.firestore.QueryDocumentSnapshot, parentCount: number) {
+function transformGroup(
+  doc: admin.firestore.QueryDocumentSnapshot,
+  parentCount: number,
+  owner?: { ownerId: string; ownerName: string }
+) {
   const data = doc.data()
-  return {
+  const base = {
     id: doc.id,
     name: data.name,
     description: data.description || null,
@@ -73,6 +128,10 @@ function transformGroup(doc: admin.firestore.QueryDocumentSnapshot, parentCount:
     createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
   }
+  if (owner) {
+    return { ...base, ownerId: owner.ownerId, ownerName: owner.ownerName }
+  }
+  return base
 }
 
 async function fetchParentAuthData(parentUid: string) {
@@ -143,12 +202,23 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/groups', async (request, reply) => {
     try {
       const { orgId } = request.params
-      await requireOrgMember(request, reply, orgId)
+      const member = await requireOrgMember(request, reply, orgId)
       const { uid } = request.user!
-
       const db = getFirestore()
-      const groupsSnapshot = await fetchGroupsWithFallback(db, uid, orgId)
 
+      if (member.role === 'org_admin') {
+        const allGroupsWithOwner = await fetchAllOrgGroups(db, orgId)
+        const groups = await Promise.all(
+          allGroupsWithOwner.map(async ({ doc, ownerId }) => {
+            const parentCount = await countGroupParents(db, ownerId, doc.id)
+            const ownerName = await getSpecialistDisplayName(db, ownerId)
+            return transformGroup(doc, parentCount, { ownerId, ownerName })
+          })
+        )
+        return { ok: true, groups, count: groups.length }
+      }
+
+      const groupsSnapshot = await fetchGroupsWithFallback(db, uid, orgId)
       const groups = await Promise.all(
         groupsSnapshot.docs.map(async (doc) => {
           const parentCount = await countGroupParents(db, uid, doc.id)
@@ -221,31 +291,40 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.get<{ Params: { orgId: string; groupId: string } }>(
-    '/orgs/:orgId/groups/:groupId',
-    async (request, reply) => {
-      try {
-        const { orgId, groupId } = request.params
-        await requireOrgMember(request, reply, orgId)
-        const { uid } = request.user!
+  fastify.get<{
+    Params: { orgId: string; groupId: string }
+    Querystring: { ownerId?: string }
+  }>('/orgs/:orgId/groups/:groupId', async (request, reply) => {
+    try {
+      const { orgId, groupId } = request.params
+      const member = await requireOrgMember(request, reply, orgId)
+      const { uid } = request.user!
+      const ownerId =
+        member.role === 'org_admin' && request.query?.ownerId
+          ? (request.query as { ownerId: string }).ownerId
+          : uid
 
-        const db = getFirestore()
-        const groupRef = db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(uid)}/${groupId}`)
-        const groupSnap = await groupRef.get()
+      const db = getFirestore()
+      const groupRef = db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`)
+      const groupSnap = await groupRef.get()
 
-        if (!groupSnap.exists) {
-          return reply.code(404).send({ error: 'Group not found' })
-        }
+      if (!groupSnap.exists) {
+        return reply.code(404).send({ error: 'Group not found' })
+      }
 
-        const groupData = groupSnap.data()!
+      const groupData = groupSnap.data()!
 
-        if (!verifyGroupOwnership(groupData, orgId)) {
-          return reply.code(403).send({
-            error: 'Group does not belong to this organization',
-          })
-        }
+      if (!verifyGroupOwnership(groupData, orgId)) {
+        return reply.code(403).send({
+          error: 'Group does not belong to this organization',
+        })
+      }
 
-        const parentsSnapshot = await db.collection(COLLECTIONS.GROUP_PARENTS(uid, groupId)).get()
+      if (member.role === 'specialist' && ownerId !== uid) {
+        return reply.code(403).send({ error: 'You can only view your own groups' })
+      }
+
+      const parentsSnapshot = await db.collection(COLLECTIONS.GROUP_PARENTS(ownerId, groupId)).get()
 
         const parents = await Promise.all(
           parentsSnapshot.docs.map(async (doc) => {
@@ -267,20 +346,22 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           })
         )
 
-        return {
-          ok: true,
-          group: {
-            id: groupId,
-            name: groupData.name,
-            description: groupData.description || null,
-            color: groupData.color || DEFAULT_GROUP_COLOR,
-            orgId: groupData.orgId,
-            parents,
-            parentCount: parents.length,
-            createdAt: groupData.createdAt?.toDate?.()?.toISOString() || null,
-            updatedAt: groupData.updatedAt?.toDate?.()?.toISOString() || null,
-          },
+        const groupPayload: Record<string, unknown> = {
+          id: groupId,
+          name: groupData.name,
+          description: groupData.description || null,
+          color: groupData.color || DEFAULT_GROUP_COLOR,
+          orgId: groupData.orgId,
+          parents,
+          parentCount: parents.length,
+          createdAt: groupData.createdAt?.toDate?.()?.toISOString() || null,
+          updatedAt: groupData.updatedAt?.toDate?.()?.toISOString() || null,
         }
+        if (member.role === 'org_admin' && ownerId !== uid) {
+          groupPayload.ownerId = ownerId
+          groupPayload.ownerName = await getSpecialistDisplayName(db, ownerId)
+        }
+        return { ok: true, group: groupPayload }
       } catch (error: any) {
         console.error('[GROUPS] Error getting group:', error)
         return reply.code(500).send({

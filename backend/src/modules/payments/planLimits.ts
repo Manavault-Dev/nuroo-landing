@@ -1,17 +1,18 @@
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { getBillingPlan, type BillingPlan } from './payments.repository.js'
 
-export const PLAN_IDS = ['starter', 'growth'] as const
+export const PLAN_IDS = ['starter', 'growth', 'enterprise'] as const
 export type PlanId = (typeof PLAN_IDS)[number]
 
 export interface PlanLimit {
-  children: number
+  children: number | null
   specialists: number | null
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimit> = {
   starter: { children: 30, specialists: 3 },
   growth: { children: 80, specialists: null },
+  enterprise: { children: null, specialists: null },
 }
 
 export function isPlanId(id: string): id is PlanId {
@@ -21,7 +22,6 @@ export function isPlanId(id: string): id is PlanId {
 const LEGACY_PLAN_MAP: Record<string, PlanId> = {
   basic: 'starter',
   professional: 'growth',
-  enterprise: 'growth',
 }
 
 export function getPlanLimits(planId: string): PlanLimit | null {
@@ -66,6 +66,7 @@ export async function checkOrgCanAddChild(orgId: string): Promise<{ ok: boolean;
   if (!limits) {
     return { ok: false, error: 'Invalid plan. Please renew in Billing.' }
   }
+  if (limits.children === null) return { ok: true }
   const db = getFirestore()
   const childrenSnap = await db.collection('organizations').doc(orgId).collection('children').get()
   const count = childrenSnap.size
