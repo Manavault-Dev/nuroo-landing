@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Check, Loader2, CreditCard, Building2 } from 'lucide-react'
+import { Loader2, Building2, Star } from 'lucide-react'
+import { PricingCard } from '@/components/ui/PricingCard'
+import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
 
 interface Plan {
   id: string
@@ -16,12 +18,21 @@ interface Plan {
   limits?: { children: number; specialists: number | null } | null
 }
 
+interface BillingStatus {
+  active: boolean
+  planId: string | null
+  expiresAt: string | null
+}
+
 export default function BillingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.billing')
+  const tPricing = useTranslations('landing.pricing')
+  const locale = useLocale()
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -31,6 +42,10 @@ export default function BillingPage() {
   const currentOrg =
     profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
   const isAdmin = currentOrg?.role === 'admin'
+
+  const numberLocale =
+    locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
+  const formatPrice = (n: number) => n.toLocaleString(numberLocale)
 
   useEffect(() => {
     const loadData = async () => {
@@ -80,6 +95,30 @@ export default function BillingPage() {
   }, [router])
 
   useEffect(() => {
+    if (!currentOrgId) return
+    let cancelled = false
+    const loadStatus = async () => {
+      try {
+        const statusRes = await apiClient.getBillingStatus(currentOrgId)
+        if (cancelled) return
+        if (statusRes?.ok !== false) {
+          setBillingStatus({
+            active: statusRes?.active ?? false,
+            planId: statusRes?.planId ?? null,
+            expiresAt: statusRes?.expiresAt ?? null,
+          })
+        }
+      } catch {
+        // optional
+      }
+    }
+    loadStatus()
+    return () => {
+      cancelled = true
+    }
+  }, [currentOrgId])
+
+  useEffect(() => {
     if (!loading && profile) {
       if (!profile.organizations?.length) {
         router.push('/b2b/onboarding')
@@ -93,7 +132,7 @@ export default function BillingPage() {
     }
   }, [loading, profile, isAdmin, router])
 
-  const handleSubscribe = async (planId: 'starter' | 'growth') => {
+  const handleSubscribe = async (planId: 'starter' | 'growth' | 'enterprise') => {
     if (!currentOrgId) {
       setError('Organization ID is missing')
       return
@@ -118,9 +157,9 @@ export default function BillingPage() {
         setError('Payment URL not received')
         setCreatingPayment(null)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating payment:', error)
-      setError(error.message || 'Failed to create payment')
+      setError(error instanceof Error ? error.message : 'Failed to create payment')
       setCreatingPayment(null)
     }
   }
@@ -178,24 +217,21 @@ export default function BillingPage() {
     )
   }
 
-  const planFeatures: Record<string, string[]> = {
-    starter: [
-      'Up to 30 children',
-      'Up to 3 specialists',
-      'Groups and assignments',
-      'Parents get tasks in app',
-      'Photo/video from parents',
-      'Basic dashboard',
-      'Email support',
-    ],
-    growth: [
-      'Up to 80 children',
-      'Unlimited specialists',
-      'Extended reports',
-      'Materials attached to tasks',
-      'Priority support',
-      'Org branding',
-    ],
+  const planLabel = (planId: string | null) => {
+    if (planId === 'starter') return t('starterPlan')
+    if (planId === 'growth') return t('growthPlan')
+    if (planId === 'enterprise') return t('enterprisePlan')
+    return planId || ''
+  }
+
+  const statusLabel = () => {
+    if (!billingStatus?.active || !billingStatus.planId) return t('noPlan')
+    const exp = billingStatus.expiresAt ? new Date(billingStatus.expiresAt) : null
+    if (exp && exp.getTime() < Date.now())
+      return `${planLabel(billingStatus.planId)} — ${t('planExpired')}`
+    if (exp)
+      return `${planLabel(billingStatus.planId)} — ${t('planActive')} (${t('planExpires')} ${exp.toLocaleDateString(numberLocale)})`
+    return `${planLabel(billingStatus.planId)} — ${t('planActive')}`
   }
 
   return (
@@ -216,6 +252,7 @@ export default function BillingPage() {
       </div>
 
       <div className="max-w-6xl">
+        {/* Current plan status */}
         <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-start space-x-4">
             <div className="bg-primary-100 p-4 rounded-lg">
@@ -224,75 +261,67 @@ export default function BillingPage() {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">{currentOrg.orgName}</h3>
               <p className="text-sm text-gray-600 mb-4">
-                {t('currentPlan')}: <span className="font-medium">{t('noPlan')}</span>
+                {t('currentPlan')}: <span className="font-medium">{statusLabel()}</span>
               </p>
             </div>
           </div>
         </div>
 
-        {plans.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-            No subscription plans available. Please contact support.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {plans.map((plan) => {
-              const planId = plan.id as 'starter' | 'growth'
-              const features = planFeatures[planId] ?? []
-              const isCurrent = false
+        {/* Plans grid — same PricingCard as on landing for consistent UI */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {plans.map((plan) => {
+            const planId = plan.id as 'starter' | 'growth' | 'enterprise'
+            const featureKeys = PLAN_FEATURE_KEYS[planId as keyof typeof PLAN_FEATURE_KEYS] ?? []
+            const isCurrent = billingStatus?.active === true && billingStatus?.planId === plan.id
+            const isEnterprise = plan.id === 'enterprise'
 
-              return (
-                <div
-                  key={plan.id}
-                  className={`bg-white rounded-xl shadow-sm border-2 p-6 flex flex-col ${
-                    isCurrent ? 'border-primary-500' : 'border-gray-100'
+            return (
+              <PricingCard
+                key={plan.id}
+                variant={isEnterprise ? 'enterprise' : 'default'}
+                badge={
+                  isCurrent ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5" />
+                      {t('current')}
+                    </span>
+                  ) : undefined
+                }
+                title={plan.name}
+                price={formatPrice(plan.price)}
+                priceSuffix={`${plan.currency} ${t('perMonth')}`}
+                features={featureKeys.map((key) => ({
+                  text: tPricing(key as Parameters<typeof tPricing>[0]),
+                }))}
+              >
+                <button
+                  onClick={() => handleSubscribe(planId)}
+                  disabled={creatingPayment === planId || isCurrent}
+                  className={`w-full py-3.5 px-4 rounded-xl font-medium transition-colors ${
+                    isCurrent
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                      : creatingPayment === planId
+                        ? 'bg-primary-400 text-white cursor-wait'
+                        : isEnterprise
+                          ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
+                          : 'bg-primary-600 text-white hover:bg-primary-700'
                   }`}
                 >
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                    <div className="flex items-baseline">
-                      <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
-                      <span className="text-gray-600 ml-2">{plan.currency}</span>
-                      <span className="text-gray-500 ml-1 text-sm">{t('perMonth')}</span>
-                    </div>
-                  </div>
-
-                  <ul className="flex-1 space-y-3 mb-6">
-                    {features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <Check className="w-5 h-5 text-primary-600 mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-gray-600">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    onClick={() => handleSubscribe(planId)}
-                    disabled={creatingPayment === planId || isCurrent}
-                    className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                      isCurrent
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        : creatingPayment === planId
-                          ? 'bg-primary-400 text-white cursor-wait'
-                          : 'bg-primary-600 text-white hover:bg-primary-700'
-                    }`}
-                  >
-                    {creatingPayment === planId ? (
-                      <span className="flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        {t('creatingPayment')}
-                      </span>
-                    ) : isCurrent ? (
-                      t('current')
-                    ) : (
-                      t('subscribe')
-                    )}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                  {creatingPayment === planId ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {t('creatingPayment')}
+                    </span>
+                  ) : isCurrent ? (
+                    t('current')
+                  ) : (
+                    t('subscribe')
+                  )}
+                </button>
+              </PricingCard>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
