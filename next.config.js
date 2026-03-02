@@ -23,7 +23,11 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24,
   },
-  experimental: {},
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': ['./backend/**', './node_modules/backend/**'],
+    },
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -34,6 +38,14 @@ const nextConfig = {
   },
   async headers() {
     return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+        ],
+      },
       {
         source: '/:all*(svg|jpg|png|webp|avif)',
         headers: [
