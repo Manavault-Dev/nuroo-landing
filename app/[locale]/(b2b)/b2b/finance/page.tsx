@@ -157,31 +157,48 @@ export default function FinancePage() {
         </span>
       )
     const cfg = {
-      present: { cls: 'bg-green-100 text-green-700', icon: <CheckCircle className="w-3 h-3" />, label: t('present') },
-      absent:  { cls: 'bg-red-100 text-red-700',   icon: <XCircle className="w-3 h-3" />,    label: t('absent')  },
-      late:    { cls: 'bg-yellow-100 text-yellow-700', icon: <Clock className="w-3 h-3" />,  label: t('late')    },
+      present: {
+        cls: 'bg-green-100 text-green-700',
+        icon: <CheckCircle className="w-3 h-3" />,
+        label: t('present'),
+      },
+      absent: {
+        cls: 'bg-red-100 text-red-700',
+        icon: <XCircle className="w-3 h-3" />,
+        label: t('absent'),
+      },
+      late: {
+        cls: 'bg-yellow-100 text-yellow-700',
+        icon: <Clock className="w-3 h-3" />,
+        label: t('late'),
+      },
     }[status]
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>
-        {cfg.icon}{cfg.label}
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
+      >
+        {cfg.icon}
+        {cfg.label}
       </span>
     )
   }
 
   function FeeBadge({ status }: { status: FeeStatus }) {
     const cfg = {
-      paid:    { cls: 'bg-green-100 text-green-700',   label: t('paid')    },
+      paid: { cls: 'bg-green-100 text-green-700', label: t('paid') },
       pending: { cls: 'bg-yellow-100 text-yellow-700', label: t('pending') },
-      overdue: { cls: 'bg-red-100 text-red-700',       label: t('overdue') },
+      overdue: { cls: 'bg-red-100 text-red-700', label: t('overdue') },
     }[status]
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
+      >
         {cfg.label}
       </span>
     )
   }
 
-  const paidCount    = feeRecords.filter((r) => r.status === 'paid').length
+  const paidCount = feeRecords.filter((r) => r.status === 'paid').length
   const pendingCount = feeRecords.filter((r) => r.status !== 'paid').length
 
   if (isLoading) return <PageSpinner />
@@ -229,33 +246,51 @@ export default function FinancePage() {
           </div>
 
           {loadingAttendance ? (
-            <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+            <div className="flex justify-center py-16">
+              <Spinner size="lg" />
+            </div>
           ) : attendanceRecords.length === 0 ? (
-            <EmptyState icon={<Users className="w-12 h-12 text-gray-300" />} label={t('noChildren')} />
+            <EmptyState
+              icon={<Users className="w-12 h-12 text-gray-300" />}
+              label={t('noChildren')}
+            />
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('child')}</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('status')}</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('note')}</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('child')}
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('status')}
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('note')}
+                      </th>
                       {isAdmin && <th className="px-4 py-3" />}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {attendanceRecords.map((record) => {
-                      const pending = pendingAttendance.get(record.childId) ?? { status: record.status, note: record.note ?? '' }
+                      const pending = pendingAttendance.get(record.childId) ?? {
+                        status: record.status,
+                        note: record.note ?? '',
+                      }
                       const isSaving = savingAttendance === record.childId
                       return (
                         <tr key={record.childId} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-gray-900">{record.childName}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            {record.childName}
+                          </td>
                           <td className="px-4 py-3">
                             {isAdmin ? (
                               <select
                                 value={pending.status ?? ''}
-                                onChange={(e) => setAttendancePending(record.childId, 'status', e.target.value)}
+                                onChange={(e) =>
+                                  setAttendancePending(record.childId, 'status', e.target.value)
+                                }
                                 className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                               >
                                 <option value="">{t('notMarked')}</option>
@@ -272,7 +307,9 @@ export default function FinancePage() {
                               <input
                                 type="text"
                                 value={pending.note}
-                                onChange={(e) => setAttendancePending(record.childId, 'note', e.target.value)}
+                                onChange={(e) =>
+                                  setAttendancePending(record.childId, 'note', e.target.value)
+                                }
                                 className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                                 placeholder={t('note')}
                               />
@@ -287,7 +324,11 @@ export default function FinancePage() {
                                 disabled={isSaving || !pending.status}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
-                                {isSaving ? <Spinner size="sm" className="!text-white" /> : <Save className="w-3 h-3" />}
+                                {isSaving ? (
+                                  <Spinner size="sm" className="!text-white" />
+                                ) : (
+                                  <Save className="w-3 h-3" />
+                                )}
                                 {t('save')}
                               </button>
                             </td>
@@ -304,8 +345,8 @@ export default function FinancePage() {
                 {(
                   [
                     { status: 'present', cls: 'text-green-600', label: t('present') },
-                    { status: 'absent',  cls: 'text-red-600',   label: t('absent')  },
-                    { status: 'late',    cls: 'text-yellow-600',label: t('late')    },
+                    { status: 'absent', cls: 'text-red-600', label: t('absent') },
+                    { status: 'late', cls: 'text-yellow-600', label: t('late') },
                   ] as const
                 ).map(({ status, cls, label }) => (
                   <span key={status}>
@@ -336,11 +377,14 @@ export default function FinancePage() {
               {(
                 [
                   { value: feeRecords.length, label: t('totalChildren'), cls: 'text-gray-900' },
-                  { value: paidCount,          label: t('paidCount'),     cls: 'text-green-600' },
-                  { value: pendingCount,        label: t('pendingCount'),  cls: 'text-yellow-600' },
+                  { value: paidCount, label: t('paidCount'), cls: 'text-green-600' },
+                  { value: pendingCount, label: t('pendingCount'), cls: 'text-yellow-600' },
                 ] as const
               ).map(({ value, label, cls }) => (
-                <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+                <div
+                  key={label}
+                  className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm"
+                >
                   <p className={`text-2xl font-bold ${cls}`}>{value}</p>
                   <p className="text-xs text-gray-500 mt-1">{label}</p>
                 </div>
@@ -359,20 +403,35 @@ export default function FinancePage() {
           </div>
 
           {loadingFees ? (
-            <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+            <div className="flex justify-center py-16">
+              <Spinner size="lg" />
+            </div>
           ) : feeRecords.length === 0 ? (
-            <EmptyState icon={<Wallet className="w-12 h-12 text-gray-300" />} label={t('noChildren')} />
+            <EmptyState
+              icon={<Wallet className="w-12 h-12 text-gray-300" />}
+              label={t('noChildren')}
+            />
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('child')}</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('amount')} (KGS)</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('status')}</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('paidAt')}</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('note')}</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('child')}
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('amount')} (KGS)
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('status')}
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('paidAt')}
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        {t('note')}
+                      </th>
                       {isAdmin && <th className="px-4 py-3" />}
                     </tr>
                   </thead>
@@ -386,14 +445,18 @@ export default function FinancePage() {
                       const isSaving = savingFee === record.childId
                       return (
                         <tr key={record.childId} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-gray-900">{record.childName}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            {record.childName}
+                          </td>
                           <td className="px-4 py-3">
                             {isAdmin ? (
                               <input
                                 type="number"
                                 min="0"
                                 value={pending.amount}
-                                onChange={(e) => setFeePending(record.childId, 'amount', e.target.value)}
+                                onChange={(e) =>
+                                  setFeePending(record.childId, 'amount', e.target.value)
+                                }
                                 className="w-28 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                               />
                             ) : (
@@ -406,7 +469,9 @@ export default function FinancePage() {
                             {isAdmin ? (
                               <select
                                 value={pending.status}
-                                onChange={(e) => setFeePending(record.childId, 'status', e.target.value)}
+                                onChange={(e) =>
+                                  setFeePending(record.childId, 'status', e.target.value)
+                                }
                                 className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                               >
                                 <option value="paid">{t('paid')}</option>
@@ -425,7 +490,9 @@ export default function FinancePage() {
                               <input
                                 type="text"
                                 value={pending.note}
-                                onChange={(e) => setFeePending(record.childId, 'note', e.target.value)}
+                                onChange={(e) =>
+                                  setFeePending(record.childId, 'note', e.target.value)
+                                }
                                 className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                                 placeholder={t('note')}
                               />
@@ -440,7 +507,11 @@ export default function FinancePage() {
                                 disabled={isSaving}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
-                                {isSaving ? <Spinner size="sm" className="!text-white" /> : <Save className="w-3 h-3" />}
+                                {isSaving ? (
+                                  <Spinner size="sm" className="!text-white" />
+                                ) : (
+                                  <Save className="w-3 h-3" />
+                                )}
                                 {t('save')}
                               </button>
                             </td>

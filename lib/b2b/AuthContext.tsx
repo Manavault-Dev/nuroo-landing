@@ -103,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshProfile,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshProfile is stable
     [user, profile, isLoading, currentOrgId]
   )
 

@@ -6,7 +6,17 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { BarChart3, Users, UserX, Loader2, TrendingUp, Target, BookOpen, Printer, Download } from 'lucide-react'
+import {
+  BarChart3,
+  Users,
+  UserX,
+  Loader2,
+  TrendingUp,
+  Target,
+  BookOpen,
+  Printer,
+  Download,
+} from 'lucide-react'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 
@@ -32,7 +42,7 @@ function ReportsContent() {
 
   const orgIdFromUrl = searchParams.get('orgId') ?? ''
   const currentOrgId = orgIdFromUrl || profile?.organizations?.[0]?.orgId || undefined
-  const currentOrg =
+  const _currentOrg =
     profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
 
   useEffect(() => {

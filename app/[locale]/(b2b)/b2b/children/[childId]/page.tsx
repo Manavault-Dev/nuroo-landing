@@ -85,7 +85,7 @@ export default function ChildDetailPage() {
     }
 
     loadData()
-  }, [router, childId, orgId])
+  }, [router, childId, orgId, t])
 
   const handleSubmitNote = async (e: FormEvent) => {
     e.preventDefault()
@@ -319,7 +319,8 @@ export default function ChildDetailPage() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Assignments for parent</h2>
               <p className="text-sm text-gray-500 mb-4">
-                Create tasks for the parent to complete with the child. Parent sees them in the app and marks them complete.
+                Create tasks for the parent to complete with the child. Parent sees them in the app
+                and marks them complete.
               </p>
               <form onSubmit={handleCreateTask} className="space-y-3 mb-6">
                 <input

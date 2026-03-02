@@ -2,7 +2,6 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { AlertCircle, Building2, Key, Loader2 } from 'lucide-react'
 
@@ -12,7 +11,7 @@ import { useAuth } from '@/lib/b2b/AuthContext'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { isLoading: authLoading, logout } = useAuth()
+  const { isLoading: _authLoading, logout } = useAuth()
   const t = useTranslations('b2b.pages.onboarding')
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -21,7 +20,6 @@ export default function OnboardingPage() {
   const [orgCountry, setOrgCountry] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
 
   const ensureToken = async () => {
     const user = getCurrentUser()
