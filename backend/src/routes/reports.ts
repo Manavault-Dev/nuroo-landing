@@ -64,7 +64,7 @@ async function getParentDisplayName(uid: string): Promise<string> {
 async function getOrgContentCompletions(
   db: admin.firestore.Firestore,
   orgId: string,
-  startDate: Date
+  _startDate: Date
 ): Promise<{
   totalCompleted: number
   completedLast7Days: number

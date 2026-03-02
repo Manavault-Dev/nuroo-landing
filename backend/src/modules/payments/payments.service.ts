@@ -67,7 +67,7 @@ function sign(data: string, privateKey: string): string {
 }
 
 // Payment service
-export async function createPayment(input: CreatePaymentInput, userId: string) {
+export async function createPayment(input: CreatePaymentInput, _userId: string) {
   if (!FINIK_API_KEY || !FINIK_ACCOUNT_ID || !FINIK_PRIVATE_KEY) {
     throw new Error('Finik payment system is not configured')
   }

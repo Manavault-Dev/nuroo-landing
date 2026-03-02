@@ -54,7 +54,7 @@ async function resolveAccessCode(
   return { valid: false }
 }
 
-const taskSchema = z.object({
+const _taskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   category: z.string().optional(),
@@ -67,7 +67,7 @@ const taskSchema = z.object({
   mediaType: z.enum(['video', 'image', 'none']).optional(),
 })
 
-const roadmapSchema = z.object({
+const _roadmapSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   category: z.string().optional(),
@@ -91,7 +91,7 @@ function transformDoc(doc: admin.firestore.DocumentSnapshot) {
   }
 }
 
-function buildUpdateData(body: Record<string, unknown>) {
+function _buildUpdateData(body: Record<string, unknown>) {
   const data: Record<string, unknown> = { updatedAt: toTimestamp() }
   for (const [key, value] of Object.entries(body)) {
     if (value !== undefined) data[key] = value
@@ -99,7 +99,7 @@ function buildUpdateData(body: Record<string, unknown>) {
   return data
 }
 
-async function getStorageBucket() {
+async function _getStorageBucket() {
   const storage = getStorage()
   const app = getApp()
   const projectId = app.options.projectId
@@ -152,12 +152,13 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     return reply.code(410).send({
       ok: false,
       error: 'Gone',
-      message: 'Use POST /api/parent/access/validate with an organization invite code. AlphaKids is now an organization.',
+      message:
+        'Use POST /api/parent/access/validate with an organization invite code. AlphaKids is now an organization.',
       successor: '/api/parent/access/validate',
     })
   })
 
-  async function requireAccessCode(
+  async function _requireAccessCode(
     request: { query?: { code?: string } },
     reply: { code: (n: number) => { send: (body: unknown) => unknown } }
   ): Promise<admin.firestore.Firestore | null> {
@@ -432,7 +433,8 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     return reply.code(410).send({
       ok: false,
       error: 'Gone',
-      message: 'AlphaKids is now an organization. Use parent invite codes (POST /orgs/:orgId/parent-invites) for organization access.',
+      message:
+        'AlphaKids is now an organization. Use parent invite codes (POST /orgs/:orgId/parent-invites) for organization access.',
     })
   })
 

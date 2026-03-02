@@ -1,9 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import {
-  listChildSpecialists,
-  listChildNotes,
-  listParentLinkedChildren,
-} from './parent.service.js'
+import { listChildSpecialists, listChildNotes, listParentLinkedChildren } from './parent.service.js'
 
 export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/parent/children/:childId/specialists - List specialists with access to child
@@ -20,12 +16,14 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const specialists = await listChildSpecialists(childId, parentUid)
         return { ok: true, specialists }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error getting child specialists:', error)
-        if (error.message?.includes('Access denied')) {
+        if (error instanceof Error && error.message?.includes('Access denied')) {
           return reply.code(403).send({ error: error.message })
         }
-        return reply.code(500).send({ error: error.message || 'Failed to get specialists' })
+        return reply
+          .code(500)
+          .send({ error: error instanceof Error ? error.message : 'Failed to get specialists' })
       }
     }
   )
@@ -44,12 +42,14 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const notes = await listChildNotes(childId, parentUid)
         return { ok: true, notes }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error getting child notes:', error)
-        if (error.message?.includes('Access denied')) {
+        if (error instanceof Error && error.message?.includes('Access denied')) {
           return reply.code(403).send({ error: error.message })
         }
-        return reply.code(500).send({ error: error.message || 'Failed to get notes' })
+        return reply
+          .code(500)
+          .send({ error: error instanceof Error ? error.message : 'Failed to get notes' })
       }
     }
   )
@@ -65,9 +65,11 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const childIds = await listParentLinkedChildren(parentUid)
       return { ok: true, childIds }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error getting parent children:', error)
-      return reply.code(500).send({ error: error.message || 'Failed to get children' })
+      return reply
+        .code(500)
+        .send({ error: error instanceof Error ? error.message : 'Failed to get children' })
     }
   })
 }

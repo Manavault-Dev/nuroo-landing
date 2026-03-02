@@ -29,34 +29,28 @@ function transformBranch(doc: admin.firestore.QueryDocumentSnapshot) {
 
 export const branchesRoute: FastifyPluginAsync = async (fastify) => {
   // GET /orgs/:orgId/branches — list all (any org member)
-  fastify.get<{ Params: { orgId: string } }>(
-    '/orgs/:orgId/branches',
-    async (request, reply) => {
+  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/branches', async (request, reply) => {
+    try {
+      const { orgId } = request.params
+      await requireOrgMember(request, reply, orgId)
+
+      const db = getFirestore()
+      let snapshot: admin.firestore.QuerySnapshot
+
       try {
-        const { orgId } = request.params
-        await requireOrgMember(request, reply, orgId)
-
-        const db = getFirestore()
-        let snapshot: admin.firestore.QuerySnapshot
-
-        try {
-          snapshot = await db
-            .collection(ORG_BRANCHES(orgId))
-            .orderBy('createdAt', 'desc')
-            .get()
-        } catch {
-          snapshot = await db.collection(ORG_BRANCHES(orgId)).get()
-        }
-
-        const branches = snapshot.docs.map(transformBranch)
-
-        return { ok: true, branches, count: branches.length }
-      } catch (error: any) {
-        console.error('[BRANCHES] Error listing branches:', error)
-        return reply.code(500).send({ error: 'Failed to list branches', details: error.message })
+        snapshot = await db.collection(ORG_BRANCHES(orgId)).orderBy('createdAt', 'desc').get()
+      } catch {
+        snapshot = await db.collection(ORG_BRANCHES(orgId)).get()
       }
+
+      const branches = snapshot.docs.map(transformBranch)
+
+      return { ok: true, branches, count: branches.length }
+    } catch (error: any) {
+      console.error('[BRANCHES] Error listing branches:', error)
+      return reply.code(500).send({ error: 'Failed to list branches', details: error.message })
     }
-  )
+  })
 
   // POST /orgs/:orgId/branches — create (admin only)
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof branchSchema> }>(

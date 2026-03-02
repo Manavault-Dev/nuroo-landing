@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify'
 
 const requestTimings = new WeakMap<FastifyRequest, number>()
 
-export async function requestLogger(request: FastifyRequest, reply: FastifyReply) {
+export async function requestLogger(request: FastifyRequest, _reply: FastifyReply) {
   const start = Date.now()
   requestTimings.set(request, start)
 }

@@ -7,6 +7,7 @@ import {
   getSpecialistRef,
   getParentRef,
 } from '../../infrastructure/database/collections.js'
+import admin from 'firebase-admin'
 import type { SpecialistNote } from '../../shared/types/common.js'
 
 export interface LinkedSpecialist {
@@ -77,11 +78,13 @@ export async function getParentLinkedOrganizations(
   const parentData = parentSnap.data()!
   const linkedOrgs = parentData.linkedOrganizations || []
 
-  return linkedOrgs.map((org: any) => ({
-    orgId: org.orgId,
-    orgName: org.orgName,
-    linkedAt: org.linkedAt?.toDate() || new Date(),
-  }))
+  return linkedOrgs.map(
+    (org: { orgId: string; orgName?: string; linkedAt?: admin.firestore.Timestamp }) => ({
+      orgId: org.orgId,
+      orgName: org.orgName ?? '',
+      linkedAt: org.linkedAt?.toDate() ?? new Date(),
+    })
+  )
 }
 
 /**
@@ -98,7 +101,7 @@ export async function getChildSpecialists(
   }
 
   const specialists: LinkedSpecialist[] = []
-  const db = getFirestore()
+  const _db = getFirestore()
 
   // Get all organizations the child is linked to
   const childRef = getChildRef(childId)
