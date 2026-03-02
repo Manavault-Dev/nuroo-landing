@@ -23,11 +23,9 @@ const COLLECTIONS = {
 }
 
 const toDate = (timestamp: { toDate?: () => Date } | Date | null | undefined): Date => {
-  if (timestamp?.toDate) {
+  if (timestamp instanceof Date) return timestamp
+  if (timestamp != null && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
     return timestamp.toDate()
-  }
-  if (timestamp instanceof Date) {
-    return timestamp
   }
   return new Date()
 }
