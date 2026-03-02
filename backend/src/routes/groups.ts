@@ -326,51 +326,50 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       const parentsSnapshot = await db.collection(COLLECTIONS.GROUP_PARENTS(ownerId, groupId)).get()
 
-        const parents = await Promise.all(
-          parentsSnapshot.docs.map(async (doc) => {
-            const data = doc.data()
-            const parentUid = doc.id
-            const authData = await fetchParentAuthData(parentUid)
-            const childIds = data.childIds || []
-            const children = await Promise.all(
-              childIds.map((childId: string) => fetchChildData(db, childId))
-            )
+      const parents = await Promise.all(
+        parentsSnapshot.docs.map(async (doc) => {
+          const data = doc.data()
+          const parentUid = doc.id
+          const authData = await fetchParentAuthData(parentUid)
+          const childIds = data.childIds || []
+          const children = await Promise.all(
+            childIds.map((childId: string) => fetchChildData(db, childId))
+          )
 
-            return {
-              parentUserId: parentUid,
-              name: authData.displayName || 'Unknown',
-              email: authData.email,
-              children,
-              addedAt: data.addedAt?.toDate?.()?.toISOString() || null,
-            }
-          })
-        )
-
-        const groupPayload: Record<string, unknown> = {
-          id: groupId,
-          name: groupData.name,
-          description: groupData.description || null,
-          color: groupData.color || DEFAULT_GROUP_COLOR,
-          orgId: groupData.orgId,
-          parents,
-          parentCount: parents.length,
-          createdAt: groupData.createdAt?.toDate?.()?.toISOString() || null,
-          updatedAt: groupData.updatedAt?.toDate?.()?.toISOString() || null,
-        }
-        if (member.role === 'org_admin' && ownerId !== uid) {
-          groupPayload.ownerId = ownerId
-          groupPayload.ownerName = await getSpecialistDisplayName(db, ownerId)
-        }
-        return { ok: true, group: groupPayload }
-      } catch (error: any) {
-        console.error('[GROUPS] Error getting group:', error)
-        return reply.code(500).send({
-          error: 'Failed to get group',
-          details: error.message,
+          return {
+            parentUserId: parentUid,
+            name: authData.displayName || 'Unknown',
+            email: authData.email,
+            children,
+            addedAt: data.addedAt?.toDate?.()?.toISOString() || null,
+          }
         })
+      )
+
+      const groupPayload: Record<string, unknown> = {
+        id: groupId,
+        name: groupData.name,
+        description: groupData.description || null,
+        color: groupData.color || DEFAULT_GROUP_COLOR,
+        orgId: groupData.orgId,
+        parents,
+        parentCount: parents.length,
+        createdAt: groupData.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: groupData.updatedAt?.toDate?.()?.toISOString() || null,
       }
+      if (member.role === 'org_admin' && ownerId !== uid) {
+        groupPayload.ownerId = ownerId
+        groupPayload.ownerName = await getSpecialistDisplayName(db, ownerId)
+      }
+      return { ok: true, group: groupPayload }
+    } catch (error: any) {
+      console.error('[GROUPS] Error getting group:', error)
+      return reply.code(500).send({
+        error: 'Failed to get group',
+        details: error.message,
+      })
     }
-  )
+  })
 
   fastify.post<{
     Params: { orgId: string; groupId: string }

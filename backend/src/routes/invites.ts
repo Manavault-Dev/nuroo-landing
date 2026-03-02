@@ -218,13 +218,13 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  const validateInviteSchema = z.object({
+  const _validateInviteSchema = z.object({
     inviteCode: z.string().min(1).max(100).optional(),
     code: z.string().min(1).max(100).optional(),
   })
 
   fastify.post<{
-    Body?: z.infer<typeof validateInviteSchema>
+    Body?: z.infer<typeof _validateInviteSchema>
     Querystring?: { inviteCode?: string; code?: string }
   }>('/api/org/parent-invites/validate', async (request, reply) => {
     if (!request.user) {
@@ -292,14 +292,14 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  const useInviteSchema = z.object({
+  const _useInviteSchema = z.object({
     inviteCode: z.string().min(1).max(100).optional(),
     code: z.string().min(1).max(100).optional(),
     childId: z.string().min(1),
   })
 
   fastify.post<{
-    Body?: z.infer<typeof useInviteSchema>
+    Body?: z.infer<typeof _useInviteSchema>
     Querystring?: { inviteCode?: string; code?: string; childId?: string }
   }>('/api/org/parent-invites/use', async (request, reply) => {
     if (!request.user) {
@@ -406,7 +406,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post<{
-    Body?: z.infer<typeof useInviteSchema>
+    Body?: z.infer<typeof _useInviteSchema>
     Querystring?: { inviteCode?: string; code?: string; childId?: string }
   }>('/api/org/parent-invites/accept', async (request, reply) => {
     console.log('🔍 /api/org/parent-invites/accept called', {

@@ -47,7 +47,7 @@ export async function updatePaymentStatus(
   finikTransactionId?: string
 ) {
   const paymentRef = db.collection('payments').doc(paymentId)
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     status,
     updatedAt: admin.firestore.Timestamp.now(),
   }

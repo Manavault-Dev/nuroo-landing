@@ -1,7 +1,7 @@
 import admin from 'firebase-admin'
 import { config } from './config/index.js'
 
-function getAdminApp(): admin.app.App {
+export function getAdminApp(): admin.app.App {
   if (!admin.apps.length) {
     const {
       FIREBASE_PROJECT_ID,

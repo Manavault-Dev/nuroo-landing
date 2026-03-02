@@ -87,9 +87,11 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const result = await createPayment(body, uid)
         return result
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error creating payment:', error)
-        return reply.code(500).send({ error: error.message || 'Failed to create payment' })
+        return reply
+          .code(500)
+          .send({ error: error instanceof Error ? error.message : 'Failed to create payment' })
       }
     }
   )
@@ -109,9 +111,11 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(404).send({ error: result.error })
         }
         return result
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error verifying payment:', error)
-        return reply.code(500).send({ error: error.message || 'Failed to verify payment' })
+        return reply
+          .code(500)
+          .send({ error: error instanceof Error ? error.message : 'Failed to verify payment' })
       }
     }
   )
@@ -128,9 +132,11 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         return { ok: true }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error handling webhook:', error)
-        return reply.code(400).send({ error: error.message || 'Invalid webhook data' })
+        return reply
+          .code(400)
+          .send({ error: error instanceof Error ? error.message : 'Invalid webhook data' })
       }
     }
   )

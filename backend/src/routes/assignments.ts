@@ -148,11 +148,11 @@ export const assignmentsRoute: FastifyPluginAsync = async (fastify) => {
           message: 'Child unassigned from specialist',
           childId,
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[ASSIGNMENTS] Error unassigning child:', error)
         return reply.code(500).send({
           error: 'Failed to unassign child from specialist',
-          details: error.message,
+          details: error instanceof Error ? error.message : '',
         })
       }
     }

@@ -59,17 +59,23 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
   // ——— Tasks ———
-  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/content/tasks', async (request, reply) => {
-    try {
-      const { orgId } = request.params
-      await requireOrgMember(request, reply, orgId)
-      const db = getFirestore()
-      const snap = await db.collection(COLLECTIONS.ORG_TASKS(orgId)).orderBy('createdAt', 'desc').get()
-      return { ok: true, tasks: snap.docs.map((d) => transformDoc(d)), count: snap.size }
-    } catch (e: any) {
-      return reply.code(500).send({ error: e?.message || 'Failed to list tasks' })
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/content/tasks',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const db = getFirestore()
+        const snap = await db
+          .collection(COLLECTIONS.ORG_TASKS(orgId))
+          .orderBy('createdAt', 'desc')
+          .get()
+        return { ok: true, tasks: snap.docs.map((d) => transformDoc(d)), count: snap.size }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list tasks' })
+      }
     }
-  })
+  )
 
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof taskSchema> }>(
     '/orgs/:orgId/content/tasks',
@@ -88,7 +94,9 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           updatedAt: toTimestamp(),
         }
         await ref.set(data)
-        return reply.code(201).send({ ok: true, task: { id: ref.id, ...transformDoc(await ref.get()) } })
+        return reply
+          .code(201)
+          .send({ ok: true, task: { id: ref.id, ...transformDoc(await ref.get()) } })
       } catch (e: any) {
         return reply.code(400).send({ error: e?.message || 'Failed to create task' })
       }
@@ -213,17 +221,23 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
   )
 
   // ——— Roadmaps ———
-  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/content/roadmaps', async (request, reply) => {
-    try {
-      const { orgId } = request.params
-      await requireOrgMember(request, reply, orgId)
-      const db = getFirestore()
-      const snap = await db.collection(COLLECTIONS.ORG_ROADMAPS(orgId)).orderBy('createdAt', 'desc').get()
-      return { ok: true, roadmaps: snap.docs.map((d) => transformDoc(d)), count: snap.size }
-    } catch (e: any) {
-      return reply.code(500).send({ error: e?.message || 'Failed to list roadmaps' })
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/content/roadmaps',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const db = getFirestore()
+        const snap = await db
+          .collection(COLLECTIONS.ORG_ROADMAPS(orgId))
+          .orderBy('createdAt', 'desc')
+          .get()
+        return { ok: true, roadmaps: snap.docs.map((d) => transformDoc(d)), count: snap.size }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list roadmaps' })
+      }
     }
-  })
+  )
 
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof roadmapSchema> }>(
     '/orgs/:orgId/content/roadmaps',
@@ -242,7 +256,9 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           updatedAt: toTimestamp(),
         }
         await ref.set(data)
-        return reply.code(201).send({ ok: true, roadmap: { id: ref.id, ...transformDoc(await ref.get()) } })
+        return reply
+          .code(201)
+          .send({ ok: true, roadmap: { id: ref.id, ...transformDoc(await ref.get()) } })
       } catch (e: any) {
         return reply.code(400).send({ error: e?.message || 'Failed to create roadmap' })
       }

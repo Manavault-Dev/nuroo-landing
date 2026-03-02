@@ -109,7 +109,7 @@ async function enrichChildrenWithDetails(
   db: admin.firestore.Firestore,
   parentMap: Map<string, ChildInfo[]>
 ) {
-  for (const [parentUserId, children] of parentMap.entries()) {
+  for (const [_parentUserId, children] of parentMap.entries()) {
     for (const child of children) {
       const details = await fetchChildDetails(db, child.childId)
       child.childName = details.name
@@ -291,11 +291,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         connections,
         count: connections.length,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[CONNECTIONS] Error fetching connections:', error)
       return reply.code(500).send({
         error: 'Failed to fetch connections',
-        details: error.message,
+        details: error instanceof Error ? error.message : '',
       })
     }
   })
@@ -328,11 +328,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       return children
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[CHILDREN] Error fetching children:', error)
       return reply.code(500).send({
         error: 'Failed to fetch children',
-        details: error.message,
+        details: error instanceof Error ? error.message : '',
       })
     }
   })
@@ -385,11 +385,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         return detail
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[CHILDREN] Error fetching child detail:', error)
         return reply.code(500).send({
           error: 'Failed to fetch child details',
-          details: error.message,
+          details: error instanceof Error ? error.message : '',
         })
       }
     }
@@ -426,11 +426,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
 
       const response: TimelineResponse = { days: timelineDays }
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[CHILDREN] Error fetching timeline:', error)
       return reply.code(500).send({
         error: 'Failed to fetch timeline',
-        details: error.message,
+        details: error instanceof Error ? error.message : '',
       })
     }
   })
@@ -462,11 +462,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
         return { tasks }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[CHILDREN] Error listing tasks:', error)
         return reply.code(500).send({
           error: 'Failed to list tasks',
-          details: error.message,
+          details: error instanceof Error ? error.message : '',
         })
       }
     }
@@ -478,7 +478,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
   }>('/orgs/:orgId/children/:childId/tasks', async (request, reply) => {
     try {
       const { orgId, childId } = request.params
-      const member = await requireOrgMember(request, reply, orgId)
+      await requireOrgMember(request, reply, orgId)
       await requireChildAccess(request, reply, orgId, childId)
       if (!request.user) return
 
@@ -510,11 +510,11 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         createdAt: taskData.createdAt.toDate(),
         updatedAt: taskData.updatedAt.toDate(),
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[CHILDREN] Error creating task:', error)
       return reply.code(500).send({
         error: 'Failed to create task',
-        details: error.message,
+        details: error instanceof Error ? error.message : '',
       })
     }
   })
