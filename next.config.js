@@ -4,6 +4,7 @@ const withNextIntl = require('next-intl/plugin')('./i18n/request.ts')
 const nextConfig = {
   compress: true,
   poweredByHeader: false,
+  transpilePackages: ['next-intl'],
   images: {
     remotePatterns: [
       {
@@ -22,7 +23,6 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24,
   },
-  experimental: {},
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -33,6 +33,14 @@ const nextConfig = {
   },
   async headers() {
     return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+        ],
+      },
       {
         source: '/:all*(svg|jpg|png|webp|avif)',
         headers: [

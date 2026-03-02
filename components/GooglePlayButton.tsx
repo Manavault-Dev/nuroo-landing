@@ -6,8 +6,11 @@ interface GooglePlayButtonProps {
   disabled?: boolean
 }
 
+const GOOGLE_PLAY_URL =
+  'https://play.google.com/store/apps/details?id=nuroo.app&pcampaignid=web_share'
+
 export function GooglePlayButton({
-  href = '#',
+  href = GOOGLE_PLAY_URL,
   className = '',
   disabled = false,
 }: GooglePlayButtonProps) {

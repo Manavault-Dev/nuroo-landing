@@ -24,7 +24,9 @@ if (typeof window !== 'undefined') {
     try {
       if (getApps().length === 0) {
         app = initializeApp(firebaseConfig)
+        // eslint-disable-next-line no-console -- init logging
         console.log(`✅ [FIREBASE] Frontend initialized for ${env} environment`)
+        // eslint-disable-next-line no-console -- init logging
         console.log(`📋 [FIREBASE] Using project: ${firebaseConfig.projectId}`)
       } else {
         app = getApps()[0]

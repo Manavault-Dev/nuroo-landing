@@ -1,40 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import type { OrgMember } from '../types.js'
-import { config } from '../config.js'
-
-// TEMPORARY: Whitelist for dev mode
-const DEV_SUPER_ADMIN_WHITELIST = ['nuroo@gmail.com']
-
-/**
- * Check if user is Super Admin (by custom claim or whitelist)
- */
-function isSuperAdmin(request: FastifyRequest): boolean {
-  if (!request.user) return false
-
-  const userEmail = (request.user.email || '').toLowerCase().trim()
-  const hasClaim = request.user.claims?.superAdmin === true
-
-  const isWhitelisted =
-    config.NODE_ENV !== 'production' &&
-    DEV_SUPER_ADMIN_WHITELIST.some((email) => email.toLowerCase().trim() === userEmail)
-
-  return hasClaim || isWhitelisted
-}
-
-/**
- * Check if user is the creator of an organization
- */
-async function isOrgCreator(orgId: string, uid: string): Promise<boolean> {
-  const db = getFirestore()
-  const orgRef = db.doc(`organizations/${orgId}`)
-  const orgSnap = await orgRef.get()
-
-  if (!orgSnap.exists) return false
-
-  const orgData = orgSnap.data()
-  return orgData?.createdBy === uid
-}
 
 export async function requireOrgMember(
   request: FastifyRequest,
@@ -48,22 +14,6 @@ export async function requireOrgMember(
   const db = getFirestore()
   const { uid } = request.user
 
-  // Check if user is Super Admin and creator of this organization
-  if (isSuperAdmin(request)) {
-    const isCreator = await isOrgCreator(orgId, uid)
-    if (isCreator) {
-      console.log(`✅ [RBAC] Super Admin ${uid} is creator of org ${orgId}, granting full access`)
-      // Return as org_admin for full access
-      return {
-        uid,
-        role: 'org_admin',
-        status: 'active',
-        addedAt: new Date(),
-      }
-    }
-  }
-
-  // Normal membership check
   const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
   const memberSnap = await memberRef.get()
 
@@ -103,24 +53,6 @@ export async function requireChildAccess(
   const db = getFirestore()
   const { uid } = request.user
 
-  // Check if user is Super Admin and creator of this organization
-  if (isSuperAdmin(request)) {
-    const isCreator = await isOrgCreator(orgId, uid)
-    if (isCreator) {
-      console.log(`✅ [RBAC] Super Admin ${uid} is creator of org ${orgId}, granting child access`)
-      // Verify child is assigned to org
-      const childAssignmentRef = db.doc(`organizations/${orgId}/children/${childId}`)
-      const assignmentSnap = await childAssignmentRef.get()
-
-      if (!assignmentSnap.exists || assignmentSnap.data()?.assigned !== true) {
-        return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
-      }
-
-      return // Super Admin creator has access
-    }
-  }
-
-  // First check membership
   const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
   const memberSnap = await memberRef.get()
 

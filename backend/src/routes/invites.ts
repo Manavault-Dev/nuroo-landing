@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { checkOrgCanAddChild, getSubscriptionStatus } from '../modules/payments/planLimits.js'
 import { z } from 'zod'
 
 const createInviteSchema = z.object({
@@ -28,6 +29,13 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (member.role !== 'org_admin') {
         return reply.code(403).send({ error: 'Only organization admins can create invite codes' })
+      }
+
+      const subscription = await getSubscriptionStatus(orgId)
+      if (!subscription.active) {
+        return reply
+          .code(403)
+          .send({ error: subscription.error ?? 'Subscription required. Pay in Billing.' })
       }
 
       const body = createInviteSchema.parse(request.body)
@@ -210,13 +218,13 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  const validateInviteSchema = z.object({
+  const _validateInviteSchema = z.object({
     inviteCode: z.string().min(1).max(100).optional(),
     code: z.string().min(1).max(100).optional(),
   })
 
   fastify.post<{
-    Body?: z.infer<typeof validateInviteSchema>
+    Body?: z.infer<typeof _validateInviteSchema>
     Querystring?: { inviteCode?: string; code?: string }
   }>('/api/org/parent-invites/validate', async (request, reply) => {
     if (!request.user) {
@@ -284,14 +292,14 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  const useInviteSchema = z.object({
+  const _useInviteSchema = z.object({
     inviteCode: z.string().min(1).max(100).optional(),
     code: z.string().min(1).max(100).optional(),
     childId: z.string().min(1),
   })
 
   fastify.post<{
-    Body?: z.infer<typeof useInviteSchema>
+    Body?: z.infer<typeof _useInviteSchema>
     Querystring?: { inviteCode?: string; code?: string; childId?: string }
   }>('/api/org/parent-invites/use', async (request, reply) => {
     if (!request.user) {
@@ -359,6 +367,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       const now = new Date()
 
       if (!orgChildrenSnap.exists) {
+        const canAdd = await checkOrgCanAddChild(orgId)
+        if (!canAdd.ok) {
+          return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
+        }
         await orgChildrenRef.set({
           assigned: true,
           assignedAt: admin.firestore.Timestamp.fromDate(now),
@@ -394,7 +406,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post<{
-    Body?: z.infer<typeof useInviteSchema>
+    Body?: z.infer<typeof _useInviteSchema>
     Querystring?: { inviteCode?: string; code?: string; childId?: string }
   }>('/api/org/parent-invites/accept', async (request, reply) => {
     console.log('🔍 /api/org/parent-invites/accept called', {
@@ -539,6 +551,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       if (!orgChildrenSnap.exists) {
+        const canAdd = await checkOrgCanAddChild(orgId)
+        if (!canAdd.ok) {
+          return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
+        }
         console.log('📝 [ACCEPT] Creating child-org link')
         await orgChildrenRef.set(childLinkData)
         console.log('✅ [ACCEPT] Child-org link created:', childLinkData)
