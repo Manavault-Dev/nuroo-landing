@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { createRequire } from 'module'
 import { config } from '../../config/index.js'
 import {
   createPaymentRecord,
@@ -9,10 +10,26 @@ import {
 } from './payments.repository.js'
 import type { CreatePaymentInput, WebhookInput } from './payments.schema.js'
 
+// Official Finik signing library (@mancho.devs/authorizer)
+const _require = createRequire(import.meta.url)
+const { Signer } = _require('@mancho.devs/authorizer') as {
+  Signer: new (data: {
+    httpMethod: string
+    path: string
+    headers: Record<string, string>
+    body: Record<string, unknown>
+  }) => {
+    sign(privateKey: string): Promise<string>
+    getData(): string
+  }
+}
+
 // Configuration
-const FINIK_HOST = 'api.acquiring.averspay.kg'
-const FINIK_PATH = '/v1/payment'
-const FINIK_URL = `https://${FINIK_HOST}${FINIK_PATH}`
+const _finikRawUrl = config.FINIK_API_URL || 'https://api.acquiring.averspay.kg/payment'
+const _finikParsed = new URL(_finikRawUrl)
+const FINIK_HOST = _finikParsed.hostname
+const FINIK_PATH = _finikParsed.pathname
+const FINIK_URL = _finikRawUrl
 const FINIK_API_KEY = config.FINIK_API_KEY
 const FINIK_ACCOUNT_ID = config.FINIK_ACCOUNT_ID
 const FINIK_PRIVATE_KEY = config.FINIK_PRIVATE_PEM?.replace(/\\n/g, '\n')
@@ -29,41 +46,17 @@ const PLANS: Record<string, { price: number; name: string }> = {
   enterprise: { price: 10000, name: 'Enterprise' },
 }
 
-// Signature utilities
-function deepSort(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') return obj
-  if (Array.isArray(obj)) return obj.map(deepSort)
-  return Object.keys(obj as Record<string, unknown>)
-    .sort()
+// Shallow sort — matches official Finik library behavior
+function shallowSort(body: Record<string, unknown>): Record<string, unknown> {
+  return Object.entries(body)
+    .sort(([a], [b]) => a.localeCompare(b))
     .reduce(
-      (acc, key) => {
-        acc[key] = deepSort((obj as Record<string, unknown>)[key])
+      (acc, [k, v]) => {
+        acc[k] = v
         return acc
       },
       {} as Record<string, unknown>
     )
-}
-
-function buildCanonicalString(
-  method: string,
-  path: string,
-  headers: Record<string, string>,
-  body: Record<string, unknown>
-): string {
-  const headerStr = Object.entries(headers)
-    .map(([k, v]) => [k.toLowerCase(), v] as const)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${v}`)
-    .join('&')
-
-  return `${method.toLowerCase()}\n${path}\n${headerStr}\n${JSON.stringify(deepSort(body))}`
-}
-
-function sign(data: string, privateKey: string): string {
-  const signer = crypto.createSign('RSA-SHA256')
-  signer.update(data, 'utf8')
-  signer.end()
-  return signer.sign(privateKey, 'base64')
 }
 
 // Payment service
@@ -95,25 +88,36 @@ export async function createPayment(input: CreatePaymentInput, _userId: string) 
     RedirectUrl: `${B2B_URL}/b2b/billing/success?paymentId=${paymentId}`,
   }
 
-  const headers = {
-    host: FINIK_HOST,
-    'x-api-key': FINIK_API_KEY,
-    'x-api-timestamp': timestamp,
-  }
+  // Sign using the official Finik authorizer package
+  const signer = new Signer({
+    httpMethod: 'POST',
+    path: FINIK_PATH,
+    headers: {
+      Host: FINIK_HOST,
+      'x-api-key': FINIK_API_KEY,
+      'x-api-timestamp': timestamp,
+    },
+    body,
+  })
 
-  const canonical = buildCanonicalString('POST', FINIK_PATH, headers, body)
-  const signature = sign(canonical, FINIK_PRIVATE_KEY)
+  const canonical = signer.getData()
+  const signature = await signer.sign(FINIK_PRIVATE_KEY)
+
+  if (config.FINIK_DEBUG_SIGNATURE === '1') {
+    console.log('[FINIK DEBUG] URL:', FINIK_URL)
+    console.log('[FINIK DEBUG] canonical:\n', canonical)
+    console.log('[FINIK DEBUG] signature (first 40):', signature.substring(0, 40))
+  }
 
   const response = await fetch(FINIK_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Host: FINIK_HOST,
       'x-api-key': FINIK_API_KEY,
       'x-api-timestamp': timestamp,
       signature,
     },
-    body: JSON.stringify(deepSort(body)),
+    body: JSON.stringify(shallowSort(body)),
     redirect: 'manual',
   })
 
