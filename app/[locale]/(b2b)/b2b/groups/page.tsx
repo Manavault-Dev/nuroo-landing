@@ -587,9 +587,15 @@ export default function GroupsPage() {
                   >
                     <option value="">Choose a parent...</option>
                     {availableParents
-                      .filter((p) => !groupParents.some((gp) => gp.parentUserId === (p.id ?? p.parentUserId)))
+                      .filter(
+                        (p) =>
+                          !groupParents.some((gp) => gp.parentUserId === (p.id ?? p.parentUserId))
+                      )
                       .map((parent) => (
-                        <option key={parent.id ?? parent.parentUserId} value={parent.id ?? parent.parentUserId}>
+                        <option
+                          key={parent.id ?? parent.parentUserId}
+                          value={parent.id ?? parent.parentUserId}
+                        >
                           {parent.name} {parent.email && `(${parent.email})`}
                         </option>
                       ))}
