@@ -47,10 +47,8 @@ export function PricingCard({
 
   const cardClasses = [
     'relative flex flex-col rounded-2xl border-2 p-6 sm:p-8 min-w-0 transition-shadow',
-    isPopular &&
-      'border-primary-500 bg-white dark:bg-gray-800/80 shadow-lg shadow-primary-500/10',
-    isEnterprise &&
-      'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/90 shadow-lg',
+    isPopular && 'border-primary-500 bg-white dark:bg-gray-800/80 shadow-lg shadow-primary-500/10',
+    isEnterprise && 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/90 shadow-lg',
     !isPopular &&
       !isEnterprise &&
       'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 shadow-lg hover:shadow-xl',

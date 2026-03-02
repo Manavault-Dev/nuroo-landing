@@ -12,7 +12,6 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Check,
 } from 'lucide-react'
 
 export type ContentManagementMode = 'global' | 'org'
@@ -100,6 +99,7 @@ export function ContentManagement({
       setLoading(true)
       loadContent()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadContent is stable, avoid refetch loop
   }, [mode, orgId])
 
   const handleCreate = () => {

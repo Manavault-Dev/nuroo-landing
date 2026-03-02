@@ -3,7 +3,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { Users, Heart, Star, Building2, UserCircle, CheckCircle2, TrendingUp, Sparkles } from 'lucide-react'
+import {
+  Users,
+  Heart,
+  Star,
+  Building2,
+  UserCircle,
+  CheckCircle2,
+  TrendingUp,
+  Sparkles,
+} from 'lucide-react'
 import { AppStoreButton } from './AppStoreButton'
 import { GooglePlayButton } from './GooglePlayButton'
 
@@ -91,10 +100,8 @@ export function Hero() {
 
       <div className="container-custom relative z-10 min-w-0 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center min-w-0">
-
           {/* Left: Copy */}
           <div className="text-center lg:text-left min-w-0">
-
             {/* Badge */}
             <div
               className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-primary-700 dark:text-primary-300 text-sm font-medium mb-6 md:mb-8 hero-badge-shimmer transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
@@ -142,7 +149,9 @@ export function Hero() {
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 min-w-0">
                   <Building2 className="w-4 h-4 text-primary-500 flex-shrink-0" />
                   <UserCircle className="w-4 h-4 text-secondary-500 flex-shrink-0" />
-                  <span className="text-sm font-medium break-words">{t('organizersSpecialists')}</span>
+                  <span className="text-sm font-medium break-words">
+                    {t('organizersSpecialists')}
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <Link
@@ -169,23 +178,35 @@ export function Hero() {
               <div className="text-center lg:text-left min-w-0">
                 <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
                   <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-primary-500 mr-1 sm:mr-2 flex-shrink-0" />
-                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{t('stat1Value')}</span>
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
+                    {t('stat1Value')}
+                  </span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">{t('stat1Label')}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">
+                  {t('stat1Label')}
+                </p>
               </div>
               <div className="text-center lg:text-left min-w-0">
                 <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
                   <Heart className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-secondary-400 mr-1 sm:mr-2 flex-shrink-0" />
-                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{t('stat2Value')}</span>
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
+                    {t('stat2Value')}
+                  </span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">{t('stat2Label')}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">
+                  {t('stat2Label')}
+                </p>
               </div>
               <div className="text-center lg:text-left min-w-0">
                 <div className="flex items-center justify-center lg:justify-start mb-1 md:mb-2">
                   <Star className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-primary-400 mr-1 sm:mr-2 flex-shrink-0" />
-                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{t('stat3Value')}</span>
+                  <span className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
+                    {t('stat3Value')}
+                  </span>
                 </div>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">{t('stat3Label')}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-tight break-words">
+                  {t('stat3Label')}
+                </p>
               </div>
             </div>
           </div>
@@ -212,8 +233,12 @@ export function Hero() {
               <div className="hero-float-0 absolute -top-3 right-2 sm:-top-4 sm:-right-6 hidden sm:flex items-center gap-2.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-100/80 dark:border-gray-700/80 z-10">
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">Задача выполнена</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">Моторика · 5 мин назад</p>
+                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                    Задача выполнена
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                    Моторика · 5 мин назад
+                  </p>
                 </div>
               </div>
 
@@ -221,8 +246,12 @@ export function Hero() {
               <div className="hero-float-1 absolute -bottom-3 left-2 sm:-bottom-4 sm:-left-6 hidden sm:flex items-center gap-2.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-100/80 dark:border-gray-700/80 z-10">
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">Прогресс +18%</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">За эту неделю</p>
+                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                    Прогресс +18%
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                    За эту неделю
+                  </p>
                 </div>
               </div>
 
@@ -230,8 +259,12 @@ export function Hero() {
               <div className="hero-float-2 absolute top-1/2 right-0 lg:-right-10 hidden lg:flex items-center gap-2.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-100/80 dark:border-gray-700/80 z-10">
                 <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-violet-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">ИИ-план готов</p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">3 новых упражнения</p>
+                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                    ИИ-план готов
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                    3 новых упражнения
+                  </p>
                 </div>
               </div>
             </div>

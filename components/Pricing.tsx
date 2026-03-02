@@ -8,9 +8,15 @@ import { PricingCard } from '@/components/ui/PricingCard'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
 
 const PLAN_META = [
-  { id: 'starter',    titleKey: 'starterName',    price: 1500,  variant: 'default',    popular: false },
-  { id: 'growth',     titleKey: 'growthName',     price: 3500,  variant: 'popular',    popular: true  },
-  { id: 'enterprise', titleKey: 'enterpriseName', price: 10000, variant: 'enterprise', popular: false },
+  { id: 'starter', titleKey: 'starterName', price: 1500, variant: 'default', popular: false },
+  { id: 'growth', titleKey: 'growthName', price: 3500, variant: 'popular', popular: true },
+  {
+    id: 'enterprise',
+    titleKey: 'enterpriseName',
+    price: 10000,
+    variant: 'enterprise',
+    popular: false,
+  },
 ] as const
 
 export function Pricing() {

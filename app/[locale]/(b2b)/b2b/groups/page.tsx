@@ -48,7 +48,7 @@ export default function GroupsPage() {
   const [groupParents, setGroupParents] = useState<Parent[]>([])
   const [loadingGroupDetails, setLoadingGroupDetails] = useState(false)
   const [showAddParentModal, setShowAddParentModal] = useState(false)
-  const [availableParents, setAvailableParents] = useState<any[]>([])
+  const [availableParents, setAvailableParents] = useState<Parent[]>([])
   const [selectedParentId, setSelectedParentId] = useState('')
   const [loadingParents, setLoadingParents] = useState(false)
 
@@ -303,7 +303,10 @@ export default function GroupsPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                  <div
+                    className="w-4 h-4 rounded-full shrink-0"
+                    style={{ backgroundColor: group.color }}
+                  />
                   <div className="min-w-0">
                     <h3 className="font-semibold text-gray-900">{group.name}</h3>
                     {group.ownerName && (
