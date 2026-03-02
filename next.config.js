@@ -23,11 +23,6 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24,
   },
-  experimental: {
-    outputFileTracingExcludes: {
-      '*': ['./backend/**', './node_modules/backend/**'],
-    },
-  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
