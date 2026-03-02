@@ -2,26 +2,30 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'Nuroo - AI-Powered Support for Children with Special Needs',
+    default: 'Nuroo — AI Support for Children with Special Needs',
     template: '%s | Nuroo',
   },
   description:
-    'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+    'Nuroo — AI-powered exercises, NurooAi chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
   keywords: [
-    'special needs support',
-    'AI therapy',
-    'developmental exercises',
-    'child development',
+    // English
     'special needs app',
+    'AI therapy children',
+    'autism app',
+    'ADHD children',
+    'child development platform',
     'therapy at home',
-    'autism support',
-    'learning disabilities',
-    'developmental support',
-    'AI chat support',
+    // Russian (high search volume in CIS)
+    'приложение для детей с особыми потребностями',
+    'аутизм приложение',
+    'ЗПР упражнения',
+    'СДВГ ребёнок',
+    'детская реабилитация',
+    'Nuroo',
   ],
   authors: [{ name: 'Nuroo Team' }],
   creator: 'Nuroo',
@@ -32,31 +36,29 @@ export const metadata: Metadata = {
     telephone: false,
   },
   metadataBase: new URL('https://usenuroo.com'),
-  alternates: {
-    canonical: '/',
-  },
   openGraph: {
     type: 'website',
-    locale: 'en_US',
+    locale: 'ru_RU',
+    alternateLocale: ['en_US', 'ky_KG'],
     url: 'https://usenuroo.com',
     siteName: 'Nuroo',
-    title: 'Nuroo - AI-Powered Support for Children with Special Needs',
+    title: 'Nuroo — AI Support for Children with Special Needs',
     description:
-      'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+      'AI-powered exercises, NurooAi chat and progress tracking for children with autism, ADHD and developmental delays.',
     images: [
       {
         url: '/mother-and-child.png',
         width: 1200,
         height: 630,
-        alt: 'Nuroo - AI-Powered Support for Children with Special Needs',
+        alt: 'Nuroo — AI Support for Children with Special Needs',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nuroo - AI-Powered Support for Children with Special Needs',
+    title: 'Nuroo — AI Support for Children with Special Needs',
     description:
-      'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+      'AI-powered exercises and support for children with autism, ADHD and developmental delays.',
     images: ['/mother-and-child.png'],
     creator: '@nuroo',
   },
@@ -70,9 +72,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  verification: {
-    google: 'your-google-verification-code',
   },
 }
 
