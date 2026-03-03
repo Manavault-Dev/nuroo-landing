@@ -1,6 +1,6 @@
 export const env = {
   // API
-  API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001',
+  API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101',
   B2B_URL: process.env.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000',
 
   // Firebase
