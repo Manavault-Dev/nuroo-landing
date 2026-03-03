@@ -1,14 +1,19 @@
 const API_BASE_URL =
   typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
 
 // Types
 export interface SpecialistProfile {
   uid: string
   email: string
   name: string
-  organizations: Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }>
+  organizations: Array<{
+    orgId: string
+    orgName: string
+    country?: string | null
+    role: 'admin' | 'specialist'
+  }>
 }
 
 export interface ChildSummary {
@@ -106,12 +111,19 @@ class ApiCache {
   invalidate(pattern?: string): void {
     if (!pattern) {
       this.cache.clear()
+      inFlightRequests.clear()
       return
     }
     const keys = Array.from(this.cache.keys())
     keys.forEach((key) => {
       if (key.includes(pattern)) {
         this.cache.delete(key)
+      }
+    })
+    const inFlightKeys = Array.from(inFlightRequests.keys())
+    inFlightKeys.forEach((key) => {
+      if (key.includes(pattern)) {
+        inFlightRequests.delete(key)
       }
     })
   }
@@ -192,12 +204,16 @@ export class ApiClient {
     // Make the request
     const requestPromise = this.request<T>(endpoint)
       .then((data) => {
-        cache.set(cacheKey, data, ttlKey)
-        inFlightRequests.delete(cacheKey)
+        if (inFlightRequests.get(cacheKey) === requestPromise) {
+          cache.set(cacheKey, data, ttlKey)
+          inFlightRequests.delete(cacheKey)
+        }
         return data
       })
       .catch((error) => {
-        inFlightRequests.delete(cacheKey)
+        if (inFlightRequests.get(cacheKey) === requestPromise) {
+          inFlightRequests.delete(cacheKey)
+        }
         throw error
       })
 
@@ -346,6 +362,26 @@ export class ApiClient {
         body: JSON.stringify({ name, country }),
       }
     )
+  }
+
+  async updateOrganization(orgId: string, updates: { name?: string; country?: string }) {
+    cache.invalidate('profile')
+    cache.invalidate('organizations')
+    return this.request<{
+      ok: boolean
+      org: {
+        id: string
+        name: string
+        country?: string | null
+        createdBy: string
+        createdAt: string
+        isActive: boolean
+        billingPlan?: string | null
+      }
+    }>(`/orgs/${orgId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
   }
 
   async createParentInvite(orgId: string) {

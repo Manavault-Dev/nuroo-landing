@@ -1,0 +1,37 @@
+import dotenv from 'dotenv';
+import { envSchema } from './env.js';
+dotenv.config();
+const rawConfig = envSchema.parse(process.env);
+// Select Firebase credentials based on environment
+function getFirebaseConfig(raw) {
+    const env = raw.NODE_ENV;
+    if (env === 'development' && raw.FIREBASE_DEV_PROJECT_ID) {
+        return {
+            projectId: raw.FIREBASE_DEV_PROJECT_ID,
+            clientEmail: raw.FIREBASE_DEV_CLIENT_EMAIL,
+            privateKey: raw.FIREBASE_DEV_PRIVATE_KEY,
+        };
+    }
+    if (env === 'production' && raw.FIREBASE_PROD_PROJECT_ID) {
+        return {
+            projectId: raw.FIREBASE_PROD_PROJECT_ID,
+            clientEmail: raw.FIREBASE_PROD_CLIENT_EMAIL,
+            privateKey: raw.FIREBASE_PROD_PRIVATE_KEY,
+        };
+    }
+    // Fallback to default credentials
+    return {
+        projectId: raw.FIREBASE_PROJECT_ID,
+        clientEmail: raw.FIREBASE_CLIENT_EMAIL,
+        privateKey: raw.FIREBASE_PRIVATE_KEY,
+    };
+}
+const firebaseConfig = getFirebaseConfig(rawConfig);
+export const config = {
+    ...rawConfig,
+    // Override with environment-specific config
+    FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+    FIREBASE_CLIENT_EMAIL: firebaseConfig.clientEmail,
+    FIREBASE_PRIVATE_KEY: firebaseConfig.privateKey,
+};
+//# sourceMappingURL=index.js.map

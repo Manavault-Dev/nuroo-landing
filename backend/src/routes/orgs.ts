@@ -3,11 +3,21 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../plugins/rbac.js'
 
 const createOrgSchema = z.object({
-  name: z.string().min(1).max(200),
-  country: z.string().max(100).optional(),
+  name: z.string().trim().min(1).max(200),
+  country: z.string().trim().max(100).optional(),
 })
+
+const updateOrgSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    country: z.string().trim().max(100).optional(),
+  })
+  .refine((body) => body.name !== undefined || body.country !== undefined, {
+    message: 'At least one field (name or country) must be provided',
+  })
 
 /**
  * Self-serve organization creation.
@@ -88,6 +98,57 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       name: body.name,
       country: body.country || null,
       role: 'org_admin',
+    }
+  })
+
+  fastify.patch<{
+    Params: { orgId: string }
+    Body: z.infer<typeof updateOrgSchema>
+  }>('/orgs/:orgId', async (request, reply) => {
+    if (!request.user) {
+      return reply.code(401).send({ error: 'Unauthorized' })
+    }
+
+    const { orgId } = request.params
+    const member = await requireOrgMember(request, reply, orgId)
+    if (reply.sent) return
+
+    if (member.role !== 'org_admin') {
+      return reply.code(403).send({ error: 'Only organization admins can perform this action' })
+    }
+
+    const body = updateOrgSchema.parse(request.body)
+    const db = getFirestore()
+    const orgRef = db.doc(`organizations/${orgId}`)
+    const orgSnap = await orgRef.get()
+
+    if (!orgSnap.exists) {
+      return reply.code(404).send({ error: 'Organization not found' })
+    }
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+    }
+
+    if (body.name !== undefined) updateData.name = body.name
+    if (body.country !== undefined) updateData.country = body.country || null
+
+    await orgRef.update(updateData)
+
+    const updatedSnap = await orgRef.get()
+    const data = updatedSnap.data()!
+
+    return {
+      ok: true,
+      org: {
+        id: updatedSnap.id,
+        name: data.name,
+        country: data.country ?? null,
+        createdBy: data.createdBy,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+        isActive: data.isActive ?? true,
+        billingPlan: data.billingPlan ?? null,
+      },
     }
   })
 }
