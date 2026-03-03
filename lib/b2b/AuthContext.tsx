@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react'
 import { User } from 'firebase/auth'
 import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
@@ -13,6 +13,7 @@ interface AuthState {
   currentOrgId: string | null
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
+  updateProfile: (updater: (current: SpecialistProfile | null) => SpecialistProfile | null) => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -23,8 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+  const profileRequestVersion = useRef(0)
 
   const loadProfile = async () => {
+    const requestVersion = ++profileRequestVersion.current
+
     try {
       const idToken = await getIdToken()
       if (!idToken) return
@@ -36,13 +40,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.checkSuperAdmin().catch(() => ({ isSuperAdmin: false })),
       ])
 
+      if (requestVersion !== profileRequestVersion.current) {
+        return
+      }
+
       if (profileData) {
         setProfile(profileData)
-        setCurrentOrgId(profileData.organizations[0]?.orgId || null)
+        setCurrentOrgId((prev) => {
+          if (prev && profileData.organizations.some((org) => org.orgId === prev)) {
+            return prev
+          }
+          return profileData.organizations[0]?.orgId || null
+        })
       }
 
       setIsSuperAdmin(superAdminData?.isSuperAdmin || false)
     } catch {
+      if (requestVersion !== profileRequestVersion.current) {
+        return
+      }
       setProfile(null)
       setIsSuperAdmin(false)
     }
@@ -66,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCurrentOrgId(null)
         }
       } else {
+        profileRequestVersion.current += 1
         setProfile(null)
         setIsSuperAdmin(false)
         setCurrentOrgId(null)
@@ -105,18 +122,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const value = useMemo(
-    () => ({
-      user,
-      profile,
-      isSuperAdmin,
-      isLoading,
-      currentOrgId,
-      logout,
-      refreshProfile,
-    }),
-    [user, profile, isSuperAdmin, isLoading, currentOrgId]
-  )
+  const updateProfile = (
+    updater: (current: SpecialistProfile | null) => SpecialistProfile | null
+  ) => {
+    profileRequestVersion.current += 1
+    setProfile((prev) => updater(prev))
+  }
+
+  const value = {
+    user,
+    profile,
+    isSuperAdmin,
+    isLoading,
+    currentOrgId,
+    logout,
+    refreshProfile,
+    updateProfile,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
