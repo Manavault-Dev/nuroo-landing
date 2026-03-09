@@ -31,14 +31,6 @@ export default function LoginPage() {
               apiClient.setToken(idToken)
 
               try {
-                const superAdminCheck = await apiClient.checkSuperAdmin()
-                if (superAdminCheck.isSuperAdmin) {
-                  router.replace('/b2b/content')
-                  return
-                }
-              } catch {}
-
-              try {
                 const profile = await apiClient.getMe()
                 if (profile.organizations && profile.organizations.length > 0) {
                   router.replace('/b2b')
@@ -80,14 +72,6 @@ export default function LoginPage() {
 
       const idTokenForCheck = await getIdToken(true)
       apiClient.setToken(idTokenForCheck)
-
-      try {
-        const superAdminCheck = await apiClient.checkSuperAdmin()
-        if (superAdminCheck.isSuperAdmin) {
-          router.push('/b2b/content')
-          return
-        }
-      } catch {}
 
       try {
         const profile = await apiClient.getMe()

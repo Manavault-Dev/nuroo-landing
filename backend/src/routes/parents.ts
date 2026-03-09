@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
-import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
@@ -19,7 +18,7 @@ async function fetchParentAuthData(parentUid: string) {
       email: parentUser.email || null,
       displayName: parentUser.displayName || null,
     }
-  } catch (error: any) {
+  } catch {
     return {
       email: null,
       displayName: null,
@@ -75,7 +74,19 @@ async function transformRealParent(
   }
 }
 
-function mergeParents(realParents: any[], legacyParents: any[]) {
+interface ParentRow {
+  id: string
+  parentUserId?: string
+  name?: string
+  email?: string | null
+  phone?: string | null
+  linkedSpecialistUid?: string | null
+  linkedChildrenCount?: number
+  joinedAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+function mergeParents(realParents: ParentRow[], legacyParents: ParentRow[]) {
   const realParentIds = new Set(realParents.map((p) => p.id))
   const uniqueLegacyParents = legacyParents.filter((p) => !realParentIds.has(p.id))
   return [...realParents, ...uniqueLegacyParents]
@@ -96,7 +107,7 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
       let realParentsSnap
       try {
         realParentsSnap = await db.collection(COLLECTIONS.ORG_PARENTS_REAL(orgId)).get()
-      } catch (error: any) {
+      } catch {
         realParentsSnap = { docs: [] }
       }
 
@@ -107,11 +118,11 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
       const allParents = mergeParents(realParents, legacyParents)
 
       return { ok: true, parents: allParents }
-    } catch (error: any) {
-      console.error('[PARENTS] Error fetching parents:', error)
+    } catch (err: unknown) {
+      console.error('[PARENTS] Error fetching parents:', err)
       return reply.code(500).send({
         error: 'Failed to fetch parent contacts',
-        details: error.message,
+        details: err instanceof Error ? err.message : '',
       })
     }
   })

@@ -1,56 +1,27 @@
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
+
+const BASE = 'https://usenuroo.com'
+const LOCALES = ['ru', 'en', 'ky'] as const
+
+// Only pages that actually exist under app/[locale]/
+const PAGES: Array<{
+  path: string
+  changeFrequency: MetadataRoute.Sitemap[0]['changeFrequency']
+  priority: number
+}> = [
+  { path: '', changeFrequency: 'weekly', priority: 1.0 },
+  { path: '/help', changeFrequency: 'monthly', priority: 0.6 },
+  { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
+]
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://usenuroo.com'
-
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/contact`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/help`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/resources`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
-  ]
+  const now = new Date()
+  return LOCALES.flatMap((locale) =>
+    PAGES.map(({ path, changeFrequency, priority }) => ({
+      url: `${BASE}/${locale}${path}`,
+      lastModified: now,
+      changeFrequency,
+      priority,
+    }))
+  )
 }

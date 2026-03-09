@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import admin from 'firebase-admin'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 
@@ -8,7 +9,10 @@ const COLLECTIONS = {
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
 } as const
 
-async function findActiveOrganization(db: any, uid: string): Promise<string | null> {
+async function findActiveOrganization(
+  db: admin.firestore.Firestore,
+  uid: string
+): Promise<string | null> {
   const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
 
   for (const orgDoc of orgsSnapshot.docs) {

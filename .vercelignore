@@ -1,0 +1,12 @@
+# Ignore backend app — deploy only Next.js frontend
+backend/
+
+# Ignore dev/docs and heavy dirs to reduce upload
+.auto-claude/
+docs/
+*.md
+!README.md
+
+# Avoid uploading extra caches/builds
+.cache/
+*.log
