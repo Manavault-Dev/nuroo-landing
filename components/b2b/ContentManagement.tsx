@@ -12,6 +12,8 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  ClipboardList,
+  CheckCircle2,
 } from 'lucide-react'
 
 export type ContentManagementMode = 'global' | 'org'
@@ -646,11 +648,10 @@ export function ContentManagement({
     )
   }
 
-  const baseTabs = [
-    { id: 'tasks' as ContentType, label: 'Tasks', icon: CheckSquare, count: tasks.length },
-    { id: 'roadmaps' as ContentType, label: 'Roadmaps', icon: BookOpen, count: roadmaps.length },
+  const tabs = [
+    { id: 'tasks' as ContentType, label: 'Задания', icon: CheckSquare, count: tasks.length },
+    { id: 'roadmaps' as ContentType, label: 'Программы', icon: BookOpen, count: roadmaps.length },
   ]
-  const tabs = baseTabs
 
   const getCurrentItems = () => {
     switch (activeTab) {
@@ -662,8 +663,7 @@ export function ContentManagement({
   }
 
   const currentItems = getCurrentItems()
-  const contentTypeLabel =
-    activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)
+  const contentTypeLabel = activeTab === 'tasks' ? 'Task' : 'Roadmap'
 
   const title = pageTitle ?? (mode === 'org' ? 'Assignments' : 'Content Management')
   const subtitle =
@@ -724,7 +724,7 @@ export function ContentManagement({
         </button>
       </div>
 
-      {currentItems.length === 0 ? (
+      {currentItems.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {(() => {
@@ -745,7 +745,9 @@ export function ContentManagement({
             Create {contentTypeLabel}
           </button>
         </div>
-      ) : (
+      )}
+
+      {currentItems.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentItems.map((item) => (
             <div

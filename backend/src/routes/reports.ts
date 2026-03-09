@@ -45,11 +45,41 @@ async function getChildTaskCountsInPeriod(
   return snap.docs.filter((d) => d.data().status === 'completed').length
 }
 
-async function getChildName(db: admin.firestore.Firestore, childId: string): Promise<string> {
-  const snap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
-  if (!snap.exists) return 'Unknown'
-  const d = snap.data()
-  return (d?.name || d?.childName || 'Unknown') as string
+async function getChildName(
+  db: admin.firestore.Firestore,
+  childId: string,
+  parentUserId?: string
+): Promise<string> {
+  const uid = parentUserId || childId
+
+  // 1. children/{childId} — legacy path
+  const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
+  if (childSnap.exists) {
+    const d = childSnap.data()
+    const name = d?.name || d?.childName || d?.fullName
+    if (name) return name as string
+    if (d?.firstName) return d.lastName ? `${d.firstName} ${d.lastName}` : (d.firstName as string)
+  }
+
+  // 2. users/{uid} — where the mobile app stores the child name during onboarding
+  const userSnap = await db.doc(`users/${uid}`).get()
+  if (userSnap.exists) {
+    const d = userSnap.data()
+    const name = d?.name || d?.childName || d?.fullName || d?.displayName
+    if (name) return name as string
+    if (d?.firstName) return d.lastName ? `${d.firstName} ${d.lastName}` : (d.firstName as string)
+  }
+
+  // 3. Firebase Auth displayName — last resort
+  try {
+    const user = await admin.auth().getUser(uid)
+    if (user.displayName) return user.displayName
+    if (user.email) return user.email.split('@')[0]
+  } catch {
+    // not found
+  }
+
+  return childId
 }
 
 async function getParentDisplayName(uid: string): Promise<string> {
@@ -64,7 +94,8 @@ async function getParentDisplayName(uid: string): Promise<string> {
 async function getOrgContentCompletions(
   db: admin.firestore.Firestore,
   orgId: string,
-  _startDate: Date
+  _startDate: Date,
+  allowedChildIds?: Set<string>
 ): Promise<{
   totalCompleted: number
   completedLast7Days: number
@@ -88,13 +119,17 @@ async function getOrgContentCompletions(
 
   snap.docs.forEach((doc) => {
     const data = doc.data()
+    const childId = data.childId as string | undefined
+
+    // If a specialist scope is given, skip children not in their list
+    if (allowedChildIds && childId && !allowedChildIds.has(childId)) return
+
     totalCompleted++
     const completedAt = data.completedAt?.toDate?.() as Date | undefined
     if (completedAt) {
       if (completedAt >= start7) completedLast7Days++
       if (completedAt >= start30) completedLast30Days++
     }
-    const childId = data.childId as string | undefined
     if (childId) {
       childCounts.set(childId, (childCounts.get(childId) || 0) + 1)
     }
@@ -125,20 +160,72 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
       const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
       const orgChildrenRef = db.collection(COLLECTIONS.ORG_CHILDREN(orgId))
-      const orgChildrenSnap = await orgChildrenRef.where('assigned', '==', true).get()
-      const docs =
-        member.role === 'org_admin'
-          ? orgChildrenSnap.docs
-          : orgChildrenSnap.docs.filter((d) => (d.data().assignedSpecialistId as string) === uid)
+      let docs: admin.firestore.QueryDocumentSnapshot[]
+
+      if (member.role === 'org_admin') {
+        const snap = await orgChildrenRef.where('assigned', '==', true).get()
+        docs = snap.docs
+      } else {
+        // 1. Directly assigned children
+        const directSnap = await orgChildrenRef
+          .where('assigned', '==', true)
+          .where('assignedSpecialistId', '==', uid)
+          .get()
+
+        const seenIds = new Set(directSnap.docs.map((d) => d.id))
+        docs = [...directSnap.docs]
+
+        // 2. Children from this specialist's groups
+        const groupsSnap = await db
+          .collection(`specialists/${uid}/groups`)
+          .where('orgId', '==', orgId)
+          .get()
+
+        for (const groupDoc of groupsSnap.docs) {
+          const parentsSnap = await db
+            .collection(`specialists/${uid}/groups/${groupDoc.id}/parents`)
+            .get()
+
+          const newChildIds: string[] = []
+          for (const parentDoc of parentsSnap.docs) {
+            const childIds = (parentDoc.data().childIds as string[]) || []
+            for (const childId of childIds) {
+              if (!seenIds.has(childId)) {
+                newChildIds.push(childId)
+                seenIds.add(childId)
+              }
+            }
+          }
+
+          for (let i = 0; i < newChildIds.length; i += 10) {
+            const batch = newChildIds.slice(i, i + 10)
+            const batchSnap = await orgChildrenRef
+              .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+              .get()
+            docs.push(...batchSnap.docs)
+          }
+        }
+      }
 
       const childIds: string[] = []
       const parentByChild = new Map<string, string>()
+      const childNameFromLink = new Map<string, string>()
       docs.forEach((doc) => {
         const data = doc.data()
         const cid = doc.id
         const parentUid = data.parentUserId || data.parentUid
         childIds.push(cid)
         if (parentUid) parentByChild.set(cid, parentUid)
+        const linkName =
+          data.childName ||
+          data.name ||
+          data.fullName ||
+          (data.firstName
+            ? data.lastName
+              ? `${data.firstName} ${data.lastName}`
+              : data.firstName
+            : undefined)
+        if (linkName) childNameFromLink.set(cid, linkName as string)
       })
 
       const childCompletion: Array<{
@@ -152,8 +239,9 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
 
       for (const childId of childIds) {
         const { total, completed } = await getChildTaskCounts(db, childId)
-        const childName = await getChildName(db, childId)
         const parentUid = parentByChild.get(childId) ?? null
+        const childName =
+          childNameFromLink.get(childId) ?? (await getChildName(db, childId, parentUid ?? undefined))
         const parentName = parentUid ? await getParentDisplayName(parentUid) : null
         childCompletion.push({
           childId,
@@ -268,8 +356,8 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
 
       const lowActivity = parentActivity.filter((p) => p.completedLast7 === 0)
 
-      // P1 fix: Include content completions from alphakidsTaskCompletions
-      const contentActivity = await getOrgContentCompletions(db, orgId, start30)
+      const childIdSet = member.role === 'org_admin' ? undefined : new Set(childIds)
+      const contentActivity = await getOrgContentCompletions(db, orgId, start30, childIdSet)
 
       return {
         ok: true,

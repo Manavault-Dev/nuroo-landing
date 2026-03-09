@@ -65,6 +65,9 @@ export interface ChildTask {
   createdAt: string | null
   updatedAt: string | null
   completedAt: string | null
+  submissionText: string | null
+  fileUrl: string | null
+  submittedAt: string | null
 }
 
 export type ChildTaskResponse = ChildTask & {
@@ -487,6 +490,15 @@ export class ApiClient {
     )
   }
 
+  async disconnectParent(orgId: string, parentUserId: string) {
+    cache.invalidate(`connections:${orgId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean; childrenUnlinked: number; groupsUpdated: number }>(
+      `/orgs/${orgId}/connections/${encodeURIComponent(parentUserId)}`,
+      { method: 'DELETE' }
+    )
+  }
+
   // Groups
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getGroups(orgId: string) {
@@ -603,6 +615,128 @@ export class ApiClient {
       `/orgs/${orgId}/groups/${groupId}/parents/${parentUserId}`,
       { method: 'DELETE' }
     )
+  }
+
+  async assignGroupTasks(orgId: string, groupId: string, contentTaskIds: string[], dueDate?: string | null, ownerId?: string) {
+    const url = ownerId
+      ? `/orgs/${orgId}/groups/${groupId}/assign?ownerId=${encodeURIComponent(ownerId)}`
+      : `/orgs/${orgId}/groups/${groupId}/assign`
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean; tasksCreated: number; childCount: number; taskCount: number }>(
+      url,
+      { method: 'POST', body: JSON.stringify({ contentTaskIds, dueDate: dueDate ?? null }) }
+    )
+  }
+
+  async getGroupAssignment(orgId: string, groupId: string, assignmentId: string, ownerId?: string) {
+    const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
+    return this.request<{
+      ok: boolean
+      assignment: {
+        id: string
+        groupId: string
+        groupName: string
+        ownerId: string
+        title: string
+        description: string | null
+        dueDate: string | null
+        taskTitles: string[]
+        childCount: number
+        status: 'active' | 'closed'
+        assignedAt: string | null
+        submissions: Array<{
+          childId: string
+          childName: string
+          age?: number
+          taskId: string | null
+          status: 'pending' | 'submitted' | 'graded'
+          submissionText: string | null
+          fileUrl: string | null
+          submittedAt: string | null
+          grade: 'approved' | 'needs_revision' | null
+          feedback: string | null
+          feedbackAt: string | null
+        }>
+      }
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}${query}`)
+  }
+
+  async updateGroupAssignment(
+    orgId: string,
+    groupId: string,
+    assignmentId: string,
+    updates: { status?: 'active' | 'closed'; dueDate?: string | null; title?: string; description?: string | null }
+  ) {
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async deleteGroupAssignment(orgId: string, groupId: string, assignmentId: string) {
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getAssignmentComments(orgId: string, groupId: string, assignmentId: string) {
+    return this.request<{
+      ok: boolean
+      comments: Array<{
+        id: string
+        authorId: string
+        authorName: string
+        authorRole: string
+        text: string
+        createdAt: string | null
+      }>
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`)
+  }
+
+  async addAssignmentComment(orgId: string, groupId: string, assignmentId: string, text: string) {
+    return this.request<{ ok: boolean; comment: { id: string; authorName: string; text: string; createdAt: string } }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`,
+      { method: 'POST', body: JSON.stringify({ text }) }
+    )
+  }
+
+  async reviewSubmission(
+    orgId: string,
+    groupId: string,
+    assignmentId: string,
+    childId: string,
+    data: { grade: 'approved' | 'needs_revision'; feedback?: string }
+  ) {
+    return this.request<{ ok: boolean; childId: string; grade: string }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/submissions/${childId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
+    )
+  }
+
+  async getGroupAssignments(orgId: string, groupId: string, ownerId?: string) {
+    const url = ownerId
+      ? `/orgs/${orgId}/groups/${groupId}/assignments?ownerId=${encodeURIComponent(ownerId)}`
+      : `/orgs/${orgId}/groups/${groupId}/assignments`
+    return this.cachedRequest<{
+      ok: boolean
+      assignments: Array<{
+        id: string
+        groupId: string
+        groupName: string
+        taskTitles: string[]
+        contentTaskIds: string[]
+        childCount: number
+        tasksCreated: number
+        assignedBy: string
+        assignedAt: string | null
+      }>
+      count: number
+    }>(url, `groupAssignments:${orgId}:${groupId}`, 'default')
   }
 
   // Admin: Organizations

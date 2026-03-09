@@ -38,7 +38,8 @@ export async function requireOrgMember(
  * Check if user can access a child
  * Rules:
  * - Org Admin: Can access ALL children in their org
- * - Specialist: Can only access children assigned to them (assignedSpecialistId === their uid)
+ * - Specialist: Can access children assigned to them directly (assignedSpecialistId === their uid)
+ *              OR children that belong to any of their groups in this org
  */
 export async function requireChildAccess(
   request: FastifyRequest,
@@ -69,7 +70,6 @@ export async function requireChildAccess(
 
   // Org Admin can access all children
   if (role === 'org_admin') {
-    // Verify child is assigned to org
     const childAssignmentRef = db.doc(`organizations/${orgId}/children/${childId}`)
     const assignmentSnap = await childAssignmentRef.get()
 
@@ -80,7 +80,7 @@ export async function requireChildAccess(
     return // Org Admin has access
   }
 
-  // Specialist: Check if child is assigned to them
+  // Specialist: Check direct assignment or group membership
   if (role === 'specialist') {
     const childAssignmentRef = db.doc(`organizations/${orgId}/children/${childId}`)
     const assignmentSnap = await childAssignmentRef.get()
@@ -94,20 +94,31 @@ export async function requireChildAccess(
       return reply.code(403).send({ error: 'Child assignment is inactive' }) as never
     }
 
-    // Check if assigned to this specialist
+    // 1. Direct assignment
     const assignedSpecialistId = assignmentData.assignedSpecialistId
-    if (assignedSpecialistId && assignedSpecialistId !== uid) {
-      return reply.code(403).send({ error: 'Child is not assigned to you' }) as never
+    if (assignedSpecialistId === uid) {
+      return // Has direct access
     }
 
-    // If no assignedSpecialistId, only Org Admin can access
-    if (!assignedSpecialistId) {
-      return reply.code(403).send({
-        error: 'Child is not assigned to any specialist. Please contact your organization admin.',
-      }) as never
+    // 2. Group membership — check if this child is in any of the specialist's groups
+    const groupsSnap = await db
+      .collection(`specialists/${uid}/groups`)
+      .where('orgId', '==', orgId)
+      .get()
+
+    for (const groupDoc of groupsSnap.docs) {
+      const parentsSnap = await db
+        .collection(`specialists/${uid}/groups/${groupDoc.id}/parents`)
+        .get()
+      for (const parentDoc of parentsSnap.docs) {
+        const childIds = (parentDoc.data().childIds as string[]) || []
+        if (childIds.includes(childId)) {
+          return // Has access via group
+        }
+      }
     }
 
-    return // Specialist has access
+    return reply.code(403).send({ error: 'Child is not assigned to you' }) as never
   }
 
   // Unknown role

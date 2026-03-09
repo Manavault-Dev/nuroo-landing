@@ -772,17 +772,37 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         continue
       }
 
-      // Get child details
+      // Get child details - check children collection, users collection, then Firebase Auth
       const childRef = db.doc(`children/${childId}`)
       const childSnap = await childRef.get()
+      const userRef = db.doc(`users/${childId}`)
+      const userSnap = await userRef.get()
 
       let childName = 'Unknown'
       let childAge: number | undefined
 
       if (childSnap.exists) {
         const childData = childSnap.data()!
-        childName = childData.name || childData.childName || 'Unknown'
+        childName = childData.name || childData.childName || childName
         childAge = childData.age || childData.childAge
+      }
+
+      // Fallback to users collection (mobile app stores child name here)
+      if (childName === 'Unknown' && userSnap.exists) {
+        const userData = userSnap.data()!
+        childName = userData.name || userData.childName || childName
+        childAge = childAge || userData.age || userData.childAge
+      }
+
+      // Fallback to Firebase Auth displayName
+      if (childName === 'Unknown') {
+        try {
+          const authUser = await admin.auth().getUser(parentUserId || childId)
+          if (authUser.displayName) childName = authUser.displayName
+          else if (authUser.email) childName = authUser.email.split('@')[0]
+        } catch {
+          // user not found
+        }
       }
 
       if (!parentMap.has(parentUserId)) {

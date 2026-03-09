@@ -141,4 +141,49 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
   })
+
+  // Parent submits homework evidence (text + optional file URL from Firebase Storage)
+  fastify.patch<{
+    Params: { childId: string; taskId: string }
+    Body: { submissionText?: string; fileUrl?: string }
+  }>('/api/parent/children/:childId/tasks/:taskId/submit', async (request, reply) => {
+    try {
+      if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+      const uid = request.user.uid
+      const { childId, taskId } = request.params
+      const db = getFirestore()
+
+      const childRef = db.doc(`${COLLECTIONS.CHILDREN}/${childId}`)
+      const childSnap = await childRef.get()
+      if (!childSnap.exists) return reply.code(404).send({ error: 'Child not found' })
+
+      const orgId = childSnap.data()?.organizationId
+      if (!orgId) return reply.code(403).send({ error: 'Child not linked to an organization' })
+
+      const orgChildRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`)
+      const orgChildSnap = await orgChildRef.get()
+      if (!orgChildSnap.exists || orgChildSnap.data()?.parentUserId !== uid) {
+        return reply.code(403).send({ error: 'Only the parent of this child can submit homework' })
+      }
+
+      const taskRef = db.doc(`${COLLECTIONS.CHILD_TASKS(childId)}/${taskId}`)
+      const taskSnap = await taskRef.get()
+      if (!taskSnap.exists) return reply.code(404).send({ error: 'Task not found' })
+
+      const body = request.body as { submissionText?: string; fileUrl?: string }
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+
+      await taskRef.update({
+        submissionText: body.submissionText ?? null,
+        fileUrl: body.fileUrl ?? null,
+        submittedAt: now,
+        updatedAt: now,
+      })
+
+      return { ok: true, taskId, submittedAt: now.toDate() }
+    } catch (error: any) {
+      console.error('[PARENT_TASKS] Error submitting homework:', error)
+      return reply.code(500).send({ error: 'Failed to submit homework', details: error.message })
+    }
+  })
 }
