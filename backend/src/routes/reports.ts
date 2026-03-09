@@ -241,7 +241,8 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
         const { total, completed } = await getChildTaskCounts(db, childId)
         const parentUid = parentByChild.get(childId) ?? null
         const childName =
-          childNameFromLink.get(childId) ?? (await getChildName(db, childId, parentUid ?? undefined))
+          childNameFromLink.get(childId) ??
+          (await getChildName(db, childId, parentUid ?? undefined))
         const parentName = parentUid ? await getParentDisplayName(parentUid) : null
         childCompletion.push({
           childId,

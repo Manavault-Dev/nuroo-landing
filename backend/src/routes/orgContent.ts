@@ -333,9 +333,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
       .get()
 
     // Exclude only explicitly disconnected children (assigned === false)
-    let childIds = childQuery.docs
-      .filter((d) => d.data().assigned !== false)
-      .map((d) => d.id)
+    let childIds = childQuery.docs.filter((d) => d.data().assigned !== false).map((d) => d.id)
 
     // 3. If we have org access but no children yet — try to find children via
     //    the specialist's group membership (parent may have joined before children were linked)
@@ -394,7 +392,10 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const access = await requireParentOrgAccess(request, reply, orgId)
         if (!access) return
         const db = getFirestore()
-        const snap = await db.collection(COLLECTIONS.ORG_ROADMAPS(orgId)).orderBy('createdAt', 'desc').get()
+        const snap = await db
+          .collection(COLLECTIONS.ORG_ROADMAPS(orgId))
+          .orderBy('createdAt', 'desc')
+          .get()
         return { ok: true, roadmaps: snap.docs.map((d) => transformDoc(d)), count: snap.size }
       } catch (e: any) {
         return reply.code(500).send({ error: e?.message || 'Failed to list roadmaps' })
@@ -442,7 +443,10 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const tasksCollection = db.collection(COLLECTIONS.ORG_TASKS(orgId))
         const { ids } = request.query as { ids?: string }
         if (ids) {
-          const taskIds = ids.split(',').map((s) => s.trim()).filter(Boolean)
+          const taskIds = ids
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
           if (taskIds.length === 0) return { ok: true, tasks: [], count: 0 }
           const taskSnaps = await Promise.all(taskIds.map((id) => tasksCollection.doc(id).get()))
           const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
@@ -484,7 +488,8 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         if (!access) return
         if (!request.user) return
         const db = getFirestore()
-        const body = (request.body as { completed?: boolean; childId?: string; roadmapId?: string }) || {}
+        const body =
+          (request.body as { completed?: boolean; childId?: string; roadmapId?: string }) || {}
         const completed = body.completed !== false
         const childId = body.childId || access.childIds[0] || request.user.uid
         const roadmapId = body.roadmapId
@@ -495,7 +500,12 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const compRef = db.collection('alphakidsTaskCompletions').doc(docId)
         const now = admin.firestore.Timestamp.fromDate(new Date())
         const update: Record<string, unknown> = {
-          taskId, parentId, childId, orgId, completed, updatedAt: now,
+          taskId,
+          parentId,
+          childId,
+          orgId,
+          completed,
+          updatedAt: now,
           completedAt: completed ? now : null,
         }
         if (roadmapId) update.roadmapId = roadmapId
@@ -549,7 +559,15 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
 
             // For old tasks that lack rich fields, fall back to the content library doc
             let ct: Record<string, unknown> = {}
-            if (d.contentTaskId && (!d.category && !d.videoUrl && !d.imageUrl && !d.difficulty && !d.estimatedDuration && !d.instructions)) {
+            if (
+              d.contentTaskId &&
+              !d.category &&
+              !d.videoUrl &&
+              !d.imageUrl &&
+              !d.difficulty &&
+              !d.estimatedDuration &&
+              !d.instructions
+            ) {
               ct = await getContentTask(d.contentTaskId as string)
             }
 
@@ -614,7 +632,15 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const ctIdsToFetch = new Set<string>()
         for (const doc of tasksSnap.docs) {
           const d = doc.data()
-          if (d.contentTaskId && (!d.category && !d.videoUrl && !d.imageUrl && !d.difficulty && !d.estimatedDuration && !d.instructions)) {
+          if (
+            d.contentTaskId &&
+            !d.category &&
+            !d.videoUrl &&
+            !d.imageUrl &&
+            !d.difficulty &&
+            !d.estimatedDuration &&
+            !d.instructions
+          ) {
             ctIdsToFetch.add(d.contentTaskId as string)
           }
         }
@@ -624,13 +650,16 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
             try {
               const snap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${ctId}`).get()
               if (snap.exists) ctMap.set(ctId, snap.data() as Record<string, unknown>)
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           })
         )
 
         const tasks = tasksSnap.docs.map((doc) => {
           const d = doc.data()
-          const ct: Record<string, unknown> = (d.contentTaskId && ctMap.get(d.contentTaskId as string)) || {}
+          const ct: Record<string, unknown> =
+            (d.contentTaskId && ctMap.get(d.contentTaskId as string)) || {}
           return {
             id: doc.id,
             childId,
