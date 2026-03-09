@@ -126,10 +126,7 @@ export function Solution() {
             </div>
           </div>
 
-          <div
-            data-sr
-            className="sr-up sr-duration-700 sr-delay-200 text-center max-w-4xl mx-auto"
-          >
+          <div data-sr className="sr-up sr-duration-700 sr-delay-200 text-center max-w-4xl mx-auto">
             <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6">
               {t('allInOneTitle')}
               <span className="gradient-text"> {t('allInOneHighlight')}</span>
@@ -195,10 +192,7 @@ export function Solution() {
                   {stat.static ? (
                     stat.static
                   ) : (
-                    <span
-                      data-count-target={stat.number}
-                      data-count-suffix={stat.suffix}
-                    >
+                    <span data-count-target={stat.number} data-count-suffix={stat.suffix}>
                       0{stat.suffix}
                     </span>
                   )}

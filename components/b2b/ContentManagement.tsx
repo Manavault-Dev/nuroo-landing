@@ -12,8 +12,6 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  ClipboardList,
-  CheckCircle2,
 } from 'lucide-react'
 
 export type ContentManagementMode = 'global' | 'org'

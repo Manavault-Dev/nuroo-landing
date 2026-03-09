@@ -617,16 +617,24 @@ export class ApiClient {
     )
   }
 
-  async assignGroupTasks(orgId: string, groupId: string, contentTaskIds: string[], dueDate?: string | null, ownerId?: string) {
+  async assignGroupTasks(
+    orgId: string,
+    groupId: string,
+    contentTaskIds: string[],
+    dueDate?: string | null,
+    ownerId?: string
+  ) {
     const url = ownerId
       ? `/orgs/${orgId}/groups/${groupId}/assign?ownerId=${encodeURIComponent(ownerId)}`
       : `/orgs/${orgId}/groups/${groupId}/assign`
     cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
     cache.invalidate(`groups:${orgId}`)
-    return this.request<{ ok: boolean; tasksCreated: number; childCount: number; taskCount: number }>(
-      url,
-      { method: 'POST', body: JSON.stringify({ contentTaskIds, dueDate: dueDate ?? null }) }
-    )
+    return this.request<{
+      ok: boolean
+      tasksCreated: number
+      childCount: number
+      taskCount: number
+    }>(url, { method: 'POST', body: JSON.stringify({ contentTaskIds, dueDate: dueDate ?? null }) })
   }
 
   async getGroupAssignment(orgId: string, groupId: string, assignmentId: string, ownerId?: string) {
@@ -666,7 +674,12 @@ export class ApiClient {
     orgId: string,
     groupId: string,
     assignmentId: string,
-    updates: { status?: 'active' | 'closed'; dueDate?: string | null; title?: string; description?: string | null }
+    updates: {
+      status?: 'active' | 'closed'
+      dueDate?: string | null
+      title?: string
+      description?: string | null
+    }
   ) {
     cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
     return this.request<{ ok: boolean }>(
@@ -699,10 +712,13 @@ export class ApiClient {
   }
 
   async addAssignmentComment(orgId: string, groupId: string, assignmentId: string, text: string) {
-    return this.request<{ ok: boolean; comment: { id: string; authorName: string; text: string; createdAt: string } }>(
-      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`,
-      { method: 'POST', body: JSON.stringify({ text }) }
-    )
+    return this.request<{
+      ok: boolean
+      comment: { id: string; authorName: string; text: string; createdAt: string }
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    })
   }
 
   async reviewSubmission(

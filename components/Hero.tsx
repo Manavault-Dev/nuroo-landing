@@ -182,7 +182,6 @@ export function Hero() {
                   </p>
                 </div>
               </div>
-
             </div>
           </div>
         </div>

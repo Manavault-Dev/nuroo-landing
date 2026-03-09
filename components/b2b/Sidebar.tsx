@@ -4,7 +4,6 @@ import { Link } from '@/i18n/navigation'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import logo from '@/public/logo.png'
 import {
   Grid,
   Users,
@@ -125,7 +124,14 @@ export function Sidebar({
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
         <div className="p-4 lg:p-6 border-b border-gray-200">
           <Link href="/b2b" className="flex items-center space-x-3 mb-4" onClick={onMobileClose}>
-            <Image src={logo} alt="Nuroo Logo" width={32} height={32} className="rounded-lg" />
+            <Image
+              src="/logo.png"
+              alt="Nuroo Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+              unoptimized
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
               <p className="text-xs text-gray-500">{t('b2bPlatform')}</p>

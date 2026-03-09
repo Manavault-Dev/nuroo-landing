@@ -50,8 +50,7 @@ function resolveContentType(url: string, upstreamType: string): string {
     const parsed = new URL(url)
     // The file path is the last segment of the /o/ path, URL-encoded
     const oIndex = parsed.pathname.indexOf('/o/')
-    const rawPath =
-      oIndex !== -1 ? parsed.pathname.slice(oIndex + 3) : parsed.pathname
+    const rawPath = oIndex !== -1 ? parsed.pathname.slice(oIndex + 3) : parsed.pathname
     const decoded = decodeURIComponent(rawPath)
     const ext = decoded.split('.').pop()?.toLowerCase().split('?')[0] ?? ''
     if (ext && EXT_MIME[ext]) return EXT_MIME[ext]
@@ -97,8 +96,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Upstream error', { status: upstream.status })
     }
 
-    const rawContentType =
-      upstream.headers.get('content-type') || 'application/octet-stream'
+    const rawContentType = upstream.headers.get('content-type') || 'application/octet-stream'
     let contentType = resolveContentType(url, rawContentType)
     const reader = upstream.body
     if (!reader) {
@@ -117,14 +115,15 @@ export async function GET(request: NextRequest) {
         chunks.push(value)
       }
     }
-    let buffer = await new Blob(chunks).arrayBuffer()
+    const buffer = await new Blob(chunks as BlobPart[]).arrayBuffer()
 
     const isHeic =
       contentType === 'image/heic' ||
       contentType === 'image/heif' ||
-      (url.toLowerCase().includes('.heic') || url.toLowerCase().includes('.heif'))
+      url.toLowerCase().includes('.heic') ||
+      url.toLowerCase().includes('.heif')
 
-    let body: ArrayBuffer | Buffer = buffer
+    let body: ArrayBuffer | Uint8Array = buffer
     if (isHeic) {
       try {
         const heicConvert = await import('heic-convert')
@@ -134,14 +133,21 @@ export async function GET(request: NextRequest) {
           format: 'JPEG',
           quality: 0.92,
         })
-        body = Buffer.isBuffer(jpegBuffer) ? jpegBuffer : Buffer.from(jpegBuffer as ArrayBuffer)
+        const out = Buffer.isBuffer(jpegBuffer)
+          ? jpegBuffer
+          : Buffer.from(jpegBuffer as ArrayBuffer)
+        body = new Uint8Array(out)
         contentType = 'image/jpeg'
       } catch (e) {
         console.warn('[media-proxy] HEIC convert failed, returning original:', e)
       }
     }
 
-    return new NextResponse(body, {
+    const responseBody: ArrayBuffer =
+      body instanceof ArrayBuffer
+        ? body
+        : (body.buffer as ArrayBuffer).slice(body.byteOffset, body.byteOffset + body.byteLength)
+    return new NextResponse(responseBody, {
       status: 200,
       headers: {
         'Content-Type': contentType,
