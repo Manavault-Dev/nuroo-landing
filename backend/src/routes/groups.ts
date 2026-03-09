@@ -179,7 +179,11 @@ async function resolveUserName(
   }
 }
 
-async function fetchChildData(db: admin.firestore.Firestore, childId: string, parentUserId?: string) {
+async function fetchChildData(
+  db: admin.firestore.Firestore,
+  childId: string,
+  parentUserId?: string
+) {
   const childRef = db.doc(`${COLLECTIONS.CHILDREN}/${childId}`)
   const childSnap = await childRef.get()
   const childData = childSnap.exists ? childSnap.data() : null
@@ -699,7 +703,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return { ok: true, assignments, count: assignments.length }
     } catch (error: any) {
       console.error('[GROUPS] Error fetching assignment history:', error)
-      return reply.code(500).send({ error: 'Failed to fetch assignment history', details: error.message })
+      return reply
+        .code(500)
+        .send({ error: 'Failed to fetch assignment history', details: error.message })
     }
   })
 
@@ -731,9 +737,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       // Fetch content tasks from the org library
       const contentTaskDocs = await Promise.all(
-        body.contentTaskIds.map((id) =>
-          db.doc(`organizations/${orgId}/contentTasks/${id}`).get()
-        )
+        body.contentTaskIds.map((id) => db.doc(`organizations/${orgId}/contentTasks/${id}`).get())
       )
       const contentTasks = contentTaskDocs
         .filter((snap) => snap.exists)
@@ -880,11 +884,15 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
               taskId = tasksSnap.docs[0].id
               taskData = tasksSnap.docs[0].data()
             }
-          } catch { /* index not ready — submission shows as pending */ }
+          } catch {
+            /* index not ready — submission shows as pending */
+          }
 
           const status = taskData
             ? taskData.submittedAt
-              ? taskData.grade ? 'graded' : 'submitted'
+              ? taskData.grade
+                ? 'graded'
+                : 'submitted'
               : 'pending'
             : 'pending'
 
@@ -923,7 +931,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     } catch (error: any) {
       console.error('[GROUPS] Error fetching assignment detail:', error)
-      return reply.code(500).send({ error: 'Failed to fetch assignment detail', details: error.message })
+      return reply
+        .code(500)
+        .send({ error: 'Failed to fetch assignment detail', details: error.message })
     }
   })
 
@@ -947,7 +957,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(403).send({ error: 'You can only update your own assignments' })
       }
 
-      const updates: Record<string, any> = { updatedAt: admin.firestore.Timestamp.fromDate(new Date()) }
+      const updates: Record<string, any> = {
+        updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+      }
       if (body.status) updates.status = body.status
       if (body.dueDate !== undefined) updates.dueDate = body.dueDate
       if (body.title) updates.title = body.title
@@ -995,9 +1007,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         // query all children in the org to find tasks with matching groupAssignmentId
         if (childIds.length === 0) {
           try {
-            const orgChildrenSnap = await db
-              .collection(`organizations/${orgId}/children`)
-              .get()
+            const orgChildrenSnap = await db.collection(`organizations/${orgId}/children`).get()
             childIds = orgChildrenSnap.docs.map((d) => d.id)
           } catch {
             // ignore — will skip task deletion
@@ -1027,7 +1037,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         await assignmentRef.delete()
         return { ok: true }
       } catch (error: any) {
-        return reply.code(500).send({ error: 'Failed to delete assignment', details: error.message })
+        return reply
+          .code(500)
+          .send({ error: 'Failed to delete assignment', details: error.message })
       }
     }
   )
@@ -1093,7 +1105,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           const d = snap.data()!
           authorName = d.fullName || d.name || authorName
         }
-      } catch { /* specialist lookup optional */ }
+      } catch {
+        /* specialist lookup optional */
+      }
 
       const commentRef = db
         .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
@@ -1145,7 +1159,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         if (!assignmentSnap.exists) return reply.code(404).send({ error: 'Assignment not found' })
         const aData = assignmentSnap.data()!
         if (member.role === 'specialist' && aData.ownerId !== uid) {
-          return reply.code(403).send({ error: 'You can only review submissions for your own assignments' })
+          return reply
+            .code(403)
+            .send({ error: 'You can only review submissions for your own assignments' })
         }
 
         // Find the child's task for this assignment
@@ -1170,7 +1186,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
         return { ok: true, childId, grade: body.grade }
       } catch (error: any) {
-        return reply.code(500).send({ error: 'Failed to review submission', details: error.message })
+        return reply
+          .code(500)
+          .send({ error: 'Failed to review submission', details: error.message })
       }
     }
   )

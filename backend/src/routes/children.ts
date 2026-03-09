@@ -134,7 +134,11 @@ async function resolveChildName(
   return 'Unknown'
 }
 
-async function fetchChildDetails(db: admin.firestore.Firestore, childId: string, parentUserId?: string) {
+async function fetchChildDetails(
+  db: admin.firestore.Firestore,
+  childId: string,
+  parentUserId?: string
+) {
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   const childData = childSnap.exists ? childSnap.data() : null
 
@@ -246,7 +250,7 @@ async function countCompletedTasks(db: admin.firestore.Firestore, childId: strin
   return tasksSnapshot.size
 }
 
-function transformChildSummary(
+function _transformChildSummary(
   childId: string,
   childData: admin.firestore.DocumentData | null | undefined,
   progressData: admin.firestore.DocumentData | null | undefined,
@@ -415,7 +419,10 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           age: childData?.age || childData?.childAge || userData?.age || userData?.childAge,
           speechStepId: progressData?.currentStepId,
           speechStepNumber: progressData?.currentStepNumber,
-          lastActiveDate: childData?.lastActiveDate?.toDate() || childData?.updatedAt?.toDate() || userData?.updatedAt?.toDate?.(),
+          lastActiveDate:
+            childData?.lastActiveDate?.toDate() ||
+            childData?.updatedAt?.toDate() ||
+            userData?.updatedAt?.toDate?.(),
           completedTasksCount,
         })
       }
@@ -595,9 +602,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
 
         // Step A: soft-delete all children of this parent in the org
         const orgChildrenRef = db.collection(COLLECTIONS.ORG_CHILDREN(orgId))
-        const childrenSnap = await orgChildrenRef
-          .where('parentUserId', '==', parentUserId)
-          .get()
+        const childrenSnap = await orgChildrenRef.where('parentUserId', '==', parentUserId).get()
 
         let childrenUnlinked = 0
         if (!childrenSnap.empty) {
