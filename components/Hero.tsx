@@ -162,10 +162,10 @@ export function Hero() {
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                    Задача выполнена
+                    {t('taskCompleted')}
                   </p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                    Моторика · 5 мин назад
+                    {t('floatCardCategory')} · {t('floatCardTime')}
                   </p>
                 </div>
               </div>
@@ -175,10 +175,10 @@ export function Hero() {
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary-500 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                    Прогресс +18%
+                    {t('floatCardProgress')}
                   </p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                    За эту неделю
+                    {t('floatCardWeek')}
                   </p>
                 </div>
               </div>

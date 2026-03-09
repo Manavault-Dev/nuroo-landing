@@ -22,7 +22,12 @@
       "organizersSpecialists": "For Professionals",
       "logIn": "Log in",
       "createAccount": "Create account",
-      "statMain": "1,500+ families already use Nuroo in 30 countries"
+      "statMain": "1,500+ families already use Nuroo in 30 countries",
+      "taskCompleted": "Task completed",
+      "floatCardCategory": "Motor skills",
+      "floatCardTime": "5 min ago",
+      "floatCardProgress": "Progress +18%",
+      "floatCardWeek": "This week"
     },
     "problem": {
       "badge": "The Challenge",
@@ -552,6 +557,7 @@
         "taskShort": "Task",
         "open": "Open",
         "noAssignments": "No tasks",
+        "assignmentDefaultTitle": "Assignment",
         "createFirstAssignment": "Create the first task for this group",
         "newAssignment": "New task",
         "noMembers": "No members",
@@ -562,6 +568,7 @@
         "hideAnswer": "Hide answer",
         "viewFullSize": "View full size",
         "previewUnavailable": "Preview unavailable",
+        "lightboxCloseHint": "Esc or click outside to close",
         "submittedAt": "Submitted {time}",
         "notSubmitted": "Not submitted yet",
         "change": "Edit",

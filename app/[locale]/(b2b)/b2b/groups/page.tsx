@@ -426,7 +426,7 @@ export default function GroupsPage() {
             groupId: a.groupId,
             groupName: a.groupName,
             taskTitles: a.taskTitles || [],
-            title: (a.taskTitles && a.taskTitles[0]) || 'Assignment',
+            title: (a.taskTitles && a.taskTitles[0]) || t('assignmentDefaultTitle'),
             description: null,
             dueDate: null,
             status: 'active' as const,
@@ -1876,7 +1876,13 @@ export default function GroupsPage() {
       )}
 
       {/* ── Image lightbox (view only) ───────────────────────────────────────── */}
-      {lightboxUrl && <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+      {lightboxUrl && (
+        <Lightbox
+          url={lightboxUrl}
+          onClose={() => setLightboxUrl(null)}
+          closeHint={t('lightboxCloseHint')}
+        />
+      )}
     </div>
   )
 }
@@ -2104,7 +2110,15 @@ function AssignmentsTab({
 
 // ─── Lightbox ──────────────────────────────────────────────────────────────────
 
-function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
+function Lightbox({
+  url,
+  onClose,
+  closeHint = 'Esc or click outside to close',
+}: {
+  url: string
+  onClose: () => void
+  closeHint?: string
+}) {
   const mediaType = getMediaTypeFromUrl(url)
   const [imageUseDirect, setImageUseDirect] = useState(false)
   const imageSrc = imageUseDirect ? url : proxyUrl(url)
@@ -2168,7 +2182,7 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
       </div>
 
       <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 pointer-events-none">
-        Esc или клик вне изображения — закрыть
+        {closeHint}
       </p>
     </div>
   )
