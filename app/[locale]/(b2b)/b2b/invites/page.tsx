@@ -32,7 +32,7 @@ export default function InvitesPage() {
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
     profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
   const isSpecialist = currentOrg?.role === 'specialist' || isAdmin
 
   useEffect(() => {

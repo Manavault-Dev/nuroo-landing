@@ -355,14 +355,34 @@ export default function ChildDetailPage() {
                       key={task.id}
                       className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
                         {getTaskStatusIcon(task.status)}
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">{task.title}</p>
                           {task.description && (
                             <p className="text-xs text-gray-600 mt-0.5">{task.description}</p>
                           )}
-                          {task.completedAt && (
+                          {task.submissionText && (
+                            <p className="text-xs text-gray-700 mt-1 italic">
+                              &ldquo;{task.submissionText}&rdquo;
+                            </p>
+                          )}
+                          {task.fileUrl && (
+                            <a
+                              href={task.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary-600 hover:text-primary-700 underline mt-1 block truncate"
+                            >
+                              View attachment
+                            </a>
+                          )}
+                          {task.submittedAt && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Submitted {new Date(task.submittedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                          {task.completedAt && !task.submittedAt && (
                             <p className="text-xs text-gray-500 mt-1">
                               Completed {new Date(task.completedAt).toLocaleDateString()}
                             </p>

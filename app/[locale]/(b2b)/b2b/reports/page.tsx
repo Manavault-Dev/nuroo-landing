@@ -2,10 +2,10 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { apiClient } from '@/lib/b2b/api'
+import { useAuth } from '@/lib/b2b/AuthContext'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import {
   BarChart3,
   Users,
@@ -32,77 +32,40 @@ function ReportsSpinner() {
 
 function ReportsContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.reports')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const { user, isLoading: authLoading } = useAuth()
+  const { profile, orgId } = usePageAuth()
+
   const [data, setData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [days, setDays] = useState(30)
 
-  const orgIdFromUrl = searchParams.get('orgId') ?? ''
-  const currentOrgId = orgIdFromUrl || profile?.organizations?.[0]?.orgId || undefined
-  const _currentOrg =
-    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-
+  // Redirect to login if not authenticated
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/b2b/login')
+    }
+  }, [authLoading, user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch reports whenever orgId or days change
+  useEffect(() => {
+    if (authLoading || !orgId) return
+
     let cancelled = false
+    setLoading(true)
+    setError('')
 
-    async function load() {
-      const user = getCurrentUser()
-      if (!user) {
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setError('Request timed out. Check your connection and try again.')
         setLoading(false)
-        router.push('/b2b/login')
-        return
       }
+    }, REPORTS_TIMEOUT_MS)
 
-      let idToken: string | null = null
-      try {
-        idToken = await getIdToken()
-      } catch {
-        if (!cancelled) setLoading(false)
-        router.push('/b2b/login')
-        return
-      }
-      if (!idToken) {
-        setLoading(false)
-        router.push('/b2b/login')
-        return
-      }
-
-      apiClient.setToken(idToken)
-
-      let profileData: SpecialistProfile
-      try {
-        profileData = await apiClient.getMe()
-      } catch {
-        if (!cancelled) setLoading(false)
-        router.push('/b2b/login')
-        return
-      }
-
-      if (!cancelled) setProfile(profileData)
-
-      const orgId = orgIdFromUrl || profileData.organizations?.[0]?.orgId
-      if (!orgId) {
-        if (!cancelled) {
-          setData(null)
-          setLoading(false)
-        }
-        return
-      }
-
-      if (!cancelled) setError('')
-
-      const timeoutId = setTimeout(() => {
-        if (!cancelled) {
-          setError('Request timed out. Check your connection and try again.')
-          setLoading(false)
-        }
-      }, REPORTS_TIMEOUT_MS)
-
-      try {
-        const res = await apiClient.getReports(orgId, days)
+    apiClient
+      .getReports(orgId, days)
+      .then((res) => {
         clearTimeout(timeoutId)
         if (cancelled) return
         if (res.ok) {
@@ -110,24 +73,25 @@ function ReportsContent() {
         } else {
           setError('Failed to load reports')
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         clearTimeout(timeoutId)
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load reports')
           setData(null)
         }
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false)
-      }
-    }
+      })
 
-    load()
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
-  }, [router, days, orgIdFromUrl])
+  }, [orgId, days, authLoading])
 
-  if (loading) {
+  if (authLoading || (loading && !data)) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-[40vh]">
         <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
@@ -194,6 +158,7 @@ function ReportsContent() {
             <option value={7}>7 {t('days')}</option>
             <option value={30}>30 {t('days')}</option>
           </select>
+          {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
           {data && (
             <>
               <button

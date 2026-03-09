@@ -55,6 +55,10 @@ function buildUpdateData(body: Record<string, unknown>) {
   return data
 }
 
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+}
+
 export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
@@ -87,12 +91,12 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const body = taskSchema.parse(request.body)
         const ref = db.collection(COLLECTIONS.ORG_TASKS(orgId)).doc()
-        const data = {
+        const data = stripUndefined({
           ...body,
           createdBy: request.user.uid,
           createdAt: toTimestamp(),
           updatedAt: toTimestamp(),
-        }
+        })
         await ref.set(data)
         return reply
           .code(201)
@@ -173,7 +177,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         }
         const db = getFirestore()
         const ref = db.collection(COLLECTIONS.ORG_TASKS(orgId)).doc()
-        await ref.set(taskData)
+        await ref.set(stripUndefined(taskData))
         return reply.code(201).send({
           ok: true,
           task: { id: ref.id, ...transformDoc(await ref.get()) },
@@ -249,12 +253,12 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const body = roadmapSchema.parse(request.body)
         const ref = db.collection(COLLECTIONS.ORG_ROADMAPS(orgId)).doc()
-        const data = {
+        const data = stripUndefined({
           ...body,
           createdBy: request.user.uid,
           createdAt: toTimestamp(),
           updatedAt: toTimestamp(),
-        }
+        })
         await ref.set(data)
         return reply
           .code(201)
@@ -297,6 +301,440 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true }
       } catch (e: any) {
         return reply.code(500).send({ error: e?.message || 'Failed to delete roadmap' })
+      }
+    }
+  )
+
+  // ——— Parent-facing content routes ———
+  // These are for the mobile parent app (Bearer token auth, parent linked to org)
+
+  /** Verify parent is linked to this organization and return their child IDs */
+  async function requireParentOrgAccess(
+    request: { user?: { uid: string } },
+    reply: { code: (n: number) => { send: (body: unknown) => unknown } },
+    orgId: string
+  ): Promise<{ parentUid: string; childIds: string[] } | false> {
+    if (!request.user) {
+      reply.code(401).send({ error: 'Unauthorized' })
+      return false
+    }
+    const db = getFirestore()
+    const parentUid = request.user.uid
+
+    // 1. Primary check: orgParents collection (created on invite acceptance)
+    const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
+    const orgParentSnap = await orgParentRef.get()
+
+    // 2. Query organizations/{orgId}/children by parentUserId (NO assigned filter —
+    //    the field may be missing or false for newly joined parents)
+    const childQuery = await db
+      .collection(`organizations/${orgId}/children`)
+      .where('parentUserId', '==', parentUid)
+      .get()
+
+    // Exclude only explicitly disconnected children (assigned === false)
+    let childIds = childQuery.docs
+      .filter((d) => d.data().assigned !== false)
+      .map((d) => d.id)
+
+    // 3. If we have org access but no children yet — try to find children via
+    //    the specialist's group membership (parent may have joined before children were linked)
+    if (childIds.length === 0 && orgParentSnap.exists) {
+      const specialistUid = orgParentSnap.data()?.linkedSpecialistUid as string | undefined
+      if (specialistUid) {
+        try {
+          const groupsSnap = await db
+            .collection(`specialists/${specialistUid}/groups`)
+            .where('orgId', '==', orgId)
+            .get()
+
+          const groupChildIds: string[] = []
+          for (const groupDoc of groupsSnap.docs) {
+            const parentDoc = await db
+              .doc(`specialists/${specialistUid}/groups/${groupDoc.id}/parents/${parentUid}`)
+              .get()
+            if (parentDoc.exists) {
+              const ids = (parentDoc.data()?.childIds as string[] | undefined) || []
+              groupChildIds.push(...ids)
+            }
+          }
+          childIds = [...new Set(groupChildIds)]
+        } catch {
+          // ignore — fallback failed, continue with empty childIds
+        }
+      }
+    }
+
+    // 4. Fallback: linkedOrganizationsById in users collection (legacy)
+    if (!orgParentSnap.exists && childIds.length === 0) {
+      const userSnap = await db.doc(`users/${parentUid}`).get()
+      if (userSnap.exists) {
+        const linkedOrgs = userSnap.data()?.linkedOrganizationsById || {}
+        if (linkedOrgs[orgId]) return { parentUid, childIds }
+      }
+
+      reply.code(401).send({
+        error: 'Organization access invalid',
+        message: 'You are not linked to this organization',
+      })
+      return false
+    }
+
+    return { parentUid, childIds }
+  }
+
+  // ——— Content library routes (roadmaps + library tasks) ———
+
+  // GET /orgs/:orgId/parent/content/roadmaps
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/parent/content/roadmaps',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        const db = getFirestore()
+        const snap = await db.collection(COLLECTIONS.ORG_ROADMAPS(orgId)).orderBy('createdAt', 'desc').get()
+        return { ok: true, roadmaps: snap.docs.map((d) => transformDoc(d)), count: snap.size }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list roadmaps' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/parent/content/roadmaps/:roadmapId
+  fastify.get<{ Params: { orgId: string; roadmapId: string } }>(
+    '/orgs/:orgId/parent/content/roadmaps/:roadmapId',
+    async (request, reply) => {
+      try {
+        const { orgId, roadmapId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        const db = getFirestore()
+        const ref = db.doc(`${COLLECTIONS.ORG_ROADMAPS(orgId)}/${roadmapId}`)
+        const snap = await ref.get()
+        if (!snap.exists) return reply.code(404).send({ error: 'Roadmap not found' })
+        const roadmap = transformDoc(snap) as Record<string, unknown>
+        const taskIds = (roadmap.taskIds as string[] | undefined) || []
+        if (taskIds.length > 0) {
+          const taskSnaps = await Promise.all(
+            taskIds.map((id) => db.collection(COLLECTIONS.ORG_TASKS(orgId)).doc(id).get())
+          )
+          const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
+          return { ok: true, roadmap: { ...roadmap, tasks } }
+        }
+        return { ok: true, roadmap: { ...roadmap, tasks: [] } }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to get roadmap' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/parent/content/tasks — content library tasks (for browsing)
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/parent/content/tasks',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        const db = getFirestore()
+        const tasksCollection = db.collection(COLLECTIONS.ORG_TASKS(orgId))
+        const { ids } = request.query as { ids?: string }
+        if (ids) {
+          const taskIds = ids.split(',').map((s) => s.trim()).filter(Boolean)
+          if (taskIds.length === 0) return { ok: true, tasks: [], count: 0 }
+          const taskSnaps = await Promise.all(taskIds.map((id) => tasksCollection.doc(id).get()))
+          const tasks = taskSnaps.filter((s) => s.exists).map((s) => transformDoc(s))
+          return { ok: true, tasks, count: tasks.length }
+        }
+        const snap = await tasksCollection.orderBy('createdAt', 'desc').get()
+        return { ok: true, tasks: snap.docs.map((d) => transformDoc(d)), count: snap.size }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list tasks' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/parent/content/tasks/:taskId
+  fastify.get<{ Params: { orgId: string; taskId: string } }>(
+    '/orgs/:orgId/parent/content/tasks/:taskId',
+    async (request, reply) => {
+      try {
+        const { orgId, taskId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        const db = getFirestore()
+        const snap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`).get()
+        if (!snap.exists) return reply.code(404).send({ error: 'Task not found' })
+        return { ok: true, task: transformDoc(snap) }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to get task' })
+      }
+    }
+  )
+
+  // POST /orgs/:orgId/parent/content/tasks/:taskId/complete — mark content-library task complete
+  fastify.post<{ Params: { orgId: string; taskId: string } }>(
+    '/orgs/:orgId/parent/content/tasks/:taskId/complete',
+    async (request, reply) => {
+      try {
+        const { orgId, taskId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        if (!request.user) return
+        const db = getFirestore()
+        const body = (request.body as { completed?: boolean; childId?: string; roadmapId?: string }) || {}
+        const completed = body.completed !== false
+        const childId = body.childId || access.childIds[0] || request.user.uid
+        const roadmapId = body.roadmapId
+        const taskSnap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`).get()
+        if (!taskSnap.exists) return reply.code(404).send({ ok: false, error: 'Task not found' })
+        const parentId = request.user.uid
+        const docId = `${taskId}_${parentId}_${childId}`
+        const compRef = db.collection('alphakidsTaskCompletions').doc(docId)
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+        const update: Record<string, unknown> = {
+          taskId, parentId, childId, orgId, completed, updatedAt: now,
+          completedAt: completed ? now : null,
+        }
+        if (roadmapId) update.roadmapId = roadmapId
+        const existing = await compRef.get()
+        if (existing.exists) {
+          await compRef.update(update)
+        } else {
+          await compRef.set({ ...update, createdAt: now })
+        }
+        return { ok: true, message: 'Task completion status updated' }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to update task completion' })
+      }
+    }
+  )
+
+  // ——— Child-assigned tasks routes (for tasks assigned via groups/specialists) ———
+
+  // GET /orgs/:orgId/parent/tasks — all tasks assigned to parent's children in this org
+  fastify.get<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/parent/tasks',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+        const db = getFirestore()
+        const allTasks: Record<string, unknown>[] = []
+
+        // Cache content task lookups to avoid duplicate fetches
+        const contentTaskCache = new Map<string, Record<string, unknown>>()
+        const getContentTask = async (ctId: string): Promise<Record<string, unknown>> => {
+          if (contentTaskCache.has(ctId)) return contentTaskCache.get(ctId)!
+          try {
+            const snap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${ctId}`).get()
+            const ct = snap.exists ? (snap.data() as Record<string, unknown>) : {}
+            contentTaskCache.set(ctId, ct)
+            return ct
+          } catch {
+            return {}
+          }
+        }
+
+        for (const childId of access.childIds) {
+          const tasksSnap = await db
+            .collection(`children/${childId}/tasks`)
+            .orderBy('createdAt', 'desc')
+            .get()
+          for (const doc of tasksSnap.docs) {
+            const d = doc.data()
+
+            // For old tasks that lack rich fields, fall back to the content library doc
+            let ct: Record<string, unknown> = {}
+            if (d.contentTaskId && (!d.category && !d.videoUrl && !d.imageUrl && !d.difficulty && !d.estimatedDuration && !d.instructions)) {
+              ct = await getContentTask(d.contentTaskId as string)
+            }
+
+            allTasks.push({
+              id: doc.id,
+              childId,
+              title: d.title || 'Untitled',
+              description: d.description ?? ct.description ?? null,
+              category: d.category ?? ct.category ?? null,
+              estimatedDuration: d.estimatedDuration ?? ct.estimatedDuration ?? null,
+              difficulty: d.difficulty ?? ct.difficulty ?? null,
+              instructions: d.instructions ?? ct.instructions ?? null,
+              videoUrl: d.videoUrl ?? ct.videoUrl ?? null,
+              imageUrl: d.imageUrl ?? ct.imageUrl ?? null,
+              mediaType: d.mediaType ?? ct.mediaType ?? null,
+              ageRange: d.ageRange ?? ct.ageRange ?? null,
+              status: d.status || 'pending',
+              submissionStatus: d.submissionStatus || 'pending',
+              grade: d.grade ?? null,
+              feedback: d.feedback ?? null,
+              submissionText: d.submissionText ?? null,
+              fileUrl: d.fileUrl ?? null,
+              groupId: d.groupId ?? null,
+              groupAssignmentId: d.groupAssignmentId ?? null,
+              contentTaskId: d.contentTaskId ?? null,
+              dueDate: d.dueDate?.toDate?.()?.toISOString() || null,
+              createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
+              updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
+              completedAt: d.completedAt?.toDate?.()?.toISOString() || null,
+              submittedAt: d.submittedAt?.toDate?.()?.toISOString() || null,
+            })
+          }
+        }
+
+        return { ok: true, tasks: allTasks, count: allTasks.length }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list tasks' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/parent/children/:childId/tasks — tasks for a specific child
+  fastify.get<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/parent/children/:childId/tasks',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+
+        if (!access.childIds.includes(childId)) {
+          return reply.code(403).send({ error: 'Child does not belong to you' })
+        }
+
+        const db = getFirestore()
+        const tasksSnap = await db
+          .collection(`children/${childId}/tasks`)
+          .orderBy('createdAt', 'desc')
+          .get()
+
+        // Collect contentTaskIds that need lookup (old tasks missing rich fields)
+        const ctIdsToFetch = new Set<string>()
+        for (const doc of tasksSnap.docs) {
+          const d = doc.data()
+          if (d.contentTaskId && (!d.category && !d.videoUrl && !d.imageUrl && !d.difficulty && !d.estimatedDuration && !d.instructions)) {
+            ctIdsToFetch.add(d.contentTaskId as string)
+          }
+        }
+        const ctMap = new Map<string, Record<string, unknown>>()
+        await Promise.all(
+          Array.from(ctIdsToFetch).map(async (ctId) => {
+            try {
+              const snap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${ctId}`).get()
+              if (snap.exists) ctMap.set(ctId, snap.data() as Record<string, unknown>)
+            } catch { /* ignore */ }
+          })
+        )
+
+        const tasks = tasksSnap.docs.map((doc) => {
+          const d = doc.data()
+          const ct: Record<string, unknown> = (d.contentTaskId && ctMap.get(d.contentTaskId as string)) || {}
+          return {
+            id: doc.id,
+            childId,
+            title: d.title || 'Untitled',
+            description: d.description ?? ct.description ?? null,
+            category: d.category ?? ct.category ?? null,
+            estimatedDuration: d.estimatedDuration ?? ct.estimatedDuration ?? null,
+            difficulty: d.difficulty ?? ct.difficulty ?? null,
+            instructions: d.instructions ?? ct.instructions ?? null,
+            videoUrl: d.videoUrl ?? ct.videoUrl ?? null,
+            imageUrl: d.imageUrl ?? ct.imageUrl ?? null,
+            mediaType: d.mediaType ?? ct.mediaType ?? null,
+            ageRange: d.ageRange ?? ct.ageRange ?? null,
+            status: d.status || 'pending',
+            submissionStatus: d.submissionStatus || 'pending',
+            grade: d.grade ?? null,
+            feedback: d.feedback ?? null,
+            submissionText: d.submissionText ?? null,
+            fileUrl: d.fileUrl ?? null,
+            groupId: d.groupId ?? null,
+            groupAssignmentId: d.groupAssignmentId ?? null,
+            contentTaskId: d.contentTaskId ?? null,
+            dueDate: d.dueDate?.toDate?.()?.toISOString() || null,
+            createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
+            updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
+            completedAt: d.completedAt?.toDate?.()?.toISOString() || null,
+            submittedAt: d.submittedAt?.toDate?.()?.toISOString() || null,
+          }
+        })
+
+        return { ok: true, tasks, count: tasks.length }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list child tasks' })
+      }
+    }
+  )
+
+  // PATCH /orgs/:orgId/parent/children/:childId/tasks/:taskId — mark assigned task complete/incomplete
+  fastify.patch<{ Params: { orgId: string; childId: string; taskId: string } }>(
+    '/orgs/:orgId/parent/children/:childId/tasks/:taskId',
+    async (request, reply) => {
+      try {
+        const { orgId, childId, taskId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+
+        if (!access.childIds.includes(childId)) {
+          return reply.code(403).send({ error: 'Child does not belong to you' })
+        }
+
+        const db = getFirestore()
+        const body = (request.body as { completed?: boolean }) || {}
+        const completed = body.completed !== false
+
+        const taskRef = db.doc(`children/${childId}/tasks/${taskId}`)
+        const taskSnap = await taskRef.get()
+        if (!taskSnap.exists) return reply.code(404).send({ error: 'Task not found' })
+
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+        await taskRef.update({
+          status: completed ? 'completed' : 'pending',
+          completedAt: completed ? now : null,
+          updatedAt: now,
+        })
+
+        return { ok: true, status: completed ? 'completed' : 'pending' }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to update task' })
+      }
+    }
+  )
+
+  // PATCH /orgs/:orgId/parent/children/:childId/tasks/:taskId/submit — submit homework evidence
+  fastify.patch<{ Params: { orgId: string; childId: string; taskId: string } }>(
+    '/orgs/:orgId/parent/children/:childId/tasks/:taskId/submit',
+    async (request, reply) => {
+      try {
+        const { orgId, childId, taskId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+
+        if (!access.childIds.includes(childId)) {
+          return reply.code(403).send({ error: 'Child does not belong to you' })
+        }
+
+        const db = getFirestore()
+        const taskRef = db.doc(`children/${childId}/tasks/${taskId}`)
+        const taskSnap = await taskRef.get()
+        if (!taskSnap.exists) return reply.code(404).send({ error: 'Task not found' })
+
+        const body = (request.body as { submissionText?: string; fileUrl?: string }) || {}
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+
+        await taskRef.update({
+          submissionText: body.submissionText ?? null,
+          fileUrl: body.fileUrl ?? null,
+          submissionStatus: 'submitted',
+          submittedAt: now,
+          updatedAt: now,
+        })
+
+        return { ok: true, taskId, submittedAt: now.toDate().toISOString() }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to submit homework' })
       }
     }
   )

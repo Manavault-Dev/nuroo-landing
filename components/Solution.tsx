@@ -1,28 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { CheckCircle } from 'lucide-react'
 
 export function Solution() {
   const t = useTranslations('landing.solution')
-  const [isVisible, setIsVisible] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => entry.isIntersecting && setIsVisible(true),
-      { threshold: 0.1 }
-    )
-    const el = document.getElementById('solution-section')
-    if (el) observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
 
   const stats = [
-    { number: '90%', labelKey: 'parentSatisfaction' as const },
-    { number: '3x', labelKey: 'fasterProgress' as const },
-    { number: '85%', labelKey: 'costReduction' as const },
-    { number: '24/7', labelKey: 'availableSupport' as const },
+    { number: 90, suffix: '%', labelKey: 'parentSatisfaction' as const },
+    { number: 3, suffix: 'x', labelKey: 'fasterProgress' as const },
+    { number: 85, suffix: '%', labelKey: 'costReduction' as const },
+    { number: null, static: '24/7', labelKey: 'availableSupport' as const },
   ]
 
   return (
@@ -30,36 +18,41 @@ export function Solution() {
       <div className="container-custom min-w-0">
         <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-12 md:mb-16">
           <div
-            className={`inline-flex items-center px-3 md:px-4 py-2 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs md:text-sm font-medium mb-4 sm:mb-6 md:mb-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            data-sr
+            className="sr-up sr-duration-700 sr-delay-0 inline-flex items-center px-3 md:px-4 py-2 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs md:text-sm font-medium mb-4 sm:mb-6 md:mb-8"
           >
             <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-2" />
             {t('badge')}
           </div>
           <h2
-            className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6 transition-all duration-700 delay-200 px-1 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            data-sr
+            className="sr-up sr-duration-700 sr-delay-100 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6 px-1 break-words"
           >
             {t('title')}
             <span className="gradient-text ml-2 md:ml-3">{t('titleBrand')}</span>
           </h2>
           <p
-            className={`text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 md:mb-12 transition-all duration-700 delay-300 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            data-sr
+            className="sr-up sr-duration-700 sr-delay-200 text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 md:mb-12 break-words"
           >
             {t('intro')}
           </p>
           {t('platformIntro') ? (
             <p
-              className={`text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 md:mb-12 transition-all duration-700 delay-350 break-words ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+              data-sr
+              className="sr-up sr-duration-700 sr-delay-300 text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 md:mb-12 break-words"
             >
               {t('platformIntro')}
             </p>
           ) : null}
         </div>
 
-        <div
-          className={`mb-10 sm:mb-16 md:mb-20 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
+        <div className="mb-10 sm:mb-16 md:mb-20">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-8 sm:mb-12 md:mb-16 min-w-0">
-            <div className="relative group min-w-0">
+            <div
+              data-sr
+              className="sr-up sr-duration-700 sr-delay-100 relative group min-w-0 glow-card rounded-2xl md:rounded-3xl"
+            >
               <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
@@ -81,7 +74,10 @@ export function Solution() {
                 </p>
               </div>
             </div>
-            <div className="relative group min-w-0">
+            <div
+              data-sr
+              className="sr-up sr-duration-700 sr-delay-200 relative group min-w-0 glow-card rounded-2xl md:rounded-3xl"
+            >
               <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
@@ -103,7 +99,10 @@ export function Solution() {
                 </p>
               </div>
             </div>
-            <div className="relative group sm:col-span-2 lg:col-span-1 min-w-0">
+            <div
+              data-sr
+              className="sr-up sr-duration-700 sr-delay-300 relative group sm:col-span-2 lg:col-span-1 min-w-0 glow-card rounded-2xl md:rounded-3xl"
+            >
               <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
@@ -127,7 +126,10 @@ export function Solution() {
             </div>
           </div>
 
-          <div className="text-center max-w-4xl mx-auto">
+          <div
+            data-sr
+            className="sr-up sr-duration-700 sr-delay-200 text-center max-w-4xl mx-auto"
+          >
             <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6">
               {t('allInOneTitle')}
               <span className="gradient-text"> {t('allInOneHighlight')}</span>
@@ -136,7 +138,10 @@ export function Solution() {
               {t('allInOneDesc')}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="flex items-start space-x-3">
+              <div
+                data-sr
+                className="sr-left sr-duration-700 sr-delay-100 flex items-start space-x-3"
+              >
                 <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
                 <div className="text-left">
                   <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
@@ -147,7 +152,10 @@ export function Solution() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start space-x-3">
+              <div
+                data-sr
+                className="sr-up sr-duration-700 sr-delay-200 flex items-start space-x-3"
+              >
                 <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
                 <div className="text-left">
                   <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
@@ -158,7 +166,10 @@ export function Solution() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start space-x-3">
+              <div
+                data-sr
+                className="sr-right sr-duration-700 sr-delay-300 flex items-start space-x-3"
+              >
                 <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
                 <div className="text-left">
                   <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
@@ -174,13 +185,23 @@ export function Solution() {
         </div>
 
         <div
-          className={`bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl md:rounded-3xl p-6 md:p-8 border border-primary-200 transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          data-sr
+          className="sr-scale sr-duration-900 sr-delay-200 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl md:rounded-3xl p-6 md:p-8 border border-primary-200"
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center">
             {stats.map((stat, index) => (
               <div key={index}>
-                <div className="text-2xl md:text-3xl lg:text-4xl font-bold mb-1 md:mb-2">
-                  {stat.number}
+                <div className="text-2xl md:text-3xl lg:text-4xl font-bold mb-1 md:mb-2 stat-number">
+                  {stat.static ? (
+                    stat.static
+                  ) : (
+                    <span
+                      data-count-target={stat.number}
+                      data-count-suffix={stat.suffix}
+                    >
+                      0{stat.suffix}
+                    </span>
+                  )}
                 </div>
                 <div className="text-primary-600 text-xs md:text-sm">{t(stat.labelKey)}</div>
               </div>
