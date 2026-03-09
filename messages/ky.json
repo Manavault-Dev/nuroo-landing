@@ -22,7 +22,12 @@
       "organizersSpecialists": "Адистер үчүн",
       "logIn": "Кирүү",
       "createAccount": "Аккаунт түзүү",
-      "statMain": "1500+ үй-бүлө Nuroonu 30 өлкөдө колдонууда"
+      "statMain": "1500+ үй-бүлө Nuroonu 30 өлкөдө колдонууда",
+      "taskCompleted": "Тапшырма аткарылды",
+      "floatCardCategory": "Моторика",
+      "floatCardTime": "5 мүн мурун",
+      "floatCardProgress": "Прогресс +18%",
+      "floatCardWeek": "Бул жумада"
     },
     "problem": {
       "badge": "Маселе",
@@ -548,6 +553,7 @@
         "taskShort": "Тапшырма",
         "open": "Ачуу",
         "noAssignments": "Тапшырмалар жок",
+        "assignmentDefaultTitle": "Тапшырма",
         "createFirstAssignment": "Бул топ үчүн биринчи тапшырманы түзүңүз",
         "newAssignment": "Жаңы тапшырма",
         "noMembers": "Участниктер жок",
@@ -558,6 +564,7 @@
         "hideAnswer": "Жоопту жашыруу",
         "viewFullSize": "Толук көлөмдө көрүү",
         "previewUnavailable": "Көрүнүш жеткиликтүү эмес",
+        "lightboxCloseHint": "Esc же сырттан чыкылдатуу — жабуу",
         "submittedAt": "Тапшырылды {time}",
         "notSubmitted": "Азырынча тапшырыла элек",
         "change": "Өзгөртүү",

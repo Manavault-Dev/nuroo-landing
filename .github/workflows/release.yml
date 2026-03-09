@@ -50,7 +50,7 @@ jobs:
       id-token: write
     env:
       GCP_REGION: 'us-central1'
-      GCP_SERVICE_NAME: 'nuroo-api'
+      GCP_SERVICE_NAME: 'nuroo-backend'
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

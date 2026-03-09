@@ -22,7 +22,12 @@
       "organizersSpecialists": "Для специалистов",
       "logIn": "Войти",
       "createAccount": "Создать аккаунт",
-      "statMain": "1500+ семей уже используют Nuroo в 30 странах"
+      "statMain": "1500+ семей уже используют Nuroo в 30 странах",
+      "taskCompleted": "Задача выполнена",
+      "floatCardCategory": "Моторика",
+      "floatCardTime": "5 мин назад",
+      "floatCardProgress": "Прогресс +18%",
+      "floatCardWeek": "За эту неделю"
     },
     "problem": {
       "badge": "Проблема",
@@ -552,6 +557,7 @@
         "taskShort": "Задание",
         "open": "Открыть",
         "noAssignments": "Нет заданий",
+        "assignmentDefaultTitle": "Задание",
         "createFirstAssignment": "Создайте первое задание для этой группы",
         "newAssignment": "Новое задание",
         "noMembers": "Нет участников",
@@ -562,6 +568,7 @@
         "hideAnswer": "Скрыть ответ",
         "viewFullSize": "Открыть в полном размере",
         "previewUnavailable": "Превью недоступно",
+        "lightboxCloseHint": "Esc или клик вне изображения — закрыть",
         "submittedAt": "Сдано {time}",
         "notSubmitted": "Ещё не сдано",
         "change": "Изменить",
