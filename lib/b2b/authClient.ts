@@ -20,7 +20,7 @@ export async function signIn(email: string, password: string): Promise<UserCrede
 export async function register(
   email: string,
   password: string,
-  name: string
+  _name: string
 ): Promise<UserCredential> {
   if (!auth) {
     throw new Error('Firebase Auth is not initialized. Please configure Firebase in .env.local')
@@ -55,7 +55,9 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
 export function onAuthChange(callback: (user: User | null) => void) {
   if (!auth) {
     callback(null)
-    return () => {}
+    return () => {
+      /* noop unsubscribe when auth is null */
+    }
   }
   const authInstance = auth
   return onAuthStateChanged(authInstance, callback)

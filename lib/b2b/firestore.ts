@@ -9,7 +9,6 @@ import {
   where,
   orderBy,
   Timestamp,
-  QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import type { Organization, Specialist, ChildSummary, SpecialistNote, ChildProfile } from './types'
@@ -23,17 +22,15 @@ const COLLECTIONS = {
   specialistNotes: (childId: string) => `children/${childId}/specialistNotes`,
 }
 
-const toDate = (timestamp: any): Date => {
-  if (timestamp?.toDate) {
+const toDate = (timestamp: { toDate?: () => Date } | Date | null | undefined): Date => {
+  if (timestamp instanceof Date) return timestamp
+  if (timestamp != null && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
     return timestamp.toDate()
-  }
-  if (timestamp instanceof Date) {
-    return timestamp
   }
   return new Date()
 }
 
-const toTimestamp = (date: Date | undefined): Timestamp | null => {
+const _toTimestamp = (date: Date | undefined): Timestamp | null => {
   if (!date) return null
   return Timestamp.fromDate(date)
 }
@@ -183,12 +180,14 @@ export async function getChildProfile(childId: string): Promise<ChildProfile | n
     completedTasksCount: childData.completedTasksCount || 0,
     lastActiveDate: childData.lastActiveDate ? toDate(childData.lastActiveDate) : undefined,
     assignedSpecialistIds: childData.assignedSpecialistIds || [],
-    recentTasks: recentTasks.map((task: any) => ({
-      id: task.id,
-      title: task.title,
-      completedAt: task.completedAt ? toDate(task.completedAt) : undefined,
-      status: task.status || 'pending',
-    })),
+    recentTasks: recentTasks.map(
+      (task: { id: string; title?: string; completedAt?: unknown; status?: string }) => ({
+        id: task.id,
+        title: task.title,
+        completedAt: task.completedAt ? toDate(task.completedAt) : undefined,
+        status: task.status || 'pending',
+      })
+    ),
     notes,
   }
 }

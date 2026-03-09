@@ -84,3 +84,251 @@
     overflow-x: hidden;
   }
 }
+
+/* ═══════════════════════════════════════════
+   SCROLL ANIMATION SYSTEM
+═══════════════════════════════════════════ */
+
+/* Base states — hidden before JS kicks in */
+.sr-hidden {
+  opacity: 0;
+}
+
+/* Variants */
+.sr-up {
+  opacity: 0;
+  transform: translateY(48px);
+}
+.sr-down {
+  opacity: 0;
+  transform: translateY(-48px);
+}
+.sr-left {
+  opacity: 0;
+  transform: translateX(-60px);
+}
+.sr-right {
+  opacity: 0;
+  transform: translateX(60px);
+}
+.sr-scale {
+  opacity: 0;
+  transform: scale(0.88);
+}
+.sr-fade {
+  opacity: 0;
+}
+.sr-blur {
+  opacity: 0;
+  filter: blur(8px);
+}
+
+/* Revealed state */
+.sr-revealed {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Duration variants */
+.sr-duration-500 {
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s ease;
+}
+.sr-duration-700 {
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.7s ease;
+}
+.sr-duration-900 {
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s ease;
+}
+.sr-duration-1100 {
+  transition:
+    opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 1.1s ease;
+}
+
+/* Delay variants */
+.sr-delay-0 {
+  transition-delay: 0ms;
+}
+.sr-delay-100 {
+  transition-delay: 100ms;
+}
+.sr-delay-200 {
+  transition-delay: 200ms;
+}
+.sr-delay-300 {
+  transition-delay: 300ms;
+}
+.sr-delay-400 {
+  transition-delay: 400ms;
+}
+.sr-delay-500 {
+  transition-delay: 500ms;
+}
+.sr-delay-600 {
+  transition-delay: 600ms;
+}
+.sr-delay-700 {
+  transition-delay: 700ms;
+}
+.sr-delay-800 {
+  transition-delay: 800ms;
+}
+
+/* Scroll progress bar */
+.scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #14b8a6, #6366f1, #14b8a6);
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s linear infinite;
+  z-index: 9999;
+  transform-origin: left;
+  transition: width 0.1s linear;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+/* Floating accent orbs (decorative) */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(3deg);
+  }
+}
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-12px) rotate(-2deg);
+  }
+  66% {
+    transform: translateY(8px) rotate(2deg);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+.animate-float-medium {
+  animation: float-medium 4s ease-in-out infinite;
+}
+
+/* Counter number animation */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.stat-revealed .stat-number {
+  animation: count-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Section divider wave */
+.wave-divider {
+  overflow: hidden;
+  line-height: 0;
+}
+
+/* Glowing card highlight on hover */
+.glow-card {
+  position: relative;
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+.glow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    400px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(20, 184, 166, 0.12),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 0;
+}
+.glow-card:hover::before {
+  opacity: 1;
+}
+.glow-card:hover {
+  box-shadow: 0 20px 60px -15px rgba(20, 184, 166, 0.25);
+  transform: translateY(-4px);
+}
+.glow-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Text gradient shimmer */
+@keyframes text-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+.shimmer-text {
+  background: linear-gradient(90deg, #14b8a6 0%, #818cf8 40%, #14b8a6 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 4s linear infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sr-up,
+  .sr-down,
+  .sr-left,
+  .sr-right,
+  .sr-scale,
+  .sr-fade,
+  .sr-blur {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .scroll-progress-bar {
+    display: none;
+  }
+  .animate-float-slow,
+  .animate-float-medium {
+    animation: none;
+  }
+}

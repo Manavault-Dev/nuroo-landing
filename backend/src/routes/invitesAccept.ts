@@ -3,6 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
+import { checkOrgCanAddSpecialist } from '../modules/payments/planLimits.js'
 
 const COLLECTIONS = {
   INVITES: 'invites',
@@ -133,6 +134,10 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       if (role === 'org_admin' || role === 'specialist') {
+        const canAdd = await checkOrgCanAddSpecialist(orgId)
+        if (!canAdd.ok) {
+          return reply.code(403).send({ error: canAdd.error ?? 'Cannot add specialist.' })
+        }
         await memberRef.set(buildMemberData(role, now))
 
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)

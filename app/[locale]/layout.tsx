@@ -3,6 +3,8 @@ import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
 import { ConditionalHeader } from '@/components/ConditionalHeader'
+import { ScrollProgress } from '@/components/ScrollProgress'
+import { ScrollInit } from '@/components/ScrollInit'
 
 type Props = { children: React.ReactNode; params: { locale: string } }
 
@@ -20,6 +22,8 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <NextIntlClientProvider messages={messages} locale={locale}>
+      <ScrollProgress />
+      <ScrollInit />
       <ConditionalHeader />
       <main className="min-w-0 overflow-x-hidden">{children}</main>
     </NextIntlClientProvider>

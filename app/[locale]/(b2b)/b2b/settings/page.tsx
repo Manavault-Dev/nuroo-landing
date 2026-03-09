@@ -67,8 +67,8 @@ export default function SettingsPage() {
       setProfile(updatedProfile)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
-    } catch (error: any) {
-      setError(error.message || 'Failed to update profile')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to update profile')
     } finally {
       setSaving(false)
     }
