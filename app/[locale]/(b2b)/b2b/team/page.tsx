@@ -192,7 +192,7 @@ export default function TeamPage() {
           <h3 className="text-lg font-semibold text-gray-900">{t('teamMembers')}</h3>
           <Link
             href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium sm:w-auto"
           >
             <UserPlus className="w-4 h-4" />
             {t('inviteSpecialist')}
@@ -207,7 +207,7 @@ export default function TeamPage() {
               <p className="text-gray-600 mb-6">{t('createInvitesToAdd')}</p>
               <Link
                 href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium sm:w-auto"
               >
                 <UserPlus className="w-4 h-4" />
                 {t('inviteSpecialist')}
@@ -224,13 +224,13 @@ export default function TeamPage() {
                 return (
                   <div
                     key={member.uid}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors gap-4"
+                    className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50 md:flex-row md:items-center md:justify-between"
                   >
-                    <div className="flex items-center space-x-4 min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
                       <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
                         <UserCog className="w-5 h-5 text-primary-600" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-gray-900">{member.name}</p>
                           {member.role === 'admin' && (
@@ -249,9 +249,9 @@ export default function TeamPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center space-x-2 mt-1">
+                        <div className="mt-1 flex items-start gap-2">
                           <Mail className="w-4 h-4 text-gray-400 shrink-0" />
-                          <p className="text-sm text-gray-600 truncate">{member.email}</p>
+                          <p className="text-sm text-gray-600 break-all">{member.email}</p>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {t('joined')} {joinedDate}
@@ -259,12 +259,12 @@ export default function TeamPage() {
                       </div>
                     </div>
                     {!isCurrentUser && (
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
                         {member.role === 'specialist' ? (
                           <button
                             onClick={() => handleChangeRole(member.uid, 'org_admin')}
                             disabled={!!updatingUid}
-                            className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                            className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg disabled:opacity-50 sm:w-auto"
                           >
                             {updatingUid === member.uid ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -277,7 +277,7 @@ export default function TeamPage() {
                           <button
                             onClick={() => handleChangeRole(member.uid, 'specialist')}
                             disabled={!!updatingUid}
-                            className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg disabled:opacity-50 flex items-center gap-1"
+                            className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg disabled:opacity-50 sm:w-auto"
                           >
                             {updatingUid === member.uid ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -290,7 +290,7 @@ export default function TeamPage() {
                         <button
                           onClick={() => handleRemove(member.uid)}
                           disabled={!!removingUid}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                          className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors sm:w-auto sm:p-2"
                           title={t('removeFromOrg')}
                         >
                           {removingUid === member.uid ? (
@@ -298,6 +298,7 @@ export default function TeamPage() {
                           ) : (
                             <Trash2 className="w-4 h-4" />
                           )}
+                          <span className="sm:hidden">{t('removeFromOrg')}</span>
                         </button>
                       </div>
                     )}

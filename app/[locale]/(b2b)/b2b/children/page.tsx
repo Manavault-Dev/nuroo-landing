@@ -73,14 +73,14 @@ export default function ChildrenPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <div className="flex items-center space-x-4 mb-2">
+        <div className="mb-2 flex items-start gap-3 sm:items-center sm:gap-4">
           <Link
             href={dashboardHref}
-            className="text-gray-600 hover:text-gray-900 transition-colors"
+            className="shrink-0 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
+          <h2 className="min-w-0 text-2xl font-bold text-gray-900">{t('title')}</h2>
         </div>
         <p className="text-gray-600">
           {children.length} {children.length === 1 ? t('childAssigned') : t('childrenAssigned')}
@@ -101,11 +101,11 @@ export default function ChildrenPage() {
                 <Link
                   key={child.id}
                   href={`/b2b/children/${child.id}${orgId ? `?orgId=${orgId}` : ''}`}
-                  className="block p-6 hover:bg-gray-50 transition-colors"
+                  className="block p-4 hover:bg-gray-50 transition-colors sm:p-6"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <h3 className="text-lg font-semibold text-gray-900">{child.name}</h3>
                         {child.age && (
                           <span className="text-sm text-gray-500">
@@ -113,7 +113,7 @@ export default function ChildrenPage() {
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
                         {child.speechStepNumber && (
                           <div>
                             <span className="text-gray-600">{t('currentStep')}</span>{' '}
@@ -138,7 +138,7 @@ export default function ChildrenPage() {
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
+                    <ChevronRight className="ml-auto w-5 h-5 text-gray-400 shrink-0" />
                   </div>
                 </Link>
               ))}
