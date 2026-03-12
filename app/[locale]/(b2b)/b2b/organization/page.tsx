@@ -1,57 +1,40 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Building2, Users, UserCog, Key } from 'lucide-react'
+import { useAuth } from '@/lib/b2b/AuthContext'
+import { apiClient } from '@/lib/b2b/api'
+import { Building2, Users, UserCog, Key, Save, Loader2 } from 'lucide-react'
 
 export default function OrganizationPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { profile, isLoading, currentOrgId: authOrgId, updateProfile } = useAuth()
   const t = useTranslations('b2b.pages.organization')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [orgName, setOrgName] = useState('')
+  const [country, setCountry] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
 
-  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
+  const currentOrgId =
+    searchParams.get('orgId') || authOrgId || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
     profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
   const isAdmin = currentOrg?.role === 'admin'
 
   useEffect(() => {
-    const loadData = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-      } catch (error) {
-        console.error('Error loading organization data:', error)
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
+    if (!isLoading && !getCurrentUser()) {
+      router.push('/b2b/login')
     }
-
-    loadData()
-  }, [router])
+  }, [isLoading, router])
 
   useEffect(() => {
-    if (!loading && profile) {
+    if (!isLoading && profile) {
       if (!profile.organizations?.length) {
         router.push('/b2b/onboarding')
         return
@@ -62,9 +45,74 @@ export default function OrganizationPage() {
         )
       }
     }
-  }, [loading, profile, isAdmin, router])
+  }, [isLoading, profile, isAdmin, router])
 
-  if (loading) {
+  useEffect(() => {
+    if (!currentOrg) return
+
+    setOrgName(currentOrg.orgName)
+    setCountry(currentOrg.country || '')
+  }, [currentOrg])
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+
+    if (!currentOrgId || !currentOrg) return
+
+    const nextName = orgName.trim()
+    const nextCountry = country.trim()
+    const updates: { name?: string; country?: string } = {}
+
+    if (nextName && nextName !== currentOrg.orgName) {
+      updates.name = nextName
+    }
+
+    if (nextCountry !== (currentOrg.country || '')) {
+      updates.country = nextCountry
+    }
+
+    if (!updates.name && updates.country === undefined) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setSuccess(false)
+
+    try {
+      const idToken = await getIdToken()
+      if (!idToken) {
+        router.push('/b2b/login')
+        return
+      }
+
+      apiClient.setToken(idToken)
+      const { org } = await apiClient.updateOrganization(currentOrgId, updates)
+
+      updateProfile((prev) => {
+        if (!prev) return prev
+
+        return {
+          ...prev,
+          organizations: prev.organizations.map((item) =>
+            item.orgId === org.id
+              ? { ...item, orgName: org.name, country: org.country ?? null }
+              : item
+          ),
+        }
+      })
+      setOrgName(org.name)
+      setCountry(org.country || '')
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('updateError'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
@@ -112,18 +160,66 @@ export default function OrganizationPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('orgInfo')}</h3>
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {t('changesSaved')}
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('orgName')}</label>
               <input
                 type="text"
-                value={currentOrg.orgName}
-                readOnly
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                required
+                minLength={1}
+                maxLength={200}
+                disabled={saving}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
               />
-              <p className="mt-1 text-xs text-gray-500">{t('orgNameCannotChange')}</p>
             </div>
-          </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('country')}</label>
+              <input
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                maxLength={100}
+                disabled={saving}
+                placeholder={t('countryPlaceholder')}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>{t('saving')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    <span>{t('saveChanges')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

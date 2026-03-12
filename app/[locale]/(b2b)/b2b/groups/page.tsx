@@ -372,7 +372,7 @@ export default function GroupsPage() {
           }
           const currentOrg =
             profile.organizations.find((o) => o.orgId === resolvedOrgId) || profile.organizations[0]
-          setIsOrgAdmin(currentOrg?.role === 'org_admin' || currentOrg?.role === 'admin')
+          setIsOrgAdmin(currentOrg?.role === 'admin')
         } catch {}
 
         if (!resolvedOrgId) {
