@@ -4,7 +4,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import {
   apiClient,
@@ -48,6 +48,9 @@ export default function ChildDetailPage() {
   const [submittingTask, setSubmittingTask] = useState(false)
   const [error, setError] = useState('')
   const t = useTranslations('b2b.pages.childDetail')
+  const locale = useLocale()
+  const dateLocale =
+    locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : locale === 'en' ? 'en-US' : locale
 
   useEffect(() => {
     const loadData = async () => {
@@ -108,8 +111,7 @@ export default function ChildDetailPage() {
       setNoteContent('')
       setVisibleToParent(true)
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to save note. Please try again.'
+      const errorMessage = err instanceof Error ? err.message : t('failedToSaveNote')
       setError(errorMessage)
     } finally {
       setSubmittingNote(false)
@@ -144,7 +146,7 @@ export default function ChildDetailPage() {
       setTaskTitle('')
       setTaskDescription('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create task.'
+      const msg = err instanceof Error ? err.message : t('failedToCreateTask')
       setError(msg)
     } finally {
       setSubmittingTask(false)
@@ -156,7 +158,7 @@ export default function ChildDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading child profile...</p>
+          <p className="mt-4 text-gray-600">{t('loadingProfile')}</p>
         </div>
       </div>
     )
@@ -167,10 +169,8 @@ export default function ChildDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Child not found</h3>
-          <p className="text-gray-600 mb-4">
-            {error || "The child profile you're looking for doesn't exist."}
-          </p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('notFoundTitle')}</h3>
+          <p className="text-gray-600 mb-4">{error || t('notFoundDescription')}</p>
           <Link
             href={`/b2b/children?orgId=${orgId}`}
             className="text-primary-600 hover:text-primary-700 font-medium"
@@ -204,6 +204,31 @@ export default function ChildDetailPage() {
     }
   }
 
+  const getTaskStatusLabel = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return t('statusCompleted')
+      case 'in-progress':
+        return t('statusInProgress')
+      default:
+        return t('statusPending')
+    }
+  }
+
+  const getFeedbackLabel = (mood: 'good' | 'ok' | 'hard') => {
+    switch (mood) {
+      case 'good':
+        return t('moodGood')
+      case 'ok':
+        return t('moodOk')
+      case 'hard':
+        return t('moodHard')
+    }
+  }
+
+  const formatShortDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString(dateLocale)
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const today = new Date()
@@ -211,11 +236,11 @@ export default function ChildDetailPage() {
     yesterday.setDate(yesterday.getDate() - 1)
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Today'
+      return t('today')
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday'
+      return t('yesterday')
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })
     }
   }
 
@@ -231,7 +256,11 @@ export default function ChildDetailPage() {
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{childDetail.name}</h2>
-            {childDetail.age && <p className="text-sm text-gray-600 mt-1">Age {childDetail.age}</p>}
+            {childDetail.age && (
+              <p className="text-sm text-gray-600 mt-1">
+                {t('ageLabel', { age: childDetail.age })}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -240,17 +269,17 @@ export default function ChildDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Progress Summary</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('progressSummary')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Tasks Completed</p>
+                  <p className="text-sm font-medium text-gray-600">{t('tasksCompleted')}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
                     {childDetail.completedTasksCount}
                   </p>
                 </div>
                 {childDetail.speechStepNumber && (
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Roadmap Step</p>
+                    <p className="text-sm font-medium text-gray-600">{t('roadmapStep')}</p>
                     <p className="text-2xl font-bold text-gray-900 mt-1">
                       {childDetail.speechStepNumber}
                     </p>
@@ -258,9 +287,9 @@ export default function ChildDetailPage() {
                 )}
                 {childDetail.lastActiveDate && (
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Last Active</p>
+                    <p className="text-sm font-medium text-gray-600">{t('lastActive')}</p>
                     <p className="text-sm font-semibold text-gray-900 mt-1">
-                      {new Date(childDetail.lastActiveDate).toLocaleDateString()}
+                      {formatShortDate(childDetail.lastActiveDate)}
                     </p>
                   </div>
                 )}
@@ -270,7 +299,7 @@ export default function ChildDetailPage() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <Calendar className="w-5 h-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Progress Timeline</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('progressTimeline')}</h2>
               </div>
               {timeline && timeline.days.length > 0 ? (
                 <div className="space-y-4">
@@ -289,14 +318,17 @@ export default function ChildDetailPage() {
                             <div className="flex items-center space-x-1">
                               {getFeedbackIcon(day.feedback.mood)}
                               <span className="text-xs text-gray-500 capitalize">
-                                {day.feedback.mood}
+                                {getFeedbackLabel(day.feedback.mood)}
                               </span>
                             </div>
                           )}
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-gray-600">
-                            {day.tasksCompleted} of {day.tasksAttempted} tasks completed
+                            {t('timelineSummary', {
+                              completed: day.tasksCompleted,
+                              attempted: day.tasksAttempted,
+                            })}
                           </p>
                           {day.feedback?.comment && (
                             <p className="text-sm text-gray-700 italic mt-2 pl-2 border-l-2 border-gray-200">
@@ -307,33 +339,30 @@ export default function ChildDetailPage() {
                       </div>
                     ))}
                   {timeline.days.filter((day) => day.tasksAttempted > 0 || day.feedback).length ===
-                    0 && (
-                    <p className="text-gray-600 text-sm py-4">No activity in the last 30 days.</p>
-                  )}
+                    0 && <p className="text-gray-600 text-sm py-4">{t('noActivityLast30Days')}</p>}
                 </div>
               ) : (
-                <p className="text-gray-600 text-sm py-4">Loading timeline...</p>
+                <p className="text-gray-600 text-sm py-4">{t('loadingTimeline')}</p>
               )}
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Assignments for parent</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Create tasks for the parent to complete with the child. Parent sees them in the app
-                and marks them complete.
-              </p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                {t('assignmentsForParent')}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">{t('assignmentsDescription')}</p>
               <form onSubmit={handleCreateTask} className="space-y-3 mb-6">
                 <input
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="Task title (e.g. Practice sound “R” 5 min)"
+                  placeholder={t('taskTitlePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 />
                 <textarea
                   value={taskDescription}
                   onChange={(e) => setTaskDescription(e.target.value)}
-                  placeholder="Description (optional)"
+                  placeholder={t('taskDescriptionPlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                 />
@@ -343,11 +372,11 @@ export default function ChildDetailPage() {
                   className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Send className="w-4 h-4" />
-                  <span>{submittingTask ? 'Creating...' : 'Create assignment'}</span>
+                  <span>{submittingTask ? t('creatingAssignment') : t('createAssignment')}</span>
                 </button>
               </form>
               {tasks.length === 0 ? (
-                <p className="text-gray-600 text-sm">No assignments yet. Create one above.</p>
+                <p className="text-gray-600 text-sm">{t('noAssignmentsYet')}</p>
               ) : (
                 <div className="space-y-3">
                   {tasks.map((task) => (
@@ -374,17 +403,17 @@ export default function ChildDetailPage() {
                               rel="noopener noreferrer"
                               className="text-xs text-primary-600 hover:text-primary-700 underline mt-1 block truncate"
                             >
-                              View attachment
+                              {t('viewAttachment')}
                             </a>
                           )}
                           {task.submittedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Submitted {new Date(task.submittedAt).toLocaleDateString()}
+                              {t('submittedOn', { date: formatShortDate(task.submittedAt) })}
                             </p>
                           )}
                           {task.completedAt && !task.submittedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Completed {new Date(task.completedAt).toLocaleDateString()}
+                              {t('completedOn', { date: formatShortDate(task.completedAt) })}
                             </p>
                           )}
                         </div>
@@ -396,7 +425,7 @@ export default function ChildDetailPage() {
                             : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {task.status}
+                        {getTaskStatusLabel(task.status)}
                       </span>
                     </div>
                   ))}
@@ -410,13 +439,13 @@ export default function ChildDetailPage() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center space-x-2 mb-4">
                   <User className="w-5 h-5 text-gray-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Parent Information</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">{t('parentInformation')}</h2>
                 </div>
                 <div className="space-y-3">
                   {childDetail.parentInfo.displayName && (
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">Name:</span>
+                      <span className="text-sm text-gray-600">{t('parentName')}:</span>
                       <span className="text-sm font-medium text-gray-900">
                         {childDetail.parentInfo.displayName}
                       </span>
@@ -425,7 +454,7 @@ export default function ChildDetailPage() {
                   {childDetail.parentInfo.email && (
                     <div className="flex items-center space-x-2">
                       <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">Email:</span>
+                      <span className="text-sm text-gray-600">{t('parentEmail')}:</span>
                       <a
                         href={`mailto:${childDetail.parentInfo.email}`}
                         className="text-sm font-medium text-primary-600 hover:text-primary-700"
@@ -437,17 +466,15 @@ export default function ChildDetailPage() {
                   {childDetail.parentInfo.linkedAt && (
                     <div className="flex items-center space-x-2">
                       <Link2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">Connected:</span>
+                      <span className="text-sm text-gray-600">{t('connectedSince')}:</span>
                       <span className="text-sm font-medium text-gray-900">
-                        {new Date(childDetail.parentInfo.linkedAt).toLocaleDateString()}
+                        {formatShortDate(childDetail.parentInfo.linkedAt)}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="mt-4 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    Parent connected via mobile app invite code
-                  </p>
+                  <p className="text-xs text-gray-500">{t('parentConnectedViaInvite')}</p>
                 </div>
               </div>
             )}
@@ -456,19 +483,15 @@ export default function ChildDetailPage() {
               <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-6">
                 <div className="flex items-center space-x-2 mb-3">
                   <User className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-lg font-semibold text-gray-500">Parent Not Connected</h2>
+                  <h2 className="text-lg font-semibold text-gray-500">{t('parentNotConnected')}</h2>
                 </div>
-                <p className="text-sm text-gray-500 mb-3">
-                  This child's parent hasn't connected via the mobile app yet.
-                </p>
-                <p className="text-xs text-gray-400">
-                  Share your invite code with the parent to enable communication and note sharing.
-                </p>
+                <p className="text-sm text-gray-500 mb-3">{t('parentNotConnectedDescription')}</p>
+                <p className="text-xs text-gray-400">{t('parentNotConnectedHint')}</p>
               </div>
             )}
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Add Note</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('addNote')}</h2>
               <form onSubmit={handleSubmitNote} className="space-y-4">
                 {error && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
@@ -478,7 +501,7 @@ export default function ChildDetailPage() {
                 <textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  placeholder="Write a note or recommendation for the parent..."
+                  placeholder={t('notePlaceholder')}
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                   required
@@ -490,12 +513,12 @@ export default function ChildDetailPage() {
                     onChange={(e) => setVisibleToParent(e.target.checked)}
                     className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  <span className="text-sm text-gray-700">Visible to parent</span>
+                  <span className="text-sm text-gray-700">{t('visibleToParent')}</span>
                   {visibleToParent && childDetail?.parentInfo && (
-                    <span className="text-xs text-green-600">(Parent will see this note)</span>
+                    <span className="text-xs text-green-600">{t('parentWillSeeNote')}</span>
                   )}
                   {visibleToParent && !childDetail?.parentInfo && (
-                    <span className="text-xs text-gray-500">(No parent connected yet)</span>
+                    <span className="text-xs text-gray-500">{t('noParentConnectedYet')}</span>
                   )}
                 </label>
                 <button
@@ -504,15 +527,17 @@ export default function ChildDetailPage() {
                   className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Send className="w-4 h-4" />
-                  <span>{submittingNote ? 'Saving...' : 'Send Note'}</span>
+                  <span>{submittingNote ? t('savingNote') : t('sendNote')}</span>
                 </button>
               </form>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Notes & Recommendations</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                {t('notesRecommendations')}
+              </h2>
               {notes.length === 0 ? (
-                <p className="text-gray-600 text-sm">No notes yet.</p>
+                <p className="text-gray-600 text-sm">{t('noNotesYet')}</p>
               ) : (
                 <div className="space-y-4">
                   {notes.map((note) => (
@@ -531,7 +556,7 @@ export default function ChildDetailPage() {
                           </p>
                           {note.visibleToParent === false && (
                             <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
-                              Private
+                              {t('privateNote')}
                             </span>
                           )}
                         </div>

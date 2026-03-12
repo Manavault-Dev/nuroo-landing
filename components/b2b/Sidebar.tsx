@@ -95,9 +95,9 @@ export function Sidebar({
           },
           { href: withOrg('/b2b/branches'), labelKey: 'branches' as const, icon: GitBranch },
           { href: withOrg('/b2b/finance'), labelKey: 'finance' as const, icon: Wallet },
+          { href: withOrg('/b2b/billing'), labelKey: 'billing' as const, icon: CreditCard },
         ]
       : []),
-    { href: withOrg('/b2b/billing'), labelKey: 'billing' as const, icon: CreditCard },
     { href: '/b2b/settings', labelKey: 'settings' as const, icon: Settings },
   ]
 
