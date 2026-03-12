@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 import {
   BarChart3,
   Users,
@@ -14,13 +16,206 @@ import {
   TrendingUp,
   Target,
   BookOpen,
-  Printer,
   Download,
 } from 'lucide-react'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
+type ReportsTranslator = ReturnType<typeof useTranslations>
 
 const REPORTS_TIMEOUT_MS = 15000
+const PDF_PAGE_WIDTH_MM = 210
+const PDF_PAGE_HEIGHT_MM = 297
+const PDF_MARGIN_MM = 10
+const PDF_CONTENT_WIDTH_MM = PDF_PAGE_WIDTH_MM - PDF_MARGIN_MM * 2
+
+function formatReportDate(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function hasReportData(data: NonNullable<ReportData>) {
+  return (
+    data.childCompletion.length > 0 ||
+    data.groupCompletion.length > 0 ||
+    data.topParents.length > 0 ||
+    data.lowActivity.length > 0 ||
+    Boolean(
+      data.contentActivity &&
+      (data.contentActivity.totalCompleted > 0 || data.contentActivity.byChild.length > 0)
+    )
+  )
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function renderPdfSection(title: string, content: string) {
+  return `
+    <section style="margin: 0 0 24px;">
+      <h2 style="margin: 0 0 12px; font-size: 16px; font-weight: 700; color: #111827;">
+        ${escapeHtml(title)}
+      </h2>
+      ${content}
+    </section>
+  `
+}
+
+function renderPdfTable(headers: string[], rows: Array<Array<string | number>>, emptyText: string) {
+  if (rows.length === 0) {
+    return `<p style="margin: 0; font-size: 12px; color: #6b7280;">${escapeHtml(emptyText)}</p>`
+  }
+
+  const headerCells = headers
+    .map(
+      (header) => `
+        <th style="padding: 8px 10px; border: 1px solid #d1d5db; background: #f3f4f6; text-align: left; font-size: 12px;">
+          ${escapeHtml(header)}
+        </th>
+      `
+    )
+    .join('')
+
+  const bodyRows = rows
+    .map(
+      (row) => `
+        <tr>
+          ${row
+            .map(
+              (cell) => `
+                <td style="padding: 8px 10px; border: 1px solid #e5e7eb; font-size: 12px; vertical-align: top;">
+                  ${escapeHtml(cell)}
+                </td>
+              `
+            )
+            .join('')}
+        </tr>
+      `
+    )
+    .join('')
+
+  return `
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr>${headerCells}</tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  `
+}
+
+function buildPdfMarkup(data: NonNullable<ReportData>, days: number, t: ReportsTranslator) {
+  const sections = [
+    renderPdfSection(
+      t('childCompletion'),
+      renderPdfTable(
+        [t('child'), t('parent'), t('tasks'), t('percent')],
+        data.childCompletion.map((row) => [
+          row.childName,
+          row.parentName ?? '-',
+          `${row.completedTasks} / ${row.totalTasks}`,
+          `${row.percent}%`,
+        ]),
+        t('noChildren')
+      )
+    ),
+    renderPdfSection(
+      t('groupCompletion'),
+      renderPdfTable(
+        [t('group'), t('specialist'), t('childrenCount'), t('tasks'), t('percent')],
+        data.groupCompletion.map((group) => [
+          group.groupName,
+          group.specialistName ?? '-',
+          group.childCount,
+          `${group.completedTasks} / ${group.totalTasks}`,
+          `${group.percent}%`,
+        ]),
+        t('noGroups')
+      )
+    ),
+    renderPdfSection(
+      t('topParents'),
+      renderPdfTable(
+        [t('rank'), t('parent'), t('last7Days'), t('last30Days')],
+        data.topParents.map((parent, index) => [
+          index + 1,
+          parent.parentName,
+          parent.completedLast7,
+          parent.completedLast30,
+        ]),
+        t('noActivity')
+      )
+    ),
+    renderPdfSection(
+      t('lowActivity'),
+      renderPdfTable(
+        [t('parent'), t('last7Days'), t('last30Days')],
+        data.lowActivity.map((parent) => [parent.parentName, 0, parent.completedLast30]),
+        t('noLowActivity')
+      )
+    ),
+  ]
+
+  if (data.contentActivity) {
+    sections.push(
+      renderPdfSection(
+        t('contentActivity'),
+        `
+          <div style="margin: 0 0 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+            <div style="padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 8px;">
+              <div style="font-size: 12px; color: #6b7280;">${escapeHtml(t('totalCompleted'))}</div>
+              <div style="margin-top: 4px; font-size: 20px; font-weight: 700; color: #111827;">
+                ${escapeHtml(data.contentActivity.totalCompleted)}
+              </div>
+            </div>
+            <div style="padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 8px;">
+              <div style="font-size: 12px; color: #6b7280;">${escapeHtml(t('last7Days'))}</div>
+              <div style="margin-top: 4px; font-size: 20px; font-weight: 700; color: #111827;">
+                ${escapeHtml(data.contentActivity.completedLast7Days)}
+              </div>
+            </div>
+            <div style="padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 8px;">
+              <div style="font-size: 12px; color: #6b7280;">${escapeHtml(t('last30Days'))}</div>
+              <div style="margin-top: 4px; font-size: 20px; font-weight: 700; color: #111827;">
+                ${escapeHtml(data.contentActivity.completedLast30Days)}
+              </div>
+            </div>
+          </div>
+          ${renderPdfTable(
+            [t('child'), t('tasks')],
+            data.contentActivity.byChild.map((item) => [item.childId, item.count]),
+            t('pdfNoData')
+          )}
+        `
+      )
+    )
+  }
+
+  return `
+    <div style="width: 794px; padding: 24px; background: #ffffff; color: #111827; font-family: Arial, sans-serif;">
+      <div style="margin: 0 0 24px;">
+        <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #111827;">
+          ${escapeHtml(t('title'))}
+        </h1>
+        <div style="font-size: 12px; color: #4b5563;">
+          ${escapeHtml(t('period'))} ${days} ${escapeHtml(t('days'))}
+        </div>
+        <div style="margin-top: 4px; font-size: 12px; color: #6b7280;">
+          ${escapeHtml(t('pdfGeneratedAt'))}: ${escapeHtml(formatReportDate())}
+        </div>
+      </div>
+      ${sections.join('')}
+    </div>
+  `
+}
 
 function ReportsSpinner() {
   return (
@@ -40,6 +235,7 @@ function ReportsContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [days, setDays] = useState(30)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -109,10 +305,6 @@ function ReportsContent() {
     )
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
-
   const handleDownloadCsv = () => {
     if (!data) return
     const rows = data.childCompletion
@@ -135,14 +327,84 @@ function ReportsContent() {
     URL.revokeObjectURL(url)
   }
 
+  const canDownloadPdf = Boolean(data && hasReportData(data))
+
+  const handleDownloadPdf = async () => {
+    if (!data || !canDownloadPdf) return
+
+    let container: HTMLDivElement | null = null
+
+    try {
+      setExportingPdf(true)
+      setError('')
+
+      container = document.createElement('div')
+      container.setAttribute('aria-hidden', 'true')
+      container.style.position = 'fixed'
+      container.style.left = '-10000px'
+      container.style.top = '0'
+      container.style.zIndex = '-1'
+      container.style.pointerEvents = 'none'
+      container.innerHTML = buildPdfMarkup(data, days, t)
+      document.body.appendChild(container)
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      })
+
+      const imageData = canvas.toDataURL('image/png')
+      const imageHeight = (canvas.height * PDF_CONTENT_WIDTH_MM) / canvas.width
+      const pageContentHeight = PDF_PAGE_HEIGHT_MM - PDF_MARGIN_MM * 2
+      let remainingHeight = imageHeight
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      })
+
+      pdf.addImage(
+        imageData,
+        'PNG',
+        PDF_MARGIN_MM,
+        PDF_MARGIN_MM,
+        PDF_CONTENT_WIDTH_MM,
+        imageHeight,
+        undefined,
+        'FAST'
+      )
+      remainingHeight -= pageContentHeight
+
+      while (remainingHeight > 0) {
+        pdf.addPage()
+        pdf.addImage(
+          imageData,
+          'PNG',
+          PDF_MARGIN_MM,
+          PDF_MARGIN_MM - (imageHeight - remainingHeight),
+          PDF_CONTENT_WIDTH_MM,
+          imageHeight,
+          undefined,
+          'FAST'
+        )
+        remainingHeight -= pageContentHeight
+      }
+
+      pdf.save(`${t('pdfFilePrefix')}-${formatReportDate()}.pdf`)
+    } catch {
+      setError(t('pdfExportError'))
+    } finally {
+      container?.remove()
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <style>{`
-        @media print {
-          [data-print-hide] { display: none !important; }
-          header, aside, nav { display: none !important; }
-        }
-      `}</style>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <BarChart3 className="w-7 h-7 text-primary-600" />
@@ -167,15 +429,25 @@ function ReportsContent() {
                 className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                CSV
+                {t('downloadCsv')}
               </button>
               <button
-                onClick={handlePrint}
+                onClick={handleDownloadPdf}
                 data-print-hide
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                disabled={!canDownloadPdf || exportingPdf}
+                title={!canDownloadPdf ? t('pdfNoData') : undefined}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  !canDownloadPdf || exportingPdf
+                    ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'border-gray-300 bg-white hover:bg-gray-50'
+                }`}
               >
-                <Printer className="w-4 h-4" />
-                PDF
+                {exportingPdf ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {exportingPdf ? t('preparingPdf') : t('downloadPdf')}
               </button>
             </>
           )}
