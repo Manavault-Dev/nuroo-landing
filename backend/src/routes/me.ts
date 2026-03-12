@@ -30,28 +30,93 @@ function normalizeRole(role: string): 'admin' | 'specialist' {
 
 async function findOrganizationsForUser(
   db: admin.firestore.Firestore,
-  uid: string
-): Promise<Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }>> {
-  const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
-  const organizations: Array<{ orgId: string; orgName: string; role: 'admin' | 'specialist' }> = []
+  uid: string,
+  isUserSuperAdmin: boolean
+): Promise<
+  Array<{ orgId: string; orgName: string; country?: string | null; role: 'admin' | 'specialist' }>
+> {
+  const organizations: Array<{
+    orgId: string
+    orgName: string
+    country?: string | null
+    role: 'admin' | 'specialist'
+  }> = []
+  const seenOrgIds = new Set<string>()
 
-  for (const orgDoc of orgsSnapshot.docs) {
-    const orgId = orgDoc.id
-    const orgData = orgDoc.data()
-
-    const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
-    const memberSnap = await memberRef.get()
-
-    if (!memberSnap.exists) continue
-
-    const memberData = memberSnap.data()
-    if (memberData?.status !== 'active') continue
-
+  const addOrganization = (
+    orgId: string,
+    orgData: admin.firestore.DocumentData,
+    role: 'admin' | 'specialist'
+  ) => {
+    if (seenOrgIds.has(orgId)) return
+    seenOrgIds.add(orgId)
     organizations.push({
       orgId,
       orgName: orgData.name || orgId,
-      role: normalizeRole(memberData.role),
+      country: orgData.country ?? null,
+      role,
     })
+  }
+
+  if (isUserSuperAdmin) {
+    const createdOrgsSnapshot = await db
+      .collection(COLLECTIONS.ORGANIZATIONS)
+      .where('createdBy', '==', uid)
+      .get()
+
+    for (const orgDoc of createdOrgsSnapshot.docs) {
+      addOrganization(orgDoc.id, orgDoc.data(), 'admin')
+    }
+  }
+
+  try {
+    const membershipsSnapshot = await db
+      .collectionGroup('members')
+      .where(admin.firestore.FieldPath.documentId(), '==', uid)
+      .get()
+
+    const orgEntries = await Promise.all(
+      membershipsSnapshot.docs.map(async (memberDoc) => {
+        const memberData = memberDoc.data()
+        if (memberData?.status !== 'active') return null
+
+        const orgRef = memberDoc.ref.parent.parent
+        if (!orgRef) return null
+
+        const orgSnap = await orgRef.get()
+        if (!orgSnap.exists) return null
+
+        return {
+          orgId: orgSnap.id,
+          orgData: orgSnap.data()!,
+          role: normalizeRole(memberData.role),
+        }
+      })
+    )
+
+    for (const entry of orgEntries) {
+      if (!entry) continue
+      addOrganization(entry.orgId, entry.orgData, entry.role)
+    }
+  } catch (error) {
+    console.warn('[ME] Falling back to full organization scan:', error)
+
+    const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
+
+    for (const orgDoc of orgsSnapshot.docs) {
+      const orgId = orgDoc.id
+      if (seenOrgIds.has(orgId)) continue
+
+      const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
+      const memberSnap = await memberRef.get()
+
+      if (!memberSnap.exists) continue
+
+      const memberData = memberSnap.data()
+      if (memberData?.status !== 'active') continue
+
+      addOrganization(orgId, orgDoc.data(), normalizeRole(memberData.role))
+    }
   }
 
   return organizations
@@ -90,7 +155,8 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
     const name = extractName(specialistData, email)
 
-    const organizations = await findOrganizationsForUser(db, uid)
+    const isUserSuperAdmin = request.user?.claims?.superAdmin === true
+    const organizations = await findOrganizationsForUser(db, uid, isUserSuperAdmin)
 
     const profile: SpecialistProfile = {
       uid,

@@ -62,6 +62,7 @@ export interface SpecialistProfile {
   organizations: Array<{
     orgId: string
     orgName: string
+    country?: string | null
     role: 'admin' | 'specialist'
   }>
 }
