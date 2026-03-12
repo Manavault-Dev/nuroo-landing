@@ -21,7 +21,7 @@ export function usePageAuth(): PageAuth {
   const orgId = searchParams.get('orgId') || profile?.organizations[0]?.orgId || undefined
   const currentOrg =
     profile?.organizations.find((o) => o.orgId === orgId) ?? profile?.organizations[0]
-  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
+  const isAdmin = currentOrg?.role === 'admin'
 
   return { profile, orgId, isAdmin, isLoading }
 }

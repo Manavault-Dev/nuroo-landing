@@ -42,7 +42,7 @@ export function Sidebar({
   const t = useTranslations('b2b.sidebar')
   const currentOrg =
     profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
-  const isOrgAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
+  const isOrgAdmin = currentOrg?.role === 'admin'
 
   const pathForMatch = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
   const isActive = (href: string) => {
