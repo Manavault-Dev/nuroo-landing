@@ -41,7 +41,7 @@ export default function BillingPage() {
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
     profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
+  const isAdmin = currentOrg?.role === 'admin'
 
   const numberLocale =
     locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
