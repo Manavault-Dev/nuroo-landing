@@ -59,3 +59,6 @@ Thumbs.db
 
 # Auto Claude data directory
 .auto-claude/
+
+# Codex logs
+.codex-logs/

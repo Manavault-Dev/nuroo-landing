@@ -118,6 +118,14 @@ jobs:
           docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:${{ github.sha }}"
           docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:latest"
 
+      # Remove Firebase vars if they were set as env vars (so deploy can set them as secrets)
+      - name: Clear Firebase env vars for secret migration
+        run: |
+          gcloud run services update ${{ env.GCP_SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --remove-env-vars=FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,FIREBASE_STORAGE_BUCKET \
+            --project=${{ secrets.GCP_PROJECT_ID }} || true
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
