@@ -39,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      if (requestVersion !== profileRequestVersion.current) {
+        return
+      }
+
       if (profileData) {
         setProfile(profileData)
         setCurrentOrgId((prev) => {
