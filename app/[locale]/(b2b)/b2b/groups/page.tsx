@@ -847,20 +847,20 @@ export default function GroupsPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4 mb-8">
-        <div>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">{t('subtitle')}</p>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">{t('subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:shrink-0">
           <button
             onClick={handleCreateInvite}
             disabled={generatingInvite || !orgId}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
+            className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm sm:w-auto"
           >
             {generatingInvite ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -874,7 +874,7 @@ export default function GroupsPage() {
               resetGroupForm()
               setShowGroupModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all shadow-sm"
+            className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all shadow-sm sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             {t('newGroup')}
@@ -895,7 +895,7 @@ export default function GroupsPage() {
               resetGroupForm()
               setShowGroupModal(true)
             }}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all"
+            className="flex w-full items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             {t('createGroup')}
@@ -1143,7 +1143,7 @@ export default function GroupsPage() {
           </div>
 
           {assignmentDetailLoading ? (
-            <div className="flex-1 p-8 space-y-4 max-w-5xl mx-auto w-full">
+            <div className="flex-1 w-full max-w-5xl mx-auto space-y-4 p-4 sm:p-6 lg:p-8">
               <Skeleton className="h-24" />
               <Skeleton className="h-64" />
             </div>
@@ -1151,7 +1151,7 @@ export default function GroupsPage() {
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
               {/* Left: Submissions */}
               <div className="flex-1 overflow-y-auto">
-                <div className="max-w-2xl mx-auto px-6 py-5">
+                <div className="max-w-2xl mx-auto px-4 py-5 sm:px-6">
                   {assignmentDetail.description && (
                     <div className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-700 leading-relaxed">
                       {assignmentDetail.description}
@@ -1203,7 +1203,7 @@ export default function GroupsPage() {
                   })()}
 
                   {/* Filter tabs */}
-                  <div className="flex items-center gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
+                  <div className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 sm:flex sm:items-center">
                     {[
                       {
                         key: 'all' as const,
@@ -1232,7 +1232,7 @@ export default function GroupsPage() {
                       <button
                         key={key}
                         onClick={() => setSubmissionFilter(key)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${submissionFilter === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex min-w-0 items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all sm:flex-1 ${submissionFilter === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                       >
                         {label}
                         {count > 0 && (
@@ -1970,12 +1970,12 @@ function GroupCard({
           <p className="mb-3 text-xs text-gray-400 italic">{t('noAssignmentsYet')}</p>
         )}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1 text-xs text-gray-500">
             <Users className="w-3.5 h-3.5" />
             <span>{t('parentCount', { count: group.parentCount })}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1">
             {!group.ownerId && onAssign && (
               <button
                 onClick={onAssign}

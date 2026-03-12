@@ -105,13 +105,13 @@ export function Sidebar({
   return (
     <div
       className={clsx(
-        'fixed inset-y-0 left-0 z-50 w-72 max-w-[min(320px,calc(100vw-2rem))] lg:static lg:w-64 lg:max-w-none min-h-screen flex flex-col bg-white border-r border-gray-200',
+        'fixed inset-y-0 left-0 z-50 w-72 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] lg:static lg:w-64 lg:max-w-none lg:min-h-screen flex flex-col overflow-hidden bg-white border-r border-gray-200',
         'transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] lg:transition-none',
         'lg:shadow-none',
         mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
       )}
     >
-      <div className="lg:hidden flex items-center justify-end p-2 border-b border-gray-200">
+      <div className="lg:hidden flex items-center justify-end p-2 border-b border-gray-200 shrink-0">
         <button
           type="button"
           onClick={onMobileClose}
@@ -122,7 +122,7 @@ export function Sidebar({
         </button>
       </div>
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
-        <div className="p-4 lg:p-6 border-b border-gray-200">
+        <div className="p-4 lg:p-6 border-b border-gray-200 shrink-0">
           <Link href="/b2b" className="flex items-center space-x-3 mb-4" onClick={onMobileClose}>
             <Image
               src="/logo.png"
@@ -138,8 +138,8 @@ export function Sidebar({
             </div>
           </Link>
           {currentOrg && (
-            <div className="mt-2">
-              <p className="text-sm font-medium text-gray-900">{currentOrg.orgName}</p>
+            <div className="mt-2 min-w-0">
+              <p className="text-sm font-medium text-gray-900 break-words">{currentOrg.orgName}</p>
               {isOrgAdmin && (
                 <span className="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
                   {t('admin')}
@@ -149,7 +149,7 @@ export function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto overscroll-contain p-4 pb-6 space-y-1">
           {specialistNavItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
@@ -159,14 +159,14 @@ export function Sidebar({
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] items-center ${
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] min-w-0 ${
                   active
                     ? 'bg-primary-50 text-primary-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{t(item.labelKey)}</span>
+                <span className="min-w-0 truncate">{t(item.labelKey)}</span>
                 {active && <ChevronRight className="w-4 h-4 ml-auto" />}
               </Link>
             )
