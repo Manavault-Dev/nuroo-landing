@@ -1,17 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.billing')
+  const { orgId, isAdmin, isLoading } = usePageAuth()
   const [verifying, setVerifying] = useState(true)
   const [verified, setVerified] = useState(false)
   const [error, setError] = useState('')
@@ -20,8 +23,13 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     const verifyPayment = async () => {
+      if (isLoading) return
+      if (!isAdmin) {
+        router.replace(orgId ? `/b2b?orgId=${orgId}` : '/b2b')
+        return
+      }
       if (!paymentId) {
-        setError('Payment ID is missing')
+        setError(t('paymentFailedMessage'))
         setVerifying(false)
         return
       }
@@ -55,7 +63,7 @@ export default function PaymentSuccessPage() {
     }
 
     verifyPayment()
-  }, [paymentId, router, t])
+  }, [isAdmin, isLoading, orgId, paymentId, router, t])
 
   if (verifying) {
     return (
@@ -68,6 +76,8 @@ export default function PaymentSuccessPage() {
     )
   }
 
+  const billingHref = orgId ? `/b2b/billing?orgId=${orgId}` : '/b2b/billing'
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
@@ -77,7 +87,7 @@ export default function PaymentSuccessPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('paymentSuccess')}</h1>
             <p className="text-gray-600 mb-6">{t('paymentSuccessMessage')}</p>
             <Link
-              href="/b2b/billing"
+              href={billingHref}
               className="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
@@ -92,7 +102,7 @@ export default function PaymentSuccessPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('paymentFailed')}</h1>
             <p className="text-gray-600 mb-6">{error || t('paymentFailedMessage')}</p>
             <Link
-              href="/b2b/billing"
+              href={billingHref}
               className="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />

@@ -1881,6 +1881,7 @@ export default function GroupsPage() {
           url={lightboxUrl}
           onClose={() => setLightboxUrl(null)}
           closeHint={t('lightboxCloseHint')}
+          closeLabel={t('close')}
         />
       )}
     </div>
@@ -2113,11 +2114,13 @@ function AssignmentsTab({
 function Lightbox({
   url,
   onClose,
-  closeHint = 'Esc or click outside to close',
+  closeHint = '',
+  closeLabel = '',
 }: {
   url: string
   onClose: () => void
   closeHint?: string
+  closeLabel?: string
 }) {
   const mediaType = getMediaTypeFromUrl(url)
   const [imageUseDirect, setImageUseDirect] = useState(false)
@@ -2146,7 +2149,7 @@ function Lightbox({
       <button
         onClick={onClose}
         className="absolute top-5 right-5 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-        aria-label="Close"
+        aria-label={closeLabel}
       >
         <X className="w-5 h-5" />
       </button>
@@ -2212,8 +2215,8 @@ function SubmissionImagePreview({
   onViewFullSize,
   className = '',
   showLabel = true,
-  labelViewFullSize = 'View full size',
-  labelPreviewUnavailable = 'Preview unavailable',
+  labelViewFullSize = '',
+  labelPreviewUnavailable = '',
 }: {
   fileUrl: string
   onViewFullSize: () => void
