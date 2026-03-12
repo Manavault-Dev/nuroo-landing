@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import {
   Plus,
@@ -56,6 +57,7 @@ export function ContentManagement({
   pageTitle,
   pageSubtitle,
 }: ContentManagementProps) {
+  const t = useTranslations('b2b.pages.assignments')
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ContentType>('tasks')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -87,7 +89,7 @@ export function ContentManagement({
         setRoadmaps(roadmapsRes.roadmaps || [])
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load content'
+      const errorMessage = error instanceof Error ? error.message : t('loadError')
       alert(errorMessage)
     } finally {
       setLoading(false)
@@ -143,15 +145,15 @@ export function ContentManagement({
 
   const handleSave = async () => {
     if (activeTab === 'roadmaps' && !formData.name) {
-      alert('Name is required')
+      alert(t('nameRequired'))
       return
     }
     if (activeTab !== 'roadmaps' && !formData.title) {
-      alert('Title is required')
+      alert(t('titleRequired'))
       return
     }
     if (requireMediaForNewTask) {
-      alert('Please upload a video or image file, or provide a URL')
+      alert(t('mediaRequired'))
       return
     }
 
@@ -285,20 +287,11 @@ export function ContentManagement({
       }
 
       const wasEditing = !!editingItem
-      const action = wasEditing ? 'updated' : 'created'
-      const contentType = activeTab.slice(0, -1)
-      setIsModalOpen(false)
-      setEditingItem(null)
-      setFormData({})
-      setMediaFile(null)
-      setUploadProgress(0)
+      handleCloseModal()
       await loadContent()
-      setTimeout(() => alert(`Successfully ${action} ${contentType}!`), 100)
+      setTimeout(() => alert(wasEditing ? t('updatedSuccess') : t('createdSuccess')), 100)
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : `Failed to ${editingItem ? 'update' : 'create'} ${activeTab.slice(0, -1)}`
+      const errorMessage = error instanceof Error ? error.message : t('saveError')
       alert(errorMessage)
     } finally {
       setSaving(false)
@@ -306,7 +299,7 @@ export function ContentManagement({
   }
 
   const handleDelete = async (type: ContentType, id: string) => {
-    if (!confirm(`Are you sure you want to delete this ${type.slice(0, -1)}?`)) return
+    if (!confirm(t(type === 'tasks' ? 'deleteTaskConfirm' : 'deleteRoadmapConfirm'))) return
     try {
       if (mode === 'org' && orgId) {
         if (type === 'tasks') {
@@ -324,8 +317,7 @@ export function ContentManagement({
       setTasks((prev) => (type === 'tasks' ? prev.filter((t) => t.id !== id) : prev))
       setRoadmaps((prev) => (type === 'roadmaps' ? prev.filter((r) => r.id !== id) : prev))
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : `Failed to delete ${type.slice(0, -1)}`
+      const errorMessage = error instanceof Error ? error.message : t('deleteError')
       alert(errorMessage)
     }
   }
@@ -343,55 +335,59 @@ export function ContentManagement({
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isRoadmap ? 'Name' : 'Title'} *
+            {isRoadmap ? t('roadmapName') : t('taskTitle')} *
           </label>
           <input
             type="text"
             value={((isRoadmap ? formData.name : formData.title) as string) || ''}
             onChange={(e) => updateFormField(isRoadmap ? 'name' : 'title', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            placeholder={`Enter ${isRoadmap ? 'name' : 'title'}`}
+            placeholder={isRoadmap ? t('enterRoadmapName') : t('enterTaskTitle')}
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {isRoadmap ? t('roadmapDescription') : t('taskDescription')}
+          </label>
           <textarea
             value={(formData.description as string) || ''}
             onChange={(e) => updateFormField('description', e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            placeholder="Enter description"
+            placeholder={t('enterDescription')}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
           <input
             type="text"
             value={(formData.category as string) || ''}
             onChange={(e) => updateFormField('category', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            placeholder="Enter category"
+            placeholder={t('enterCategory')}
           />
         </div>
         {isTask && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('difficulty')}
+              </label>
               <select
                 value={(formData.difficulty as string) || ''}
                 onChange={(e) => updateFormField('difficulty', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                <option value="">Select difficulty</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
+                <option value="">{t('selectDifficulty')}</option>
+                <option value="easy">{t('difficultyEasy')}</option>
+                <option value="medium">{t('difficultyMedium')}</option>
+                <option value="hard">{t('difficultyHard')}</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estimated Duration (minutes)
+                {t('estimatedDuration')}
               </label>
               <input
                 type="number"
@@ -400,11 +396,13 @@ export function ContentManagement({
                   updateFormField('estimatedDuration', parseInt(e.target.value) || undefined)
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter duration"
+                placeholder={t('enterDuration')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('videoUrl')}
+              </label>
               <input
                 type="url"
                 value={(formData.videoUrl as string) || ''}
@@ -414,7 +412,9 @@ export function ContentManagement({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('imageUrl')}
+              </label>
               <input
                 type="url"
                 value={(formData.imageUrl as string) || ''}
@@ -427,7 +427,7 @@ export function ContentManagement({
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Materials (one per line)
+                    {t('materials')}
                   </label>
                   <textarea
                     value={(formData.materials as string[])?.join('\n') || ''}
@@ -440,12 +440,12 @@ export function ContentManagement({
                     }}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Material 1&#10;Material 2"
+                    placeholder={t('materialsPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Instructions (one per line)
+                    {t('instructions')}
                   </label>
                   <textarea
                     value={(formData.instructions as string[])?.join('\n') || ''}
@@ -461,7 +461,7 @@ export function ContentManagement({
                     }}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Step 1&#10;Step 2"
+                    placeholder={t('instructionsPlaceholder')}
                   />
                 </div>
               </>
@@ -472,7 +472,7 @@ export function ContentManagement({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tasks in Roadmap
+                {t('tasksInRoadmap')}
               </label>
               <div className="border border-gray-300 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto bg-gray-50">
                 {(formData.taskIds as string[])?.length > 0 ? (
@@ -490,7 +490,7 @@ export function ContentManagement({
                             </span>
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900">
-                                {task?.title || 'Unknown Task'}
+                                {task?.title || t('unknownTask')}
                               </p>
                               {task?.description && (
                                 <p className="text-xs text-gray-500 mt-1 line-clamp-1">
@@ -514,7 +514,7 @@ export function ContentManagement({
                               }}
                               disabled={index === 0}
                               className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Move up"
+                              title={t('moveUp')}
                             >
                               <ChevronUp className="w-4 h-4" />
                             </button>
@@ -532,7 +532,7 @@ export function ContentManagement({
                               }}
                               disabled={index === ((formData.taskIds as string[]) || []).length - 1}
                               className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Move down"
+                              title={t('moveDown')}
                             >
                               <ChevronDown className="w-4 h-4" />
                             </button>
@@ -545,7 +545,7 @@ export function ContentManagement({
                                 updateFormField('taskIds', newTaskIds.length > 0 ? newTaskIds : [])
                               }}
                               className="p-1 text-red-400 hover:text-red-600"
-                              title="Remove"
+                              title={t('remove')}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -555,15 +555,13 @@ export function ContentManagement({
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 text-center py-8">
-                    No tasks added yet. Select tasks below to add them to this roadmap.
-                  </p>
+                  <p className="text-sm text-gray-500 text-center py-8">{t('noTasksAdded')}</p>
                 )}
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Add Task to Roadmap
+                {t('addTaskToRoadmap')}
               </label>
               <select
                 value=""
@@ -579,19 +577,17 @@ export function ContentManagement({
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                <option value="">Select a task to add...</option>
+                <option value="">{t('selectTaskToAdd')}</option>
                 {tasks
                   .filter((task) => !((formData.taskIds as string[]) || []).includes(task.id))
                   .map((task) => (
                     <option key={task.id} value={task.id}>
-                      {task.title || 'Untitled Task'}
+                      {task.title || t('untitledTask')}
                     </option>
                   ))}
               </select>
               {tasks.length === 0 && (
-                <p className="mt-2 text-xs text-gray-500">
-                  No tasks available. Create tasks first before adding them to a roadmap.
-                </p>
+                <p className="mt-2 text-xs text-gray-500">{t('noTasksAvailable')}</p>
               )}
             </div>
           </div>
@@ -599,7 +595,7 @@ export function ContentManagement({
         {showMediaUpload && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Upload Media File (Video or Image) {!editingItem && '*'}
+              {t('uploadMediaFile')} {!editingItem && '*'}
             </label>
             <input
               type="file"
@@ -625,7 +621,7 @@ export function ContentManagement({
                   onClick={() => setMediaFile(null)}
                   className="text-red-600 hover:text-red-700 text-sm"
                 >
-                  Remove
+                  {t('remove')}
                 </button>
               </div>
             )}
@@ -647,8 +643,8 @@ export function ContentManagement({
   }
 
   const tabs = [
-    { id: 'tasks' as ContentType, label: 'Задания', icon: CheckSquare, count: tasks.length },
-    { id: 'roadmaps' as ContentType, label: 'Программы', icon: BookOpen, count: roadmaps.length },
+    { id: 'tasks' as ContentType, label: t('tasks'), icon: CheckSquare, count: tasks.length },
+    { id: 'roadmaps' as ContentType, label: t('roadmaps'), icon: BookOpen, count: roadmaps.length },
   ]
 
   const getCurrentItems = () => {
@@ -661,14 +657,9 @@ export function ContentManagement({
   }
 
   const currentItems = getCurrentItems()
-  const contentTypeLabel = activeTab === 'tasks' ? 'Task' : 'Roadmap'
-
-  const title = pageTitle ?? (mode === 'org' ? 'Assignments' : 'Content Management')
-  const subtitle =
-    pageSubtitle ??
-    (mode === 'org'
-      ? 'Create tasks and roadmaps for parents. They will see them in the app when using your invite code.'
-      : 'Manage global content: tasks and roadmaps')
+  const isTasksTab = activeTab === 'tasks'
+  const title = pageTitle ?? (mode === 'org' ? t('title') : t('contentManagement'))
+  const subtitle = pageSubtitle ?? (mode === 'org' ? t('subtitle') : t('contentManagementSubtitle'))
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -718,7 +709,7 @@ export function ContentManagement({
           className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          <span>Create {contentTypeLabel}</span>
+          <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
         </button>
       </div>
 
@@ -731,16 +722,18 @@ export function ContentManagement({
               return Icon ? <Icon className="w-8 h-8 text-gray-400" /> : null
             })()}
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No {activeTab} yet</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {isTasksTab ? t('noTasksYet') : t('noRoadmapsYet')}
+          </h3>
           <p className="text-gray-600 mb-6">
-            Create your first {activeTab.slice(0, -1)} to get started.
+            {isTasksTab ? t('noTasksHint') : t('noRoadmapsHint')}
           </p>
           <button
             type="button"
             onClick={handleCreate}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Create {contentTypeLabel}
+            {isTasksTab ? t('createTask') : t('createRoadmap')}
           </button>
         </div>
       )}
@@ -758,7 +751,7 @@ export function ContentManagement({
                     className="text-lg font-semibold text-gray-900 mb-1 truncate"
                     title={item.title || item.name || undefined}
                   >
-                    {item.title || item.name || 'Untitled'}
+                    {item.title || item.name || t('untitled')}
                   </h3>
                   {item.description && (
                     <p
@@ -774,7 +767,7 @@ export function ContentManagement({
                     type="button"
                     onClick={() => handleEdit(item)}
                     className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                    title="Edit"
+                    title={t('edit')}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -782,7 +775,7 @@ export function ContentManagement({
                     type="button"
                     onClick={() => handleDelete(activeTab, item.id)}
                     className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    title="Delete"
+                    title={t('delete')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -791,30 +784,39 @@ export function ContentManagement({
               <div className="space-y-2 text-xs text-gray-500">
                 {item.category && (
                   <div>
-                    <span className="font-medium">Category:</span> {item.category}
+                    <span className="font-medium">{t('category')}:</span> {item.category}
                   </div>
                 )}
                 {item.ageRange && (
                   <div>
-                    <span className="font-medium">Age Range:</span> {item.ageRange.min}-
-                    {item.ageRange.max} years
+                    <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
+                    {item.ageRange.max} {t('years')}
                   </div>
                 )}
                 {item.difficulty && (
                   <div>
-                    <span className="font-medium">Difficulty:</span>{' '}
-                    <span className="capitalize">{item.difficulty}</span>
+                    <span className="font-medium">{t('difficulty')}:</span>{' '}
+                    <span className="capitalize">
+                      {t(
+                        item.difficulty === 'easy'
+                          ? 'difficultyEasy'
+                          : item.difficulty === 'medium'
+                            ? 'difficultyMedium'
+                            : 'difficultyHard'
+                      )}
+                    </span>
                   </div>
                 )}
                 {item.type && (
                   <div>
-                    <span className="font-medium">Type:</span>{' '}
+                    <span className="font-medium">{t('type')}:</span>{' '}
                     <span className="capitalize">{item.type}</span>
                   </div>
                 )}
                 {item.taskIds && item.taskIds.length > 0 && (
                   <div className="text-sm text-gray-600">
-                    <span className="font-medium">Tasks:</span> {item.taskIds.length} task(s)
+                    <span className="font-medium">{t('tasks')}:</span>{' '}
+                    {t('tasksCount', { count: item.taskIds.length })}
                   </div>
                 )}
                 {item.videoUrl && (
@@ -825,7 +827,7 @@ export function ContentManagement({
                       rel="noopener noreferrer"
                       className="text-purple-600 hover:text-purple-700 underline"
                     >
-                      View Video →
+                      {t('viewVideo')}
                     </a>
                   </div>
                 )}
@@ -837,13 +839,13 @@ export function ContentManagement({
                       rel="noopener noreferrer"
                       className="text-purple-600 hover:text-purple-700 underline"
                     >
-                      View Image →
+                      {t('viewImage')}
                     </a>
                   </div>
                 )}
                 {item.createdAt && (
                   <div className="pt-2 border-t border-gray-100">
-                    <span className="font-medium">Created:</span>{' '}
+                    <span className="font-medium">{t('createdLabel')}:</span>{' '}
                     {new Date(item.createdAt).toLocaleDateString()}
                   </div>
                 )}
@@ -858,7 +860,13 @@ export function ContentManagement({
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
-                {editingItem ? 'Edit' : 'Create'} {contentTypeLabel}
+                {editingItem
+                  ? isTasksTab
+                    ? t('editTask')
+                    : t('editRoadmap')
+                  : isTasksTab
+                    ? t('createTask')
+                    : t('createRoadmap')}
               </h2>
               <button
                 type="button"
@@ -876,7 +884,7 @@ export function ContentManagement({
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 disabled={saving}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -888,11 +896,11 @@ export function ContentManagement({
                 <span>
                   {saving
                     ? activeTab === 'tasks' && mediaFile
-                      ? `Uploading... ${uploadProgress}%`
-                      : 'Saving...'
+                      ? t('uploading', { progress: uploadProgress })
+                      : t('saving')
                     : editingItem
-                      ? 'Update'
-                      : 'Create'}
+                      ? t('save')
+                      : t('create')}
                 </span>
               </button>
               {activeTab === 'tasks' && mediaFile && uploadProgress > 0 && uploadProgress < 100 && (
@@ -903,7 +911,9 @@ export function ContentManagement({
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Uploading video... {uploadProgress}%</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t('uploadingVideo', { progress: uploadProgress })}
+                  </p>
                 </div>
               )}
             </div>
