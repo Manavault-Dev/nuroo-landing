@@ -146,11 +146,11 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-col items-stretch justify-end gap-4 pt-4 border-t border-gray-200 sm:flex-row sm:items-center">
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex w-full items-center justify-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:w-auto"
               >
                 {saving ? (
                   <>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
               {profile.organizations.map((org) => (
                 <div
                   key={org.orgId}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                  className="flex flex-col gap-3 p-4 border border-gray-200 rounded-lg sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="font-medium text-gray-900">{org.orgName}</p>
