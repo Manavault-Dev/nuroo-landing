@@ -54,16 +54,21 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 min-h-14 lg:h-16 flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+    <header className="sticky top-0 relative z-[45] isolate bg-white border-b border-gray-200 min-h-14 lg:h-16 flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-visible">
         {onMenuClick && (
           <button
             type="button"
-            onClick={onMenuClick}
-            className="lg:hidden relative flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onMenuClick()
+            }}
+            className="lg:hidden relative z-[100] flex items-center justify-center w-12 h-12 min-w-[48px] min-h-[48px] -ml-1 rounded-lg text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0 cursor-pointer"
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
           >
-            <span className="relative w-5 h-5">
+            <span className="relative w-5 h-5 pointer-events-none">
               <Menu
                 className={[
                   'absolute inset-0 w-5 h-5 transition-all duration-200 ease-out',
