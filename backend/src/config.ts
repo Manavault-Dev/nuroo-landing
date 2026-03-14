@@ -21,7 +21,7 @@ for (const envPath of envFiles) {
 }
 
 const envSchema = z.object({
-  PORT: z.string().default(process.env.PORT || '3001'),
+  PORT: z.string().default(process.env.PORT || '3101'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),

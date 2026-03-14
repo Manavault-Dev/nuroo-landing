@@ -105,10 +105,12 @@ export function Sidebar({
   return (
     <div
       className={clsx(
-        'fixed inset-y-0 left-0 z-50 w-72 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] lg:static lg:w-64 lg:max-w-none lg:min-h-screen flex flex-col overflow-hidden bg-white border-r border-gray-200',
+        'fixed inset-y-0 left-0 w-72 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] lg:static lg:w-64 lg:max-w-none lg:min-h-screen flex flex-col overflow-hidden bg-white border-r border-gray-200',
+        mobileOpen ? 'z-50' : 'z-[38] lg:z-auto',
         'transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] lg:transition-none',
         'lg:shadow-none',
-        mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
+        !mobileOpen ? 'pointer-events-none lg:pointer-events-auto' : ''
       )}
     >
       <div className="lg:hidden flex items-center justify-end p-2 border-b border-gray-200 shrink-0">
