@@ -83,7 +83,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.PREVIEW_API_URL || secrets.NEXT_PUBLIC_API_URL || 'http://localhost:3001' }}
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const body = `## Frontend Preview Check
@@ -166,7 +166,7 @@ jobs:
           echo "Docker image built successfully"
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const body = `## Backend Preview Check
