@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const envSchema = z.object({
-  PORT: z.string().default('3001'),
+  PORT: z.string().default('3101'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   // Firebase Admin (Backend)
