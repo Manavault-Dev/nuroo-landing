@@ -305,7 +305,7 @@
         "createInvites": "Create invites for specialists and parents."
       },
       "children": {
-        "title": "Children",
+        "title": "Your children",
         "loadingChildren": "Loading children...",
         "childAssigned": "child assigned",
         "childrenAssigned": "children assigned",
@@ -372,7 +372,7 @@
         "privateNote": "Private"
       },
       "settings": {
-        "title": "Profile Settings",
+        "title": "Profile",
         "subtitle": "Manage your personal information and account settings.",
         "profileUpdated": "Profile updated successfully!",
         "emailAddress": "Email Address",
@@ -388,7 +388,7 @@
         "notInOrg": "You are not a member of any organization."
       },
       "organization": {
-        "title": "Organization Settings",
+        "title": "Settings",
         "subtitle": "Manage your organization details and preferences.",
         "organizationId": "Organization ID:",
         "yourRole": "Your role:",
@@ -408,7 +408,7 @@
         "createManageInvites": "Create and manage invite codes"
       },
       "team": {
-        "title": "Team Management",
+        "title": "Members",
         "subtitle": "Manage members of your organization.",
         "totalMembers": "Total Members",
         "administrators": "Administrators",
@@ -429,7 +429,7 @@
         "failedUpdateRole": "Failed to update role"
       },
       "invites": {
-        "title": "Invite Codes",
+        "title": "Create and manage invites",
         "introAdmin": "Generate invite codes to add specialists or parents to your organization.",
         "introSpecialist": "Generate invite codes to add parents to your organization.",
         "creating": "Creating...",
@@ -486,7 +486,7 @@
         "copyManually": "Please copy manually:"
       },
       "reports": {
-        "title": "Reports",
+        "title": "Analytics overview",
         "period": "Period:",
         "days": "days",
         "downloadCsv": "Download CSV",
@@ -523,7 +523,7 @@
         "byChild": "By child"
       },
       "assignments": {
-        "title": "Assignments",
+        "title": "Tasks and roadmaps",
         "subtitle": "Create tasks and roadmaps for parents. They will see them in the app when using your invite code.",
         "tasks": "Tasks",
         "roadmaps": "Roadmaps",
@@ -598,8 +598,8 @@
         "uploadingVideo": "Uploading video... {progress}%"
       },
       "groups": {
-        "title": "Groups",
-        "subtitle": "Assign tasks and track student progress",
+        "title": "Assign tasks and track progress",
+        "subtitle": "Create groups, assign tasks and track student progress.",
         "invite": "Invite",
         "newGroup": "New group",
         "noGroups": "No groups",
@@ -734,7 +734,7 @@
         "partPrograms": "{n, plural, one {# program} other {# programs}}"
       },
       "billing": {
-        "title": "Billing & Subscription",
+        "title": "Subscription plan",
         "subtitle": "Manage your organization's subscription plan.",
         "paymentInfo": "When you click Subscribe, you will be redirected to a secure payment page (Finik). You can pay by bank card in KGS. After successful payment you will return here.",
         "currentPlan": "Current Plan",
@@ -791,7 +791,7 @@
         "paymentFailedMessage": "Payment failed. Please try again or contact support."
       },
       "branches": {
-        "title": "Branches",
+        "title": "Locations",
         "subtitle": "Manage your organization's locations and branches.",
         "addBranch": "Add Branch",
         "editBranch": "Edit",
@@ -806,7 +806,7 @@
         "deleteConfirm": "Delete this branch?"
       },
       "finance": {
-        "title": "Finance & Attendance",
+        "title": "Attendance and payments",
         "subtitle": "Track children's attendance and monthly payment status.",
         "attendance": "Attendance",
         "fees": "Payments",

@@ -98,13 +98,18 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
         isClosing={isClosing}
         onMobileClose={closeSidebar}
       />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative isolate">
         <Header
           profile={profile}
           isSidebarOpen={sidebarOpen}
           onMenuClick={sidebarOpen ? closeSidebar : openSidebar}
         />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main
+          className="flex-1 overflow-auto relative z-0 min-h-0"
+          style={{ touchAction: 'pan-y' }}
+        >
+          {children}
+        </main>
       </div>
       {sidebarOpen && (
         <div
