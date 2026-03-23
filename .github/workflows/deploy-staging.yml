@@ -101,16 +101,22 @@ jobs:
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
       - name: Build Docker Image
+        env:
+          DOCKER_BUILDKIT: '1'
         run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}"
           docker build \
-            --tag "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:${{ github.sha }}" \
-            --tag "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:latest" \
+            --tag "${IMAGE}:${{ github.sha }}" \
+            --tag "${IMAGE}:latest" \
+            --cache-from "${IMAGE}:latest" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
             .
 
       - name: Push Docker Image
         run: |
-          docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:${{ github.sha }}"
-          docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}:latest"
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}"
+          docker push "${IMAGE}:${{ github.sha }}"
+          docker push "${IMAGE}:latest"
 
       - name: Deploy to Cloud Run (Staging)
         id: deploy
