@@ -110,6 +110,10 @@ export interface FeeRecord {
   status: 'paid' | 'pending' | 'overdue'
   paidAt?: string | null
   note?: string | null
+  billingDay?: number
+  dueDate?: string
+  daysUntilDue?: number
+  billingStatus?: 'paid' | 'overdue' | 'due_soon' | 'upcoming'
 }
 
 // Cache entry type
@@ -654,7 +658,8 @@ export class ApiClient {
     groupId: string,
     contentTaskIds: string[],
     dueDate?: string | null,
-    ownerId?: string
+    ownerId?: string,
+    contentRoadmapIds?: string[]
   ) {
     const url = ownerId
       ? `/orgs/${orgId}/groups/${groupId}/assign?ownerId=${encodeURIComponent(ownerId)}`
@@ -666,7 +671,14 @@ export class ApiClient {
       tasksCreated: number
       childCount: number
       taskCount: number
-    }>(url, { method: 'POST', body: JSON.stringify({ contentTaskIds, dueDate: dueDate ?? null }) })
+    }>(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        contentTaskIds,
+        contentRoadmapIds: contentRoadmapIds ?? [],
+        dueDate: dueDate ?? null,
+      }),
+    })
   }
 
   async getGroupAssignment(orgId: string, groupId: string, assignmentId: string, ownerId?: string) {
@@ -776,8 +788,11 @@ export class ApiClient {
         id: string
         groupId: string
         groupName: string
+        title: string
         taskTitles: string[]
         contentTaskIds: string[]
+        contentRoadmapIds: string[]
+        roadmapNames: string[]
         childCount: number
         tasksCreated: number
         assignedBy: string

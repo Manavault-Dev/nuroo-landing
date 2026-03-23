@@ -47,7 +47,8 @@ const updateAssignmentSchema = z.object({
 })
 
 const assignGroupTasksSchema = z.object({
-  contentTaskIds: z.array(z.string().min(1)).min(1).max(50),
+  contentTaskIds: z.array(z.string().min(1)).max(50).default([]),
+  contentRoadmapIds: z.array(z.string().min(1)).max(20).default([]),
   dueDate: z.string().nullable().optional(),
 })
 
@@ -691,8 +692,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           id: doc.id,
           groupId: d.groupId,
           groupName: d.groupName,
+          title: d.title || d.taskTitles?.[0] || 'Задание',
           taskTitles: d.taskTitles || [],
           contentTaskIds: d.contentTaskIds || [],
+          contentRoadmapIds: d.contentRoadmapIds || [],
+          roadmapNames: d.roadmapNames || [],
           childCount: d.childCount || 0,
           tasksCreated: d.tasksCreated || 0,
           assignedBy: d.assignedBy,
@@ -735,9 +739,31 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(403).send({ error: 'Group does not belong to this organization' })
       }
 
+      // Validate at least one task or roadmap selected
+      if (body.contentTaskIds.length === 0 && body.contentRoadmapIds.length === 0) {
+        return reply.code(400).send({ error: 'At least one task or roadmap must be selected' })
+      }
+
+      // Collect all task IDs: direct + from roadmaps (by value, for initial assignment)
+      const allTaskIdSet = new Set(body.contentTaskIds)
+      const roadmapNames: string[] = []
+      for (const roadmapId of body.contentRoadmapIds) {
+        const roadmapSnap = await db
+          .doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`)
+          .get()
+        if (roadmapSnap.exists) {
+          const rData = roadmapSnap.data()!
+          roadmapNames.push(rData.name || 'Program')
+          const taskIds: string[] = rData.taskIds || []
+          taskIds.forEach((id) => allTaskIdSet.add(id))
+        }
+      }
+
       // Fetch content tasks from the org library
       const contentTaskDocs = await Promise.all(
-        body.contentTaskIds.map((id) => db.doc(`organizations/${orgId}/contentTasks/${id}`).get())
+        Array.from(allTaskIdSet).map((id) =>
+          db.doc(`organizations/${orgId}/contentTasks/${id}`).get()
+        )
       )
       const contentTasks = contentTaskDocs
         .filter((snap) => snap.exists)
@@ -814,9 +840,11 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         groupId,
         groupName: groupSnap.data()!.name,
         ownerId,
-        contentTaskIds: body.contentTaskIds,
+        contentTaskIds: Array.from(allTaskIdSet),
+        contentRoadmapIds: body.contentRoadmapIds,
+        roadmapNames,
         taskTitles,
-        title: taskTitles[0] || 'Задание',
+        title: roadmapNames.length > 0 ? roadmapNames.join(', ') : taskTitles[0] || 'Задание',
         childCount: childIds.length,
         childIds,
         tasksCreated,

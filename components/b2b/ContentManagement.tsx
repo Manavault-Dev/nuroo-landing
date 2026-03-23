@@ -70,6 +70,7 @@ export function ContentManagement({
   const [formData, setFormData] = useState<Record<string, unknown>>({})
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [taskSelectValue, setTaskSelectValue] = useState('')
 
   const loadContent = async () => {
     try {
@@ -109,6 +110,7 @@ export function ContentManagement({
     setFormData({ taskIds: [] })
     setMediaFile(null)
     setUploadProgress(0)
+    setTaskSelectValue('')
     setIsModalOpen(true)
   }
 
@@ -133,6 +135,7 @@ export function ContentManagement({
     setFormData({})
     setMediaFile(null)
     setUploadProgress(0)
+    setTaskSelectValue('')
   }
 
   const requireMediaForNewTask =
@@ -235,12 +238,26 @@ export function ContentManagement({
                   }
                 )
                 setUploadProgress(100)
+              } else if (mode === 'org' && orgId) {
+                await apiClient.updateOrgContentTask(
+                  orgId,
+                  editingItem.id,
+                  formData as Record<string, unknown>
+                )
               } else {
                 await apiClient.updateTask(editingItem.id, formData as Record<string, unknown>)
               }
               break
             case 'roadmaps':
-              await apiClient.updateRoadmap(editingItem.id, formData as Record<string, unknown>)
+              if (mode === 'org' && orgId) {
+                await apiClient.updateOrgContentRoadmap(
+                  orgId,
+                  editingItem.id,
+                  formData as Record<string, unknown>
+                )
+              } else {
+                await apiClient.updateRoadmap(editingItem.id, formData as Record<string, unknown>)
+              }
               break
           }
         } else {
@@ -564,16 +581,16 @@ export function ContentManagement({
                 {t('addTaskToRoadmap')}
               </label>
               <select
-                value=""
+                value={taskSelectValue}
                 onChange={(e) => {
                   const taskId = e.target.value
-                  if (taskId) {
-                    const currentTaskIds = (formData.taskIds as string[]) || []
-                    if (!currentTaskIds.includes(taskId)) {
-                      updateFormField('taskIds', [...currentTaskIds, taskId])
-                    }
-                    e.target.value = ''
-                  }
+                  if (!taskId) return
+                  setTaskSelectValue('')
+                  setFormData((prev) => {
+                    const currentTaskIds = (prev.taskIds as string[]) || []
+                    if (currentTaskIds.includes(taskId)) return prev
+                    return { ...prev, taskIds: [...currentTaskIds, taskId] }
+                  })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
