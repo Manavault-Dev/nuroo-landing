@@ -5,11 +5,24 @@ import { useTranslations } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient, type AttendanceRecord, type FeeRecord } from '@/lib/b2b/api'
 import { PageSpinner, Spinner } from '@/components/ui/Spinner'
-import { Wallet, Users, CheckCircle, XCircle, Clock, AlertCircle, Save } from 'lucide-react'
+import {
+  Wallet,
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  Save,
+  AlertTriangle,
+  CalendarDays,
+  TrendingUp,
+  ChevronDown,
+} from 'lucide-react'
 
 type Tab = 'attendance' | 'fees'
 type AttendanceStatus = 'present' | 'absent' | 'late' | null
 type FeeStatus = 'paid' | 'pending' | 'overdue'
+type BillingFilter = 'all' | 'overdue' | 'due_soon' | 'upcoming' | 'paid'
 
 const todayDate = () => new Date().toISOString().split('T')[0]
 const currentMonth = () => {
@@ -23,7 +36,6 @@ export default function FinancePage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('attendance')
 
-  // Attendance
   const [attendanceDate, setAttendanceDate] = useState(todayDate)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [loadingAttendance, setLoadingAttendance] = useState(false)
@@ -32,7 +44,6 @@ export default function FinancePage() {
     Map<string, { status: AttendanceStatus; note: string }>
   >(new Map())
 
-  // Fees
   const [feesMonth, setFeesMonth] = useState(currentMonth)
   const [feeRecords, setFeeRecords] = useState<FeeRecord[]>([])
   const [loadingFees, setLoadingFees] = useState(false)
@@ -40,6 +51,7 @@ export default function FinancePage() {
   const [pendingFees, setPendingFees] = useState<
     Map<string, { amount: number; status: FeeStatus; note: string }>
   >(new Map())
+  const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
 
   const loadAttendance = useCallback(async (oid: string, date: string) => {
     setLoadingAttendance(true)
@@ -146,8 +158,6 @@ export default function FinancePage() {
     })
   }
 
-  // -- Sub-components (inline, no prop drilling needed) --
-
   function AttendanceBadge({ status }: { status: AttendanceStatus }) {
     if (!status)
       return (
@@ -183,29 +193,53 @@ export default function FinancePage() {
     )
   }
 
-  function FeeBadge({ status }: { status: FeeStatus }) {
+  function DueBadge({ record }: { record: FeeRecord }) {
+    const bs = record.billingStatus
+    if (!bs || bs === 'paid') return null
     const cfg = {
-      paid: { cls: 'bg-green-100 text-green-700', label: t('paid') },
-      pending: { cls: 'bg-yellow-100 text-yellow-700', label: t('pending') },
-      overdue: { cls: 'bg-red-100 text-red-700', label: t('overdue') },
-    }[status]
+      overdue: { cls: 'bg-red-50 text-red-700 border border-red-200', label: `Просрочено` },
+      due_soon: {
+        cls: 'bg-orange-50 text-orange-700 border border-orange-200',
+        label: `Через ${record.daysUntilDue} дн.`,
+      },
+      upcoming: {
+        cls: 'bg-blue-50 text-blue-600 border border-blue-200',
+        label: record.dueDate
+          ? `До ${new Date(record.dueDate + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`
+          : '',
+      },
+    }[bs]
+    if (!cfg) return null
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
       >
+        <CalendarDays className="w-3 h-3" />
         {cfg.label}
       </span>
     )
   }
 
   const paidCount = feeRecords.filter((r) => r.status === 'paid').length
-  const pendingCount = feeRecords.filter((r) => r.status !== 'paid').length
+  const overdueCount = feeRecords.filter((r) => r.billingStatus === 'overdue').length
+  const dueSoonCount = feeRecords.filter((r) => r.billingStatus === 'due_soon').length
+  const totalAmount = feeRecords.reduce((sum, r) => sum + (r.amount || 0), 0)
+  const paidAmount = feeRecords
+    .filter((r) => r.status === 'paid')
+    .reduce((sum, r) => sum + (r.amount || 0), 0)
+
+  const filteredFeeRecords =
+    billingFilter === 'all'
+      ? feeRecords
+      : feeRecords.filter((r) => {
+          if (billingFilter === 'paid') return r.status === 'paid'
+          return r.billingStatus === billingFilter
+        })
 
   if (isLoading) return <PageSpinner />
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Wallet className="w-7 h-7 text-primary-600" />
         <div>
@@ -214,7 +248,6 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
         {(['attendance', 'fees'] as Tab[]).map((tab) => (
           <button
@@ -232,7 +265,6 @@ export default function FinancePage() {
         ))}
       </div>
 
-      {/* ── Attendance Tab ── */}
       {activeTab === 'attendance' && (
         <div>
           <div className="flex items-center gap-3 mb-6">
@@ -340,7 +372,6 @@ export default function FinancePage() {
                 </table>
               </div>
 
-              {/* Summary */}
               <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-4 text-xs text-gray-600">
                 {(
                   [
@@ -368,31 +399,38 @@ export default function FinancePage() {
         </div>
       )}
 
-      {/* ── Fees Tab ── */}
       {activeTab === 'fees' && (
         <div>
-          {/* Summary cards */}
           {feeRecords.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {(
-                [
-                  { value: feeRecords.length, label: t('totalChildren'), cls: 'text-gray-900' },
-                  { value: paidCount, label: t('paidCount'), cls: 'text-green-600' },
-                  { value: pendingCount, label: t('pendingCount'), cls: 'text-yellow-600' },
-                ] as const
-              ).map(({ value, label, cls }) => (
-                <div
-                  key={label}
-                  className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm"
-                >
-                  <p className={`text-2xl font-bold ${cls}`}>{value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{label}</p>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <SummaryCard
+                icon={<Users className="w-5 h-5 text-gray-500" />}
+                value={feeRecords.length}
+                label={t('totalChildren')}
+                valueClass="text-gray-900"
+              />
+              <SummaryCard
+                icon={<CheckCircle className="w-5 h-5 text-green-500" />}
+                value={paidCount}
+                label={`${t('paidCount')} · ${paidAmount.toLocaleString()} KGS`}
+                valueClass="text-green-600"
+              />
+              <SummaryCard
+                icon={<AlertTriangle className="w-5 h-5 text-red-500" />}
+                value={overdueCount}
+                label="Просрочено"
+                valueClass="text-red-600"
+              />
+              <SummaryCard
+                icon={<TrendingUp className="w-5 h-5 text-primary-500" />}
+                value={`${totalAmount.toLocaleString()}`}
+                label="Всего KGS"
+                valueClass="text-primary-600"
+              />
             </div>
           )}
 
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <label className="text-sm font-medium text-gray-700">{t('month')}:</label>
             <input
               type="month"
@@ -400,16 +438,33 @@ export default function FinancePage() {
               onChange={(e) => setFeesMonth(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             />
+
+            {feeRecords.length > 0 && (
+              <div className="relative ml-auto">
+                <select
+                  value={billingFilter}
+                  onChange={(e) => setBillingFilter(e.target.value as BillingFilter)}
+                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                >
+                  <option value="all">Все</option>
+                  <option value="overdue">Просроченные ({overdueCount})</option>
+                  <option value="due_soon">Скоро ({dueSoonCount})</option>
+                  <option value="upcoming">Предстоящие</option>
+                  <option value="paid">Оплачено ({paidCount})</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            )}
           </div>
 
           {loadingFees ? (
             <div className="flex justify-center py-16">
               <Spinner size="lg" />
             </div>
-          ) : feeRecords.length === 0 ? (
+          ) : filteredFeeRecords.length === 0 ? (
             <EmptyState
               icon={<Wallet className="w-12 h-12 text-gray-300" />}
-              label={t('noChildren')}
+              label={feeRecords.length === 0 ? t('noChildren') : 'Нет записей по фильтру'}
             />
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -427,7 +482,7 @@ export default function FinancePage() {
                         {t('status')}
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                        {t('paidAt')}
+                        Дата оплаты
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
                         {t('note')}
@@ -436,17 +491,27 @@ export default function FinancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {feeRecords.map((record) => {
+                    {filteredFeeRecords.map((record) => {
                       const pending = pendingFees.get(record.childId) ?? {
                         amount: record.amount,
                         status: record.status,
                         note: record.note ?? '',
                       }
                       const isSaving = savingFee === record.childId
+                      const rowCls =
+                        record.billingStatus === 'overdue'
+                          ? 'bg-red-50/40'
+                          : record.billingStatus === 'due_soon'
+                            ? 'bg-orange-50/40'
+                            : ''
                       return (
-                        <tr key={record.childId} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-gray-900">
-                            {record.childName}
+                        <tr
+                          key={record.childId}
+                          className={`hover:bg-gray-50 transition-colors ${rowCls}`}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{record.childName}</div>
+                            <DueBadge record={record} />
                           </td>
                           <td className="px-4 py-3">
                             {isAdmin ? (
@@ -483,7 +548,17 @@ export default function FinancePage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-gray-500">
-                            {record.paidAt ? new Date(record.paidAt).toLocaleDateString() : '—'}
+                            {record.paidAt
+                              ? new Date(record.paidAt).toLocaleDateString('ru-RU', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })
+                              : record.dueDate
+                                ? new Date(record.dueDate + 'T00:00:00').toLocaleDateString(
+                                    'ru-RU',
+                                    { day: 'numeric', month: 'short' }
+                                  )
+                                : '—'}
                           </td>
                           <td className="px-4 py-3">
                             {isAdmin ? (
@@ -527,6 +602,41 @@ export default function FinancePage() {
         </div>
       )}
     </div>
+  )
+}
+
+function SummaryCard({
+  icon,
+  value,
+  label,
+  valueClass,
+}: {
+  icon: React.ReactNode
+  value: number | string
+  label: string
+  valueClass: string
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">{icon}</div>
+      <p className={`text-2xl font-bold ${valueClass}`}>{value}</p>
+      <p className="text-xs text-gray-500 mt-1">{label}</p>
+    </div>
+  )
+}
+
+function FeeBadge({ status }: { status: FeeStatus }) {
+  const cfg = {
+    paid: { cls: 'bg-green-100 text-green-700', label: 'Оплачено' },
+    pending: { cls: 'bg-yellow-100 text-yellow-700', label: 'Ожидается' },
+    overdue: { cls: 'bg-red-100 text-red-700', label: 'Просрочено' },
+  }[status]
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
+    >
+      {cfg.label}
+    </span>
   )
 }
 

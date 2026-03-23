@@ -26,8 +26,73 @@ const feeSchema = z.object({
   note: z.string().max(500).optional(),
 })
 
+async function resolveChildName(db: FirebaseFirestore.Firestore, childId: string): Promise<string> {
+  try {
+    const childDoc = await db.doc(`children/${childId}`).get()
+    if (childDoc.exists) {
+      const d = childDoc.data()!
+      const name = d.childName || d.name || d.displayName || d.fullName
+      if (name && name !== 'Unknown') return name
+    }
+  } catch {
+    // Ignore lookup errors and continue with fallback sources.
+  }
+
+  try {
+    const userDoc = await db.doc(`users/${childId}`).get()
+    if (userDoc.exists) {
+      const d = userDoc.data()!
+      const name = d.displayName || d.name || d.childName
+      if (name) return name
+    }
+  } catch {
+    // Ignore lookup errors and continue with fallback sources.
+  }
+
+  try {
+    const authUser = await admin.auth().getUser(childId)
+    if (authUser.displayName) return authUser.displayName
+  } catch {
+    // Ignore lookup errors and continue with fallback sources.
+  }
+
+  return 'Ребёнок'
+}
+
+function computeBillingMeta(
+  assignedAt: FirebaseFirestore.Timestamp | null | undefined,
+  month: string,
+  status: string
+) {
+  const today = new Date()
+  const [year, mon] = month.split('-').map(Number)
+
+  const billingDay = assignedAt ? assignedAt.toDate().getDate() : 1
+
+  const dueDate = new Date(year, mon - 1, billingDay)
+  const diffMs = dueDate.getTime() - today.getTime()
+  const daysUntilDue = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+  let billingStatus: 'paid' | 'overdue' | 'due_soon' | 'upcoming'
+  if (status === 'paid') {
+    billingStatus = 'paid'
+  } else if (daysUntilDue < 0) {
+    billingStatus = 'overdue'
+  } else if (daysUntilDue <= 3) {
+    billingStatus = 'due_soon'
+  } else {
+    billingStatus = 'upcoming'
+  }
+
+  return {
+    billingDay,
+    dueDate: dueDate.toISOString().split('T')[0],
+    daysUntilDue,
+    billingStatus,
+  }
+}
+
 export const financeRoute: FastifyPluginAsync = async (fastify) => {
-  // GET /orgs/:orgId/attendance?date=YYYY-MM-DD
   fastify.get<{ Params: { orgId: string }; Querystring: { date?: string } }>(
     '/orgs/:orgId/attendance',
     async (request, reply) => {
@@ -39,17 +104,17 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        // Fetch all children in the org
         const childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
-        const children = childrenSnap.docs.map((doc) => {
-          const data = doc.data()
-          return {
-            id: doc.id,
-            name: data.childName || data.name || 'Unknown',
-          }
-        })
+        const children = await Promise.all(
+          childrenSnap.docs.map(async (doc) => {
+            const data = doc.data()
+            const rawName = data.childName || data.name
+            const name =
+              rawName && rawName !== 'Unknown' ? rawName : await resolveChildName(db, doc.id)
+            return { id: doc.id, name }
+          })
+        )
 
-        // Fetch attendance records for this date
         const attendanceSnap = await db
           .collection(ORG_ATTENDANCE(orgId))
           .where('date', '==', date)
@@ -65,7 +130,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
           })
         }
 
-        // Merge children with attendance
         const records = children.map((child) => {
           const att = attendanceMap.get(child.id)
           return {
@@ -77,7 +141,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
 
-        // Sort: marked first, then by name
         records.sort((a, b) => {
           if (a.status && !b.status) return -1
           if (!a.status && b.status) return 1
@@ -92,7 +155,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // POST /orgs/:orgId/attendance — mark/update attendance
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof attendanceSchema> }>(
     '/orgs/:orgId/attendance',
     async (request, reply) => {
@@ -132,7 +194,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/finance?month=YYYY-MM
   fastify.get<{ Params: { orgId: string }; Querystring: { month?: string } }>(
     '/orgs/:orgId/finance',
     async (request, reply) => {
@@ -146,17 +207,17 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        // Fetch all children
         const childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
-        const children = childrenSnap.docs.map((doc) => {
-          const data = doc.data()
-          return {
-            id: doc.id,
-            name: data.childName || data.name || 'Unknown',
-          }
-        })
+        const children = await Promise.all(
+          childrenSnap.docs.map(async (doc) => {
+            const data = doc.data()
+            const rawName = data.childName || data.name
+            const name =
+              rawName && rawName !== 'Unknown' ? rawName : await resolveChildName(db, doc.id)
+            return { id: doc.id, name, assignedAt: data.assignedAt || null }
+          })
+        )
 
-        // Fetch fee records for this month
         const feesSnap = await db
           .collection(ORG_MONTHLY_FEES(orgId))
           .where('month', '==', month)
@@ -174,21 +235,25 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
           })
         }
 
-        // Merge children with fee records
         const records = children.map((child) => {
           const fee = feeMap.get(child.id)
+          const status = fee?.status || 'pending'
+          const billing = computeBillingMeta(child.assignedAt, month, status)
           return {
             childId: child.id,
             childName: child.name,
             amount: fee?.amount ?? 0,
             currency: fee?.currency || 'KGS',
-            status: fee?.status || 'pending',
+            status,
             paidAt: fee?.paidAt || null,
             note: fee?.note || null,
+            billingDay: billing.billingDay,
+            dueDate: billing.dueDate,
+            daysUntilDue: billing.daysUntilDue,
+            billingStatus: billing.billingStatus,
           }
         })
 
-        // Sort by name
         records.sort((a, b) => a.childName.localeCompare(b.childName))
 
         return { ok: true, month, records }
@@ -199,7 +264,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // POST /orgs/:orgId/finance — record/update monthly fee
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof feeSchema> }>(
     '/orgs/:orgId/finance',
     async (request, reply) => {
