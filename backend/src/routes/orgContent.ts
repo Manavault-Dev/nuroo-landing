@@ -276,12 +276,96 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, roadmapId } = request.params
       await requireOrgMember(request, reply, orgId)
+      if (!request.user) return
       const db = getFirestore()
       const body = roadmapSchema.partial().parse(request.body)
       const ref = db.doc(`${COLLECTIONS.ORG_ROADMAPS(orgId)}/${roadmapId}`)
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Roadmap not found' })
+
+      // Capture old taskIds before updating
+      const oldTaskIds: string[] = snap.data()?.taskIds || []
+
       await ref.update(buildUpdateData(body))
+
+      // Auto-push newly added tasks to children in active assignments referencing this roadmap
+      if (body.taskIds && body.taskIds.length > 0) {
+        const addedTaskIds = body.taskIds.filter((id) => !oldTaskIds.includes(id))
+        if (addedTaskIds.length > 0) {
+          try {
+            const assignmentsSnap = await db
+              .collection(`organizations/${orgId}/groupAssignments`)
+              .where('contentRoadmapIds', 'array-contains', roadmapId)
+              .where('status', '==', 'active')
+              .get()
+
+            if (!assignmentsSnap.empty) {
+              const contentTaskDocs = await Promise.all(
+                addedTaskIds.map((id) => db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${id}`).get())
+              )
+              const contentTasks = contentTaskDocs
+                .filter((s) => s.exists)
+                .map((s) => ({ id: s.id, ...s.data()! }))
+
+              if (contentTasks.length > 0) {
+                const now = admin.firestore.Timestamp.fromDate(new Date())
+                const BATCH_SIZE = 400
+
+                for (const assignmentDoc of assignmentsSnap.docs) {
+                  const aData = assignmentDoc.data()
+                  const childIds: string[] = aData.childIds || []
+                  const assignmentId = assignmentDoc.id
+                  const assignedBy = aData.ownerId || request.user.uid
+                  const dueDateRaw = aData.dueDate?.toDate?.() || null
+
+                  for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
+                    const batch = db.batch()
+                    const chunk = childIds.slice(i, i + BATCH_SIZE)
+                    for (const childId of chunk) {
+                      for (const ct of contentTasks) {
+                        const taskRef = db.collection(`children/${childId}/tasks`).doc()
+                        batch.set(taskRef, {
+                          title: (ct as any).title,
+                          description: (ct as any).description ?? null,
+                          category: (ct as any).category ?? null,
+                          estimatedDuration: (ct as any).estimatedDuration ?? null,
+                          difficulty: (ct as any).difficulty ?? null,
+                          instructions: (ct as any).instructions ?? null,
+                          videoUrl: (ct as any).videoUrl ?? null,
+                          imageUrl: (ct as any).imageUrl ?? null,
+                          mediaType: (ct as any).mediaType ?? null,
+                          ageRange: (ct as any).ageRange ?? null,
+                          status: 'pending',
+                          submissionStatus: 'pending',
+                          grade: null,
+                          feedback: null,
+                          createdBy: assignedBy,
+                          groupId: aData.groupId,
+                          contentTaskId: ct.id,
+                          contentRoadmapId: roadmapId,
+                          groupAssignmentId: assignmentId,
+                          dueDate: dueDateRaw
+                            ? admin.firestore.Timestamp.fromDate(dueDateRaw)
+                            : null,
+                          createdAt: now,
+                          updatedAt: now,
+                          completedAt: null,
+                          submittedAt: null,
+                        })
+                      }
+                    }
+                    await batch.commit()
+                  }
+                }
+              }
+            }
+          } catch (pushErr: any) {
+            // Don't fail the roadmap update if auto-push fails — log and continue
+            console.error('[ROADMAP] Auto-push new tasks failed:', pushErr.message)
+          }
+        }
+      }
+
       return { ok: true, roadmap: transformDoc(await ref.get()) }
     } catch (e: any) {
       return reply.code(400).send({ error: e?.message || 'Failed to update roadmap' })

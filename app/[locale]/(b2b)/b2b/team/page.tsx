@@ -1,13 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from '@/i18n/navigation'
-import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import { apiClient } from '@/lib/b2b/api'
 import { Users, UserCog, Mail, Crown, Shield, UserPlus, Trash2, Loader2 } from 'lucide-react'
+import { PageSpinner } from '@/components/ui/Spinner'
 
 interface TeamMember {
   uid: string
@@ -19,86 +18,54 @@ interface TeamMember {
 
 export default function TeamPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const routerRef = useRef(router)
+  routerRef.current = router
+
+  const { profile, orgId, isAdmin, isLoading } = usePageAuth()
+  const t = useTranslations('b2b.pages.team')
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingTeam, setLoadingTeam] = useState(false)
   const [removingUid, setRemovingUid] = useState<string | null>(null)
   const [updatingUid, setUpdatingUid] = useState<string | null>(null)
 
-  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
-  const currentOrg =
-    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin'
-  const currentUid = profile?.uid || getCurrentUser()?.uid
-  const t = useTranslations('b2b.pages.team')
+  const currentUid = profile?.uid
 
-  const loadData = useCallback(async () => {
-    const user = getCurrentUser()
-    if (!user) return
-
-    const idToken = await getIdToken()
-    if (!idToken) return
-    apiClient.setToken(idToken)
-
-    const profileData = await apiClient.getMe()
-    setProfile(profileData)
-
-    const orgId = searchParams.get('orgId') || profileData.organizations?.[0]?.orgId
-    if (orgId) {
-      try {
-        const members = await apiClient.getTeam(orgId)
-        setTeamMembers(
-          members.map((m) => ({
-            ...m,
-            joinedAt: typeof m.joinedAt === 'string' ? new Date(m.joinedAt) : (m.joinedAt as Date),
-          }))
-        )
-      } catch {
-        setTeamMembers([])
-      }
-    } else {
+  const loadTeam = useCallback(async (oid: string) => {
+    setLoadingTeam(true)
+    try {
+      const members = await apiClient.getTeam(oid)
+      setTeamMembers(
+        members.map((m) => ({
+          ...m,
+          joinedAt: typeof m.joinedAt === 'string' ? new Date(m.joinedAt) : (m.joinedAt as Date),
+        }))
+      )
+    } catch {
       setTeamMembers([])
+    } finally {
+      setLoadingTeam(false)
     }
-  }, [searchParams])
+  }, [])
 
   useEffect(() => {
-    const init = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-        await loadData()
-      } catch {
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
+    if (isLoading) return
+    if (!profile) {
+      routerRef.current.push('/b2b/login')
+      return
     }
-
-    init()
-  }, [router, loadData])
-
-  useEffect(() => {
-    if (!loading && !isAdmin && profile) {
-      router.push('/b2b')
+    if (!isAdmin) {
+      routerRef.current.push('/b2b')
+      return
     }
-  }, [loading, isAdmin, profile, router])
+    if (orgId) loadTeam(orgId)
+  }, [isLoading, profile, isAdmin, orgId, loadTeam])
 
   const handleRemove = async (uid: string) => {
-    if (!currentOrgId || !confirm(t('removeConfirm'))) return
+    if (!orgId || !confirm(t('removeConfirm'))) return
     setRemovingUid(uid)
     try {
-      await apiClient.removeMember(currentOrgId, uid)
+      await apiClient.removeMember(orgId, uid)
       setTeamMembers((prev) => prev.filter((m) => m.uid !== uid))
     } catch (err) {
       alert(err instanceof Error ? err.message : t('failedRemove'))
@@ -108,10 +75,10 @@ export default function TeamPage() {
   }
 
   const handleChangeRole = async (uid: string, newRole: 'org_admin' | 'specialist') => {
-    if (!currentOrgId) return
+    if (!orgId) return
     setUpdatingUid(uid)
     try {
-      await apiClient.updateMemberRole(currentOrgId, uid, newRole)
+      await apiClient.updateMemberRole(orgId, uid, newRole)
       setTeamMembers((prev) =>
         prev.map((m) =>
           m.uid === uid ? { ...m, role: newRole === 'org_admin' ? 'admin' : 'specialist' } : m
@@ -124,20 +91,8 @@ export default function TeamPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAdmin) {
-    return null
-  }
+  if (isLoading || loadingTeam) return <PageSpinner />
+  if (!isAdmin) return null
 
   const admins = teamMembers.filter((m) => m.role === 'admin')
   const specialists = teamMembers.filter((m) => m.role === 'specialist')
@@ -191,7 +146,7 @@ export default function TeamPage() {
         <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h3 className="text-lg font-semibold text-gray-900">{t('teamMembers')}</h3>
           <Link
-            href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
+            href={`/b2b/invites${orgId ? `?orgId=${orgId}` : ''}`}
             className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium sm:w-auto"
           >
             <UserPlus className="w-4 h-4" />
@@ -206,7 +161,7 @@ export default function TeamPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noTeamYet')}</h3>
               <p className="text-gray-600 mb-6">{t('createInvitesToAdd')}</p>
               <Link
-                href={`/b2b/invites${currentOrgId ? `?orgId=${currentOrgId}` : ''}`}
+                href={`/b2b/invites${orgId ? `?orgId=${orgId}` : ''}`}
                 className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium sm:w-auto"
               >
                 <UserPlus className="w-4 h-4" />

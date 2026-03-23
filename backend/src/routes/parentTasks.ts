@@ -8,7 +8,13 @@ const COLLECTIONS = {
   CHILDREN: 'children',
   CHILD_TASKS: (childId: string) => `children/${childId}/tasks`,
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
+  ORG_MONTHLY_FEES: (orgId: string) => `organizations/${orgId}/monthlyFees`,
 } as const
+
+function currentMonthStr(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
 
 const completeBodySchema = z.object({
   completed: z.boolean(),
@@ -184,6 +190,79 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
     } catch (error: any) {
       console.error('[PARENT_TASKS] Error submitting homework:', error)
       return reply.code(500).send({ error: 'Failed to submit homework', details: error.message })
+    }
+  })
+
+  fastify.get<{
+    Params: { childId: string }
+    Querystring: { orgId?: string; month?: string }
+  }>('/api/parent/children/:childId/billing', async (request, reply) => {
+    try {
+      if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+      const uid = request.user.uid
+      const { childId } = request.params
+      const { orgId: qOrgId, month: qMonth } = request.query as {
+        orgId?: string
+        month?: string
+      }
+
+      const db = getFirestore()
+
+      let orgId = qOrgId
+      if (!orgId) {
+        const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
+        orgId = childSnap.data()?.organizationId
+      }
+      if (!orgId) return reply.code(400).send({ error: 'orgId is required' })
+
+      const orgChildRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`)
+      const orgChildSnap = await orgChildRef.get()
+      if (!orgChildSnap.exists || orgChildSnap.data()?.parentUserId !== uid) {
+        return reply.code(403).send({ error: 'Access denied' })
+      }
+
+      const month = qMonth || currentMonthStr()
+      const assignedAt: FirebaseFirestore.Timestamp | undefined = orgChildSnap.data()?.assignedAt
+      const billingDay = assignedAt ? assignedAt.toDate().getDate() : 1
+
+      const [year, mon] = month.split('-').map(Number)
+      const dueDate = new Date(year, mon - 1, billingDay)
+      const today = new Date()
+      const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+      const feeDocId = `${month}_${childId}`
+      const feeSnap = await db.doc(`${COLLECTIONS.ORG_MONTHLY_FEES(orgId)}/${feeDocId}`).get()
+      const feeData = feeSnap.exists ? feeSnap.data()! : null
+      const feeStatus = feeData?.status || 'pending'
+
+      let billingStatus: 'paid' | 'overdue' | 'due_soon' | 'upcoming'
+      if (feeStatus === 'paid') {
+        billingStatus = 'paid'
+      } else if (daysUntilDue < 0) {
+        billingStatus = 'overdue'
+      } else if (daysUntilDue <= 3) {
+        billingStatus = 'due_soon'
+      } else {
+        billingStatus = 'upcoming'
+      }
+
+      return {
+        ok: true,
+        childId,
+        orgId,
+        month,
+        billingDay,
+        dueDate: dueDate.toISOString().split('T')[0],
+        daysUntilDue,
+        billingStatus,
+        amount: feeData?.amount ?? 0,
+        currency: feeData?.currency || 'KGS',
+        paidAt: feeData?.paidAt?.toDate?.()?.toISOString() || null,
+        note: feeData?.note || null,
+      }
+    } catch (error: any) {
+      console.error('[PARENT_TASKS] Error getting billing:', error)
+      return reply.code(500).send({ error: 'Failed to get billing status', details: error.message })
     }
   })
 }

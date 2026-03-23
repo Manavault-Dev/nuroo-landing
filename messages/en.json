@@ -673,6 +673,7 @@
         "open": "Open",
         "noAssignments": "No tasks",
         "assignmentDefaultTitle": "Assignment",
+        "program": "Program",
         "createFirstAssignment": "Create the first task for this group",
         "newAssignment": "New task",
         "noMembers": "No members",
