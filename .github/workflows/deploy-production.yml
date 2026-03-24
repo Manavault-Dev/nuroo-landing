@@ -134,16 +134,6 @@ jobs:
           docker push "${IMAGE}:${{ github.sha }}"
           docker push "${IMAGE}:latest"
 
-      - name: Remove plain env vars (pre-deploy cleanup)
-        # Required before setting Firebase vars as secrets.
-        # Uses || true so it doesn't fail when the vars are already absent.
-        run: |
-          gcloud run services update ${{ env.GCP_SERVICE_NAME }} \
-            --region=${{ env.GCP_REGION }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --remove-env-vars=FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,FIREBASE_STORAGE_BUCKET \
-            --quiet || true
-
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
@@ -161,11 +151,13 @@ jobs:
             --concurrency=80
           env_vars: |
             NODE_ENV=production
+          env_vars_update_strategy: overwrite
           secrets: |
             FIREBASE_PROJECT_ID=FIREBASE_PROJECT_ID:latest
             FIREBASE_CLIENT_EMAIL=FIREBASE_CLIENT_EMAIL:latest
             FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest
             FIREBASE_STORAGE_BUCKET=FIREBASE_STORAGE_BUCKET:latest
+          secrets_update_strategy: overwrite
 
       - name: Health check (with retry)
         run: |
