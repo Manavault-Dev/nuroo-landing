@@ -608,6 +608,197 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
 
   // ——— Child-assigned tasks routes (for tasks assigned via groups/specialists) ———
 
+  // GET /orgs/:orgId/parent/roadmap-assignments — roadmaps assigned to parent's children (for mobile "Учебные планы")
+  // Top-down approach: groupAssignments → roadmaps → child tasks
+  fastify.get<{
+    Params: { orgId: string }
+    Querystring: { roadmapId?: string }
+  }>('/orgs/:orgId/parent/roadmap-assignments', async (request, reply) => {
+    try {
+      const { orgId } = request.params
+      const filterRoadmapId = (request.query as { roadmapId?: string }).roadmapId
+      const access = await requireParentOrgAccess(request, reply, orgId)
+      if (!access) return
+
+      const db = getFirestore()
+      const { childIds, parentUid } = access
+
+      console.log(
+        `[roadmap-assignments] orgId=${orgId} parentUid=${parentUid} childIds=${JSON.stringify(childIds)}`
+      )
+
+      const childIdSet = new Set(childIds)
+
+      // Step 1: Get ALL groupAssignments for this org
+      let assignmentsSnap: FirebaseFirestore.QuerySnapshot
+      try {
+        assignmentsSnap = await db
+          .collection(`organizations/${orgId}/groupAssignments`)
+          .orderBy('assignedAt', 'desc')
+          .get()
+      } catch {
+        // orderBy may fail if no index — fall back to unordered query
+        assignmentsSnap = await db.collection(`organizations/${orgId}/groupAssignments`).get()
+      }
+
+      console.log(`[roadmap-assignments] total groupAssignments=${assignmentsSnap.size}`)
+
+      // Step 2: Filter to assignments that have roadmaps AND overlap with parent's children
+      // If parent has no children resolved yet, we match any assignment for the org
+      const relevantAssignments = assignmentsSnap.docs.filter((doc) => {
+        const d = doc.data()
+        const roadmapIds: string[] = d.contentRoadmapIds || []
+        if (roadmapIds.length === 0) return false
+        if (childIds.length === 0) return true // parent in org but no children yet — include all
+        const assignedChildren: string[] = d.childIds || []
+        const matches = assignedChildren.some((id) => childIdSet.has(id))
+        console.log(
+          `[roadmap-assignments] assignment=${doc.id} roadmaps=${JSON.stringify(roadmapIds)} assignedChildren=${JSON.stringify(assignedChildren)} matches=${matches}`
+        )
+        return matches
+      })
+
+      console.log(`[roadmap-assignments] relevantAssignments=${relevantAssignments.length}`)
+
+      if (relevantAssignments.length === 0)
+        return {
+          ok: true,
+          roadmapAssignments: [],
+          _debug: { childIds, totalAssignments: assignmentsSnap.size },
+        }
+
+      // Step 3: For each assignment, for each roadmap → fetch child tasks
+      // Collect unique roadmapIds across all assignments
+      const roadmapMap = new Map<
+        string,
+        { assignmentId: string; dueDate: string | null; matchedChildIds: string[] }
+      >()
+      for (const assignmentDoc of relevantAssignments) {
+        const d = assignmentDoc.data()
+        const roadmapIds: string[] = d.contentRoadmapIds || []
+        const assignedChildren: string[] = d.childIds || []
+        const matched = assignedChildren.filter((id) => childIdSet.has(id))
+        for (const roadmapId of roadmapIds) {
+          if (filterRoadmapId && roadmapId !== filterRoadmapId) continue
+          if (!roadmapMap.has(roadmapId)) {
+            roadmapMap.set(roadmapId, {
+              assignmentId: assignmentDoc.id,
+              dueDate: d.dueDate?.toDate?.()?.toISOString() ?? null,
+              matchedChildIds: matched,
+            })
+          }
+        }
+      }
+
+      if (roadmapMap.size === 0) return { ok: true, roadmapAssignments: [] }
+
+      // Step 4: For each roadmap, fetch tasks from children and roadmap metadata
+      const roadmapAssignments = await Promise.all(
+        Array.from(roadmapMap.entries()).map(async ([roadmapId, meta]) => {
+          // Fetch roadmap name/description
+          let roadmapName = roadmapId
+          let roadmapDescription: string | null = null
+          try {
+            const rSnap = await db.doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`).get()
+            if (rSnap.exists) {
+              const rData = rSnap.data()!
+              roadmapName = (rData.name as string) || roadmapId
+              roadmapDescription = (rData.description as string) ?? null
+            }
+          } catch {
+            /* ignore */
+          }
+
+          // Fetch child tasks that belong to this assignment
+          const allChildTasks: any[] = []
+          await Promise.all(
+            meta.matchedChildIds.map(async (childId) => {
+              try {
+                const tasksSnap = await db
+                  .collection(`children/${childId}/tasks`)
+                  .where('groupAssignmentId', '==', meta.assignmentId)
+                  .orderBy('createdAt', 'asc')
+                  .get()
+                for (const taskDoc of tasksSnap.docs) {
+                  const td = taskDoc.data()
+                  // If task has contentRoadmapId set, filter to matching roadmap only
+                  if (td.contentRoadmapId && td.contentRoadmapId !== roadmapId) continue
+                  allChildTasks.push({
+                    id: taskDoc.id,
+                    childId,
+                    title: td.title || 'Untitled',
+                    description: td.description ?? null,
+                    status: td.status || 'pending',
+                    submissionStatus: td.submissionStatus || 'pending',
+                    grade: td.grade ?? null,
+                    feedback: td.feedback ?? null,
+                    submittedAt: td.submittedAt?.toDate?.()?.toISOString() ?? null,
+                    dueDate: td.dueDate?.toDate?.()?.toISOString() ?? null,
+                    videoUrl: td.videoUrl ?? null,
+                    imageUrl: td.imageUrl ?? null,
+                    instructions: td.instructions ?? null,
+                    createdAt: td.createdAt?.toDate?.()?.toISOString() ?? null,
+                  })
+                }
+              } catch {
+                /* index may not be ready — fall back to full scan */
+                try {
+                  const tasksSnap = await db
+                    .collection(`children/${childId}/tasks`)
+                    .orderBy('createdAt', 'asc')
+                    .get()
+                  for (const taskDoc of tasksSnap.docs) {
+                    const td = taskDoc.data()
+                    if (td.groupAssignmentId !== meta.assignmentId) continue
+                    // If task has contentRoadmapId set, filter to matching roadmap only
+                    if (td.contentRoadmapId && td.contentRoadmapId !== roadmapId) continue
+                    allChildTasks.push({
+                      id: taskDoc.id,
+                      childId,
+                      title: td.title || 'Untitled',
+                      description: td.description ?? null,
+                      status: td.status || 'pending',
+                      submissionStatus: td.submissionStatus || 'pending',
+                      grade: td.grade ?? null,
+                      feedback: td.feedback ?? null,
+                      submittedAt: td.submittedAt?.toDate?.()?.toISOString() ?? null,
+                      dueDate: td.dueDate?.toDate?.()?.toISOString() ?? null,
+                      videoUrl: td.videoUrl ?? null,
+                      imageUrl: td.imageUrl ?? null,
+                      instructions: td.instructions ?? null,
+                      createdAt: td.createdAt?.toDate?.()?.toISOString() ?? null,
+                    })
+                  }
+                } catch {
+                  /* ignore */
+                }
+              }
+            })
+          )
+
+          const completedCount = allChildTasks.filter(
+            (t) => t.submissionStatus === 'submitted' || t.grade === 'approved' || t.submittedAt
+          ).length
+
+          return {
+            roadmapId,
+            roadmapName,
+            roadmapDescription,
+            assignmentId: meta.assignmentId,
+            dueDate: meta.dueDate,
+            totalTasks: allChildTasks.length,
+            completedTasks: completedCount,
+            tasks: allChildTasks,
+          }
+        })
+      )
+
+      return { ok: true, roadmapAssignments }
+    } catch (e: any) {
+      return reply.code(500).send({ error: e?.message || 'Failed to list roadmap assignments' })
+    }
+  })
+
   // GET /orgs/:orgId/parent/tasks — all tasks assigned to parent's children in this org
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/parent/tasks',
@@ -677,6 +868,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
               groupId: d.groupId ?? null,
               groupAssignmentId: d.groupAssignmentId ?? null,
               contentTaskId: d.contentTaskId ?? null,
+              contentRoadmapId: d.contentRoadmapId ?? null,
               dueDate: d.dueDate?.toDate?.()?.toISOString() || null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
               updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
@@ -766,6 +958,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
             groupId: d.groupId ?? null,
             groupAssignmentId: d.groupAssignmentId ?? null,
             contentTaskId: d.contentTaskId ?? null,
+            contentRoadmapId: d.contentRoadmapId ?? null,
             dueDate: d.dueDate?.toDate?.()?.toISOString() || null,
             createdAt: d.createdAt?.toDate?.()?.toISOString() || null,
             updatedAt: d.updatedAt?.toDate?.()?.toISOString() || null,
@@ -812,6 +1005,97 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, status: completed ? 'completed' : 'pending' }
       } catch (e: any) {
         return reply.code(500).send({ error: e?.message || 'Failed to update task' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/parent/children/:childId/roadmap-assignments
+  // Returns tasks grouped by roadmap (for "Учебные планы" screen in mobile app)
+  fastify.get<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/parent/children/:childId/roadmap-assignments',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        const access = await requireParentOrgAccess(request, reply, orgId)
+        if (!access) return
+
+        if (!access.childIds.includes(childId)) {
+          return reply.code(403).send({ error: 'Child does not belong to you' })
+        }
+
+        const db = getFirestore()
+
+        // Fetch all tasks and filter for roadmap tasks in JS (avoids composite index requirement)
+        const tasksSnap = await db
+          .collection(`children/${childId}/tasks`)
+          .orderBy('createdAt', 'asc')
+          .get()
+
+        const roadmapTasks = tasksSnap.docs.filter((d) => !!d.data().contentRoadmapId)
+
+        if (roadmapTasks.length === 0) {
+          return { ok: true, roadmapAssignments: [] }
+        }
+
+        // Group tasks by roadmapId
+        const byRoadmap = new Map<
+          string,
+          { assignmentId: string | null; dueDate: string | null; tasks: any[] }
+        >()
+        for (const doc of roadmapTasks) {
+          const d = doc.data()
+          const roadmapId = d.contentRoadmapId as string
+          if (!roadmapId) continue
+          if (!byRoadmap.has(roadmapId)) {
+            byRoadmap.set(roadmapId, {
+              assignmentId: d.groupAssignmentId ?? null,
+              dueDate: d.dueDate?.toDate?.()?.toISOString() ?? null,
+              tasks: [],
+            })
+          }
+          byRoadmap.get(roadmapId)!.tasks.push({
+            id: doc.id,
+            title: d.title || 'Untitled',
+            description: d.description ?? null,
+            status: d.status || 'pending',
+            submissionStatus: d.submissionStatus || 'pending',
+            grade: d.grade ?? null,
+            feedback: d.feedback ?? null,
+            submissionText: d.submissionText ?? null,
+            fileUrl: d.fileUrl ?? null,
+            submittedAt: d.submittedAt?.toDate?.()?.toISOString() ?? null,
+            dueDate: d.dueDate?.toDate?.()?.toISOString() ?? null,
+            createdAt: d.createdAt?.toDate?.()?.toISOString() ?? null,
+          })
+        }
+
+        // Fetch roadmap names from org roadmaps collection
+        const roadmapAssignments = await Promise.all(
+          Array.from(byRoadmap.entries()).map(async ([roadmapId, data]) => {
+            let roadmapName = roadmapId
+            try {
+              const roadmapSnap = await db
+                .doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`)
+                .get()
+              if (roadmapSnap.exists) {
+                roadmapName = (roadmapSnap.data()!.name as string) || roadmapId
+              }
+            } catch {
+              /* ignore */
+            }
+            return {
+              roadmapId,
+              roadmapName,
+              assignmentId: data.assignmentId,
+              dueDate: data.dueDate,
+              tasks: data.tasks,
+            }
+          })
+        )
+
+        return { ok: true, roadmapAssignments }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to list roadmap assignments' })
       }
     }
   )

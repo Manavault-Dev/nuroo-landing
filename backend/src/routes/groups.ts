@@ -744,8 +744,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'At least one task or roadmap must be selected' })
       }
 
-      // Collect all task IDs: direct + from roadmaps (by value, for initial assignment)
+      // Collect all task IDs: direct + from roadmaps
+      // Also build taskId → roadmapId map so each child task knows its roadmap
       const allTaskIdSet = new Set(body.contentTaskIds)
+      const taskIdToRoadmapId = new Map<string, string>()
       const roadmapNames: string[] = []
       for (const roadmapId of body.contentRoadmapIds) {
         const roadmapSnap = await db
@@ -755,7 +757,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           const rData = roadmapSnap.data()!
           roadmapNames.push(rData.name || 'Program')
           const taskIds: string[] = rData.taskIds || []
-          taskIds.forEach((id) => allTaskIdSet.add(id))
+          taskIds.forEach((id) => {
+            allTaskIdSet.add(id)
+            taskIdToRoadmapId.set(id, roadmapId)
+          })
         }
       }
 
@@ -822,6 +827,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
               createdBy: uid,
               groupId,
               contentTaskId: ct.id,
+              contentRoadmapId: taskIdToRoadmapId.get(ct.id) ?? null,
               groupAssignmentId: assignmentId,
               dueDate: dueDateValue ? admin.firestore.Timestamp.fromDate(dueDateValue) : null,
               createdAt: now,
@@ -940,6 +946,25 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         })
       )
 
+      // Fetch roadmap breakdowns (name + task titles per roadmap)
+      const contentRoadmapIds: string[] = aData.contentRoadmapIds || []
+      const roadmapDetails = await Promise.all(
+        contentRoadmapIds.map(async (roadmapId) => {
+          const roadmapSnap = await db
+            .doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`)
+            .get()
+          if (!roadmapSnap.exists) return null
+          const rData = roadmapSnap.data()!
+          const taskIds: string[] = rData.taskIds || []
+          const taskSnaps = await Promise.all(
+            taskIds.map((tid) => db.doc(`organizations/${orgId}/contentTasks/${tid}`).get())
+          )
+          const taskTitles = taskSnaps.filter((s) => s.exists).map((s) => s.data()!.title || '')
+          return { id: roadmapId, name: rData.name || 'Program', taskTitles }
+        })
+      )
+      const roadmaps = roadmapDetails.filter(Boolean)
+
       return {
         ok: true,
         assignment: {
@@ -951,6 +976,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           description: aData.description ?? null,
           dueDate: aData.dueDate ?? null,
           taskTitles: aData.taskTitles || [],
+          contentRoadmapIds,
+          roadmapNames: aData.roadmapNames || [],
+          roadmaps,
           childCount: aData.childCount || childIds.length,
           status: aData.status || 'active',
           assignedAt: aData.assignedAt?.toDate?.()?.toISOString() ?? null,
