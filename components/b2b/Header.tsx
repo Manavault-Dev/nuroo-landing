@@ -64,7 +64,7 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
               e.stopPropagation()
               onMenuClick()
             }}
-            className="lg:hidden relative z-[100] flex items-center justify-center w-12 h-12 min-w-[48px] min-h-[48px] -ml-1 rounded-lg text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0 cursor-pointer"
+            className="md:hidden relative z-[100] flex items-center justify-center w-12 h-12 min-w-[48px] min-h-[48px] -ml-1 rounded-lg text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0 cursor-pointer"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
           >
