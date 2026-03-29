@@ -116,7 +116,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
           role="presentation"
           aria-hidden
           className={[
-            'fixed inset-0 z-40 lg:hidden bg-black/50 transition-opacity duration-300 ease-out',
+            'fixed inset-0 z-40 md:hidden bg-black/50 transition-opacity duration-300 ease-out',
             isClosing
               ? 'opacity-0 pointer-events-none'
               : overlayVisible
