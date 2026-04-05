@@ -252,7 +252,8 @@
       "manageGlobalContent": "Manage global content for all users",
       "b2bPlatform": "B2B Platform",
       "branches": "Branches",
-      "finance": "Finance"
+      "finance": "Finance",
+      "attendance": "Attendance"
     },
     "header": {
       "dashboard": "Dashboard",
@@ -809,6 +810,7 @@
       "finance": {
         "title": "Attendance and payments",
         "subtitle": "Track children's attendance and monthly payment status.",
+        "attendanceSubtitle": "Track children's attendance.",
         "attendance": "Attendance",
         "fees": "Payments",
         "date": "Date",
