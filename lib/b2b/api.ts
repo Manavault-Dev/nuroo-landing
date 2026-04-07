@@ -326,9 +326,16 @@ export class ApiClient {
       ok: boolean
       active: boolean
       planId: string | null
+      source: 'subscription' | 'free_trial' | null
       error: string | null
       expiresAt: string | null
       limits: { children: number; specialists: number | null } | null
+      trial: {
+        active: boolean
+        planId: string | null
+        startedAt: string | null
+        expiresAt: string | null
+      } | null
     }>(`/orgs/${orgId}/billing/status`)
   }
 
