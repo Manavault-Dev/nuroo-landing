@@ -21,7 +21,14 @@ interface Plan {
 interface BillingStatus {
   active: boolean
   planId: string | null
+  source: 'subscription' | 'free_trial' | null
   expiresAt: string | null
+  trial: {
+    active: boolean
+    planId: string | null
+    startedAt: string | null
+    expiresAt: string | null
+  } | null
 }
 
 export default function BillingPage() {
@@ -33,6 +40,8 @@ export default function BillingPage() {
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
+  const [billingStatusLoading, setBillingStatusLoading] = useState(true)
+  const [billingStatusOrgId, setBillingStatusOrgId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -95,8 +104,16 @@ export default function BillingPage() {
   }, [router])
 
   useEffect(() => {
-    if (!currentOrgId) return
+    if (!currentOrgId) {
+      setBillingStatus(null)
+      setBillingStatusOrgId(null)
+      setBillingStatusLoading(false)
+      return
+    }
     let cancelled = false
+    setBillingStatus(null)
+    setBillingStatusOrgId(null)
+    setBillingStatusLoading(true)
     const loadStatus = async () => {
       try {
         const statusRes = await apiClient.getBillingStatus(currentOrgId)
@@ -105,11 +122,18 @@ export default function BillingPage() {
           setBillingStatus({
             active: statusRes?.active ?? false,
             planId: statusRes?.planId ?? null,
+            source: statusRes?.source ?? null,
             expiresAt: statusRes?.expiresAt ?? null,
+            trial: statusRes?.trial ?? null,
           })
         }
       } catch {
         // optional
+      } finally {
+        if (!cancelled) {
+          setBillingStatusOrgId(currentOrgId)
+          setBillingStatusLoading(false)
+        }
       }
     }
     loadStatus()
@@ -225,6 +249,18 @@ export default function BillingPage() {
   }
 
   const statusLabel = () => {
+    if (billingStatusLoading || (currentOrgId && billingStatusOrgId !== currentOrgId)) {
+      return t('loadingStatus')
+    }
+
+    if (billingStatus?.source === 'free_trial') {
+      const exp = billingStatus.expiresAt ? new Date(billingStatus.expiresAt) : null
+      if (!billingStatus.active) return t('trialExpired')
+      if (exp)
+        return `${t('freeTrial')} - ${t('trialActive')} (${t('trialExpires')} ${exp.toLocaleDateString(numberLocale)})`
+      return `${t('freeTrial')} - ${t('trialActive')}`
+    }
+
     if (!billingStatus?.active || !billingStatus.planId) return t('noPlan')
     const exp = billingStatus.expiresAt ? new Date(billingStatus.expiresAt) : null
     if (exp && exp.getTime() < Date.now())
@@ -233,6 +269,17 @@ export default function BillingPage() {
       return `${planLabel(billingStatus.planId)} — ${t('planActive')} (${t('planExpires')} ${exp.toLocaleDateString(numberLocale)})`
     return `${planLabel(billingStatus.planId)} — ${t('planActive')}`
   }
+
+  const trialPlan =
+    billingStatus?.source === 'free_trial'
+      ? plans.find((plan) => plan.id === billingStatus.planId)
+      : null
+  const trialFeatureKeys = trialPlan
+    ? (PLAN_FEATURE_KEYS[trialPlan.id as keyof typeof PLAN_FEATURE_KEYS] ?? [])
+    : []
+  const trialFeatures = trialFeatureKeys
+    .slice(0, 4)
+    .map((key) => tPricing(key as Parameters<typeof tPricing>[0]))
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -263,6 +310,18 @@ export default function BillingPage() {
               <p className="text-sm text-gray-600 mb-4">
                 {t('currentPlan')}: <span className="font-medium">{statusLabel()}</span>
               </p>
+              {billingStatus?.source === 'free_trial' &&
+                billingStatus.active &&
+                trialFeatures.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-gray-900">{t('trialIncludes')}</p>
+                    <ul className="mt-2 list-disc pl-5 text-sm text-gray-600 space-y-1">
+                      {trialFeatures.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -272,7 +331,10 @@ export default function BillingPage() {
           {plans.map((plan) => {
             const planId = plan.id as 'starter' | 'growth' | 'enterprise'
             const featureKeys = PLAN_FEATURE_KEYS[planId as keyof typeof PLAN_FEATURE_KEYS] ?? []
-            const isCurrent = billingStatus?.active === true && billingStatus?.planId === plan.id
+            const isCurrent =
+              billingStatus?.active === true &&
+              billingStatus?.planId === plan.id &&
+              (billingStatus.source === 'subscription' || billingStatus.source === null)
             const isEnterprise = plan.id === 'enterprise'
 
             return (
