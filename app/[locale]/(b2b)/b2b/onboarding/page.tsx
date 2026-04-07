@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/b2b/AuthContext'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { isLoading: _authLoading, logout } = useAuth()
+  const { isLoading: _authLoading, logout, refreshProfile } = useAuth()
   const t = useTranslations('b2b.pages.onboarding')
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -67,6 +67,7 @@ export default function OnboardingPage() {
       const token = await ensureToken()
       if (!token) return
       const res = await apiClient.createMyOrganization(name, orgCountry.trim() || undefined)
+      await refreshProfile()
       router.replace(`/b2b?orgId=${res.orgId}`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('failedCreateOrg')
@@ -123,7 +124,8 @@ export default function OnboardingPage() {
               <Building2 className="w-6 h-6 text-purple-600" />
               <h3 className="text-xl font-bold text-gray-900">{t('createOrganization')}</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">{t('organizersCreateHint')}</p>
+            <p className="text-sm text-gray-600 mb-2">{t('organizersCreateHint')}</p>
+            <p className="text-xs text-gray-500 mb-6">{t('trialStartsOnCreate')}</p>
 
             <form className="space-y-4" onSubmit={handleCreateOrg}>
               <input
