@@ -194,7 +194,7 @@
       "privacy": "Privacy",
       "downloadApp": "Download",
       "logInB2b": "Log in (B2B)",
-      "copyright": "© 2025 Manavault Studio",
+      "copyright": "© 2026 Nuroo by Manavault Studio",
       "scrollToTop": "Scroll to top"
     }
   },
@@ -839,7 +839,19 @@
         "totalChildren": "Total children",
         "paidCount": "Paid",
         "pendingCount": "Pending",
-        "noChildren": "No children in this organization."
+        "noChildren": "No children in this organization.",
+        "totalAmount": "Total KGS",
+        "overdueCount": "Overdue",
+        "paymentDate": "Payment date",
+        "noFilterResults": "No records match the filter",
+        "filterAll": "All",
+        "filterOverdue": "Overdue ({count})",
+        "filterDueSoon": "Due soon ({count})",
+        "filterUpcoming": "Upcoming",
+        "filterPaid": "Paid ({count})",
+        "daysUntilShort": "In {days} d.",
+        "dueDatePrefix": "Until",
+        "pendingLabel": "Pending"
       },
       "common": {
         "loading": "Loading...",

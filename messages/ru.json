@@ -194,7 +194,7 @@
       "privacy": "Приватность",
       "downloadApp": "Скачать приложение",
       "logInB2b": "Войти (B2B)",
-      "copyright": "© 2025 Manavault Studio",
+      "copyright": "© 2026 Nuroo by Manavault Studio",
       "scrollToTop": "Наверх"
     }
   },
@@ -839,7 +839,19 @@
         "totalChildren": "Всего детей",
         "paidCount": "Оплатили",
         "pendingCount": "Ожидает",
-        "noChildren": "Нет детей в организации."
+        "noChildren": "Нет детей в организации.",
+        "totalAmount": "Всего KGS",
+        "overdueCount": "Просрочено",
+        "paymentDate": "Дата оплаты",
+        "noFilterResults": "Нет записей по фильтру",
+        "filterAll": "Все",
+        "filterOverdue": "Просроченные ({count})",
+        "filterDueSoon": "Скоро ({count})",
+        "filterUpcoming": "Предстоящие",
+        "filterPaid": "Оплачено ({count})",
+        "daysUntilShort": "Через {days} дн.",
+        "dueDatePrefix": "До",
+        "pendingLabel": "Ожидается"
       },
       "common": {
         "loading": "Загрузка...",

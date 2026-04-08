@@ -190,7 +190,7 @@
       "privacy": "Купуялуулук",
       "downloadApp": "Жүктөө",
       "logInB2b": "Кирүү (B2B)",
-      "copyright": "© 2025 Manavault Studio",
+      "copyright": "© 2026 Nuroo by Manavault Studio",
       "scrollToTop": "Жогору"
     }
   },
@@ -835,7 +835,19 @@
         "totalChildren": "Балдардын жалпы саны",
         "paidCount": "Төлөгөндөр",
         "pendingCount": "Күтүүдө",
-        "noChildren": "Уюмда балдар жок."
+        "noChildren": "Уюмда балдар жок.",
+        "totalAmount": "Жалпы KGS",
+        "overdueCount": "Мөөнөтү өткөн",
+        "paymentDate": "Төлөм датасы",
+        "noFilterResults": "Чыпкалоого дал келген жазуу жок",
+        "filterAll": "Баары",
+        "filterOverdue": "Мөөнөтү өткөн ({count})",
+        "filterDueSoon": "Жакында ({count})",
+        "filterUpcoming": "Алдыда",
+        "filterPaid": "Төлөнгөн ({count})",
+        "daysUntilShort": "{days} күндөн кийин",
+        "dueDatePrefix": "Чейин",
+        "pendingLabel": "Күтүлүүдө"
       },
       "common": {
         "loading": "Жүктөлүп жатат...",

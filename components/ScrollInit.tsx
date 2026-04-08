@@ -25,6 +25,14 @@ export function ScrollInit() {
     // Re-observe after a tick in case components rendered late
     const timer = setTimeout(observe, 300)
 
+    // Fallback: reveal any still-hidden elements after 2 seconds
+    // (handles browsers/contexts where IntersectionObserver doesn't fire)
+    const fallbackTimer = setTimeout(() => {
+      document.querySelectorAll('[data-sr]:not(.sr-revealed)').forEach((el) => {
+        el.classList.add('sr-revealed')
+      })
+    }, 2000)
+
     // ── Glow card mouse tracking ────────────────────
     const onMouseMove = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('.glow-card') as HTMLElement | null
@@ -63,8 +71,23 @@ export function ScrollInit() {
     )
     document.querySelectorAll('[data-count-target]').forEach((el) => counterObserver.observe(el))
 
+    // Fallback: trigger counters for any un-animated elements after 2.5 seconds
+    const counterFallbackTimer = setTimeout(() => {
+      document.querySelectorAll('[data-count-target]').forEach((el) => {
+        const htmlEl = el as HTMLElement
+        if (htmlEl.dataset.counted) return
+        const targetVal = parseFloat(htmlEl.dataset.countTarget || '0')
+        const suffix = htmlEl.dataset.countSuffix || ''
+        const prefix = htmlEl.dataset.countPrefix || ''
+        htmlEl.textContent = prefix + Math.round(targetVal) + suffix
+        htmlEl.dataset.counted = 'true'
+      })
+    }, 2500)
+
     return () => {
       clearTimeout(timer)
+      clearTimeout(fallbackTimer)
+      clearTimeout(counterFallbackTimer)
       observer.disconnect()
       counterObserver.disconnect()
       document.removeEventListener('mousemove', onMouseMove)
