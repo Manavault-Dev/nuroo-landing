@@ -206,15 +206,15 @@ export default function FinancePage() {
     const bs = record.billingStatus
     if (!bs || bs === 'paid') return null
     const cfg = {
-      overdue: { cls: 'bg-red-50 text-red-700 border border-red-200', label: `Просрочено` },
+      overdue: { cls: 'bg-red-50 text-red-700 border border-red-200', label: t('overdue') },
       due_soon: {
         cls: 'bg-orange-50 text-orange-700 border border-orange-200',
-        label: `Через ${record.daysUntilDue} дн.`,
+        label: t('daysUntilShort', { days: record.daysUntilDue }),
       },
       upcoming: {
         cls: 'bg-blue-50 text-blue-600 border border-blue-200',
         label: record.dueDate
-          ? `До ${new Date(record.dueDate + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`
+          ? `${t('dueDatePrefix')} ${new Date(record.dueDate + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
           : '',
       },
     }[bs]
@@ -224,6 +224,21 @@ export default function FinancePage() {
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
       >
         <CalendarDays className="w-3 h-3" />
+        {cfg.label}
+      </span>
+    )
+  }
+
+  function FeeBadge({ status }: { status: FeeStatus }) {
+    const cfg = {
+      paid: { cls: 'bg-green-100 text-green-700', label: t('paid') },
+      pending: { cls: 'bg-yellow-100 text-yellow-700', label: t('pendingLabel') },
+      overdue: { cls: 'bg-red-100 text-red-700', label: t('overdue') },
+    }[status]
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
+      >
         {cfg.label}
       </span>
     )
@@ -447,13 +462,13 @@ export default function FinancePage() {
               <SummaryCard
                 icon={<AlertTriangle className="w-5 h-5 text-red-500" />}
                 value={overdueCount}
-                label="Просрочено"
+                label={t('overdueCount')}
                 valueClass="text-red-600"
               />
               <SummaryCard
                 icon={<TrendingUp className="w-5 h-5 text-primary-500" />}
                 value={`${totalAmount.toLocaleString()}`}
-                label="Всего KGS"
+                label={t('totalAmount')}
                 valueClass="text-primary-600"
               />
             </div>
@@ -475,11 +490,11 @@ export default function FinancePage() {
                   onChange={(e) => setBillingFilter(e.target.value as BillingFilter)}
                   className="appearance-none border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
                 >
-                  <option value="all">Все</option>
-                  <option value="overdue">Просроченные ({overdueCount})</option>
-                  <option value="due_soon">Скоро ({dueSoonCount})</option>
-                  <option value="upcoming">Предстоящие</option>
-                  <option value="paid">Оплачено ({paidCount})</option>
+                  <option value="all">{t('filterAll')}</option>
+                  <option value="overdue">{t('filterOverdue', { count: overdueCount })}</option>
+                  <option value="due_soon">{t('filterDueSoon', { count: dueSoonCount })}</option>
+                  <option value="upcoming">{t('filterUpcoming')}</option>
+                  <option value="paid">{t('filterPaid', { count: paidCount })}</option>
                 </select>
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -493,7 +508,7 @@ export default function FinancePage() {
           ) : filteredFeeRecords.length === 0 ? (
             <EmptyState
               icon={<Wallet className="w-12 h-12 text-gray-300" />}
-              label={feeRecords.length === 0 ? t('noChildren') : 'Нет записей по фильтру'}
+              label={feeRecords.length === 0 ? t('noChildren') : t('noFilterResults')}
             />
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -511,7 +526,7 @@ export default function FinancePage() {
                         {t('status')}
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                        Дата оплаты
+                        {t('paymentDate')}
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
                         {t('note')}
@@ -651,21 +666,6 @@ function SummaryCard({
       <p className={`text-2xl font-bold ${valueClass}`}>{value}</p>
       <p className="text-xs text-gray-500 mt-1">{label}</p>
     </div>
-  )
-}
-
-function FeeBadge({ status }: { status: FeeStatus }) {
-  const cfg = {
-    paid: { cls: 'bg-green-100 text-green-700', label: 'Оплачено' },
-    pending: { cls: 'bg-yellow-100 text-yellow-700', label: 'Ожидается' },
-    overdue: { cls: 'bg-red-100 text-red-700', label: 'Просрочено' },
-  }[status]
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}
-    >
-      {cfg.label}
-    </span>
   )
 }
 

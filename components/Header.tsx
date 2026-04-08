@@ -34,13 +34,17 @@ export function Header() {
             href="/"
             className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text flex-shrink-0 min-w-0"
           >
-            <img src="/logo.png" alt="Nuroo Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
-            <span>Nuroo</span>
+            <img
+              src="/logo.png"
+              alt="NeuroKids Logo"
+              className="w-6 h-6 md:w-8 md:h-8 rounded-lg"
+            />
+            <span>NeuroKids</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-3 lg:gap-5 flex-shrink-0">
             <Link
-              href="#platform-section"
+              href="#features"
               className="text-gray-600 hover:text-primary-500 transition-colors text-sm whitespace-nowrap"
             >
               {t('features')}
@@ -116,7 +120,7 @@ export function Header() {
           <div className="md:hidden min-w-0">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-white dark:bg-gray-800 rounded-lg mt-2 shadow-lg border border-gray-200 dark:border-gray-700 w-full max-w-full">
               <Link
-                href="#platform-section"
+                href="#features"
                 className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 transition-colors text-sm font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >

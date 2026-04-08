@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
@@ -9,7 +9,6 @@ import { apiClient } from '@/lib/b2b/api'
 import type {
   Assignment,
   AssignmentDetail,
-  Comment,
   ContentRoadmapItem,
   ContentTaskItem,
   Group,
@@ -22,7 +21,7 @@ import {
   mapContentRoadmaps,
   mapContentTasks,
 } from './mappers'
-import { PRESET_COLORS, formatDate, initials, pluralChildren, relativeTime } from './utils'
+import { PRESET_COLORS, formatDate, pluralChildren } from './utils'
 import { Modal, Skeleton, Toast } from './ui'
 import {
   AssignmentsTab,
@@ -44,7 +43,6 @@ import {
   Loader2,
   Copy,
   Check,
-  MessageSquare,
   Send,
   ThumbsUp,
   RotateCcw,
@@ -54,6 +52,9 @@ import {
   Lock,
   Unlock,
   FileText,
+  ChevronDown,
+  ChevronUp,
+  ListChecks,
 } from 'lucide-react'
 
 // ─── GroupsPage (Main) ────────────────────────────────────────────────────────
@@ -79,13 +80,13 @@ export default function GroupsPage() {
 
   // Assignment detail (full-screen overlay)
   const [assignmentDetail, setAssignmentDetail] = useState<AssignmentDetail | null>(null)
-  const [assignmentComments, setAssignmentComments] = useState<Comment[]>([])
   const [assignmentDetailLoading, setAssignmentDetailLoading] = useState(false)
   const [submissionFilter, setSubmissionFilter] = useState<
     'all' | 'pending' | 'submitted' | 'graded'
   >('all')
-  const [commentInput, setCommentInput] = useState('')
-  const [submittingComment, setSubmittingComment] = useState(false)
+
+  // Roadmap accordion (expanded ids in assignment detail)
+  const [expandedRoadmapIds, setExpandedRoadmapIds] = useState<Set<string>>(new Set())
 
   // Grade modal
   const [gradeTarget, setGradeTarget] = useState<Submission | null>(null)
@@ -127,7 +128,6 @@ export default function GroupsPage() {
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') =>
     setToast({ message, type })
-  const commentsEndRef = useRef<HTMLDivElement>(null)
 
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -226,23 +226,16 @@ export default function GroupsPage() {
       if (!orgId || !selectedGroup) return
       setAssignmentDetailLoading(true)
       setAssignmentDetail(null)
-      setAssignmentComments([])
       setSubmissionFilter('all')
-      setCommentInput('')
+      setExpandedRoadmapIds(new Set())
       try {
-        const [detailRes, commentsRes] = await Promise.all([
-          apiClient.getGroupAssignment(
-            orgId,
-            selectedGroup.id,
-            assignment.id,
-            selectedGroup.ownerId
-          ),
-          apiClient
-            .getAssignmentComments(orgId, selectedGroup.id, assignment.id)
-            .catch(() => ({ comments: [] })),
-        ])
+        const detailRes = await apiClient.getGroupAssignment(
+          orgId,
+          selectedGroup.id,
+          assignment.id,
+          selectedGroup.ownerId
+        )
         setAssignmentDetail(detailRes.assignment as AssignmentDetail)
-        setAssignmentComments(commentsRes.comments || [])
       } catch (e: unknown) {
         showToast(e instanceof Error ? e.message : t('errorLoadAssignment'), 'error')
       } finally {
@@ -477,28 +470,6 @@ export default function GroupsPage() {
     }
   }
 
-  // ─── Comments ─────────────────────────────────────────────────────────────────
-
-  const handleAddComment = async () => {
-    if (!orgId || !selectedGroup || !assignmentDetail || !commentInput.trim()) return
-    setSubmittingComment(true)
-    try {
-      const res = await apiClient.addAssignmentComment(
-        orgId,
-        selectedGroup.id,
-        assignmentDetail.id,
-        commentInput.trim()
-      )
-      setAssignmentComments((prev) => [...prev, res.comment as Comment])
-      setCommentInput('')
-      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-    } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : t('errorGeneric'), 'error')
-    } finally {
-      setSubmittingComment(false)
-    }
-  }
-
   // ─── Parent management ────────────────────────────────────────────────────────
 
   const handleOpenAddParent = async () => {
@@ -672,13 +643,13 @@ export default function GroupsPage() {
       {selectedGroup && (
         <>
           <div
-            className="fixed inset-0 bg-black/20 z-40"
+            className="fixed inset-0 bg-black/35 z-[52]"
             onClick={() => {
               setSelectedGroup(null)
               setAssignmentDetail(null)
             }}
           />
-          <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col">
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white z-[60] shadow-2xl flex flex-col">
             {/* Panel header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
               <div
@@ -826,7 +797,6 @@ export default function GroupsPage() {
             <button
               onClick={() => {
                 setAssignmentDetail(null)
-                setAssignmentComments([])
               }}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors shrink-0"
             >
@@ -836,6 +806,26 @@ export default function GroupsPage() {
             {assignmentDetail && (
               <>
                 <span className="text-gray-200">|</span>
+                <div className="hidden md:flex items-center gap-2 text-xs text-gray-400 shrink-0">
+                  <button
+                    onClick={() => {
+                      setAssignmentDetail(null)
+                      setSelectedGroup(null)
+                    }}
+                    className="hover:text-gray-700 transition-colors"
+                  >
+                    {t('title')}
+                  </button>
+                  <span>/</span>
+                  <button
+                    onClick={() => setAssignmentDetail(null)}
+                    className="hover:text-gray-700 transition-colors max-w-[140px] truncate"
+                    title={assignmentDetail.groupName}
+                  >
+                    {assignmentDetail.groupName}
+                  </button>
+                  <span>/</span>
+                </div>
                 <div
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: selectedGroup.color }}
@@ -894,13 +884,86 @@ export default function GroupsPage() {
               <Skeleton className="h-64" />
             </div>
           ) : assignmentDetail ? (
-            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* Left: Submissions */}
+            <div className="flex-1 overflow-hidden flex flex-col">
               <div className="flex-1 overflow-y-auto">
-                <div className="max-w-2xl mx-auto px-4 py-5 sm:px-6">
+                <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6">
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setAssignmentDetail(null)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      {t('back')} {t('tabAssignments').toLowerCase()}
+                    </button>
+                  </div>
                   {assignmentDetail.description && (
                     <div className="mb-5 p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-700 leading-relaxed">
                       {assignmentDetail.description}
+                    </div>
+                  )}
+
+                  {/* Roadmap breakdown */}
+                  {assignmentDetail.roadmaps && assignmentDetail.roadmaps.length > 0 && (
+                    <div className="mb-5 rounded-xl border border-purple-100 bg-purple-50/40 overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 py-3 border-b border-purple-100">
+                        <BookOpen className="w-4 h-4 text-purple-500 shrink-0" />
+                        <span className="text-sm font-semibold text-purple-800">
+                          {t('programsLabel')}
+                        </span>
+                        <span className="ml-auto text-xs text-purple-400">
+                          {assignmentDetail.roadmaps.length}
+                        </span>
+                      </div>
+                      {assignmentDetail.roadmaps.map((roadmap) => {
+                        const isOpen = expandedRoadmapIds.has(roadmap.id)
+                        return (
+                          <div
+                            key={roadmap.id}
+                            className="border-b border-purple-100 last:border-0"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExpandedRoadmapIds((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(roadmap.id)) next.delete(roadmap.id)
+                                  else next.add(roadmap.id)
+                                  return next
+                                })
+                              }}
+                              className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-purple-50 transition-colors"
+                            >
+                              <ListChecks className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                              <span className="flex-1 text-sm font-medium text-purple-900 truncate">
+                                {roadmap.name}
+                              </span>
+                              <span className="text-xs text-purple-400 shrink-0 mr-1">
+                                {roadmap.taskTitles.length}
+                              </span>
+                              {isOpen ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                              )}
+                            </button>
+                            {isOpen && roadmap.taskTitles.length > 0 && (
+                              <ul className="px-4 pb-3 space-y-1">
+                                {roadmap.taskTitles.map((title, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-2 text-xs text-purple-800"
+                                  >
+                                    <span className="shrink-0 w-4 h-4 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center font-semibold text-[10px] mt-0.5">
+                                      {i + 1}
+                                    </span>
+                                    {title}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
 
@@ -1019,81 +1082,6 @@ export default function GroupsPage() {
                         {t('noRecordsInCategory')}
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Comments */}
-              <div className="w-full lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col shrink-0">
-                <div className="px-5 py-3.5 border-b border-gray-100 shrink-0">
-                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-gray-400" />
-                    {t('comments')}
-                    {assignmentComments.length > 0 && (
-                      <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                        {assignmentComments.length}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                  {assignmentComments.length === 0 && (
-                    <div className="text-center py-8 text-xs text-gray-400">
-                      {t('noComments')}
-                      <br />
-                      {t('writeFirst')}
-                    </div>
-                  )}
-                  {assignmentComments.map((c) => (
-                    <div key={c.id} className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center text-[10px] font-bold text-primary-700 shrink-0">
-                        {initials(c.authorName)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-xs font-semibold text-gray-900">
-                            {c.authorName}
-                          </span>
-                          {c.createdAt && (
-                            <span className="text-[10px] text-gray-400">
-                              {relativeTime(c.createdAt, t, locale)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 leading-relaxed">
-                          {c.text}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={commentsEndRef} />
-                </div>
-                <div className="px-4 py-3 border-t border-gray-100 shrink-0">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleAddComment()
-                        }
-                      }}
-                      placeholder={t('commentPlaceholder')}
-                      rows={2}
-                      className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
-                    />
-                    <button
-                      onClick={handleAddComment}
-                      disabled={submittingComment || !commentInput.trim()}
-                      className="p-2.5 text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      {submittingComment ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
-                    </button>
                   </div>
                 </div>
               </div>

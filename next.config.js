@@ -31,6 +31,20 @@ const nextConfig = {
 
     return config
   },
+  async redirects() {
+    return [
+      {
+        source: '/:locale/auth/login',
+        destination: '/:locale/b2b/login',
+        permanent: true,
+      },
+      {
+        source: '/auth/login',
+        destination: '/en/b2b/login',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {
