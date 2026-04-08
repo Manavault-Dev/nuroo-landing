@@ -1,8 +1,13 @@
+import admin from 'firebase-admin'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { getBillingPlan, type BillingPlan } from './payments.repository.js'
 
 export const PLAN_IDS = ['starter', 'growth', 'enterprise'] as const
 export type PlanId = (typeof PLAN_IDS)[number]
+export type SubscriptionAccessSource = 'subscription' | 'free_trial'
+
+export const FREE_TRIAL_DAYS = 30
+export const FREE_TRIAL_PLAN_ID: PlanId = 'starter'
 
 export interface PlanLimit {
   children: number | null
@@ -37,23 +42,114 @@ export function isSubscriptionActive(billing: BillingPlan | null): boolean {
   return true
 }
 
+export async function getFreeTrialStatus(orgId: string): Promise<{
+  active: boolean
+  error?: string
+  planId: string | null
+  startedAt?: admin.firestore.Timestamp | null
+  expiresAt?: admin.firestore.Timestamp | null
+} | null> {
+  const db = getFirestore()
+  const orgSnap = await db.collection('organizations').doc(orgId).get()
+  if (!orgSnap.exists) return null
+
+  const trial = orgSnap.data()?.freeTrial
+  if (!trial) return null
+
+  const planId = typeof trial.planId === 'string' ? trial.planId : FREE_TRIAL_PLAN_ID
+  if (!getPlanLimits(planId)) {
+    return {
+      active: false,
+      error: 'Free trial has an invalid plan. Please choose a plan and pay in Billing.',
+      planId,
+      startedAt: trial.startedAt ?? null,
+      expiresAt: trial.expiresAt ?? null,
+    }
+  }
+
+  const expiresAt = trial.expiresAt?.toDate?.()
+  if (!expiresAt) {
+    return {
+      active: false,
+      error: 'Free trial is missing an expiration date. Please choose a plan and pay in Billing.',
+      planId,
+      startedAt: trial.startedAt ?? null,
+      expiresAt: trial.expiresAt ?? null,
+    }
+  }
+
+  if (new Date() > expiresAt) {
+    return {
+      active: false,
+      error: 'Free trial expired. Please choose a plan and pay in Billing.',
+      planId,
+      startedAt: trial.startedAt ?? null,
+      expiresAt: trial.expiresAt ?? null,
+    }
+  }
+
+  return {
+    active: true,
+    planId,
+    startedAt: trial.startedAt ?? null,
+    expiresAt: trial.expiresAt ?? null,
+  }
+}
+
 export async function getSubscriptionStatus(orgId: string): Promise<{
   active: boolean
   error?: string
   planId?: string
+  source?: SubscriptionAccessSource
+  expiresAt?: admin.firestore.Timestamp | null
 }> {
   const billing = await getBillingPlan(orgId)
-  if (!billing) {
-    return { active: false, error: 'No subscription. Please choose a plan and pay in Billing.' }
+  if (billing) {
+    if (billing.status !== 'active') {
+      return {
+        active: false,
+        error: 'Subscription is not active. Please renew in Billing.',
+        source: 'subscription',
+        expiresAt: billing.expiresAt ?? null,
+      }
+    }
+    const expiresAt = billing.expiresAt?.toDate?.()
+    if (expiresAt && new Date() > expiresAt) {
+      return {
+        active: false,
+        error: 'Subscription expired. Please renew in Billing.',
+        source: 'subscription',
+        expiresAt: billing.expiresAt ?? null,
+      }
+    }
+    return {
+      active: true,
+      planId: billing.planId,
+      source: 'subscription',
+      expiresAt: billing.expiresAt ?? null,
+    }
   }
-  if (billing.status !== 'active') {
-    return { active: false, error: 'Subscription is not active. Please renew in Billing.' }
+
+  const trial = await getFreeTrialStatus(orgId)
+  if (trial?.active && trial.planId) {
+    return {
+      active: true,
+      planId: trial.planId,
+      source: 'free_trial',
+      expiresAt: trial.expiresAt ?? null,
+    }
   }
-  const expiresAt = billing.expiresAt?.toDate?.()
-  if (expiresAt && new Date() > expiresAt) {
-    return { active: false, error: 'Subscription expired. Please renew in Billing.' }
+
+  if (trial) {
+    return {
+      active: false,
+      error: trial.error ?? 'Free trial expired. Please choose a plan and pay in Billing.',
+      source: 'free_trial',
+      expiresAt: trial.expiresAt ?? null,
+    }
   }
-  return { active: true, planId: billing.planId }
+
+  return { active: false, error: 'No subscription. Please choose a plan and pay in Billing.' }
 }
 
 export async function checkOrgCanAddChild(orgId: string): Promise<{ ok: boolean; error?: string }> {

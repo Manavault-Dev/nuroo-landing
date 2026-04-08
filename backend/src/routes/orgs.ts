@@ -3,6 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
+import { FREE_TRIAL_DAYS, FREE_TRIAL_PLAN_ID } from '../modules/payments/planLimits.js'
 import { requireOrgMember } from '../plugins/rbac.js'
 
 const createOrgSchema = z.object({
@@ -36,6 +37,8 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
     const { uid, email } = request.user
     const body = createOrgSchema.parse(request.body)
     const now = new Date()
+    const trialExpiresAt = new Date(now)
+    trialExpiresAt.setDate(trialExpiresAt.getDate() + FREE_TRIAL_DAYS)
 
     // Prevent duplicate org names for the same creator (simple UX guard).
     const existing = await db
@@ -59,6 +62,11 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       createdBy: uid,
       isActive: true,
       billingPlan: null,
+      freeTrial: {
+        planId: FREE_TRIAL_PLAN_ID,
+        startedAt: admin.firestore.Timestamp.fromDate(now),
+        expiresAt: admin.firestore.Timestamp.fromDate(trialExpiresAt),
+      },
     })
 
     // Make requester an org admin.

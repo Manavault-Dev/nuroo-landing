@@ -10,7 +10,7 @@ import {
 } from './payments.service.js'
 import { PLAN_LIMITS, type PlanId } from './planLimits.js'
 import { createPaymentSchema, webhookSchema } from './payments.schema.js'
-import { getSubscriptionStatus, getPlanLimits } from './planLimits.js'
+import { getSubscriptionStatus, getPlanLimits, getFreeTrialStatus } from './planLimits.js'
 import { getBillingPlan } from './payments.repository.js'
 
 export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -50,14 +50,27 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
       await requireOrgMember(request, reply, orgId)
       const status = await getSubscriptionStatus(orgId)
       const billing = await getBillingPlan(orgId)
+      const trial = await getFreeTrialStatus(orgId)
       const limits = status.planId ? getPlanLimits(status.planId) : null
       return {
         ok: true,
         active: status.active,
         planId: status.planId ?? null,
+        source: status.source ?? null,
         error: status.error ?? null,
-        expiresAt: billing?.expiresAt?.toDate?.()?.toISOString() ?? null,
+        expiresAt:
+          status.expiresAt?.toDate?.()?.toISOString() ??
+          billing?.expiresAt?.toDate?.()?.toISOString() ??
+          null,
         limits: limits ? { children: limits.children, specialists: limits.specialists } : null,
+        trial: trial
+          ? {
+              active: trial.active,
+              planId: trial.planId,
+              startedAt: trial.startedAt?.toDate?.()?.toISOString() ?? null,
+              expiresAt: trial.expiresAt?.toDate?.()?.toISOString() ?? null,
+            }
+          : null,
       }
     }
   )
