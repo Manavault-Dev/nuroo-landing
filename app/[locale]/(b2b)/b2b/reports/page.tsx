@@ -460,6 +460,13 @@ function ReportsContent() {
         </div>
       )}
 
+      {!loading && !data && !error && (
+        <div className="bg-gray-50 rounded-xl p-16 text-center">
+          <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">{t('noChildren')}</p>
+        </div>
+      )}
+
       {data && (
         <div className="space-y-8">
           <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">

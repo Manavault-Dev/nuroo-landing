@@ -701,6 +701,9 @@ export class ApiClient {
         description: string | null
         dueDate: string | null
         taskTitles: string[]
+        contentRoadmapIds: string[]
+        roadmapNames: string[]
+        roadmaps: { id: string; name: string; taskTitles: string[] }[]
         childCount: number
         status: 'active' | 'closed'
         assignedAt: string | null

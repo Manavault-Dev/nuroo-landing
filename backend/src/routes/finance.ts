@@ -26,12 +26,16 @@ const feeSchema = z.object({
   note: z.string().max(500).optional(),
 })
 
-async function resolveChildName(db: FirebaseFirestore.Firestore, childId: string): Promise<string> {
+async function resolveChildName(
+  db: FirebaseFirestore.Firestore,
+  childId: string,
+  parentUserId?: string
+): Promise<string> {
   try {
     const childDoc = await db.doc(`children/${childId}`).get()
     if (childDoc.exists) {
       const d = childDoc.data()!
-      const name = d.childName || d.name || d.displayName || d.fullName
+      const name = d.name || d.childName || d.displayName || d.fullName
       if (name && name !== 'Unknown') return name
     }
   } catch {
@@ -42,18 +46,36 @@ async function resolveChildName(db: FirebaseFirestore.Firestore, childId: string
     const userDoc = await db.doc(`users/${childId}`).get()
     if (userDoc.exists) {
       const d = userDoc.data()!
-      const name = d.displayName || d.name || d.childName
-      if (name) return name
+      const name = d.name || d.childName || d.displayName
+      if (name && name !== 'Unknown') return name
     }
   } catch {
     // Ignore lookup errors and continue with fallback sources.
   }
 
-  try {
-    const authUser = await admin.auth().getUser(childId)
-    if (authUser.displayName) return authUser.displayName
-  } catch {
-    // Ignore lookup errors and continue with fallback sources.
+  // Try parentUserId in users collection (mobile app stores child info under parent's doc)
+  if (parentUserId && parentUserId !== childId) {
+    try {
+      const parentDoc = await db.doc(`users/${parentUserId}`).get()
+      if (parentDoc.exists) {
+        const d = parentDoc.data()!
+        const name = d.childName || d.name
+        if (name && name !== 'Unknown') return name
+      }
+    } catch {
+      // Ignore lookup errors.
+    }
+  }
+
+  // Firebase Auth fallback — try childId first, then parentUserId
+  for (const uid of [childId, parentUserId].filter(Boolean) as string[]) {
+    try {
+      const authUser = await admin.auth().getUser(uid)
+      if (authUser.displayName) return authUser.displayName
+      if (authUser.email) return authUser.email.split('@')[0]
+    } catch {
+      // User not found in Auth, try next.
+    }
   }
 
   return 'Ребёнок'
@@ -110,7 +132,9 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
             const data = doc.data()
             const rawName = data.childName || data.name
             const name =
-              rawName && rawName !== 'Unknown' ? rawName : await resolveChildName(db, doc.id)
+              rawName && rawName !== 'Unknown'
+                ? rawName
+                : await resolveChildName(db, doc.id, data.parentUserId)
             return { id: doc.id, name }
           })
         )
@@ -213,7 +237,9 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
             const data = doc.data()
             const rawName = data.childName || data.name
             const name =
-              rawName && rawName !== 'Unknown' ? rawName : await resolveChildName(db, doc.id)
+              rawName && rawName !== 'Unknown'
+                ? rawName
+                : await resolveChildName(db, doc.id, data.parentUserId)
             return { id: doc.id, name, assignedAt: data.assignedAt || null }
           })
         )

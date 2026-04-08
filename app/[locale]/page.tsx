@@ -14,7 +14,7 @@ const LOCALE_META = {
   ru: {
     title: 'Nuroo — ИИ-поддержка для детей с особыми потребностями',
     description:
-      'Персонализированные упражнения, ИИ-чат NurooAi и трекинг прогресса для детей с аутизмом, ЗПР, СДВГ и другими особенностями развития. Платформа для семей, центров и специалистов.',
+      'Персонализированные упражнения, ИИ-чат NeuroKids и трекинг прогресса для детей с аутизмом, ЗПР, СДВГ и другими особенностями развития. Платформа для семей, центров и специалистов.',
     keywords: [
       'приложение для детей с особыми потребностями',
       'аутизм приложение',
@@ -35,7 +35,7 @@ const LOCALE_META = {
   en: {
     title: 'Nuroo — AI Support for Children with Special Needs',
     description:
-      'AI-powered exercises, NurooAi chat, and progress tracking for children with autism, ADHD, and developmental delays. Accessible therapy for every family, specialist and organization.',
+      'AI-powered exercises, NeuroKids chat, and progress tracking for children with autism, ADHD, and developmental delays. Accessible therapy for every family, specialist and organization.',
     keywords: [
       'special needs app',
       'AI therapy children',
@@ -53,7 +53,7 @@ const LOCALE_META = {
   ky: {
     title: 'Nuroo — Атайын муктаждыктары бар балдар үчүн ЖИ колдоосу',
     description:
-      'Персоналдаштырылган көнүгүүлөр, NurooAi ЖИ чаты жана аутизм, ЖАК жана ДДДС менен балдар үчүн жетишкендиктерди байкоо. Үй-бүлөлөр жана адистер үчүн платформа.',
+      'Персоналдаштырылган көнүгүүлөр, NeuroKids ЖИ чаты жана аутизм, ЖАК жана ДДДС менен балдар үчүн жетишкендиктерди байкоо. Үй-бүлөлөр жана адистер үчүн платформа.',
     keywords: [
       'атайын муктаждыктары бар балдар',
       'аутизм колдонмосу',
@@ -136,7 +136,7 @@ const jsonLd = {
     {
       '@type': 'MobileApplication',
       '@id': `${BASE}/#app`,
-      name: 'Nuroo AI',
+      name: 'NeuroKids',
       operatingSystem: 'iOS, Android',
       applicationCategory: 'EducationApplication',
       applicationSubCategory: 'Special Education',
@@ -151,7 +151,7 @@ const jsonLd = {
         ratingCount: '120',
       },
       description:
-        'AI-powered exercises, progress tracking and NurooAi chat support for children with special needs.',
+        'AI-powered exercises, progress tracking and NeuroKids chat support for children with special needs.',
       url: 'https://apps.apple.com/us/app/nuroo-ai/id6753772410',
       publisher: { '@id': `${BASE}/#organization` },
     },
