@@ -18,6 +18,7 @@ import {
   CreditCard,
   BarChart3,
   GitBranch,
+  CalendarDays,
   Wallet,
 } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -80,6 +81,15 @@ export function Sidebar({
       labelKey: 'assignments' as const,
       icon: FileText,
     },
+    ...(!isOrgAdmin
+      ? [
+          {
+            href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=attendance' : '?tab=attendance'}`,
+            labelKey: 'attendance' as const,
+            icon: CalendarDays,
+          },
+        ]
+      : []),
     {
       href: withOrg('/b2b/invites'),
       labelKey: 'inviteCodes' as const,
