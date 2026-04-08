@@ -358,7 +358,7 @@ export function ContentManagement({
             type="text"
             value={((isRoadmap ? formData.name : formData.title) as string) || ''}
             onChange={(e) => updateFormField(isRoadmap ? 'name' : 'title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             placeholder={isRoadmap ? t('enterRoadmapName') : t('enterTaskTitle')}
             required
           />
@@ -371,7 +371,7 @@ export function ContentManagement({
             value={(formData.description as string) || ''}
             onChange={(e) => updateFormField('description', e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             placeholder={t('enterDescription')}
           />
         </div>
@@ -381,7 +381,7 @@ export function ContentManagement({
             type="text"
             value={(formData.category as string) || ''}
             onChange={(e) => updateFormField('category', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             placeholder={t('enterCategory')}
           />
         </div>
@@ -394,7 +394,7 @@ export function ContentManagement({
               <select
                 value={(formData.difficulty as string) || ''}
                 onChange={(e) => updateFormField('difficulty', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">{t('selectDifficulty')}</option>
                 <option value="easy">{t('difficultyEasy')}</option>
@@ -412,7 +412,7 @@ export function ContentManagement({
                 onChange={(e) =>
                   updateFormField('estimatedDuration', parseInt(e.target.value) || undefined)
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder={t('enterDuration')}
               />
             </div>
@@ -424,7 +424,7 @@ export function ContentManagement({
                 type="url"
                 value={(formData.videoUrl as string) || ''}
                 onChange={(e) => updateFormField('videoUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="https://..."
               />
             </div>
@@ -436,7 +436,7 @@ export function ContentManagement({
                 type="url"
                 value={(formData.imageUrl as string) || ''}
                 onChange={(e) => updateFormField('imageUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="https://..."
               />
             </div>
@@ -456,7 +456,7 @@ export function ContentManagement({
                       updateFormField('materials', materials.length > 0 ? materials : undefined)
                     }}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder={t('materialsPlaceholder')}
                   />
                 </div>
@@ -477,7 +477,7 @@ export function ContentManagement({
                       )
                     }}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder={t('instructionsPlaceholder')}
                   />
                 </div>
@@ -592,7 +592,7 @@ export function ContentManagement({
                     return { ...prev, taskIds: [...currentTaskIds, taskId] }
                   })
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="">{t('selectTaskToAdd')}</option>
                 {tasks
@@ -626,7 +626,7 @@ export function ContentManagement({
                   }
                 }
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             {mediaFile && (
               <div className="mt-2 flex items-center justify-between">
@@ -699,7 +699,7 @@ export function ContentManagement({
                   flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                   ${
                     isActive
-                      ? 'border-purple-500 text-purple-600'
+                      ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }
                 `}
@@ -708,7 +708,7 @@ export function ContentManagement({
                 <span>{tab.label}</span>
                 <span
                   className={`px-2 py-0.5 rounded-full text-xs ${
-                    isActive ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                    isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
                   {tab.count}
@@ -723,7 +723,7 @@ export function ContentManagement({
         <button
           type="button"
           onClick={handleCreate}
-          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
@@ -748,7 +748,7 @@ export function ContentManagement({
           <button
             type="button"
             onClick={handleCreate}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
             {isTasksTab ? t('createTask') : t('createRoadmap')}
           </button>
@@ -842,7 +842,7 @@ export function ContentManagement({
                       href={item.videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-600 hover:text-purple-700 underline"
+                      className="text-primary-600 hover:text-primary-700 underline"
                     >
                       {t('viewVideo')}
                     </a>
@@ -854,7 +854,7 @@ export function ContentManagement({
                       href={item.imageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-600 hover:text-purple-700 underline"
+                      className="text-primary-600 hover:text-primary-700 underline"
                     >
                       {t('viewImage')}
                     </a>
@@ -907,7 +907,7 @@ export function ContentManagement({
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>
@@ -924,7 +924,7 @@ export function ContentManagement({
                 <div className="mt-2 w-full">
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
