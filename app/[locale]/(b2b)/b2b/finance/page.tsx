@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient, type AttendanceRecord, type FeeRecord } from '@/lib/b2b/api'
@@ -29,12 +30,20 @@ const currentMonth = () => {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
+const resolveActiveTab = (tab: string | null, isAdmin: boolean): Tab => {
+  if (tab === 'attendance') return 'attendance'
+  if (tab === 'fees' && isAdmin) return 'fees'
+  return isAdmin ? 'fees' : 'attendance'
+}
 
 export default function FinancePage() {
   const t = useTranslations('b2b.pages.finance')
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { orgId, isAdmin, isLoading } = usePageAuth()
-
-  const [activeTab, setActiveTab] = useState<Tab>('attendance')
+  const activeTab = resolveActiveTab(searchParams.get('tab'), isAdmin)
+  const visibleTabs = (isAdmin ? ['fees', 'attendance'] : ['attendance']) as Tab[]
 
   const [attendanceDate, setAttendanceDate] = useState(todayDate)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -236,34 +245,54 @@ export default function FinancePage() {
           return r.billingStatus === billingFilter
         })
 
+  const handleTabChange = (tab: Tab) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.set('tab', tab)
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false })
+  }
+
   if (isLoading) return <PageSpinner />
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex items-center gap-3">
-        <Wallet className="w-7 h-7 text-primary-600" />
+        {isAdmin ? (
+          <Wallet className="w-7 h-7 text-primary-600" />
+        ) : (
+          <Users className="w-7 h-7 text-primary-600" />
+        )}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-          <p className="text-sm text-gray-500">{t('subtitle')}</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isAdmin ? t('title') : t('attendance')}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {isAdmin ? t('subtitle') : t('attendanceSubtitle')}
+          </p>
         </div>
       </div>
 
-      <div className="flex border-b border-gray-200 mb-6">
-        {(['attendance', 'fees'] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab === 'attendance' ? <Users className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
-            {t(tab)}
-          </button>
-        ))}
-      </div>
+      {visibleTabs.length > 1 && (
+        <div className="flex border-b border-gray-200 mb-6">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => handleTabChange(tab)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'attendance' ? (
+                <Users className="w-4 h-4" />
+              ) : (
+                <Wallet className="w-4 h-4" />
+              )}
+              {t(tab)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {activeTab === 'attendance' && (
         <div>
