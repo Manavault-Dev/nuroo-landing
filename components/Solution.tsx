@@ -107,7 +107,7 @@ export function Solution() {
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
                     src="/asknuroo-screen.png"
-                    alt="NurooAi"
+                    alt="NeuroKids"
                     className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
                   />
                 </div>

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: '%s | Nuroo',
   },
   description:
-    'Nuroo — AI-powered exercises, NurooAi chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
+    'Nuroo — AI-powered exercises, NeuroKids chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
   keywords: [
     // English
     'special needs app',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     siteName: 'Nuroo',
     title: 'Nuroo — AI Support for Children with Special Needs',
     description:
-      'AI-powered exercises, NurooAi chat and progress tracking for children with autism, ADHD and developmental delays.',
+      'AI-powered exercises, NeuroKids chat and progress tracking for children with autism, ADHD and developmental delays.',
     images: [
       {
         url: '/mother-and-child.png',
