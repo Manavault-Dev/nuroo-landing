@@ -81,7 +81,7 @@ export async function createPayment(input: CreatePaymentInput, _userId: string) 
       accountId: FINIK_ACCOUNT_ID,
       description: plan.name,
       merchantCategoryCode: '0742',
-      name_en: `Nuroo: ${plan.name}`,
+      name_en: `NeuroKids: ${plan.name}`,
       ...(FINIK_WEBHOOK_URL && { webhookUrl: FINIK_WEBHOOK_URL }),
     },
     PaymentId: finikPaymentId,

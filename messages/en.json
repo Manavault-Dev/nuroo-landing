@@ -22,7 +22,7 @@
       "organizersSpecialists": "For Professionals",
       "logIn": "Log in",
       "createAccount": "Create account",
-      "statMain": "1,500+ families already use Nuroo in 30 countries",
+      "statMain": "1,500+ families already use NeuroKids in 30 countries",
       "taskCompleted": "Task completed",
       "floatCardCategory": "Motor skills",
       "floatCardTime": "5 min ago",
@@ -48,7 +48,7 @@
     "solution": {
       "badge": "The Solution",
       "title": "Introducing",
-      "titleBrand": "Nuroo",
+      "titleBrand": "NeuroKids",
       "intro": "AI-powered support for children with special needs — at home. Organizations and specialists assign content and track progress on one platform.",
       "platformIntro": "One ecosystem for families and specialists.",
       "welcomeSetup": "Welcome & Setup",
@@ -113,7 +113,7 @@
       "paymentMethodInfo": "Card payment (KGS) via Finik."
     },
     "platform": {
-      "badge": "Nuroo Platform",
+      "badge": "NeuroKids Platform",
       "title": "For Organizations & Specialists",
       "intro": "Groups, content, progress, and parent engagement — in one place.",
       "intro2": "Video lessons and reports.",
@@ -170,13 +170,13 @@
       "achievementSystem": "Achievements",
       "achievementSystemDesc": "Celebrate milestones",
       "ctaTitle": "Ready to Support Your Child?",
-      "ctaSubtitle": "Download Nuroo and start today."
+      "ctaSubtitle": "Download NeuroKids and start today."
     },
     "testimonials": {
       "badge": "Community",
       "title": "Join",
       "titleHighlight": "Early Access",
-      "intro": "Be among the first to experience Nuroo.",
+      "intro": "Be among the first to experience NeuroKids.",
       "available": "Available",
       "appStore": "App Store",
       "aiPowered": "AI-Powered",
@@ -194,7 +194,7 @@
       "privacy": "Privacy",
       "downloadApp": "Download",
       "logInB2b": "Log in (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© 2026 NeuroKids by Manavault Studio",
       "scrollToTop": "Scroll to top"
     }
   },
@@ -208,7 +208,7 @@
       "signingIn": "Signing in...",
       "noAccount": "Don't have an account?",
       "register": "Register",
-      "backToHome": "← Back to Nuroo Home"
+      "backToHome": "← Back to NeuroKids Home"
     },
     "register": {
       "title": "Create Account",
@@ -224,7 +224,7 @@
       "creating": "Creating account...",
       "hasAccount": "Already have an account?",
       "signIn": "Sign in",
-      "backToHome": "← Back to Nuroo Home"
+      "backToHome": "← Back to NeuroKids Home"
     },
     "sidebar": {
       "dashboard": "Dashboard",
@@ -462,7 +462,7 @@
         "failedCreateParentInvite": "Failed to create parent invite code"
       },
       "onboarding": {
-        "welcome": "Welcome to Nuroo B2B",
+        "welcome": "Welcome to NeuroKids B2B",
         "continueHint": "To continue, join an existing organization or create a new one.",
         "joinWithInvite": "Join with invite",
         "specialistsJoinHint": "Specialists and team members join using an invite code from their organization admin.",
@@ -655,7 +655,7 @@
         "selectParent": "Select parent",
         "selectParentOption": "— select parent —",
         "inviteCodeTitle": "Invite code",
-        "inviteCodeHint": "Share this code with the parent — they enter it in the Nuroo app to join the organization.",
+        "inviteCodeHint": "Share this code with the parent — they enter it in the NeuroKids app to join the organization.",
         "copied": "Copied!",
         "copy": "Copy",
         "inviteCodeExpiry": "Code valid for 1 year",
@@ -926,7 +926,7 @@
     "right6Label": "Consent Withdrawal:",
     "right6Text": "Withdraw consent for data processing",
     "section5Title": "5. Children's Privacy",
-    "childrenIntro": "Nuroo is designed for children with special needs, and we take extra care to protect their privacy. We never collect personal information from children without explicit parental consent.",
+    "childrenIntro": "NeuroKids is designed for children with special needs, and we take extra care to protect their privacy. We never collect personal information from children without explicit parental consent.",
     "children1": "All child data collection requires parental consent",
     "children2": "Parents can review and delete their child's data at any time",
     "children3": "We never share children's personal information with third parties",
@@ -947,7 +947,7 @@
   "helpPage": {
     "backToHome": "Back to Home",
     "title": "Help Center",
-    "subtitle": "Find answers to common questions and get the support you need for your Nuroo journey.",
+    "subtitle": "Find answers to common questions and get the support you need for your NeuroKids journey.",
     "contactSupport": "Contact Support",
     "emailSupport": "Email Support",
     "emailSupportDesc": "Get detailed help via email",
@@ -958,20 +958,20 @@
     "responseTimeDesc": "We aim to respond quickly",
     "within24Hours": "Within 24 hours",
     "faqTitle": "Frequently Asked Questions",
-    "faq1Question": "What is Nuroo?",
-    "faq1Answer": "Nuroo is an AI-powered platform designed to support children with special needs through personalized exercises, NeuroKids chat support, and real-time progress tracking. Our goal is to make therapy accessible and affordable for every family.",
+    "faq1Question": "What is NeuroKids?",
+    "faq1Answer": "NeuroKids is an AI-powered platform designed to support children with special needs through personalized exercises, NeuroKids chat support, and real-time progress tracking. Our goal is to make therapy accessible and affordable for every family.",
     "faq2Question": "How does NeuroKids work?",
     "faq2Answer": "NeuroKids is our AI-powered chat assistant that provides 24/7 support specifically designed for special needs care. It offers instant responses, personalized guidance, and is always available to help parents and caregivers.",
-    "faq3Question": "Where can I get Nuroo?",
-    "faq3Answer": "Nuroo is available now on the App Store and Google Play. Download the app and start your journey with personalized activities and AI support for your child's development.",
+    "faq3Question": "Where can I get NeuroKids?",
+    "faq3Answer": "NeuroKids is available now on the App Store and Google Play. Download the app and start your journey with personalized activities and AI support for your child's development.",
     "faq4Question": "Is my child's data safe?",
     "faq4Answer": "Yes, absolutely. We use enterprise-grade security with HIPAA-compliant encryption and privacy controls. Your child's data is protected with end-to-end encryption and we never share personal information without consent.",
-    "faq5Question": "What types of special needs does Nuroo support?",
-    "faq5Answer": "Nuroo is designed to support children with various special needs including autism, ADHD, learning disabilities, developmental delays, and other conditions. Our AI adapts to each child's unique needs and learning style.",
-    "faq6Question": "How much will Nuroo cost?",
-    "faq6Answer": "We're committed to making Nuroo affordable and accessible. Pricing details will be announced closer to our launch. We're working to ensure that quality support doesn't come with a high price tag.",
-    "faq7Question": "Can I use Nuroo alongside traditional therapy?",
-    "faq7Answer": "Yes! Nuroo is designed to complement traditional therapy, not replace it. Our platform can be used alongside existing therapy sessions to provide additional support and practice opportunities at home.",
+    "faq5Question": "What types of special needs does NeuroKids support?",
+    "faq5Answer": "NeuroKids is designed to support children with various special needs including autism, ADHD, learning disabilities, developmental delays, and other conditions. Our AI adapts to each child's unique needs and learning style.",
+    "faq6Question": "How much will NeuroKids cost?",
+    "faq6Answer": "We're committed to making NeuroKids affordable and accessible. Pricing details will be announced closer to our launch. We're working to ensure that quality support doesn't come with a high price tag.",
+    "faq7Question": "Can I use NeuroKids alongside traditional therapy?",
+    "faq7Answer": "Yes! NeuroKids is designed to complement traditional therapy, not replace it. Our platform can be used alongside existing therapy sessions to provide additional support and practice opportunities at home.",
     "stillNeedHelp": "Still Need Help?",
     "stillNeedHelpDesc": "Can't find what you're looking for? We're here to help.",
     "contactSupportBtn": "Contact Support",

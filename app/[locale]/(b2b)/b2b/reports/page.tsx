@@ -322,7 +322,7 @@ function ReportsContent() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `nuroo-report-${days}d.csv`
+    a.download = `neurokids-report-${days}d.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
