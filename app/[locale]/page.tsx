@@ -12,7 +12,7 @@ const BASE = 'https://usenuroo.com'
 
 const LOCALE_META = {
   ru: {
-    title: 'Nuroo — ИИ-поддержка для детей с особыми потребностями',
+    title: 'NeuroKids — ИИ-поддержка для детей с особыми потребностями',
     description:
       'Персонализированные упражнения, ИИ-чат NeuroKids и трекинг прогресса для детей с аутизмом, ЗПР, СДВГ и другими особенностями развития. Платформа для семей, центров и специалистов.',
     keywords: [
@@ -24,7 +24,7 @@ const LOCALE_META = {
       'ABA терапия',
       'детская реабилитация',
       'особые дети',
-      'Nuroo',
+      'NeuroKids',
       'ИИ помощник ребёнку',
       'прогресс ребёнка',
       'центр для детей',
@@ -33,7 +33,7 @@ const LOCALE_META = {
     ogLocale: 'ru_RU',
   },
   en: {
-    title: 'Nuroo — AI Support for Children with Special Needs',
+    title: 'NeuroKids — AI Support for Children with Special Needs',
     description:
       'AI-powered exercises, NeuroKids chat, and progress tracking for children with autism, ADHD, and developmental delays. Accessible therapy for every family, specialist and organization.',
     keywords: [
@@ -44,21 +44,21 @@ const LOCALE_META = {
       'developmental support',
       'ABA therapy online',
       'child development platform',
-      'Nuroo',
+      'NeuroKids',
       'special education',
       'therapy at home',
     ],
     ogLocale: 'en_US',
   },
   ky: {
-    title: 'Nuroo — Атайын муктаждыктары бар балдар үчүн ЖИ колдоосу',
+    title: 'NeuroKids — Атайын муктаждыктары бар балдар үчүн ЖИ колдоосу',
     description:
       'Персоналдаштырылган көнүгүүлөр, NeuroKids ЖИ чаты жана аутизм, ЖАК жана ДДДС менен балдар үчүн жетишкендиктерди байкоо. Үй-бүлөлөр жана адистер үчүн платформа.',
     keywords: [
       'атайын муктаждыктары бар балдар',
       'аутизм колдонмосу',
       'балдар үчүн ЖИ',
-      'Nuroo',
+      'NeuroKids',
       'балдарды өнүктүрүү',
     ],
     ogLocale: 'ky_KG',
@@ -113,7 +113,7 @@ const jsonLd = {
     {
       '@type': 'Organization',
       '@id': `${BASE}/#organization`,
-      name: 'Nuroo',
+      name: 'NeuroKids',
       url: BASE,
       logo: {
         '@type': 'ImageObject',
@@ -129,7 +129,7 @@ const jsonLd = {
       '@type': 'WebSite',
       '@id': `${BASE}/#website`,
       url: BASE,
-      name: 'Nuroo',
+      name: 'NeuroKids',
       inLanguage: ['ru', 'en', 'ky'],
       publisher: { '@id': `${BASE}/#organization` },
     },
@@ -158,7 +158,7 @@ const jsonLd = {
     {
       '@type': 'SoftwareApplication',
       '@id': `${BASE}/#b2b`,
-      name: 'Nuroo Platform for Organizations',
+      name: 'NeuroKids Platform for Organizations',
       applicationCategory: 'BusinessApplication',
       offers: [
         { '@type': 'Offer', name: 'Starter', price: '1500', priceCurrency: 'KGS' },

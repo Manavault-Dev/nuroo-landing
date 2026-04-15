@@ -138,14 +138,14 @@ export function Sidebar({
           <Link href="/b2b" className="flex items-center space-x-3 mb-4" onClick={onMobileClose}>
             <Image
               src="/logo.png"
-              alt="Nuroo Logo"
+              alt="NeuroKids Logo"
               width={32}
               height={32}
               className="rounded-lg"
               unoptimized
             />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
+              <h1 className="text-xl font-bold text-gray-900">NeuroKids</h1>
               <p className="text-xs text-gray-500">{t('b2bPlatform')}</p>
             </div>
           </Link>
