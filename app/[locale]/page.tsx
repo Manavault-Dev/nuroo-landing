@@ -160,11 +160,7 @@ const jsonLd = {
       '@id': `${BASE}/#b2b`,
       name: 'NeuroKids Platform for Organizations',
       applicationCategory: 'BusinessApplication',
-      offers: [
-        { '@type': 'Offer', name: 'Starter', price: '1500', priceCurrency: 'KGS' },
-        { '@type': 'Offer', name: 'Growth', price: '3500', priceCurrency: 'KGS' },
-        { '@type': 'Offer', name: 'Enterprise', price: '10000', priceCurrency: 'KGS' },
-      ],
+      offers: [{ '@type': 'Offer', name: 'NeuroKids', price: '4500', priceCurrency: 'KGS' }],
       description:
         'B2B platform for child development centers and specialists to manage children, assign content, and track attendance.',
       publisher: { '@id': `${BASE}/#organization` },

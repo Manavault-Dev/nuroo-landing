@@ -5,7 +5,9 @@ import { ScrollProgress } from '@/components/ScrollProgress'
 import { ScrollInit } from '@/components/ScrollInit'
 
 export function LandingOnlyEffects() {
-  const fullPathname = usePathname() ?? ''
+  const fullPathname = usePathname()
+  if (!fullPathname) return null
+
   const pathname = fullPathname.replace(/^\/(en|ru|ky)(?=\/|$)/, '') || '/'
   const isLanding = pathname === '/'
 

@@ -115,8 +115,8 @@ export function Sidebar({
   return (
     <div
       className={clsx(
-        'fixed inset-y-0 left-0 w-64 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:static md:w-64 md:max-w-none md:min-h-screen md:h-auto flex flex-col overflow-hidden bg-white border-r border-gray-200',
-        mobileOpen ? 'z-50' : 'z-[38] md:z-auto',
+        'fixed inset-y-0 left-0 w-64 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:top-0 md:bottom-0 md:w-64 md:max-w-none md:h-screen flex flex-col overflow-hidden bg-white border-r border-gray-200',
+        mobileOpen ? 'z-50' : 'z-[38] md:z-30',
         'transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:transition-none',
         'md:shadow-none',
         mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0',
