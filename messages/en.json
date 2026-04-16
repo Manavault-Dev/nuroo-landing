@@ -208,7 +208,23 @@
       "signingIn": "Signing in...",
       "noAccount": "Don't have an account?",
       "register": "Register",
-      "backToHome": "← Back to NeuroKids Home"
+      "backToHome": "← Back to Nuroo Home",
+      "demo": {
+        "title": "Try demo",
+        "emailLabel": "Email",
+        "passwordLabel": "Password",
+        "organizer": {
+          "title": "Organizer",
+          "cta": "Sign in as Organizer"
+        },
+        "specialist": {
+          "title": "Specialist",
+          "cta": "Sign in as Specialist"
+        }
+      },
+      "jury": {
+        "cta": "Go to demo sign-in ↓"
+      }
     },
     "register": {
       "title": "Create Account",
