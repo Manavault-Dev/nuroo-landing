@@ -2,10 +2,10 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    short_name: 'Nuroo',
+    name: 'NeuroKids - AI-Powered Support for Children with Special Needs',
+    short_name: 'NeuroKids',
     description:
-      'AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs.',
+      'AI-powered exercises, NeuroKids chat support, and progress tracking for children with special needs.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

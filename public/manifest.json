@@ -1,7 +1,7 @@
 {
-  "name": "Nuroo - AI-Powered Support for Children with Special Needs",
-  "short_name": "Nuroo",
-  "description": "AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs.",
+  "name": "NeuroKids - AI-Powered Support for Children with Special Needs",
+  "short_name": "NeuroKids",
+  "description": "AI-powered exercises, NeuroKids chat support, and progress tracking for children with special needs.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
