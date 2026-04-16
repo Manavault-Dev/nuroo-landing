@@ -24,7 +24,24 @@ export const PLAN_FEATURE_KEYS = {
     'growthF7',
     'growthF8',
   ],
-  enterprise: ['entF1', 'entF2', 'entF3', 'entF4', 'entF6', 'entF7', 'entF8'],
+  enterprise: [
+    'entF1',
+    'entF2',
+    'entF3',
+    'entF4',
+    'entF5',
+    'entF6',
+    'entF7',
+    'entF8',
+    'entF9',
+    'entF10',
+    'entF11',
+    'entF12',
+    'entF13',
+    'entF14',
+    'entF15',
+    'entF16',
+  ],
 } as const satisfies Record<string, readonly string[]>
 
 export type PlanId = keyof typeof PLAN_FEATURE_KEYS

@@ -43,7 +43,7 @@ const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 const PLANS: Record<string, { price: number; name: string }> = {
   starter: { price: 1500, name: 'Starter' },
   growth: { price: 3500, name: 'Growth' },
-  enterprise: { price: 10000, name: 'Enterprise' },
+  enterprise: { price: 4500, name: 'NeuroKids' },
 }
 
 // Shallow sort — matches official Finik library behavior

@@ -5,18 +5,30 @@ import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle, ChevronDown } from 'lucide-react'
+import {
+  LogIn,
+  Mail,
+  Lock,
+  AlertCircle,
+  ChevronDown,
+  Building2,
+  UserCircle2,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 
 const DEMO_ACCOUNTS = [
   {
     id: 'organizer',
-    email: 'pont@gmail.com',
-    password: 'pont123',
+    email: 'aijan@gmail.com',
+    password: 'aijan123',
   },
   {
     id: 'specialist',
-    email: 'sezim@gmail.com',
-    password: 'sezim123',
+    email: 'akylai@gmail.com',
+    password: 'akylai',
   },
 ] as const
 
@@ -27,6 +39,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null)
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({})
 
   const performLogin = async (nextEmail: string, nextPassword: string) => {
     if (loading) return
@@ -61,6 +75,27 @@ export default function LoginPage() {
     setEmail(demoEmail)
     setPassword(demoPassword)
     await performLogin(demoEmail, demoPassword)
+  }
+
+  const copyDemoCredentials = async (
+    demoEmail: string,
+    demoPassword: string,
+    accountId: string
+  ) => {
+    try {
+      await navigator.clipboard.writeText(`email: ${demoEmail}\npassword: ${demoPassword}`)
+      setCopiedAccountId(accountId)
+      setTimeout(() => setCopiedAccountId(null), 1800)
+    } catch {
+      // ignore clipboard errors in unsupported environments
+    }
+  }
+
+  const toggleRevealPassword = (accountId: string) => {
+    setRevealedPasswords((prev) => ({
+      ...prev,
+      [accountId]: !prev[accountId],
+    }))
   }
 
   const scrollToDemoSection = () => {
@@ -167,12 +202,39 @@ export default function LoginPage() {
                 {DEMO_ACCOUNTS.map((account) => (
                   <div
                     key={account.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 p-5 shadow-sm"
+                    className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="space-y-4">
-                      <h4 className="text-base font-semibold text-gray-900">
-                        {t(`demo.${account.id}.title`)}
-                      </h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                          {account.id === 'organizer' ? (
+                            <Building2 className="w-4 h-4 text-primary-600" />
+                          ) : (
+                            <UserCircle2 className="w-4 h-4 text-primary-600" />
+                          )}
+                          {t(`demo.${account.id}.title`)}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyDemoCredentials(account.email, account.password, account.id)
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                          aria-label="Copy demo credentials"
+                        >
+                          {copiedAccountId === account.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-green-600" />
+                              <span className="text-green-700">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
                       <div className="space-y-3">
                         <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
@@ -185,11 +247,27 @@ export default function LoginPage() {
                         </div>
 
                         <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {t('demo.passwordLabel')}
-                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              {t('demo.passwordLabel')}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => toggleRevealPassword(account.id)}
+                              className="inline-flex items-center justify-center rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                              aria-label="Toggle password visibility"
+                            >
+                              {revealedPasswords[account.id] ? (
+                                <EyeOff className="h-3.5 w-3.5" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
                           <p className="mt-1 text-sm font-medium text-gray-900">
-                            {account.password}
+                            {revealedPasswords[account.id]
+                              ? account.password
+                              : '•'.repeat(Math.max(account.password.length, 8))}
                           </p>
                         </div>
                       </div>
@@ -198,7 +276,7 @@ export default function LoginPage() {
                         type="button"
                         disabled={loading}
                         onClick={() => handleDemoLogin(account.email, account.password)}
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {loading ? t('signingIn') : t(`demo.${account.id}.cta`)}
                       </button>

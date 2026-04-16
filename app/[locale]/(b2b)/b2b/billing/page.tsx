@@ -280,6 +280,10 @@ export default function BillingPage() {
   const trialFeatures = trialFeatureKeys
     .slice(0, 4)
     .map((key) => tPricing(key as Parameters<typeof tPricing>[0]))
+  const enterpriseFromApi = plans.find((plan) => plan.id === 'enterprise')
+  const neuroKidsPlan: Plan = enterpriseFromApi
+    ? { ...enterpriseFromApi, name: 'NeuroKids', price: 4500, currency: 'KGS' }
+    : { id: 'enterprise', name: 'NeuroKids', price: 4500, currency: 'KGS' }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -327,15 +331,15 @@ export default function BillingPage() {
         </div>
 
         {/* Plans grid — same PricingCard as on landing for consistent UI */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {plans.map((plan) => {
-            const planId = plan.id as 'starter' | 'growth' | 'enterprise'
+        <div className="grid grid-cols-1 gap-6 max-w-3xl">
+          {[neuroKidsPlan].map((plan) => {
+            const planId = 'enterprise' as const
             const featureKeys = PLAN_FEATURE_KEYS[planId as keyof typeof PLAN_FEATURE_KEYS] ?? []
             const isCurrent =
               billingStatus?.active === true &&
-              billingStatus?.planId === plan.id &&
+              billingStatus?.planId === 'enterprise' &&
               (billingStatus.source === 'subscription' || billingStatus.source === null)
-            const isEnterprise = plan.id === 'enterprise'
+            const isEnterprise = true
 
             return (
               <PricingCard
