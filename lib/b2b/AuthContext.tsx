@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthChange(async (currentUser) => {
       if (!isMounted) return
 
+      setIsLoading(true)
       setUser(currentUser)
 
       if (currentUser) {

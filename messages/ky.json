@@ -204,7 +204,23 @@
       "signingIn": "Кирип жатат...",
       "noAccount": "Аккаунт жокпу?",
       "register": "Катталуу",
-      "backToHome": "← NeuroKids башкы бетине"
+      "backToHome": "← Nuroo башкы бетине",
+      "demo": {
+        "title": "Демону сынап көрүү",
+        "emailLabel": "Email",
+        "passwordLabel": "Сыр сөз",
+        "organizer": {
+          "title": "Уюштуруучу",
+          "cta": "Уюштуруучу болуп кирүү"
+        },
+        "specialist": {
+          "title": "Адис",
+          "cta": "Адис болуп кирүү"
+        }
+      },
+      "jury": {
+        "cta": "Демо кирүүгө өтүү ↓"
+      }
     },
     "register": {
       "title": "Аккаунт түзүү",
