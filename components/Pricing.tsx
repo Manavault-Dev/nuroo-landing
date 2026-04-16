@@ -8,16 +8,18 @@ import { PricingCard } from '@/components/ui/PricingCard'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
 
 const PLAN_META = [
-  { id: 'starter', titleKey: 'starterName', price: 1500, variant: 'default', popular: false },
-  { id: 'growth', titleKey: 'growthName', price: 3500, variant: 'popular', popular: true },
   {
     id: 'enterprise',
     titleKey: 'enterpriseName',
-    price: 10000,
-    variant: 'enterprise',
-    popular: false,
+    price: 4500,
+    variant: 'popular',
+    popular: true,
   },
 ] as const
+
+const LANDING_FEATURE_KEYS = {
+  enterprise: ['entF1', 'entF2', 'entF3', 'entF4', 'entF6', 'entF7', 'entF11', 'entF13'],
+} as const
 
 export function Pricing() {
   const t = useTranslations('landing.pricing')
@@ -65,7 +67,7 @@ export function Pricing() {
 
         {/* Plans grid */}
         <div
-          className={`grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          className={`grid grid-cols-1 gap-6 lg:gap-8 max-w-xl mx-auto transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
           {PLAN_META.map((plan) => (
             <PricingCard
@@ -76,7 +78,11 @@ export function Pricing() {
               subtitle={plan.id === 'enterprise' ? t('enterpriseSubtitle') : undefined}
               price={formatPrice(plan.price)}
               priceSuffix={`KGS / ${t('perMonth')}`}
-              features={PLAN_FEATURE_KEYS[plan.id].map((key) => ({ text: t(key) }))}
+              features={(LANDING_FEATURE_KEYS[plan.id] ?? PLAN_FEATURE_KEYS[plan.id]).map(
+                (key) => ({
+                  text: t(key),
+                })
+              )}
               soonLabel={t('soon')}
             >
               <Link
