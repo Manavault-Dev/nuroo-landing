@@ -57,7 +57,7 @@ export function Solution() {
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
                     src="/welcome.png"
-                    alt="Nuroo"
+                    alt="NeuroKids"
                     className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
                   />
                 </div>
@@ -82,7 +82,7 @@ export function Solution() {
                 <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
                   <img
                     src="/progress.png"
-                    alt="Nuroo"
+                    alt="NeuroKids"
                     className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
                   />
                 </div>

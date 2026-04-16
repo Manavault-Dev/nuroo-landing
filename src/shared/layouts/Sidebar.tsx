@@ -93,9 +93,9 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <Link href="/b2b" className="flex items-center space-x-3 mb-4">
-          <img src="/logo.png" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
+          <img src="/logo.png" alt="NeuroKids Logo" className="w-8 h-8 rounded-lg" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
+            <h1 className="text-xl font-bold text-gray-900">NeuroKids</h1>
             <p className="text-xs text-gray-500">B2B Platform</p>
           </div>
         </Link>
