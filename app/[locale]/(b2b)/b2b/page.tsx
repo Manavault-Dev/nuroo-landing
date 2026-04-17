@@ -65,9 +65,13 @@ export default function DashboardPage() {
         setCurrentOrgId(orgId)
         if (orgId) {
           try {
+            const selectedOrg =
+              profileData.organizations.find((organization) => organization.orgId === orgId) ||
+              profileData.organizations[0]
+            const shouldLoadTeam = selectedOrg?.role === 'admin'
             const [childrenData, teamData] = await Promise.all([
               apiClient.getChildren(orgId),
-              apiClient.getTeam(orgId).catch(() => []),
+              shouldLoadTeam ? apiClient.getTeam(orgId).catch(() => []) : Promise.resolve([]),
             ])
             setChildren(childrenData)
             setTeamCount(Array.isArray(teamData) ? teamData.length : 0)

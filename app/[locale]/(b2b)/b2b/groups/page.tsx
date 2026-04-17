@@ -117,6 +117,7 @@ export default function GroupsPage() {
   const [showAddParentModal, setShowAddParentModal] = useState(false)
   const [availableParents, setAvailableParents] = useState<Parent[]>([])
   const [selectedParentId, setSelectedParentId] = useState('')
+  const [parentSearchQuery, setParentSearchQuery] = useState('')
   const [loadingParents, setLoadingParents] = useState(false)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
 
@@ -479,6 +480,7 @@ export default function GroupsPage() {
       const data = await apiClient.getConnections(orgId)
       setAvailableParents(mapConnectionsToParents(data.connections || [], t('unnamed')))
       setShowAddParentModal(true)
+      setParentSearchQuery('')
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : t('errorLoadParents'), 'error')
     } finally {
@@ -493,6 +495,7 @@ export default function GroupsPage() {
       await handleSelectGroup(selectedGroup)
       setShowAddParentModal(false)
       setSelectedParentId('')
+      setParentSearchQuery('')
       showToast(t('toastParentAdded'))
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : t('errorGeneric'), 'error')
@@ -1381,6 +1384,7 @@ export default function GroupsPage() {
           onClose={() => {
             setShowAddParentModal(false)
             setSelectedParentId('')
+            setParentSearchQuery('')
           }}
           zIndex="z-[70]"
         >
@@ -1390,6 +1394,7 @@ export default function GroupsPage() {
               onClick={() => {
                 setShowAddParentModal(false)
                 setSelectedParentId('')
+                setParentSearchQuery('')
               }}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
             >
@@ -1402,31 +1407,71 @@ export default function GroupsPage() {
             </div>
           ) : (
             <>
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {t('selectParent')}
-                </label>
-                <select
-                  value={selectedParentId}
-                  onChange={(e) => setSelectedParentId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-                >
-                  <option value="">{t('selectParentOption')}</option>
-                  {availableParents
-                    .filter((p) => !groupParents.some((gp) => gp.parentUserId === p.parentUserId))
-                    .map((p) => (
-                      <option key={p.parentUserId} value={p.parentUserId}>
-                        {p.name}
-                        {p.email ? ` (${p.email})` : ''}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              {(() => {
+                const selectableParents = availableParents.filter(
+                  (p) => !groupParents.some((gp) => gp.parentUserId === p.parentUserId)
+                )
+                const query = parentSearchQuery.trim().toLowerCase()
+                const filteredParents = query
+                  ? selectableParents.filter((p) => {
+                      const name = p.name?.toLowerCase() || ''
+                      const email = p.email?.toLowerCase() || ''
+                      return name.includes(query) || email.includes(query)
+                    })
+                  : selectableParents
+
+                return (
+                  <>
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {t('selectParent')}
+                      </label>
+                      <input
+                        type="text"
+                        value={parentSearchQuery}
+                        onChange={(e) => setParentSearchQuery(e.target.value)}
+                        placeholder="Search by name or email"
+                        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                      />
+                    </div>
+
+                    <div className="mb-5">
+                      <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
+                        {filteredParents.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-sm text-gray-400">
+                            No parents found
+                          </div>
+                        ) : (
+                          filteredParents.map((p) => {
+                            const selected = selectedParentId === p.parentUserId
+                            return (
+                              <button
+                                key={p.parentUserId}
+                                type="button"
+                                onClick={() => setSelectedParentId(p.parentUserId)}
+                                className={`w-full text-left px-4 py-3 transition-colors ${selected ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
+                              >
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {p.name}
+                                </p>
+                                {p.email && (
+                                  <p className="text-xs text-gray-500 truncate">{p.email}</p>
+                                )}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
               <div className="flex gap-3">
                 <button
                   onClick={() => {
                     setShowAddParentModal(false)
                     setSelectedParentId('')
+                    setParentSearchQuery('')
                   }}
                   className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
                 >
