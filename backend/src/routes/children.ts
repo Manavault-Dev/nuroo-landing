@@ -224,7 +224,7 @@ async function buildParentConnection(
 ): Promise<ParentConnection> {
   const { name: parentName, email: parentEmail } = await resolveUserName(db, parentUserId)
 
-  const orgParentRef = db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/parents/${parentUserId}`)
+  const orgParentRef = db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
   const orgParentSnap = await orgParentRef.get()
   const orgParentData = orgParentSnap.exists ? orgParentSnap.data() : null
 
