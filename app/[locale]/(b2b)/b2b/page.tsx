@@ -18,7 +18,7 @@ import {
   Key,
 } from 'lucide-react'
 import { InviteModal } from '@/components/b2b/InviteModal'
-import VoiceAI from './components/VoiceAI'
+import Assistant from './components/assistant'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -237,7 +237,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {orgId && <VoiceAI orgId={orgId} onCommandExecuted={() => {}} />}
+        {orgId && <Assistant orgId={orgId} onCommandExecuted={() => {}} />}
       </div>
     )
   }
@@ -407,7 +407,7 @@ export default function DashboardPage() {
         />
       )}
 
-      {orgId && <VoiceAI orgId={orgId} onCommandExecuted={() => {}} />}
+      {orgId && <Assistant orgId={orgId} onCommandExecuted={() => {}} />}
     </div>
   )
 }
