@@ -1,7 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { aiAssistant } from './service.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 
 const COLLECTIONS = {
@@ -36,7 +35,7 @@ const aiAssistantRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (decoded.claims?.orgId) {
         orgId = decoded.claims.orgId as string
-        role = (decoded.claims as Record<string, unknown>).role as string || 'specialist'
+        role = ((decoded.claims as Record<string, unknown>).role as string) || 'specialist'
       }
 
       if (!orgId) {
@@ -132,8 +131,8 @@ async function executeAction(
         const groupName = params.groupName || ''
 
         const groupsSnap = await db.collection(COLLECTIONS.GROUPS(orgId)).get()
-        const groupDoc = groupsSnap.docs.find(
-          (d) => d.data().name?.toLowerCase().includes(groupName.toLowerCase())
+        const groupDoc = groupsSnap.docs.find((d) =>
+          d.data().name?.toLowerCase().includes(groupName.toLowerCase())
         )
         if (!groupDoc) {
           return { content: `Group "${groupName}" not found`, success: false }
@@ -156,16 +155,16 @@ async function executeAction(
           .collection(COLLECTIONS.ORG_CHILDREN(orgId))
           .where('assigned', '==', true)
           .get()
-        const childDoc = childrenSnap.docs.find(
-          (d) => d.data().name?.toLowerCase().includes(childName.toLowerCase())
+        const childDoc = childrenSnap.docs.find((d) =>
+          d.data().name?.toLowerCase().includes(childName.toLowerCase())
         )
         if (!childDoc) {
           return { content: `Child "${childName}" not found`, success: false }
         }
 
         const groupsSnap = await db.collection(COLLECTIONS.GROUPS(orgId)).get()
-        const groupDoc = groupsSnap.docs.find(
-          (d) => d.data().name?.toLowerCase().includes(groupName.toLowerCase())
+        const groupDoc = groupsSnap.docs.find((d) =>
+          d.data().name?.toLowerCase().includes(groupName.toLowerCase())
         )
         if (!groupDoc) {
           return { content: `Group "${groupName}" not found`, success: false }
@@ -195,16 +194,14 @@ async function executeAction(
           .collection(COLLECTIONS.ORG_CHILDREN(orgId))
           .where('assigned', '==', true)
           .get()
-        const childDoc = childrenSnap.docs.find(
-          (d) => d.data().name?.toLowerCase().includes(childName.toLowerCase())
+        const childDoc = childrenSnap.docs.find((d) =>
+          d.data().name?.toLowerCase().includes(childName.toLowerCase())
         )
         if (!childDoc) {
           return { content: `Child "${childName}" not found`, success: false }
         }
 
-        const taskRef = db
-          .collection(`children/${childDoc.id}/tasks`)
-          .doc()
+        const taskRef = db.collection(`children/${childDoc.id}/tasks`).doc()
         await taskRef.set({
           title,
           description: params.description || '',
@@ -227,8 +224,8 @@ async function executeAction(
           .collection(COLLECTIONS.ORG_CHILDREN(orgId))
           .where('assigned', '==', true)
           .get()
-        const childDoc = childrenSnap.docs.find(
-          (d) => d.data().name?.toLowerCase().includes(childName.toLowerCase())
+        const childDoc = childrenSnap.docs.find((d) =>
+          d.data().name?.toLowerCase().includes(childName.toLowerCase())
         )
         if (!childDoc) {
           return { content: `Child "${childName}" not found`, success: false }
@@ -239,9 +236,7 @@ async function executeAction(
           return { content: `No parent linked to ${childDoc.data().name}`, success: false }
         }
 
-        const notificationRef = db
-          .collection(`users/${parentUid}/notifications`)
-          .doc()
+        const notificationRef = db.collection(`users/${parentUid}/notifications`).doc()
         await notificationRef.set({
           title: 'Reminder',
           body: message,
@@ -264,9 +259,7 @@ async function executeAction(
           email: d.data().email || '',
           role: d.data().role || 'specialist',
         }))
-        const list = members
-          .map((m) => `${m.name} (${m.role}): ${m.email}`)
-          .join('\n')
+        const list = members.map((m) => `${m.name} (${m.role}): ${m.email}`).join('\n')
         return {
           content: members.length ? `Team:\n${list}` : 'No team members found.',
           success: true,
