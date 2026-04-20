@@ -25,6 +25,7 @@ import { reportsRoute } from './routes/reports.js'
 import { parentTasksRoute } from './routes/parentTasks.js'
 import { paymentsRoutes } from './modules/payments/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
+import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 import { branchesRoute } from './routes/branches.js'
 import { financeRoute } from './routes/finance.js'
 
@@ -117,6 +118,8 @@ async function buildServer() {
     parentTasksRoute,
     paymentsRoutes,
     parentApiRoutes,
+    aiAssistantRoutes,
+    intentRoutes,
     branchesRoute,
     financeRoute,
   ]

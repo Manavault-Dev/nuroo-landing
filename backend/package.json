@@ -28,6 +28,7 @@
     "dotenv": "^16.4.5",
     "fastify": "^4.24.3",
     "firebase-admin": "^12.7.0",
+    "openai": "^4.104.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
