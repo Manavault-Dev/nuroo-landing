@@ -70,10 +70,7 @@ export class AIAssistantService {
     }
   }
 
-  private parseResponse(
-    response: string,
-    isVoice: boolean
-  ): AIResponse {
+  private parseResponse(response: string, isVoice: boolean): AIResponse {
     try {
       const jsonMatch = response.match(/\{[\s\S]*"action"[\s\S]*\}/)
       if (jsonMatch) {

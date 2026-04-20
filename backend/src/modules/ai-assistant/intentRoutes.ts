@@ -180,8 +180,12 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
     // Build session context string for the LLM
     const ctxLines: string[] = []
     if (context?.lastGroupName) ctxLines.push(`Last referenced group: "${context.lastGroupName}"`)
-    if (context?.lastChildNames?.length) ctxLines.push(`Last referenced children: ${context.lastChildNames.join(', ')}`)
-    if (context?.lastResultChildren?.length) ctxLines.push(`Last query result (use as "them"/"those children"): ${context.lastResultChildren.join(', ')}`)
+    if (context?.lastChildNames?.length)
+      ctxLines.push(`Last referenced children: ${context.lastChildNames.join(', ')}`)
+    if (context?.lastResultChildren?.length)
+      ctxLines.push(
+        `Last query result (use as "them"/"those children"): ${context.lastResultChildren.join(', ')}`
+      )
     const contextStr = ctxLines.length
       ? `\n\nSession context (resolve pronouns like "them", "there", "that group" using this):\n${ctxLines.join('\n')}`
       : ''
