@@ -389,9 +389,13 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       const { uid } = request.user!
       const role = member.role
 
+      console.log(`[CHILDREN] Fetching children for org=${orgId}, user=${uid}, role=${role}`)
+
       const db = getFirestore()
       const assignedChildrenSnap = await fetchAssignedChildren(db, orgId, role, uid)
       const childIds = assignedChildrenSnap.docs.map((doc) => doc.id)
+
+      console.log(`[CHILDREN] Found ${childIds.length} assigned children for user ${uid}`)
 
       if (childIds.length === 0) {
         return []
