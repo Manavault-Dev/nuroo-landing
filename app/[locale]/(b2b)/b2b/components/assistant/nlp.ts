@@ -2,18 +2,25 @@ import { ParsedAction } from './types'
 
 const DAY_MAP: Record<string, string> = {
   monday: 'Mon',
+  mondays: 'Mon',
   mon: 'Mon',
   tuesday: 'Tue',
+  tuesdays: 'Tue',
   tue: 'Tue',
   wednesday: 'Wed',
+  wednesdays: 'Wed',
   wed: 'Wed',
   thursday: 'Thu',
+  thursdays: 'Thu',
   thu: 'Thu',
   friday: 'Fri',
+  fridays: 'Fri',
   fri: 'Fri',
   saturday: 'Sat',
+  saturdays: 'Sat',
   sat: 'Sat',
   sunday: 'Sun',
+  sundays: 'Sun',
   sun: 'Sun',
   понедельник: 'Пн',
   пн: 'Пн',
@@ -74,9 +81,10 @@ export function extractSchedule(text: string): string {
 
 export function extractGroupName(text: string): string {
   for (const p of [
-    /(?:called|named)\s+(.+?)(?:\s+on\s|\s+at\s|\s+по\s|\s+в\s|$)/i,
-    /(?:группу|группа|топ)\s+(.+?)(?:\s+по\s|\s+в\s|\s+на\s|\s+at\s|$)/i,
-    /group\s+(.+?)(?:\s+on\s|\s+at\s|$)/i,
+    /(?:called|named)\s+(.+?)(?:\s+on\b|\s+at\b|\s+по\b|\s+в\b|$)/i,
+    /(?:группу|группа|топ)\s+(.+?)(?:\s+по\b|\s+в\b|\s+на\b|\s+at\b|$)/i,
+    /(?:create|make|new|add|start)\s+(?:a\s+)?group\s+(.+?)(?:\s+on\b|\s+at\b|$)/i,
+    /(?:создай|создать|создайте|новая|добавь)\s+группу?\s+(.+?)(?:\s+по\b|\s+в\b|$)/i,
   ]) {
     const m = text.match(p)
     if (m?.[1]) return m[1].trim()
@@ -85,8 +93,9 @@ export function extractGroupName(text: string): string {
 }
 
 export function extractChildNames(text: string): string[] {
+  // Match "add/put [names] to/into [group]"
   const m = text.match(
-    /(?:add|добавь|добавить|запиши|кош)\s+(.+?)\s+(?:to(?:\s+(?:the|this|group|группу))|в\s+(?:группу|эту)|топко)/i
+    /(?:add|put|добавь|добавить|запиши|кош)\s+(.+?)\s+(?:to\b|into\b|в\b|топко)/i
   )
   if (!m) return []
   return m[1]
@@ -96,10 +105,22 @@ export function extractChildNames(text: string): string[] {
 }
 
 export function extractTargetGroup(text: string): string {
-  const m = text.match(
-    /(?:to\s+(?:group|the\s+group)\s+|в\s+группу\s+|в\s+топ\s+|топко\s+)(.+?)(?:\s*$)/i
-  )
-  return m?.[1]?.trim() || ''
+  // "to/into group X" — explicit keyword
+  let m = text.match(/\b(?:to|into)\s+(?:the\s+)?group\s+(.+?)$/i)
+  if (m?.[1]) return m[1].trim()
+
+  // "add X to Y" — general: everything after "to"
+  m = text.match(/\b(?:add|put)\b.+?\b(?:to|into)\s+(.+?)$/i)
+  if (m?.[1]) return m[1].trim()
+
+  // Russian
+  m = text.match(/в\s+(?:группу\s+)?(.+?)$/i)
+  if (m?.[1]) return m[1].trim()
+
+  m = text.match(/топко\s+(.+?)$/i)
+  if (m?.[1]) return m[1].trim()
+
+  return ''
 }
 
 export function parseIntent(text: string): ParsedAction {
@@ -113,38 +134,24 @@ export function parseIntent(text: string): ParsedAction {
   ) {
     return {
       type: 'create_group',
-      params: { name: extractGroupName(text) || 'New Group', schedule: extractSchedule(text) },
-      raw: text,
-    }
-  }
-
-  // Add single child
-  if (
-    /\b(?:add|put)\s+(?:child|kid)\b/i.test(lower) ||
-    /(?:добавь|добавить)\s+(?:ребёнка|ребенка|ребенок)\b/i.test(lower) ||
-    /баланы\s+топко/i.test(lower)
-  ) {
-    const childMatch = text.match(/(?:add|добавь|добавить)\s+(?:child\s+)?(\w+)/i)
-    return {
-      type: 'add_child',
       params: {
-        childNames: childMatch ? [childMatch[1]] : [],
-        groupName: extractTargetGroup(text),
+        name: extractGroupName(text) || '',
+        schedule: extractSchedule(text),
       },
       raw: text,
     }
   }
 
-  // Add multiple children
+  // Add children (multiple or single) to group
   if (
-    /\b(?:add|put)\b.*\b(?:to|into)\b/i.test(lower) ||
-    /(?:добавь|добавить|запиши|поставь)\b.*\bв\s+(?:группу|эту)/i.test(lower) ||
-    /\bкош\b.*\bтопко/i.test(lower)
+    /\b(?:add|put)\b.+\b(?:to|into)\b/i.test(lower) ||
+    /(?:добавь|добавить|запиши|поставь)\b.+\bв\s+(?:группу|эту)/i.test(lower) ||
+    /\bкош\b.+\bтопко/i.test(lower)
   ) {
     const childNames = extractChildNames(text)
     if (childNames.length) {
       return {
-        type: 'add_children_to_group',
+        type: childNames.length === 1 ? 'add_child' : 'add_children_to_group',
         params: { childNames, groupName: extractTargetGroup(text) },
         raw: text,
       }
@@ -166,38 +173,34 @@ export function parseIntent(text: string): ParsedAction {
 
   // Assign homework
   if (
-    /\b(?:assign|give|create)\s+(?:homework|task|assignment)\b/i.test(lower) ||
-    /(?:назначь|назначить|выдай|выдать)\s+(?:задание|дз|homework)/i.test(lower) ||
+    /\b(?:assign|give|create)\s+(?:homework|task|assignment|practice|exercise|reading|pronunciation|речь|упражнение|задание|тапшырма)\b/i.test(
+      lower
+    ) ||
+    /\b(?:assign|give)\b.+\bto\b/i.test(lower) ||
+    /(?:назначь|назначить|выдай|выдать)\s+(?:задание|дз|homework|упражнение)/i.test(lower) ||
     /Үй\s+тапшырма/i.test(lower)
   ) {
-    const taskMatch = text.match(
-      /(?:homework|task|assignment|задание|тапшырма)\s+(?:on\s+)?(?:about\s+)?(.+?)(?:\s+to|\s+for|$)/i
-    )
+    const title = extractHomeworkTitle(text)
+    const childNames = extractRecipientNames(text)
     return {
       type: 'assign_homework',
-      params: {
-        childNames: [],
-        homeworkTitle: taskMatch ? taskMatch[1] : '',
-      },
+      params: { homeworkTitle: title, childNames },
       raw: text,
     }
   }
 
   // Send reminder
   if (
-    /\b(?:send|create)\s+reminder\b/i.test(lower) ||
+    /\b(?:send|create)\s+(?:a\s+)?reminder\b/i.test(lower) ||
+    /\bremind\b/i.test(lower) ||
     /(?:отправь|отправить|пошли)\s+(?:напоминание|сообщение)\b/i.test(lower) ||
-    /Эскертүү/i.test(lower)
+    /Эскертүү\b/i.test(lower)
   ) {
+    const childNames = extractRecipientNames(text)
+    const message = extractReminderMessage(text)
     return {
       type: 'send_reminder',
-      params: {
-        childNames: [],
-        message: text
-          .replace(/^(?:send|create)\s+reminder\b/gi, '')
-          .replace(/^(?:отправь|отправить|пошли)\s+(?:напоминание|сообщение)\b/gi, '')
-          .trim(),
-      },
+      params: { childNames, message },
       raw: text,
     }
   }
@@ -221,4 +224,53 @@ export function parseIntent(text: string): ParsedAction {
   }
 
   return { type: 'unknown', params: {}, raw: text }
+}
+
+function extractHomeworkTitle(text: string): string {
+  // "assign [title] to [name]" or "give [title] to [name]"
+  let m = text.match(/\b(?:assign|give)\s+(.+?)\s+to\s+\w/i)
+  if (m?.[1]) return m[1].trim()
+
+  // "assign homework on X" / "assign task: X"
+  m = text.match(
+    /\b(?:homework|task|assignment|practice|exercise)\s+(?:on\s+|about\s+|:\s*)?(.+?)(?:\s+to\b|\s+for\b|$)/i
+  )
+  if (m?.[1]) return m[1].trim()
+
+  // "назначь задание X для Y"
+  m = text.match(/(?:назначь|выдай)\s+(?:задание\s+)?(.+?)(?:\s+для\b|\s+к\b|$)/i)
+  if (m?.[1]) return m[1].trim()
+
+  return ''
+}
+
+function extractRecipientNames(text: string): string[] {
+  // "to Arsen" / "for Dana" at end of sentence
+  const m =
+    text.match(/\b(?:to|for)\s+(\w[\w\s]*?)(?:\s+about\b|\s+regarding\b|\s*$)/i) ||
+    text.match(/для\s+(\w+)/i) ||
+    text.match(/(\w+)(?:га|ге|ке|кке)\s*$/i) // Kyrgyz dative
+  if (m?.[1]) {
+    const raw = m[1].trim()
+    // Don't treat generic words as names
+    if (/^(?:parents?|parent|all|everyone|their|группу?|класс)$/i.test(raw)) return []
+    return raw
+      .split(/\s+(?:and|и|менен|да)\s+|,\s*/)
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+  }
+  return []
+}
+
+function extractReminderMessage(text: string): string {
+  // "remind about X" / "send reminder about X"
+  const m = text.match(/\b(?:about|про|о|regarding)\s+(.+?)(?:\s*$)/i)
+  if (m?.[1]) return m[1].trim()
+
+  // Strip command prefix and return remainder
+  const stripped = text
+    .replace(/^(?:send|create)\s+(?:a\s+)?reminder\s+(?:to\s+\w+\s+)?/i, '')
+    .replace(/^(?:отправь|пошли)\s+напоминание\s+\w+\s+/i, '')
+    .trim()
+  return stripped || 'Reminder from your specialist'
 }

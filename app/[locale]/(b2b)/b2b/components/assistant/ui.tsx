@@ -275,6 +275,30 @@ export function ConfirmCard({
   )
 }
 
+export function ContextBar({
+  groupName,
+  childNames,
+}: {
+  groupName?: string
+  childNames?: string[]
+}) {
+  const items = [
+    ...(groupName ? [{ text: groupName, cls: 'bg-primary-100 text-primary-700' }] : []),
+    ...(childNames?.slice(0, 3).map((n) => ({ text: n, cls: 'bg-blue-100 text-blue-700' })) || []),
+  ]
+  if (!items.length) return null
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap px-3 py-1.5 border-b border-gray-100 bg-gray-50/80 shrink-0">
+      <span className="text-xs text-gray-400 font-medium">Context:</span>
+      {items.map((item, i) => (
+        <span key={i} className={`rounded-full px-2 py-0.5 text-xs font-medium ${item.cls}`}>
+          {item.text}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export function MessageBubble({
   message,
   t,
@@ -282,6 +306,7 @@ export function MessageBubble({
   onFormCancel,
   onConfirm,
   onCancel,
+  onSuggestion,
 }: {
   message: Message
   t: TranslationSet
@@ -289,6 +314,7 @@ export function MessageBubble({
   onFormCancel: () => void
   onConfirm: () => void
   onCancel: () => void
+  onSuggestion?: (actionType: string) => void
 }) {
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -327,18 +353,39 @@ export function MessageBubble({
               <span className="text-sm text-gray-500">{t.thinking}</span>
             </div>
           ) : (
-            <div
-              className={`px-3 py-2 rounded-xl text-sm whitespace-pre-line break-words ${
-                message.role === 'user'
-                  ? 'bg-primary-600 text-white'
-                  : message.status === 'done' && message.content !== t.cancelled
-                    ? 'bg-green-50 text-green-800 border border-green-200'
-                    : message.status === 'cancelled'
-                      ? 'bg-gray-100 text-gray-400 italic'
-                      : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              {message.content}
+            <div className="space-y-2">
+              <div
+                className={`px-3 py-2 rounded-xl text-sm whitespace-pre-line break-words ${
+                  message.role === 'user'
+                    ? 'bg-primary-600 text-white'
+                    : message.isError
+                      ? 'bg-red-50 text-red-800 border border-red-200'
+                      : message.status === 'done' && message.content !== t.cancelled
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : message.status === 'cancelled'
+                          ? 'bg-gray-100 text-gray-400 italic'
+                          : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {message.content}
+              </div>
+              {message.role === 'assistant' &&
+              message.status === 'done' &&
+              message.suggestions?.length ? (
+                <div className="flex flex-wrap gap-1.5 pl-1">
+                  {message.suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => onSuggestion?.(s.actionType)}
+                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${CHIP_STYLES[s.color] || CHIP_STYLES.primary}`}
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )}
         </div>

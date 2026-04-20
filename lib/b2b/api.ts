@@ -1190,6 +1190,44 @@ export class ApiClient {
   clearCache() {
     cache.invalidate()
   }
+
+  // AI Assistant
+  async sendChatMessage(message: string, mode: 'chat' | 'voice' = 'chat') {
+    return this.request<{
+      response: string
+      speakText?: string
+      content?: string
+      success?: boolean
+    }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, mode }),
+    })
+  }
+
+  async parseAssistantIntent(
+    orgId: string,
+    message: string,
+    context?: { lastGroupName?: string; lastChildNames?: string[]; lastResultChildren?: string[] }
+  ) {
+    return this.request<{
+      type: string
+      params: {
+        name?: string
+        schedule?: string
+        groupName?: string
+        childNames?: string[]
+        newSchedule?: string
+        homeworkTitle?: string
+        homeworkDescription?: string
+        message?: string
+        period?: string
+      }
+      raw: string
+    }>(`/orgs/${orgId}/assistant/intent`, {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    })
+  }
 }
 
 export const apiClient = new ApiClient()

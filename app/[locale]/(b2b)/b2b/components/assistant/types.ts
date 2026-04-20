@@ -7,6 +7,9 @@ export type ActionType =
   | 'send_reminder'
   | 'list_groups'
   | 'list_children'
+  | 'show_reports'
+  | 'show_children_without_homework'
+  | 'show_low_activity'
   | 'unknown'
 
 export type VoiceState = 'idle' | 'listening' | 'error'
@@ -24,6 +27,7 @@ export interface ParsedAction {
     homeworkTitle?: string
     homeworkDescription?: string
     message?: string
+    period?: string // "7" | "30" for analytics queries
   }
   raw: string
 }
@@ -50,6 +54,8 @@ export interface Message {
   form?: MessageForm
   pending?: { action: ParsedAction }
   status?: MessageStatus
+  isError?: boolean
+  suggestions?: Array<{ label: string; actionType: string; color: string }>
 }
 
 export interface ChipConfig {
@@ -93,6 +99,13 @@ export interface TranslationSet {
   noGroupsYet: string
   voiceLang: string
   help: string
+  llmError: string
+  followUp: Record<string, string>
+  clarifyQ: Record<string, string>
+  intentRecognized: Record<string, string>
+  disambigChild: (name: string) => string
+  disambigGroup: (name: string) => string
+  pickNumber: string
   days: Record<string, string>
   paramLabels: Record<string, string>
   formTitles: Record<string, string>
