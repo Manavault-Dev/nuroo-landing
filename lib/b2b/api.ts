@@ -1186,6 +1186,65 @@ export class ApiClient {
     })
   }
 
+  // Public Branding (no auth required — for parent connect pages)
+  async getPublicOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      orgName: string
+      branding: {
+        logo?: string | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+      } | null
+    }>(`/public/orgs/${orgId}/branding`, `public-branding:${orgId}`, 'default')
+  }
+
+  // Branding
+  async getOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      branding: {
+        logo?: string | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+        phone?: string | null
+        address?: string | null
+        website?: string | null
+      } | null
+    }>(`/orgs/${orgId}/branding`, `branding:${orgId}`, 'default')
+  }
+
+  async updateOrgBranding(
+    orgId: string,
+    branding: {
+      logo?: string | null
+      name?: string | null
+      description?: string | null
+      primaryColor?: string | null
+      welcomeMessage?: string | null
+      coverImage?: string | null
+      phone?: string | null
+      address?: string | null
+      website?: string | null
+    }
+  ) {
+    cache.invalidate(`branding:${orgId}`)
+    cache.invalidate(`public-branding:${orgId}`)
+    return this.request<{
+      ok: boolean
+      branding: typeof branding
+    }>(`/orgs/${orgId}/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(branding),
+    })
+  }
+
   // Clear all cache (useful for logout)
   clearCache() {
     cache.invalidate()

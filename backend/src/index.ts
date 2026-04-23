@@ -28,6 +28,7 @@ import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 import { branchesRoute } from './routes/branches.js'
 import { financeRoute } from './routes/finance.js'
+import { brandingRoute } from './routes/branding.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -74,6 +75,7 @@ async function buildServer() {
 
     if (url === '/health' || method === 'OPTIONS') return
     if (url.startsWith('/bootstrap/')) return
+    if (url.startsWith('/public/')) return
     if (url.startsWith('/api/parent/content/')) return
     if (url.startsWith('/api/parent/alphakids/')) return
     if (url.startsWith('/api/parent/access/')) return
@@ -122,6 +124,7 @@ async function buildServer() {
     intentRoutes,
     branchesRoute,
     financeRoute,
+    brandingRoute,
   ]
 
   for (const route of routes) {
