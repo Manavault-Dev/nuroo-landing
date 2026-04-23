@@ -26,6 +26,7 @@ const PAGE_PATH_KEYS: Record<string, string> = {
   '/b2b/assignments': 'assignments',
   '/b2b/admin': 'admin',
   '/b2b/onboarding': 'onboarding',
+  '/b2b/brand': 'brand',
 }
 
 export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderProps) {
@@ -66,7 +67,7 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
             }}
             className="md:hidden relative z-[100] flex items-center justify-center w-12 h-12 min-w-[48px] min-h-[48px] -ml-1 rounded-lg text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0 cursor-pointer"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-            aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+            aria-label={isSidebarOpen ? t('closeMenu') : t('openMenu')}
           >
             <span className="relative w-5 h-5 pointer-events-none">
               <Menu
