@@ -1,3 +1,15 @@
+export interface OrgBranding {
+  logo?: string | null
+  name?: string | null
+  description?: string | null
+  primaryColor?: string | null
+  welcomeMessage?: string | null
+  coverImage?: string | null
+  phone?: string | null
+  address?: string | null
+  website?: string | null
+}
+
 export interface Organization {
   id: string
   name: string
