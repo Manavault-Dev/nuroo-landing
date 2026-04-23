@@ -18,6 +18,7 @@ import {
   BookOpen,
   Download,
 } from 'lucide-react'
+import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 type ReportsTranslator = ReturnType<typeof useTranslations>
@@ -112,7 +113,13 @@ function renderPdfTable(headers: string[], rows: Array<Array<string | number>>, 
   `
 }
 
-function buildPdfMarkup(data: NonNullable<ReportData>, days: number, t: ReportsTranslator) {
+function buildPdfMarkup(
+  data: NonNullable<ReportData>,
+  days: number,
+  t: ReportsTranslator,
+  branding?: OrgBranding | null,
+  orgName?: string
+) {
   const sections = [
     renderPdfSection(
       t('childCompletion'),
@@ -199,20 +206,40 @@ function buildPdfMarkup(data: NonNullable<ReportData>, days: number, t: ReportsT
     )
   }
 
+  const primary = branding?.primaryColor || '#14b8a6'
+  const displayName = branding?.name || orgName || ''
+
+  const logoHtml = branding?.logo
+    ? `<img src="${escapeHtml(branding.logo)}" alt="logo" style="height: 40px; max-width: 140px; object-fit: contain;" />`
+    : ''
+
   return `
-    <div style="width: 794px; padding: 24px; background: #ffffff; color: #111827; font-family: Arial, sans-serif;">
-      <div style="margin: 0 0 24px;">
-        <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #111827;">
-          ${escapeHtml(t('title'))}
-        </h1>
-        <div style="font-size: 12px; color: #4b5563;">
-          ${escapeHtml(t('period'))} ${days} ${escapeHtml(t('days'))}
+    <div style="width: 794px; background: #ffffff; color: #111827; font-family: Arial, sans-serif;">
+      <!-- Branded Header -->
+      <div style="background: ${escapeHtml(primary)}; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          ${logoHtml}
+          <div>
+            ${displayName ? `<div style="font-size: 18px; font-weight: 700; color: #ffffff;">${escapeHtml(displayName)}</div>` : ''}
+            <div style="font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 2px;">${escapeHtml(t('title'))}</div>
+          </div>
         </div>
-        <div style="margin-top: 4px; font-size: 12px; color: #6b7280;">
-          ${escapeHtml(t('pdfGeneratedAt'))}: ${escapeHtml(formatReportDate())}
+        <div style="text-align: right;">
+          <div style="font-size: 11px; color: rgba(255,255,255,0.7);">${escapeHtml(t('period'))} ${days} ${escapeHtml(t('days'))}</div>
+          <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px;">${escapeHtml(formatReportDate())}</div>
         </div>
       </div>
-      ${sections.join('')}
+
+      <!-- Report body -->
+      <div style="padding: 28px 32px;">
+        ${sections.join('')}
+      </div>
+
+      <!-- Footer -->
+      <div style="border-top: 1px solid #e5e7eb; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center;">
+        ${displayName ? `<span style="font-size: 10px; color: #9ca3af;">${escapeHtml(displayName)}</span>` : '<span></span>'}
+        <span style="font-size: 10px; line-height: 1; color: #9ca3af;">${escapeHtml(t('poweredByPrefix'))} <span style="font-weight: 600; color: #14b8a6;">Nuroo</span></span>
+      </div>
     </div>
   `
 }
@@ -230,6 +257,7 @@ function ReportsContent() {
   const t = useTranslations('b2b.pages.reports')
   const { user, isLoading: authLoading } = useAuth()
   const { profile, orgId } = usePageAuth()
+  const { branding } = useBranding()
 
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -254,7 +282,7 @@ function ReportsContent() {
 
     const timeoutId = setTimeout(() => {
       if (!cancelled) {
-        setError('Request timed out. Check your connection and try again.')
+        setError(t('timeoutError'))
         setLoading(false)
       }
     }, REPORTS_TIMEOUT_MS)
@@ -267,13 +295,13 @@ function ReportsContent() {
         if (res.ok) {
           setData(res)
         } else {
-          setError('Failed to load reports')
+          setError(t('loadError'))
         }
       })
       .catch((err) => {
         clearTimeout(timeoutId)
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load reports')
+          setError(err instanceof Error ? err.message : t('loadError'))
           setData(null)
         }
       })
@@ -285,7 +313,7 @@ function ReportsContent() {
       cancelled = true
       clearTimeout(timeoutId)
     }
-  }, [orgId, days, authLoading])
+  }, [orgId, days, authLoading, t])
 
   if (authLoading || (loading && !data)) {
     return (
@@ -322,7 +350,7 @@ function ReportsContent() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `neurokids-report-${days}d.csv`
+    a.download = `${t('csvFilePrefix')}-${days}${t('daysFileSuffix')}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -345,8 +373,26 @@ function ReportsContent() {
       container.style.top = '0'
       container.style.zIndex = '-1'
       container.style.pointerEvents = 'none'
-      container.innerHTML = buildPdfMarkup(data, days, t)
+      const currentOrg = profile?.organizations?.find((o) => o.orgId === orgId)
+      container.innerHTML = buildPdfMarkup(data, days, t, branding, currentOrg?.orgName)
       document.body.appendChild(container)
+
+      const images = Array.from(container.querySelectorAll('img'))
+      await Promise.all(
+        images.map(
+          (image) =>
+            new Promise<void>((resolve) => {
+              if (image.complete) {
+                resolve()
+                return
+              }
+
+              const finalize = () => resolve()
+              image.addEventListener('load', finalize, { once: true })
+              image.addEventListener('error', finalize, { once: true })
+            })
+        )
+      )
 
       const canvas = await html2canvas(container, {
         scale: 2,
@@ -585,7 +631,8 @@ function ReportsContent() {
                       <span className="font-medium text-gray-900">{p.parentName}</span>
                     </span>
                     <span className="text-sm text-gray-600">
-                      {t('completed')}: {p.completedLast7} (7d) / {p.completedLast30} (30d)
+                      {t('completed')}: {p.completedLast7} ({t('last7Compact')}) /{' '}
+                      {p.completedLast30} ({t('last30Compact')})
                     </span>
                   </li>
                 ))}
@@ -611,7 +658,8 @@ function ReportsContent() {
                     >
                       <span className="font-medium text-gray-900">{p.parentName}</span>
                       <span className="text-sm text-amber-700">
-                        {t('completed')}: 0 (7d) / {p.completedLast30} (30d)
+                        {t('completed')}: 0 ({t('last7Compact')}) / {p.completedLast30} (
+                        {t('last30Compact')})
                       </span>
                     </li>
                   ))}
