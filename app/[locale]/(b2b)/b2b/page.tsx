@@ -36,13 +36,13 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-function daysSince(dateStr?: string): number | null {
+function daysSince(dateStr?: string | null): number | null {
   if (!dateStr) return null
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
 function formatLastSeen(
-  dateStr: string | undefined,
+  dateStr: string | null | undefined,
   t: (key: string, values?: Record<string, string | number>) => string
 ) {
   const days = daysSince(dateStr)
@@ -51,7 +51,7 @@ function formatLastSeen(
   return t('lastSeenDaysAgo', { days })
 }
 
-function buildHeroBackgroundStyle(coverImage?: string, borderTopColor?: string) {
+function buildHeroBackgroundStyle(coverImage?: string | null, borderTopColor?: string) {
   const backgroundImage = coverImage
     ? `linear-gradient(rgba(15,23,42,0.76), rgba(15,23,42,0.76)), linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), url(${coverImage})`
     : 'linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #134e4a 100%)'
