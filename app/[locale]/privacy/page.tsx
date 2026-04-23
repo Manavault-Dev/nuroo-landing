@@ -38,7 +38,7 @@ export default async function PrivacyPage({ params }: Props) {
               </span>
             </Link>
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/logo.png" alt="NeuroKids" className="h-8 w-8" />
+              <img src="/Logo.svg" alt="NeuroKids" className="h-8 w-8" />
               <span className="text-xl font-bold text-primary-600">NeuroKids</span>
             </Link>
           </div>
