@@ -1,10 +1,16 @@
 export interface OrgBranding {
   logo?: string | null
+  logoPositionX?: number | null
+  logoPositionY?: number | null
+  logoScale?: number | null
   name?: string | null
   description?: string | null
   primaryColor?: string | null
   welcomeMessage?: string | null
   coverImage?: string | null
+  coverPositionX?: number | null
+  coverPositionY?: number | null
+  coverScale?: number | null
   phone?: string | null
   address?: string | null
   website?: string | null

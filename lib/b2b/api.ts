@@ -1193,11 +1193,17 @@ export class ApiClient {
       orgName: string
       branding: {
         logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
         name?: string | null
         description?: string | null
         primaryColor?: string | null
         welcomeMessage?: string | null
         coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
       } | null
     }>(`/public/orgs/${orgId}/branding`, `public-branding:${orgId}`, 'default')
   }
@@ -1208,11 +1214,17 @@ export class ApiClient {
       ok: boolean
       branding: {
         logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
         name?: string | null
         description?: string | null
         primaryColor?: string | null
         welcomeMessage?: string | null
         coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
         phone?: string | null
         address?: string | null
         website?: string | null
@@ -1224,11 +1236,17 @@ export class ApiClient {
     orgId: string,
     branding: {
       logo?: string | null
+      logoPositionX?: number | null
+      logoPositionY?: number | null
+      logoScale?: number | null
       name?: string | null
       description?: string | null
       primaryColor?: string | null
       welcomeMessage?: string | null
       coverImage?: string | null
+      coverPositionX?: number | null
+      coverPositionY?: number | null
+      coverScale?: number | null
       phone?: string | null
       address?: string | null
       website?: string | null

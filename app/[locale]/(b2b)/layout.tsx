@@ -100,7 +100,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
           isClosing={isClosing}
           onMobileClose={closeSidebar}
         />
-        <div className="flex-1 flex flex-col min-w-0 relative isolate md:ml-60">
+        <div className="flex-1 flex flex-col min-w-0 relative isolate md:ml-[17rem]">
           <Header
             profile={profile}
             isSidebarOpen={sidebarOpen}

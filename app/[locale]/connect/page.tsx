@@ -9,11 +9,17 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
 
 interface OrgBranding {
   logo?: string | null
+  logoPositionX?: number | null
+  logoPositionY?: number | null
+  logoScale?: number | null
   name?: string | null
   description?: string | null
   primaryColor?: string | null
   welcomeMessage?: string | null
   coverImage?: string | null
+  coverPositionX?: number | null
+  coverPositionY?: number | null
+  coverScale?: number | null
 }
 
 interface OrgInfo {
@@ -32,6 +38,21 @@ function usePrimaryColor(color: string | null | undefined) {
     base,
     tint: `rgba(${r},${g},${b},0.12)`,
     tintStrong: `rgba(${r},${g},${b},0.2)`,
+  }
+}
+
+function valueOrDefault(value: number | null | undefined, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function imageCropStyle(
+  x: number | null | undefined,
+  y: number | null | undefined,
+  scale: number | null | undefined
+) {
+  return {
+    objectPosition: `${valueOrDefault(x, 50)}% ${valueOrDefault(y, 50)}%`,
+    transform: `scale(${valueOrDefault(scale, 1)})`,
   }
 }
 
@@ -68,6 +89,16 @@ function ConnectPageInner() {
 
   const displayName = org?.branding?.name || org?.orgName || t('yourCenter')
   const color = usePrimaryColor(org?.branding?.primaryColor)
+  const coverCropStyle = imageCropStyle(
+    org?.branding?.coverPositionX,
+    org?.branding?.coverPositionY,
+    org?.branding?.coverScale
+  )
+  const logoCropStyle = imageCropStyle(
+    org?.branding?.logoPositionX,
+    org?.branding?.logoPositionY,
+    org?.branding?.logoScale
+  )
 
   if (loading) {
     return (
@@ -100,6 +131,7 @@ function ConnectPageInner() {
             src={org.branding.coverImage}
             alt=""
             className="w-full h-full object-cover"
+            style={coverCropStyle}
             onError={(e) => {
               ;(e.currentTarget as HTMLImageElement).style.display = 'none'
             }}
@@ -112,14 +144,17 @@ function ConnectPageInner() {
           {/* Org Logo */}
           <div className="flex justify-center mb-6">
             {org.branding?.logo ? (
-              <img
-                src={org.branding.logo}
-                alt={displayName}
-                className="w-20 h-20 rounded-2xl object-cover shadow-lg"
-                onError={(e) => {
-                  ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                }}
-              />
+              <div className="h-20 w-20 overflow-hidden rounded-2xl shadow-lg">
+                <img
+                  src={org.branding.logo}
+                  alt={displayName}
+                  className="h-full w-full object-cover"
+                  style={logoCropStyle}
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                  }}
+                />
+              </div>
             ) : (
               <div
                 className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg"
