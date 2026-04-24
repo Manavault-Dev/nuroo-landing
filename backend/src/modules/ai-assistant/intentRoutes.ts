@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
 import { requireOrgMember } from '../../plugins/rbac.js'
+import { aiAssistant } from './service.js'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY
 
@@ -221,6 +222,36 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       fastify.log.error({ error }, '[AI] Intent extraction failed')
       return reply.code(500).send({ error: 'Intent extraction failed' })
+    }
+  })
+
+  // POST /orgs/:orgId/ai/chat — mobile-compatible AI assistant chat.
+  // The original /ai/chat reads orgId from JWT custom claims which mobile users
+  // don't have. This endpoint accepts orgId via the route param and uses the
+  // same aiAssistant.process() service with no duplicated business logic.
+  fastify.post<{
+    Params: { orgId: string }
+    Body: { message: string; mode?: 'chat' | 'voice' }
+  }>('/orgs/:orgId/ai/chat', async (request, reply) => {
+    const { orgId } = request.params
+    const { message, mode = 'chat' } = request.body || {}
+
+    if (!message?.trim()) {
+      return reply.code(400).send({ error: 'message is required' })
+    }
+
+    const member = await requireOrgMember(request, reply, orgId)
+    if (!member) return
+
+    const { uid } = request.user!
+    const role = member.role === 'org_admin' ? 'organizer' : 'specialist'
+
+    try {
+      const result = await aiAssistant.process({ message, orgId, userId: uid, role, mode })
+      return result
+    } catch (error) {
+      fastify.log.error({ error }, '[AI] Mobile chat error')
+      return reply.code(500).send({ error: 'AI assistant error' })
     }
   })
 }
