@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { Sparkles, ArrowRight } from 'lucide-react'
-import { PricingCard } from '@/components/ui/PricingCard'
-import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
+import { Sparkles, ArrowRight, Users, Bot, Palette, BarChart3, CheckCircle2 } from 'lucide-react'
 
 const PLAN_META = [
   {
@@ -17,9 +15,21 @@ const PLAN_META = [
   },
 ] as const
 
-const LANDING_FEATURE_KEYS = {
-  enterprise: ['entF1', 'entF2', 'entF3', 'entF4', 'entF6', 'entF7', 'entF11', 'entF13'],
-} as const
+const VALUE_PILLARS = [
+  { key: 'pillarWorkspace', icon: Users },
+  { key: 'pillarAssistant', icon: Bot },
+  { key: 'pillarBranding', icon: Palette },
+  { key: 'pillarAnalytics', icon: BarChart3 },
+] as const
+
+const INCLUDED_KEYS = [
+  'includedUnlimited',
+  'includedParents',
+  'includedTasks',
+  'includedAttendance',
+  'includedFinance',
+  'includedLaunch',
+] as const
 
 export function Pricing() {
   const t = useTranslations('landing.pricing')
@@ -65,38 +75,84 @@ export function Pricing() {
           </p>
         </div>
 
-        {/* Plans grid */}
+        {/* One clear B2B offer instead of a long feature list */}
         <div
-          className={`grid grid-cols-1 gap-6 lg:gap-8 max-w-xl mx-auto transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          className={`mx-auto max-w-5xl overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-2xl shadow-primary-500/10 transition-all duration-700 delay-300 dark:border-primary-900/50 dark:bg-gray-800/90 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
           {PLAN_META.map((plan) => (
-            <PricingCard
-              key={plan.id}
-              variant={plan.variant}
-              badge={plan.popular ? t('popular') : undefined}
-              title={t(plan.titleKey)}
-              subtitle={plan.id === 'enterprise' ? t('enterpriseSubtitle') : undefined}
-              price={formatPrice(plan.price)}
-              priceSuffix={`KGS / ${t('perMonth')}`}
-              features={(LANDING_FEATURE_KEYS[plan.id] ?? PLAN_FEATURE_KEYS[plan.id]).map(
-                (key) => ({
-                  text: t(key),
-                })
-              )}
-              soonLabel={t('soon')}
-            >
-              <Link
-                href="/b2b/register"
-                className={`inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-xl font-medium transition-colors ${
-                  plan.popular
-                    ? 'bg-primary-600 text-white hover:bg-primary-700'
-                    : 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'
-                }`}
-              >
-                {t('cta')}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </PricingCard>
+            <div key={plan.id} className="grid gap-0 lg:grid-cols-[0.95fr_1.25fr]">
+              <div className="flex flex-col justify-between bg-gradient-to-br from-primary-600 to-primary-800 p-6 text-white sm:p-8">
+                <div>
+                  <div className="mb-5 inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-50">
+                    {t('onePlanBadge')}
+                  </div>
+                  <h3 className="text-2xl font-bold sm:text-3xl">{t(plan.titleKey)}</h3>
+                  <p className="mt-3 text-sm leading-6 text-primary-50/90">
+                    {t('enterpriseSubtitle')}
+                  </p>
+
+                  <div className="mt-7 flex items-end gap-2">
+                    <span className="text-4xl font-bold tracking-tight sm:text-5xl">
+                      {formatPrice(plan.price)}
+                    </span>
+                    <span className="pb-1 text-sm font-medium text-primary-50/80">
+                      KGS / {t('perMonth')}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-primary-50/70">{t('priceNote')}</p>
+                </div>
+
+                <Link
+                  href="/b2b/register"
+                  className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 text-sm font-semibold text-primary-700 shadow-lg shadow-primary-950/20 transition-colors hover:bg-primary-50"
+                >
+                  {t('cta')}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+
+              <div className="p-6 sm:p-8">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {VALUE_PILLARS.map((pillar) => {
+                    const Icon = pillar.icon
+
+                    return (
+                      <div
+                        key={pillar.key}
+                        className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/40"
+                      >
+                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-900/60 dark:text-primary-300">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                          {t(`${pillar.key}Title`)}
+                        </h4>
+                        <p className="mt-1 text-sm leading-5 text-gray-600 dark:text-gray-300">
+                          {t(`${pillar.key}Text`)}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                    {t('includedTitle')}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {INCLUDED_KEYS.map((key) => (
+                      <div
+                        key={key}
+                        className="flex items-center gap-2 rounded-xl border border-gray-100 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                      >
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-primary-600" />
+                        <span>{t(key)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
