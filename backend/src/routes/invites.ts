@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
-import { checkOrgCanAddChild, getSubscriptionStatus } from '../modules/payments/planLimits.js'
+import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
 import { z } from 'zod'
 
 const createInviteSchema = z.object({
@@ -29,13 +29,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (member.role !== 'org_admin') {
         return reply.code(403).send({ error: 'Only organization admins can create invite codes' })
-      }
-
-      const subscription = await getSubscriptionStatus(orgId)
-      if (!subscription.active) {
-        return reply
-          .code(403)
-          .send({ error: subscription.error ?? 'Subscription required. Pay in Billing.' })
       }
 
       const body = createInviteSchema.parse(request.body)
