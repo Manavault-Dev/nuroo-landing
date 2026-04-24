@@ -18,6 +18,10 @@ interface InviteCode {
   type?: 'specialist' | 'parent'
 }
 
+function valueOrDefault(value: number | null | undefined, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
 export default function InvitesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -129,6 +133,13 @@ export default function InvitesPage() {
 
   const { branding } = useBranding()
   const brandPrimary = branding?.primaryColor || '#14b8a6'
+  const logoCropStyle = {
+    objectPosition: `${valueOrDefault(branding?.logoPositionX, 50)}% ${valueOrDefault(
+      branding?.logoPositionY,
+      50
+    )}%`,
+    transform: `scale(${valueOrDefault(branding?.logoScale, 1)})`,
+  }
 
   const getInviteUrl = (code: string) => {
     return `${typeof window !== 'undefined' ? window.location.origin : ''}/b2b/register?invite=${code}`
@@ -352,14 +363,17 @@ export default function InvitesPage() {
                       <div className="flex items-start justify-between gap-4 mb-5">
                         <div className="flex items-center gap-3">
                           {branding?.logo ? (
-                            <img
-                              src={branding.logo}
-                              alt="logo"
-                              className="w-9 h-9 rounded-lg object-cover shrink-0"
-                              onError={(e) => {
-                                ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                              }}
-                            />
+                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+                              <img
+                                src={branding.logo}
+                                alt="logo"
+                                className="h-full w-full object-cover"
+                                style={logoCropStyle}
+                                onError={(e) => {
+                                  ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            </div>
                           ) : (
                             <div
                               className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0"

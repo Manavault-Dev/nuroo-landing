@@ -51,15 +51,26 @@ function formatLastSeen(
   return t('lastSeenDaysAgo', { days })
 }
 
-function buildHeroBackgroundStyle(coverImage?: string | null, borderTopColor?: string) {
+function cropValue(value: number | null | undefined, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function buildHeroBackgroundStyle(
+  coverImage?: string | null,
+  borderTopColor?: string,
+  crop?: { x?: number | null; y?: number | null; scale?: number | null }
+) {
+  const scale = cropValue(crop?.scale, 1)
   const backgroundImage = coverImage
     ? `linear-gradient(rgba(15,23,42,0.76), rgba(15,23,42,0.76)), linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), url(${coverImage})`
     : 'linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #134e4a 100%)'
 
   const backgroundSize = coverImage
-    ? '100% 100%, 34px 34px, 34px 34px, cover'
+    ? `100% 100%, 34px 34px, 34px 34px, ${Math.round(scale * 100)}% auto`
     : '34px 34px, 34px 34px, 100% 100%'
-  const backgroundPosition = coverImage ? '0 0, 0 0, 0 0, center' : '0 0, 0 0, 0 0'
+  const backgroundPosition = coverImage
+    ? `0 0, 0 0, 0 0, ${cropValue(crop?.x, 50)}% ${cropValue(crop?.y, 50)}%`
+    : '0 0, 0 0, 0 0'
 
   return {
     backgroundColor: '#0f172a',
@@ -395,6 +406,11 @@ export default function DashboardPage() {
   const orgName = branding?.name || currentOrg?.orgName || t('yourCenter')
   const orgMission = branding?.description || t('orgMissionFallback')
   const coverImage = branding?.coverImage
+  const coverCrop = {
+    x: branding?.coverPositionX,
+    y: branding?.coverPositionY,
+    scale: branding?.coverScale,
+  }
   const handleAssistantCommandExecuted = () => undefined
 
   // ── Specialist action cards (derived from real operational data) ──────────
@@ -509,7 +525,10 @@ export default function DashboardPage() {
     return (
       <div className="w-full p-5 lg:p-8 space-y-5">
         {/* ── Hero ── */}
-        <div className="rounded-2xl overflow-hidden" style={buildHeroBackgroundStyle(coverImage)}>
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={buildHeroBackgroundStyle(coverImage, undefined, coverCrop)}
+        >
           <div className="px-6 py-7 lg:px-8">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
@@ -812,7 +831,7 @@ export default function DashboardPage() {
       {/* ── Specialist Workspace Header — matches admin dark style ── */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={buildHeroBackgroundStyle(coverImage, brandPrimary)}
+        style={buildHeroBackgroundStyle(coverImage, brandPrimary, coverCrop)}
       >
         <div className="px-6 py-7 lg:px-8 flex items-start justify-between gap-4">
           <div>

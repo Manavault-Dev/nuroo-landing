@@ -7,6 +7,9 @@ import { requireOrgMember } from '../plugins/rbac.js'
 
 const brandingSchema = z.object({
   logo: z.string().url().max(2000).optional().nullable(),
+  logoPositionX: z.number().min(0).max(100).optional().nullable(),
+  logoPositionY: z.number().min(0).max(100).optional().nullable(),
+  logoScale: z.number().min(1).max(2).optional().nullable(),
   name: z.string().max(120).optional().nullable(),
   description: z.string().max(300).optional().nullable(),
   primaryColor: z
@@ -16,6 +19,9 @@ const brandingSchema = z.object({
     .nullable(),
   welcomeMessage: z.string().max(400).optional().nullable(),
   coverImage: z.string().url().max(2000).optional().nullable(),
+  coverPositionX: z.number().min(0).max(100).optional().nullable(),
+  coverPositionY: z.number().min(0).max(100).optional().nullable(),
+  coverScale: z.number().min(1).max(2).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   address: z.string().max(200).optional().nullable(),
   website: z.string().url().max(2000).optional().nullable(),
@@ -54,11 +60,17 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
           branding: branding
             ? {
                 logo: branding.logo ?? null,
+                logoPositionX: branding.logoPositionX ?? null,
+                logoPositionY: branding.logoPositionY ?? null,
+                logoScale: branding.logoScale ?? null,
                 name: branding.name ?? null,
                 description: branding.description ?? null,
                 primaryColor: branding.primaryColor ?? null,
                 welcomeMessage: branding.welcomeMessage ?? null,
                 coverImage: branding.coverImage ?? null,
+                coverPositionX: branding.coverPositionX ?? null,
+                coverPositionY: branding.coverPositionY ?? null,
+                coverScale: branding.coverScale ?? null,
               }
             : null,
         }
