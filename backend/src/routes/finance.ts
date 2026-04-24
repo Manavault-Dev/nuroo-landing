@@ -184,11 +184,8 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       try {
         const { orgId } = request.params
-        const member = await requireOrgMember(request, reply, orgId)
-
-        if (member.role !== 'org_admin') {
-          return reply.code(403).send({ error: 'Only org admins can mark attendance' })
-        }
+        await requireOrgMember(request, reply, orgId)
+        const markedBy = request.user?.uid ?? 'unknown'
 
         const body = attendanceSchema.parse(request.body)
         const now = new Date()
@@ -204,7 +201,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
             date: body.date,
             status: body.status,
             note: body.note || null,
-            markedBy: member.uid,
+            markedBy,
             markedAt: admin.firestore.Timestamp.fromDate(now),
           },
           { merge: true }
