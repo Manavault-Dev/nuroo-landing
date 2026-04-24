@@ -218,16 +218,20 @@
       "register": "Register",
       "backToHome": "← Back to Nuroo Home",
       "demo": {
-        "title": "Try demo",
+        "kicker": "Demo access",
+        "title": "Explore the platform",
+        "subtitle": "Open a prepared workspace without entering demo credentials.",
         "emailLabel": "Email",
         "passwordLabel": "Password",
         "organizer": {
-          "title": "Organizer",
-          "cta": "Sign in as Organizer"
+          "title": "Organizer demo",
+          "description": "Review teams, families, branding, invites, and reports.",
+          "cta": "Organizer demo"
         },
         "specialist": {
-          "title": "Specialist",
-          "cta": "Sign in as Specialist"
+          "title": "Specialist demo",
+          "description": "See assigned children, priorities, and progress workflows.",
+          "cta": "Specialist demo"
         }
       },
       "jury": {
