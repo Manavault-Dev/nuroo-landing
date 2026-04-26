@@ -62,7 +62,6 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
 export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
-  // ——— Tasks ———
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/content/tasks',
     async (request, reply) => {
@@ -224,7 +223,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ——— Roadmaps ———
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/content/roadmaps',
     async (request, reply) => {
@@ -283,12 +281,10 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Roadmap not found' })
 
-      // Capture old taskIds before updating
       const oldTaskIds: string[] = snap.data()?.taskIds || []
 
       await ref.update(buildUpdateData(body))
 
-      // Auto-push newly added tasks to children in active assignments referencing this roadmap
       if (body.taskIds && body.taskIds.length > 0) {
         const addedTaskIds = body.taskIds.filter((id) => !oldTaskIds.includes(id))
         if (addedTaskIds.length > 0) {
@@ -360,7 +356,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
               }
             }
           } catch (pushErr: any) {
-            // Don't fail the roadmap update if auto-push fails — log and continue
             console.error('[ROADMAP] Auto-push new tasks failed:', pushErr.message)
           }
         }
@@ -389,10 +384,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ——— Parent-facing content routes ———
-  // These are for the mobile parent app (Bearer token auth, parent linked to org)
-
-  /** Verify parent is linked to this organization and return their child IDs */
   async function requireParentOrgAccess(
     request: { user?: { uid: string } },
     reply: { code: (n: number) => { send: (body: unknown) => unknown } },
@@ -405,22 +396,16 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     const db = getFirestore()
     const parentUid = request.user.uid
 
-    // 1. Primary check: orgParents collection (created on invite acceptance)
     const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
     const orgParentSnap = await orgParentRef.get()
 
-    // 2. Query organizations/{orgId}/children by parentUserId (NO assigned filter —
-    //    the field may be missing or false for newly joined parents)
     const childQuery = await db
       .collection(`organizations/${orgId}/children`)
       .where('parentUserId', '==', parentUid)
       .get()
 
-    // Exclude only explicitly disconnected children (assigned === false)
     let childIds = childQuery.docs.filter((d) => d.data().assigned !== false).map((d) => d.id)
 
-    // 3. If we have org access but no children yet — try to find children via
-    //    the specialist's group membership (parent may have joined before children were linked)
     if (childIds.length === 0 && orgParentSnap.exists) {
       const specialistUid = orgParentSnap.data()?.linkedSpecialistUid as string | undefined
       if (specialistUid) {
@@ -441,13 +426,10 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
           childIds = [...new Set(groupChildIds)]
-        } catch {
-          // ignore — fallback failed, continue with empty childIds
-        }
+        } catch {}
       }
     }
 
-    // 4. Fallback: linkedOrganizationsById in users collection (legacy)
     if (!orgParentSnap.exists && childIds.length === 0) {
       const userSnap = await db.doc(`users/${parentUid}`).get()
       if (userSnap.exists) {
@@ -465,9 +447,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     return { parentUid, childIds }
   }
 
-  // ——— Content library routes (roadmaps + library tasks) ———
-
-  // GET /orgs/:orgId/parent/content/roadmaps
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/parent/content/roadmaps',
     async (request, reply) => {
@@ -487,7 +466,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/parent/content/roadmaps/:roadmapId
   fastify.get<{ Params: { orgId: string; roadmapId: string } }>(
     '/orgs/:orgId/parent/content/roadmaps/:roadmapId',
     async (request, reply) => {
@@ -515,7 +493,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/parent/content/tasks — content library tasks (for browsing)
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/parent/content/tasks',
     async (request, reply) => {
@@ -544,7 +521,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/parent/content/tasks/:taskId
   fastify.get<{ Params: { orgId: string; taskId: string } }>(
     '/orgs/:orgId/parent/content/tasks/:taskId',
     async (request, reply) => {
@@ -562,7 +538,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // POST /orgs/:orgId/parent/content/tasks/:taskId/complete — mark content-library task complete
   fastify.post<{ Params: { orgId: string; taskId: string } }>(
     '/orgs/:orgId/parent/content/tasks/:taskId/complete',
     async (request, reply) => {
@@ -606,10 +581,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ——— Child-assigned tasks routes (for tasks assigned via groups/specialists) ———
-
-  // GET /orgs/:orgId/parent/roadmap-assignments — roadmaps assigned to parent's children (for mobile "Учебные планы")
-  // Top-down approach: groupAssignments → roadmaps → child tasks
   fastify.get<{
     Params: { orgId: string }
     Querystring: { roadmapId?: string }
@@ -629,7 +600,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
 
       const childIdSet = new Set(childIds)
 
-      // Step 1: Get ALL groupAssignments for this org
       let assignmentsSnap: FirebaseFirestore.QuerySnapshot
       try {
         assignmentsSnap = await db
@@ -637,19 +607,16 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           .orderBy('assignedAt', 'desc')
           .get()
       } catch {
-        // orderBy may fail if no index — fall back to unordered query
         assignmentsSnap = await db.collection(`organizations/${orgId}/groupAssignments`).get()
       }
 
       console.log(`[roadmap-assignments] total groupAssignments=${assignmentsSnap.size}`)
 
-      // Step 2: Filter to assignments that have roadmaps AND overlap with parent's children
-      // If parent has no children resolved yet, we match any assignment for the org
       const relevantAssignments = assignmentsSnap.docs.filter((doc) => {
         const d = doc.data()
         const roadmapIds: string[] = d.contentRoadmapIds || []
         if (roadmapIds.length === 0) return false
-        if (childIds.length === 0) return true // parent in org but no children yet — include all
+        if (childIds.length === 0) return true
         const assignedChildren: string[] = d.childIds || []
         const matches = assignedChildren.some((id) => childIdSet.has(id))
         console.log(
@@ -667,8 +634,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           _debug: { childIds, totalAssignments: assignmentsSnap.size },
         }
 
-      // Step 3: For each assignment, for each roadmap → fetch child tasks
-      // Collect unique roadmapIds across all assignments
       const roadmapMap = new Map<
         string,
         { assignmentId: string; dueDate: string | null; matchedChildIds: string[] }
@@ -692,10 +657,8 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
 
       if (roadmapMap.size === 0) return { ok: true, roadmapAssignments: [] }
 
-      // Step 4: For each roadmap, fetch tasks from children and roadmap metadata
       const roadmapAssignments = await Promise.all(
         Array.from(roadmapMap.entries()).map(async ([roadmapId, meta]) => {
-          // Fetch roadmap name/description
           let roadmapName = roadmapId
           let roadmapDescription: string | null = null
           try {
@@ -705,11 +668,8 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
               roadmapName = (rData.name as string) || roadmapId
               roadmapDescription = (rData.description as string) ?? null
             }
-          } catch {
-            /* ignore */
-          }
+          } catch {}
 
-          // Fetch child tasks that belong to this assignment
           const allChildTasks: any[] = []
           await Promise.all(
             meta.matchedChildIds.map(async (childId) => {
@@ -721,7 +681,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
                   .get()
                 for (const taskDoc of tasksSnap.docs) {
                   const td = taskDoc.data()
-                  // If task has contentRoadmapId set, filter to matching roadmap only
+
                   if (td.contentRoadmapId && td.contentRoadmapId !== roadmapId) continue
                   allChildTasks.push({
                     id: taskDoc.id,
@@ -741,7 +701,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
                   })
                 }
               } catch {
-                /* index may not be ready — fall back to full scan */
                 try {
                   const tasksSnap = await db
                     .collection(`children/${childId}/tasks`)
@@ -750,7 +709,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
                   for (const taskDoc of tasksSnap.docs) {
                     const td = taskDoc.data()
                     if (td.groupAssignmentId !== meta.assignmentId) continue
-                    // If task has contentRoadmapId set, filter to matching roadmap only
+
                     if (td.contentRoadmapId && td.contentRoadmapId !== roadmapId) continue
                     allChildTasks.push({
                       id: taskDoc.id,
@@ -769,9 +728,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
                       createdAt: td.createdAt?.toDate?.()?.toISOString() ?? null,
                     })
                   }
-                } catch {
-                  /* ignore */
-                }
+                } catch {}
               }
             })
           )
@@ -799,7 +756,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /orgs/:orgId/parent/tasks — all tasks assigned to parent's children in this org
   fastify.get<{ Params: { orgId: string } }>(
     '/orgs/:orgId/parent/tasks',
     async (request, reply) => {
@@ -810,7 +766,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const allTasks: Record<string, unknown>[] = []
 
-        // Cache content task lookups to avoid duplicate fetches
         const contentTaskCache = new Map<string, Record<string, unknown>>()
         const getContentTask = async (ctId: string): Promise<Record<string, unknown>> => {
           if (contentTaskCache.has(ctId)) return contentTaskCache.get(ctId)!
@@ -832,7 +787,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           for (const doc of tasksSnap.docs) {
             const d = doc.data()
 
-            // For old tasks that lack rich fields, fall back to the content library doc
             let ct: Record<string, unknown> = {}
             if (
               d.contentTaskId &&
@@ -885,7 +839,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/parent/children/:childId/tasks — tasks for a specific child
   fastify.get<{ Params: { orgId: string; childId: string } }>(
     '/orgs/:orgId/parent/children/:childId/tasks',
     async (request, reply) => {
@@ -904,7 +857,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           .orderBy('createdAt', 'desc')
           .get()
 
-        // Collect contentTaskIds that need lookup (old tasks missing rich fields)
         const ctIdsToFetch = new Set<string>()
         for (const doc of tasksSnap.docs) {
           const d = doc.data()
@@ -926,9 +878,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
             try {
               const snap = await db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${ctId}`).get()
               if (snap.exists) ctMap.set(ctId, snap.data() as Record<string, unknown>)
-            } catch {
-              /* ignore */
-            }
+            } catch {}
           })
         )
 
@@ -974,7 +924,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // PATCH /orgs/:orgId/parent/children/:childId/tasks/:taskId — mark assigned task complete/incomplete
   fastify.patch<{ Params: { orgId: string; childId: string; taskId: string } }>(
     '/orgs/:orgId/parent/children/:childId/tasks/:taskId',
     async (request, reply) => {
@@ -1009,8 +958,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/parent/children/:childId/roadmap-assignments
-  // Returns tasks grouped by roadmap (for "Учебные планы" screen in mobile app)
   fastify.get<{ Params: { orgId: string; childId: string } }>(
     '/orgs/:orgId/parent/children/:childId/roadmap-assignments',
     async (request, reply) => {
@@ -1025,7 +972,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        // Fetch all tasks and filter for roadmap tasks in JS (avoids composite index requirement)
         const tasksSnap = await db
           .collection(`children/${childId}/tasks`)
           .orderBy('createdAt', 'asc')
@@ -1037,7 +983,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           return { ok: true, roadmapAssignments: [] }
         }
 
-        // Group tasks by roadmapId
         const byRoadmap = new Map<
           string,
           { assignmentId: string | null; dueDate: string | null; tasks: any[] }
@@ -1069,7 +1014,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
           })
         }
 
-        // Fetch roadmap names from org roadmaps collection
         const roadmapAssignments = await Promise.all(
           Array.from(byRoadmap.entries()).map(async ([roadmapId, data]) => {
             let roadmapName = roadmapId
@@ -1080,9 +1024,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
               if (roadmapSnap.exists) {
                 roadmapName = (roadmapSnap.data()!.name as string) || roadmapId
               }
-            } catch {
-              /* ignore */
-            }
+            } catch {}
             return {
               roadmapId,
               roadmapName,
@@ -1100,7 +1042,6 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // PATCH /orgs/:orgId/parent/children/:childId/tasks/:taskId/submit — submit homework evidence
   fastify.patch<{ Params: { orgId: string; childId: string; taskId: string } }>(
     '/orgs/:orgId/parent/children/:childId/tasks/:taskId/submit',
     async (request, reply) => {

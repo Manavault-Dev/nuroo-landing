@@ -39,9 +39,7 @@ async function resolveChildName(
       const name = d.name || d.childName || d.displayName || d.fullName
       if (name && name !== 'Unknown') return name
     }
-  } catch {
-    // Ignore lookup errors and continue with fallback sources.
-  }
+  } catch {}
 
   try {
     const userDoc = await db.doc(`users/${childId}`).get()
@@ -50,11 +48,8 @@ async function resolveChildName(
       const name = d.name || d.childName || d.displayName
       if (name && name !== 'Unknown') return name
     }
-  } catch {
-    // Ignore lookup errors and continue with fallback sources.
-  }
+  } catch {}
 
-  // Try parentUserId in users collection (mobile app stores child info under parent's doc)
   if (parentUserId && parentUserId !== childId) {
     try {
       const parentDoc = await db.doc(`users/${parentUserId}`).get()
@@ -63,20 +58,15 @@ async function resolveChildName(
         const name = d.childName || d.name
         if (name && name !== 'Unknown') return name
       }
-    } catch {
-      // Ignore lookup errors.
-    }
+    } catch {}
   }
 
-  // Firebase Auth fallback — try childId first, then parentUserId
   for (const uid of [childId, parentUserId].filter(Boolean) as string[]) {
     try {
       const authUser = await admin.auth().getUser(uid)
       if (authUser.displayName) return authUser.displayName
       if (authUser.email) return authUser.email.split('@')[0]
-    } catch {
-      // User not found in Auth, try next.
-    }
+    } catch {}
   }
 
   return 'Unknown'
@@ -128,7 +118,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        // Specialists see only their assigned children; admins see all
         let childrenSnap: admin.firestore.QuerySnapshot
         if (member.role === 'org_admin') {
           childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()

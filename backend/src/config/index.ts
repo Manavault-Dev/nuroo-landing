@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import { envSchema, type Env } from './env.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// Load .env from backend folder (works when running from repo root or from backend/)
+
 const backendDir = path.resolve(__dirname, '../..')
 const envPath = path.join(backendDir, '.env')
 const loaded = dotenv.config({ path: envPath })
@@ -14,7 +14,6 @@ if (loaded.error && process.env.NODE_ENV !== 'production') {
 
 const rawConfig = envSchema.parse(process.env)
 
-// Select Firebase credentials based on environment
 function getFirebaseConfig(raw: Env) {
   const env = raw.NODE_ENV
 
@@ -34,7 +33,6 @@ function getFirebaseConfig(raw: Env) {
     }
   }
 
-  // Fallback to default credentials
   return {
     projectId: raw.FIREBASE_PROJECT_ID,
     clientEmail: raw.FIREBASE_CLIENT_EMAIL,
@@ -46,7 +44,7 @@ const firebaseConfig = getFirebaseConfig(rawConfig)
 
 export const config = {
   ...rawConfig,
-  // Override with environment-specific config
+
   FIREBASE_PROJECT_ID: firebaseConfig.projectId,
   FIREBASE_CLIENT_EMAIL: firebaseConfig.clientEmail,
   FIREBASE_PRIVATE_KEY: firebaseConfig.privateKey,

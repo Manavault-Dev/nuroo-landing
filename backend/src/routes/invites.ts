@@ -7,14 +7,11 @@ import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
 import { z } from 'zod'
 
 const createInviteSchema = z.object({
-  // NOTE: the registration flow uses /invites/accept which understands `org_admin` + `specialist`.
-  // Keep `admin` for backward compatibility but normalize it to `org_admin`.
   role: z.enum(['specialist', 'org_admin', 'admin']).default('specialist'),
   maxUses: z.number().min(1).max(1000).optional(),
   expiresInDays: z.number().min(1).max(365).default(30),
 })
 
-/** Display name from child profile / user doc — copied onto org–child link for stable API reads. */
 function registeredChildDisplayName(
   childData: admin.firestore.DocumentData | null | undefined,
   userData?: admin.firestore.DocumentData | null | undefined
@@ -66,8 +63,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       const normalizedRole = body.role === 'admin' ? 'org_admin' : body.role
 
-      // IMPORTANT: write into the same collection used by /invites/accept.
-      // This keeps org-admin invites compatible with /b2b/register (frontend).
       const inviteRef = db.doc(`invites/${inviteCode}`)
       await inviteRef.set({
         orgId,
@@ -90,7 +85,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // POST /orgs/:orgId/parent-invites - Create parent invite code for a specific organization (Specialist only)
   fastify.post<{ Params: { orgId: string } }>(
     '/orgs/:orgId/parent-invites',
     async (request, reply) => {
@@ -103,10 +97,8 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         const { orgId } = request.params
         const { uid } = request.user
 
-        // Verify user is a member of the organization
         const member = await requireOrgMember(request, reply, orgId)
 
-        // Only specialists can create parent invites
         if (member.role !== 'specialist' && member.role !== 'org_admin') {
           return reply.code(403).send({ error: 'Only specialists can create parent invite codes' })
         }
@@ -119,7 +111,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
           inviteCode += parentInviteChars.charAt(randomInt(0, parentInviteChars.length))
         }
         const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 365) // 1 year expiration
+        expiresAt.setDate(expiresAt.getDate() + 365)
 
         const inviteRef = db.doc(`parentInvites/${inviteCode}`)
         await inviteRef.set({
@@ -144,7 +136,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // POST /specialists/invites - Create parent invite for personal organization (legacy endpoint)
   fastify.post('/specialists/invites', async (request, reply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
@@ -408,9 +399,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       try {
         await inviteRef.update({ usedCount: (inviteData.usedCount || 0) + 1 })
-      } catch {
-        // Non-critical: ignore count update failure
-      }
+      } catch {}
 
       return {
         ok: true,
@@ -482,7 +471,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       const parentUid = request.user.uid
 
-      // Verify child ownership if parentUserId is already set
       const childData = childSnap.exists ? childSnap.data() : null
       if (childData?.parentUserId && childData.parentUserId !== parentUid) {
         return reply.code(403).send({ error: 'Child does not belong to this account' })
@@ -541,9 +529,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       try {
         await inviteRef.update({ usedCount: (inviteData.usedCount || 0) + 1 })
-      } catch {
-        // Non-critical: ignore count update failure
-      }
+      } catch {}
 
       return { ok: true, orgId, childId, message: 'Child successfully connected to specialist' }
     } catch (error: any) {
@@ -552,7 +538,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /api/org/parent-connection/status - Check parent connection status (for mobile app)
   fastify.get('/api/org/parent-connection/status', async (request, reply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
@@ -564,7 +549,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       console.log('🔍 [CONNECTION] Checking connection status for parent:', parentUid)
 
-      // Check if parent is linked to any organization
       const orgsSnapshot = await db.collection('organizations').get()
       const connections: Array<{
         orgId: string
@@ -577,7 +561,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         const orgId = orgDoc.id
         const orgData = orgDoc.data()
 
-        // Check orgParents collection
         const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
         const orgParentSnap = await orgParentRef.get()
 
@@ -610,7 +593,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /api/specialist/connections - Get parent connections for specialist (mobile app compatibility)
   fastify.get<{ Querystring: { orgId?: string } }>(
     '/api/specialist/connections',
     async (request, reply) => {
@@ -631,7 +613,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         )
 
         if (!orgId) {
-          // If no orgId provided, get all organizations where specialist is a member
           const orgsSnapshot = await db.collection('organizations').get()
           const allConnections: any[] = []
 
@@ -641,7 +622,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
             const memberSnap = await memberRef.get()
 
             if (memberSnap.exists) {
-              // Get connections for this org
               const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
               allConnections.push(
                 ...connections.map((conn) => ({
@@ -659,7 +639,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
             count: allConnections.length,
           }
         } else {
-          // Get connections for specific org
           const connections = await getConnectionsForSpecialist(db, orgId, specialistUid)
           return {
             ok: true,
@@ -677,13 +656,11 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // Helper function to get connections for specialist
   async function getConnectionsForSpecialist(
     db: admin.firestore.Firestore,
     orgId: string,
     specialistUid: string
   ) {
-    // Get all children assigned to this specialist
     const orgChildrenRef = db.collection(`organizations/${orgId}/children`)
     const assignedChildrenSnap = await orgChildrenRef
       .where('assigned', '==', true)
@@ -694,7 +671,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       `📋 [SPECIALIST_CONNECTIONS] Found ${assignedChildrenSnap.docs.length} children for specialist ${specialistUid} in org ${orgId}`
     )
 
-    // Group children by parentUserId
     const parentMap = new Map<
       string,
       Array<{
@@ -715,7 +691,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         continue
       }
 
-      // Prefer name persisted on org–child link (set at invite accept), then profile / Auth
       const fromLink =
         (typeof linkData.childName === 'string' && linkData.childName.trim()) ||
         (typeof linkData.name === 'string' && linkData.name.trim()) ||
@@ -735,14 +710,12 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         childAge = childData.age || childData.childAge
       }
 
-      // Fallback to users collection (mobile app stores child name here)
       if (childName === 'Unknown' && userSnap.exists) {
         const userData = userSnap.data()!
         childName = userData.name || userData.childName || childName
         childAge = childAge || userData.age || userData.childAge
       }
 
-      // Fallback to Firebase Auth — child first, then parent
       if (childName === 'Unknown') {
         for (const uid of [...new Set([childId, parentUserId])]) {
           try {
@@ -755,9 +728,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
               childName = authUser.email.split('@')[0]
               break
             }
-          } catch {
-            // try next uid
-          }
+          } catch {}
         }
       }
 
@@ -773,10 +744,8 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    // Get parent details
     const connections = await Promise.all(
       Array.from(parentMap.entries()).map(async ([parentUserId, children]) => {
-        // Get parent info from Auth
         let parentEmail: string | null = null
         let parentDisplayName: string | null = null
         try {
@@ -791,7 +760,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
           )
         }
 
-        // Get parent info from orgParents collection
         const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUserId}`)
         const orgParentSnap = await orgParentRef.get()
         const orgParentData = orgParentSnap.exists ? orgParentSnap.data() : null
@@ -810,7 +778,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     return connections
   }
 
-  // GET /api/parent/organizations - Get linked organizations for parent (mobile app compatibility)
   fastify.get('/api/parent/organizations', async (request, reply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
@@ -822,7 +789,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       console.log('🔍 [PARENT] Getting linked organizations for parent:', parentUid)
 
-      // Check if parent is linked to any organization
       const orgsSnapshot = await db.collection('organizations').get()
       const organizations: Array<{
         orgId: string
@@ -836,7 +802,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         const orgId = orgDoc.id
         const orgData = orgDoc.data()
 
-        // Check orgParents collection
         const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
         const orgParentSnap = await orgParentRef.get()
 
@@ -845,7 +810,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
           const specialistId = parentData.linkedSpecialistUid || null
           let specialistName: string | null = null
 
-          // Get specialist name if specialistId exists
           if (specialistId) {
             const specialistRef = db.doc(`specialists/${specialistId}`)
             const specialistSnap = await specialistRef.get()

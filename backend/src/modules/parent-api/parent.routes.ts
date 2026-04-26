@@ -2,7 +2,6 @@ import { FastifyPluginAsync } from 'fastify'
 import { listChildSpecialists, listChildNotes, listParentLinkedChildren } from './parent.service.js'
 
 export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /api/parent/children/:childId/specialists - List specialists with access to child
   fastify.get<{ Params: { childId: string } }>(
     '/api/parent/children/:childId/specialists',
     async (request, reply) => {
@@ -28,7 +27,6 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /api/parent/children/:childId/notes - Get specialist notes visible to parent
   fastify.get<{ Params: { childId: string } }>(
     '/api/parent/children/:childId/notes',
     async (request, reply) => {
@@ -54,7 +52,6 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /api/parent/children - List children linked to parent (via specialist invites)
   fastify.get('/api/parent/children', async (request, reply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
