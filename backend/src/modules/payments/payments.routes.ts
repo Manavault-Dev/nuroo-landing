@@ -149,10 +149,9 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
             .digest('hex')
           const sigBuf = Buffer.from(sig ?? '', 'utf8')
           const expectedBuf = Buffer.from(expected, 'utf8')
-          if (
-            sigBuf.length !== expectedBuf.length ||
-            !timingSafeEqual(sigBuf, expectedBuf)
-          ) {
+          const signatureInvalid =
+            sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)
+          if (signatureInvalid) {
             return reply.code(401).send({ error: 'Invalid webhook signature' })
           }
         }
