@@ -46,7 +46,7 @@ export async function requireChildAccess(
   reply: FastifyReply,
   orgId: string,
   childId: string
-): Promise<void> {
+): Promise<string> {
   if (!request.user) {
     return reply.code(401).send({ error: 'Unauthorized' }) as never
   }
@@ -68,23 +68,44 @@ export async function requireChildAccess(
 
   const role = memberData.role || 'specialist'
 
+  const orgChildrenRef = db.collection(`organizations/${orgId}/children`)
+  const directAssignmentRef = orgChildrenRef.doc(childId)
+  const directAssignmentSnap = await directAssignmentRef.get()
+
+  let resolvedChildId = childId
+  let assignmentSnap = directAssignmentSnap
+
+  if (!assignmentSnap.exists) {
+    const byParentSnap = await orgChildrenRef
+      .where('parentUserId', '==', childId)
+      .where('assigned', '==', true)
+      .limit(2)
+      .get()
+
+    if (byParentSnap.empty) {
+      return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
+    }
+    if (byParentSnap.size > 1) {
+      return reply.code(409).send({
+        error: 'Multiple children found for this identifier. Please use a childId.',
+      }) as never
+    }
+
+    resolvedChildId = byParentSnap.docs[0].id
+    assignmentSnap = byParentSnap.docs[0]
+  }
+
   // Org Admin can access all children
   if (role === 'org_admin') {
-    const childAssignmentRef = db.doc(`organizations/${orgId}/children/${childId}`)
-    const assignmentSnap = await childAssignmentRef.get()
-
     if (!assignmentSnap.exists || assignmentSnap.data()?.assigned !== true) {
       return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
     }
 
-    return // Org Admin has access
+    return resolvedChildId // Org Admin has access
   }
 
   // Specialist: Check direct assignment or group membership
   if (role === 'specialist') {
-    const childAssignmentRef = db.doc(`organizations/${orgId}/children/${childId}`)
-    const assignmentSnap = await childAssignmentRef.get()
-
     if (!assignmentSnap.exists) {
       return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
     }
@@ -97,7 +118,7 @@ export async function requireChildAccess(
     // 1. Direct assignment
     const assignedSpecialistId = assignmentData.assignedSpecialistId
     if (assignedSpecialistId === uid) {
-      return // Has direct access
+      return resolvedChildId // Has direct access
     }
 
     // 2. Group membership — check if this child is in any of the specialist's groups
@@ -112,8 +133,8 @@ export async function requireChildAccess(
         .get()
       for (const parentDoc of parentsSnap.docs) {
         const childIds = (parentDoc.data().childIds as string[]) || []
-        if (childIds.includes(childId)) {
-          return // Has access via group
+        if (childIds.includes(resolvedChildId)) {
+          return resolvedChildId // Has access via group
         }
       }
     }
@@ -134,6 +155,6 @@ export async function requireChildAssigned(
   reply: FastifyReply,
   orgId: string,
   childId: string
-): Promise<void> {
+): Promise<string> {
   return requireChildAccess(request, reply, orgId, childId)
 }

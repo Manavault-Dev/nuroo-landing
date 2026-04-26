@@ -203,17 +203,10 @@ export class ApiClient {
 
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('b2b_token')
-    }
   }
 
   setToken(token: string | null) {
     this.token = token
-    if (typeof window !== 'undefined') {
-      token ? localStorage.setItem('b2b_token', token) : localStorage.removeItem('b2b_token')
-    }
-    // Clear cache when token changes (user switch)
     if (!token) {
       cache.invalidate()
     }
@@ -1186,9 +1179,124 @@ export class ApiClient {
     })
   }
 
+  // Public Branding (no auth required — for parent connect pages)
+  async getPublicOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      orgName: string
+      branding: {
+        logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
+      } | null
+    }>(`/public/orgs/${orgId}/branding`, `public-branding:${orgId}`, 'default')
+  }
+
+  // Branding
+  async getOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      branding: {
+        logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
+        phone?: string | null
+        address?: string | null
+        website?: string | null
+      } | null
+    }>(`/orgs/${orgId}/branding`, `branding:${orgId}`, 'default')
+  }
+
+  async updateOrgBranding(
+    orgId: string,
+    branding: {
+      logo?: string | null
+      logoPositionX?: number | null
+      logoPositionY?: number | null
+      logoScale?: number | null
+      name?: string | null
+      description?: string | null
+      primaryColor?: string | null
+      welcomeMessage?: string | null
+      coverImage?: string | null
+      coverPositionX?: number | null
+      coverPositionY?: number | null
+      coverScale?: number | null
+      phone?: string | null
+      address?: string | null
+      website?: string | null
+    }
+  ) {
+    cache.invalidate(`branding:${orgId}`)
+    cache.invalidate(`public-branding:${orgId}`)
+    return this.request<{
+      ok: boolean
+      branding: typeof branding
+    }>(`/orgs/${orgId}/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(branding),
+    })
+  }
+
   // Clear all cache (useful for logout)
   clearCache() {
     cache.invalidate()
+  }
+
+  // AI Assistant
+  async sendChatMessage(message: string, mode: 'chat' | 'voice' = 'chat') {
+    return this.request<{
+      response: string
+      speakText?: string
+      content?: string
+      success?: boolean
+    }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, mode }),
+    })
+  }
+
+  async parseAssistantIntent(
+    orgId: string,
+    message: string,
+    context?: { lastGroupName?: string; lastChildNames?: string[]; lastResultChildren?: string[] }
+  ) {
+    return this.request<{
+      type: string
+      params: {
+        name?: string
+        schedule?: string
+        groupName?: string
+        childNames?: string[]
+        newSchedule?: string
+        homeworkTitle?: string
+        homeworkDescription?: string
+        message?: string
+        period?: string
+      }
+      raw: string
+    }>(`/orgs/${orgId}/assistant/intent`, {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    })
   }
 }
 

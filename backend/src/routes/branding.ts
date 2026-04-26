@@ -1,0 +1,146 @@
+import { FastifyPluginAsync } from 'fastify'
+import admin from 'firebase-admin'
+import { z } from 'zod'
+
+import { getFirestore } from '../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../plugins/rbac.js'
+
+const brandingSchema = z.object({
+  logo: z.string().url().max(2000).optional().nullable(),
+  logoPositionX: z.number().min(0).max(100).optional().nullable(),
+  logoPositionY: z.number().min(0).max(100).optional().nullable(),
+  logoScale: z.number().min(1).max(2).optional().nullable(),
+  name: z.string().max(120).optional().nullable(),
+  description: z.string().max(300).optional().nullable(),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional()
+    .nullable(),
+  welcomeMessage: z.string().max(400).optional().nullable(),
+  coverImage: z.string().url().max(2000).optional().nullable(),
+  coverPositionX: z.number().min(0).max(100).optional().nullable(),
+  coverPositionY: z.number().min(0).max(100).optional().nullable(),
+  coverScale: z.number().min(1).max(2).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  address: z.string().max(200).optional().nullable(),
+  website: z.string().url().max(2000).optional().nullable(),
+})
+
+type BrandingData = z.infer<typeof brandingSchema>
+
+function cleanBranding(data: BrandingData): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) result[key] = value ?? null
+  }
+  return result
+}
+
+export const brandingRoute: FastifyPluginAsync = async (fastify) => {
+  // GET /public/orgs/:orgId/branding — no auth required (used by parent connect page)
+  fastify.get<{ Params: { orgId: string } }>(
+    '/public/orgs/:orgId/branding',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const db = getFirestore()
+        const orgSnap = await db.doc(`organizations/${orgId}`).get()
+
+        if (!orgSnap.exists) {
+          return reply.code(404).send({ error: 'Organization not found' })
+        }
+
+        const data = orgSnap.data()!
+        const branding = (data.branding as BrandingData) || null
+        // Return only safe public fields — org name always included
+        return {
+          ok: true,
+          orgName: data.name as string,
+          branding: branding
+            ? {
+                logo: branding.logo ?? null,
+                logoPositionX: branding.logoPositionX ?? null,
+                logoPositionY: branding.logoPositionY ?? null,
+                logoScale: branding.logoScale ?? null,
+                name: branding.name ?? null,
+                description: branding.description ?? null,
+                primaryColor: branding.primaryColor ?? null,
+                welcomeMessage: branding.welcomeMessage ?? null,
+                coverImage: branding.coverImage ?? null,
+                coverPositionX: branding.coverPositionX ?? null,
+                coverPositionY: branding.coverPositionY ?? null,
+                coverScale: branding.coverScale ?? null,
+              }
+            : null,
+        }
+      } catch (error: any) {
+        fastify.log.error(error, '[BRANDING] Public GET error')
+        return reply.code(500).send({ error: 'Failed to fetch organization' })
+      }
+    }
+  )
+
+  // GET /orgs/:orgId/branding — any org member can read
+  fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/branding', async (request, reply) => {
+    try {
+      const { orgId } = request.params
+      await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
+
+      const db = getFirestore()
+      const orgSnap = await db.doc(`organizations/${orgId}`).get()
+
+      if (!orgSnap.exists) {
+        return reply.code(404).send({ error: 'Organization not found' })
+      }
+
+      const branding = (orgSnap.data()?.branding as BrandingData) || null
+      return { ok: true, branding }
+    } catch (error: any) {
+      fastify.log.error(error, '[BRANDING] GET error')
+      return reply.code(500).send({ error: 'Failed to fetch branding' })
+    }
+  })
+
+  // PUT /orgs/:orgId/branding — org admin only
+  fastify.put<{ Params: { orgId: string }; Body: BrandingData }>(
+    '/orgs/:orgId/branding',
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const member = await requireOrgMember(request, reply, orgId)
+        if (reply.sent) return
+
+        if (member.role !== 'org_admin') {
+          return reply.code(403).send({ error: 'Only organization admins can update branding' })
+        }
+
+        const body = brandingSchema.parse(request.body)
+        const db = getFirestore()
+        const orgRef = db.doc(`organizations/${orgId}`)
+        const orgSnap = await orgRef.get()
+
+        if (!orgSnap.exists) {
+          return reply.code(404).send({ error: 'Organization not found' })
+        }
+
+        const current = (orgSnap.data()?.branding as BrandingData) || {}
+        const merged = { ...current, ...cleanBranding(body) }
+
+        await orgRef.update({
+          branding: merged,
+          updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+        })
+
+        return { ok: true, branding: merged }
+      } catch (error: any) {
+        if (error?.name === 'ZodError') {
+          return reply.code(400).send({ error: 'Invalid branding data', details: error.issues })
+        }
+        fastify.log.error(error, '[BRANDING] PUT error')
+        return reply.code(500).send({ error: 'Failed to update branding' })
+      }
+    }
+  )
+}

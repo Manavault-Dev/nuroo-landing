@@ -60,7 +60,7 @@ export function Footer() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
                 <I18nLink href="/" className="flex items-center gap-2 w-fit flex-shrink-0">
                   <img
-                    src="/logo.png"
+                    src="/Logo.svg"
                     alt="NeuroKids"
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex-shrink-0"
                   />

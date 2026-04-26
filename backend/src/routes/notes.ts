@@ -84,14 +84,14 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
         const { orgId, childId } = request.params
 
         await requireOrgMember(request, reply, orgId)
-        await requireChildAccess(request, reply, orgId, childId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
-        const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(childId))
+        const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(resolvedChildId))
         const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
         const notes: SpecialistNote[] = notesSnapshot.docs.map((doc) =>
-          transformNote(doc, childId, orgId)
+          transformNote(doc, resolvedChildId, orgId)
         )
 
         return notes
@@ -119,13 +119,13 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const body = createNoteSchema.parse(request.body)
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAccess(request, reply, orgId, childId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const { uid, email } = request.user
       const specialistName = await getSpecialistName(db, uid, email)
 
-      const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(childId))
+      const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(resolvedChildId))
       const now = new Date()
       const noteData = buildNoteData(orgId, uid, specialistName, body.text, body.tags, now)
 
@@ -133,7 +133,7 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
 
       const note: SpecialistNote = {
         id: noteRef.id,
-        childId,
+        childId: resolvedChildId,
         orgId,
         specialistId: uid,
         specialistName,

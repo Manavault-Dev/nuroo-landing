@@ -1,117 +1,220 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { Building2, UserCircle, Users, Video, ArrowRight, Sparkles } from 'lucide-react'
+import { Bot, Palette, BarChart3, CheckCircle2, ArrowRight, Smartphone, Zap } from 'lucide-react'
+
+const vFadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' as const } },
+}
+const vFadeLeft = {
+  hidden: { opacity: 0, x: -32 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: 'easeOut' as const } },
+}
+const vFadeRight = {
+  hidden: { opacity: 0, x: 32 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: 'easeOut' as const } },
+}
+const vStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.14 } },
+}
 
 export function Platform() {
-  const t = useTranslations('landing.platform')
-
-  const benefits = [
-    {
-      icon: <Building2 className="w-7 h-7 text-primary-500" />,
-      titleKey: 'forOrganizations',
-      descKey: 'forOrganizationsDesc',
-      delay: 'sr-delay-100',
-    },
-    {
-      icon: <UserCircle className="w-7 h-7 text-secondary-500" />,
-      titleKey: 'forSpecialists',
-      descKey: 'forSpecialistsDesc',
-      delay: 'sr-delay-200',
-    },
-    {
-      icon: <Users className="w-7 h-7 text-accent-500" />,
-      titleKey: 'workWithParents',
-      descKey: 'workWithParentsDesc',
-      delay: 'sr-delay-300',
-    },
-    {
-      icon: <Video className="w-7 h-7 text-primary-500" />,
-      titleKey: 'videoLessons',
-      descKey: 'videoLessonsDesc',
-      delay: 'sr-delay-400',
-    },
-  ] as const
+  const tPlatform = useTranslations('landing.platform')
+  const tAI = useTranslations('landing.aiCopilot')
+  const tParentAI = useTranslations('landing.parentAI')
+  const tBrand = useTranslations('landing.branding')
+  const tReports = useTranslations('landing.reports')
 
   return (
-    <section
-      id="platform-section"
-      className="section-padding bg-gradient-to-b from-white to-primary-50/30 dark:from-gray-900 dark:to-primary-950/20 min-w-0"
-    >
-      <div className="container-custom min-w-0">
-        <div className="max-w-4xl mx-auto text-center mb-10 sm:mb-14 md:mb-20">
-          <div
-            data-sr
-            className="sr-up sr-duration-700 sr-delay-0 inline-flex items-center px-3 sm:px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 text-xs sm:text-sm font-medium mb-4 sm:mb-6 md:mb-8"
-          >
-            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            {t('badge')}
+    <section id="platform-section" className="section-padding bg-gray-50 dark:bg-gray-950 min-w-0">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Section header */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={vFadeUp}
+          className="text-center mb-14"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium mb-5">
+            <Zap className="w-4 h-4" />
+            <span>{tPlatform('sectionBadge')}</span>
           </div>
-          <h2
-            data-sr
-            className="sr-up sr-duration-700 sr-delay-100 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6 px-1 break-words"
-          >
-            {t('title')}
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
+            {tPlatform('sectionTitle')}{' '}
+            <span className="gradient-text">{tPlatform('sectionTitleHighlight')}</span>
           </h2>
-          <p
-            data-sr
-            className={`sr-up sr-duration-700 sr-delay-200 text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 ${t('intro2') ? 'mb-3 sm:mb-4' : ''} break-words`}
-          >
-            {t('intro')}
+          <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            {tPlatform('sectionIntro')}
           </p>
-          {t('intro2') ? (
-            <p
-              data-sr
-              className="sr-up sr-duration-700 sr-delay-300 text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 break-words"
-            >
-              {t('intro2')}
-            </p>
-          ) : null}
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-10 sm:mb-14 md:mb-20">
-          {benefits.map((item, index) => (
-            <div
-              key={index}
-              data-sr
-              className={`sr-up sr-duration-700 ${item.delay} glow-card bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg`}
-            >
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
-                  {item.icon}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    {t(item.titleKey)}
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-                    {t(item.descKey)}
-                  </p>
-                </div>
-              </div>
+        {/* AI section: two columns side by side */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={vStagger}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
+        >
+          {/* AI for Centers & Specialists */}
+          <motion.div
+            variants={vFadeLeft}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-violet-100 dark:border-violet-900/40 p-8 flex flex-col relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-100/50 dark:bg-violet-900/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
+
+            <div className="w-11 h-11 rounded-xl bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center mb-5">
+              <Bot className="w-5 h-5 text-violet-600 dark:text-violet-400" />
             </div>
-          ))}
-        </div>
 
-        <div
-          data-sr
-          className="sr-up sr-duration-700 sr-delay-300 flex flex-col sm:flex-row items-center justify-center gap-4"
+            <span className="text-xs font-semibold uppercase tracking-widest text-violet-600 dark:text-violet-400 mb-3">
+              {tAI('badge')}
+            </span>
+
+            <h3 className="text-xl font-bold text-gray-950 dark:text-white mb-3 leading-snug">
+              {tAI('title')}
+            </h3>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-7">
+              {tAI('subtitle')}
+            </p>
+
+            <ul className="space-y-3 mt-auto">
+              {(['f1', 'f2', 'f3', 'f4'] as const).map((k) => (
+                <li key={k} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-violet-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{tAI(k)}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          {/* AI for Parents */}
+          <motion.div
+            variants={vFadeRight}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 p-8 flex flex-col relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100/50 dark:bg-emerald-900/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
+
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center mb-5">
+              <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+
+            <span className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-3">
+              {tParentAI('badge')}
+            </span>
+
+            <h3 className="text-xl font-bold text-gray-950 dark:text-white mb-3 leading-snug">
+              {tParentAI('title')}
+            </h3>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-7">
+              {tParentAI('subtitle')}
+            </p>
+
+            <ul className="space-y-3 mt-auto">
+              {(['f1', 'f2', 'f3', 'f4'] as const).map((k) => (
+                <li key={k} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{tParentAI(k)}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </motion.div>
+
+        {/* Branding + Reports: two smaller cards */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={vStagger}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12"
+        >
+          <motion.div
+            variants={vFadeLeft}
+            whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-7 flex flex-col"
+          >
+            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center mb-5">
+              <Palette className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-widest text-teal-600 dark:text-teal-400 mb-3">
+              {tBrand('badge')}
+            </span>
+            <h3 className="text-lg font-bold text-gray-950 dark:text-white mb-2 leading-snug">
+              {tBrand('title')}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-5">
+              {tBrand('subtitle')}
+            </p>
+            <ul className="space-y-2 mt-auto">
+              {(['f1', 'f2', 'f3'] as const).map((k) => (
+                <li key={k} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 flex-shrink-0" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{tBrand(k)}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          <motion.div
+            variants={vFadeRight}
+            whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-7 flex flex-col"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center mb-5">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-3">
+              {tReports('badge')}
+            </span>
+            <h3 className="text-lg font-bold text-gray-950 dark:text-white mb-2 leading-snug">
+              {tReports('title')}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-5">
+              {tReports('subtitle')}
+            </p>
+            <ul className="space-y-2 mt-auto">
+              {(['f1', 'f2', 'f3', 'f4'] as const).map((k) => (
+                <li key={k} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{tReports(k)}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </motion.div>
+
+        {/* Bottom CTA */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={vFadeUp}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link
-            href="/b2b/login"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors shadow-sm"
+            href="/b2b/register"
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:scale-[0.98] text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-primary-500/25"
           >
-            {t('logInToPlatform')}
+            {tPlatform('ctaPrimary')}
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/b2b/register"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-colors shadow-lg"
+            href="/b2b/login"
+            className="inline-flex items-center justify-center px-7 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-medium transition-colors"
           >
-            {t('createAccount')}
+            {tPlatform('ctaSecondary')}
           </Link>
-        </div>
+        </motion.div>
       </div>
     </section>
   )

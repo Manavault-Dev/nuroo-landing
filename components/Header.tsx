@@ -35,7 +35,7 @@ export function Header() {
             className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text flex-shrink-0 min-w-0"
           >
             <img
-              src="/logo.png"
+              src="/Logo.svg"
               alt="NeuroKids Logo"
               className="w-6 h-6 md:w-8 md:h-8 rounded-lg"
             />
