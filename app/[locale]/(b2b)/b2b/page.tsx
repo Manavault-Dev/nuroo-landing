@@ -363,22 +363,20 @@ export default function DashboardPage() {
         const selectedOrg =
           profileData.organizations.find((o) => o.orgId === orgId) || profileData.organizations[0]
         const isAdmin = selectedOrg?.role === 'admin'
-        const [childrenData, teamData] = await Promise.all([
+        const [childrenData, teamData, reportsData] = await Promise.all([
           apiClient.getChildren(orgId),
           isAdmin ? apiClient.getTeam(orgId).catch(() => []) : Promise.resolve([]),
+          apiClient.getReports(orgId, 7).catch(() => null),
         ])
         setChildren(childrenData)
         setTeamCount(Array.isArray(teamData) ? teamData.length : 0)
-        try {
-          const reports = await apiClient.getReports(orgId, 7)
-          if (reports.childCompletion.length) {
-            const avg = Math.round(
-              reports.childCompletion.reduce((s, c) => s + c.percent, 0) /
-                reports.childCompletion.length
-            )
-            setAvgCompletion(avg)
-          }
-        } catch {}
+        if (reportsData?.childCompletion.length) {
+          const avg = Math.round(
+            reportsData.childCompletion.reduce((s, c) => s + c.percent, 0) /
+              reportsData.childCompletion.length
+          )
+          setAvgCompletion(avg)
+        }
       } catch {
         router.push('/b2b/login')
       } finally {
