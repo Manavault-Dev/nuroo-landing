@@ -181,30 +181,32 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
           .where('orgId', '==', orgId)
           .get()
 
-        for (const groupDoc of groupsSnap.docs) {
-          const parentsSnap = await db
-            .collection(`specialists/${uid}/groups/${groupDoc.id}/parents`)
-            .get()
+        const parentSnaps = await Promise.all(
+          groupsSnap.docs.map((groupDoc) =>
+            db.collection(`specialists/${uid}/groups/${groupDoc.id}/parents`).get()
+          )
+        )
 
-          const newChildIds: string[] = []
-          for (const parentDoc of parentsSnap.docs) {
+        const newChildIds: string[] = []
+        parentSnaps.forEach((parentsSnap) => {
+          parentsSnap.docs.forEach((parentDoc) => {
             const childIds = (parentDoc.data().childIds as string[]) || []
-            for (const childId of childIds) {
+            childIds.forEach((childId) => {
               if (!seenIds.has(childId)) {
                 newChildIds.push(childId)
                 seenIds.add(childId)
               }
-            }
-          }
+            })
+          })
+        })
 
-          for (let i = 0; i < newChildIds.length; i += 10) {
-            const batch = newChildIds.slice(i, i + 10)
-            const batchSnap = await orgChildrenRef
-              .where(admin.firestore.FieldPath.documentId(), 'in', batch)
-              .get()
-            docs.push(...batchSnap.docs)
-          }
-        }
+        const childBatches = await Promise.all(
+          Array.from({ length: Math.ceil(newChildIds.length / 10) }, (_, index) => {
+            const batch = newChildIds.slice(index * 10, index * 10 + 10)
+            return orgChildrenRef.where(admin.firestore.FieldPath.documentId(), 'in', batch).get()
+          })
+        )
+        childBatches.forEach((batchSnap) => docs.push(...batchSnap.docs))
       }
 
       const childIds: string[] = []
@@ -228,31 +230,59 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
         if (linkName) childNameFromLink.set(cid, linkName as string)
       })
 
-      const childCompletion: Array<{
-        childId: string
-        childName: string
-        parentName: string | null
-        totalTasks: number
-        completedTasks: number
-        percent: number
-      }> = []
+      const taskCountsCache = new Map<string, Promise<{ total: number; completed: number }>>()
+      const periodCountsCache = new Map<string, Promise<number>>()
+      const childNameCache = new Map<string, Promise<string>>()
+      const userNameCache = new Map<string, Promise<string>>()
 
-      for (const childId of childIds) {
-        const { total, completed } = await getChildTaskCounts(db, childId)
-        const parentUid = parentByChild.get(childId) ?? null
-        const childName =
-          childNameFromLink.get(childId) ??
-          (await getChildName(db, childId, parentUid ?? undefined))
-        const parentName = parentUid ? await getParentDisplayName(parentUid) : null
-        childCompletion.push({
-          childId,
-          childName,
-          parentName,
-          totalTasks: total,
-          completedTasks: completed,
-          percent: total > 0 ? Math.round((completed / total) * 100) : 0,
-        })
+      const getCachedTaskCounts = (childId: string) => {
+        if (!taskCountsCache.has(childId)) {
+          taskCountsCache.set(childId, getChildTaskCounts(db, childId))
+        }
+        return taskCountsCache.get(childId)!
       }
+
+      const getCachedPeriodCount = (childId: string, startDate: Date) => {
+        const key = `${childId}:${startDate.toISOString()}`
+        if (!periodCountsCache.has(key)) {
+          periodCountsCache.set(key, getChildTaskCountsInPeriod(db, childId, startDate))
+        }
+        return periodCountsCache.get(key)!
+      }
+
+      const getCachedChildName = (childId: string, parentUid: string | null) => {
+        if (!childNameCache.has(childId)) {
+          childNameCache.set(childId, getChildName(db, childId, parentUid ?? undefined))
+        }
+        return childNameCache.get(childId)!
+      }
+
+      const getCachedUserName = (userId: string) => {
+        if (!userNameCache.has(userId)) {
+          userNameCache.set(userId, getParentDisplayName(userId))
+        }
+        return userNameCache.get(userId)!
+      }
+
+      const childCompletion = await Promise.all(
+        childIds.map(async (childId) => {
+          const parentUid = parentByChild.get(childId) ?? null
+          const [{ total, completed }, childName, parentName] = await Promise.all([
+            getCachedTaskCounts(childId),
+            childNameFromLink.get(childId) ?? getCachedChildName(childId, parentUid),
+            parentUid ? getCachedUserName(parentUid) : Promise.resolve(null),
+          ])
+
+          return {
+            childId,
+            childName,
+            parentName,
+            totalTasks: total,
+            completedTasks: completed,
+            percent: total > 0 ? Math.round((completed / total) * 100) : 0,
+          }
+        })
+      )
 
       childCompletion.sort((a, b) => b.percent - a.percent)
 
@@ -272,84 +302,84 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
           ? (await db.collection(COLLECTIONS.ORG_MEMBERS(orgId)).get()).docs.map((d) => d.id)
           : [uid]
 
-      for (const specialistUid of specialistIdsToFetch) {
-        const groupsSnapshot = await db
-          .collection(COLLECTIONS.SPECIALIST_GROUPS(specialistUid))
-          .where('orgId', '==', orgId)
-          .get()
-
-        let specialistName: string | undefined
-        if (member.role === 'org_admin') {
-          try {
-            const u = await admin.auth().getUser(specialistUid)
-            specialistName = u.displayName || u.email?.split('@')[0] || specialistUid.slice(0, 8)
-          } catch {
-            specialistName = specialistUid.slice(0, 8)
-          }
-        }
-
-        for (const groupDoc of groupsSnapshot.docs) {
-          const groupId = groupDoc.id
-          const groupData = groupDoc.data()
-          const groupName = (groupData.name as string) || 'Group'
-          const parentsSnap = await db
-            .collection(COLLECTIONS.GROUP_PARENTS(specialistUid, groupId))
+      const groupCompletionBySpecialist = await Promise.all(
+        specialistIdsToFetch.map(async (specialistUid) => {
+          const groupsSnapshot = await db
+            .collection(COLLECTIONS.SPECIALIST_GROUPS(specialistUid))
+            .where('orgId', '==', orgId)
             .get()
-          const allChildIdsInGroup = new Set<string>()
-          parentsSnap.docs.forEach((pDoc) => {
-            const childIdsArr = (pDoc.data().childIds as string[]) || []
-            childIdsArr.forEach((id) => allChildIdsInGroup.add(id))
-          })
-          let groupTotal = 0
-          let groupCompleted = 0
-          for (const cid of allChildIdsInGroup) {
-            const { total, completed } = await getChildTaskCounts(db, cid)
-            groupTotal += total
-            groupCompleted += completed
-          }
-          groupCompletion.push({
-            groupId,
-            groupName,
-            totalTasks: groupTotal,
-            completedTasks: groupCompleted,
-            percent: groupTotal > 0 ? Math.round((groupCompleted / groupTotal) * 100) : 0,
-            childCount: allChildIdsInGroup.size,
-            ...(specialistName && { specialistName }),
-            ...(member.role === 'org_admin' && { ownerId: specialistUid }),
-          })
-        }
-      }
+
+          const specialistName =
+            member.role === 'org_admin' ? await getCachedUserName(specialistUid) : undefined
+
+          return Promise.all(
+            groupsSnapshot.docs.map(async (groupDoc) => {
+              const groupId = groupDoc.id
+              const groupData = groupDoc.data()
+              const groupName = (groupData.name as string) || 'Group'
+              const parentsSnap = await db
+                .collection(COLLECTIONS.GROUP_PARENTS(specialistUid, groupId))
+                .get()
+              const allChildIdsInGroup = new Set<string>()
+              parentsSnap.docs.forEach((pDoc) => {
+                const childIdsArr = (pDoc.data().childIds as string[]) || []
+                childIdsArr.forEach((id) => allChildIdsInGroup.add(id))
+              })
+
+              const counts = await Promise.all(
+                Array.from(allChildIdsInGroup).map((cid) => getCachedTaskCounts(cid))
+              )
+              const groupTotal = counts.reduce((sum, count) => sum + count.total, 0)
+              const groupCompleted = counts.reduce((sum, count) => sum + count.completed, 0)
+
+              return {
+                groupId,
+                groupName,
+                totalTasks: groupTotal,
+                completedTasks: groupCompleted,
+                percent: groupTotal > 0 ? Math.round((groupCompleted / groupTotal) * 100) : 0,
+                childCount: allChildIdsInGroup.size,
+                ...(specialistName && { specialistName }),
+                ...(member.role === 'org_admin' && { ownerId: specialistUid }),
+              }
+            })
+          )
+        })
+      )
+
+      groupCompletion.push(...groupCompletionBySpecialist.flat())
 
       groupCompletion.sort((a, b) => b.percent - a.percent)
 
       const parentUids = new Set<string>()
       parentByChild.forEach((u) => parentUids.add(u))
 
-      const parentActivity: Array<{
-        parentUserId: string
-        parentName: string
-        completedLast7: number
-        completedLast30: number
-      }> = []
+      const parentActivity = await Promise.all(
+        Array.from(parentUids).map(async (parentUid) => {
+          const theirChildIds = Array.from(parentByChild.entries())
+            .filter(([, p]) => p === parentUid)
+            .map(([cid]) => cid)
+          const [periodCounts, parentName] = await Promise.all([
+            Promise.all(
+              theirChildIds.map(async (cid) => {
+                const [completed7, completed30] = await Promise.all([
+                  getCachedPeriodCount(cid, start7),
+                  getCachedPeriodCount(cid, start30),
+                ])
+                return { completed7, completed30 }
+              })
+            ),
+            getCachedUserName(parentUid),
+          ])
 
-      for (const parentUid of parentUids) {
-        const theirChildIds = Array.from(parentByChild.entries())
-          .filter(([, p]) => p === parentUid)
-          .map(([cid]) => cid)
-        let completed7 = 0
-        let completed30 = 0
-        for (const cid of theirChildIds) {
-          completed7 += await getChildTaskCountsInPeriod(db, cid, start7)
-          completed30 += await getChildTaskCountsInPeriod(db, cid, start30)
-        }
-        const parentName = await getParentDisplayName(parentUid)
-        parentActivity.push({
-          parentUserId: parentUid,
-          parentName,
-          completedLast7: completed7,
-          completedLast30: completed30,
+          return {
+            parentUserId: parentUid,
+            parentName,
+            completedLast7: periodCounts.reduce((sum, count) => sum + count.completed7, 0),
+            completedLast30: periodCounts.reduce((sum, count) => sum + count.completed30, 0),
+          }
         })
-      }
+      )
 
       const topParents = [...parentActivity]
         .sort((a, b) => b.completedLast30 - a.completedLast30)

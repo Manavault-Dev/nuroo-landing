@@ -72,26 +72,27 @@ async function findOrganizationsForUser(
   try {
     const membershipsSnapshot = await db
       .collectionGroup('members')
-      .where(admin.firestore.FieldPath.documentId(), '==', uid)
+      .where('status', '==', 'active')
       .get()
 
     const orgEntries = await Promise.all(
-      membershipsSnapshot.docs.map(async (memberDoc) => {
-        const memberData = memberDoc.data()
-        if (memberData?.status !== 'active') return null
+      membershipsSnapshot.docs
+        .filter((memberDoc) => memberDoc.id === uid)
+        .map(async (memberDoc) => {
+          const memberData = memberDoc.data()
 
-        const orgRef = memberDoc.ref.parent.parent
-        if (!orgRef) return null
+          const orgRef = memberDoc.ref.parent.parent
+          if (!orgRef) return null
 
-        const orgSnap = await orgRef.get()
-        if (!orgSnap.exists) return null
+          const orgSnap = await orgRef.get()
+          if (!orgSnap.exists) return null
 
-        return {
-          orgId: orgSnap.id,
-          orgData: orgSnap.data()!,
-          role: normalizeRole(memberData.role),
-        }
-      })
+          return {
+            orgId: orgSnap.id,
+            orgData: orgSnap.data()!,
+            role: normalizeRole(memberData.role),
+          }
+        })
     )
 
     for (const entry of orgEntries) {
@@ -99,7 +100,7 @@ async function findOrganizationsForUser(
       addOrganization(entry.orgId, entry.orgData, entry.role)
     }
   } catch (error) {
-    console.warn('[ME] Falling back to full organization scan:', error)
+    console.warn('[ME] Collection group query failed, falling back to org scan:', error)
 
     const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
 
@@ -109,7 +110,6 @@ async function findOrganizationsForUser(
 
       const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
       const memberSnap = await memberRef.get()
-
       if (!memberSnap.exists) continue
 
       const memberData = memberSnap.data()

@@ -5,13 +5,12 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
-  Grid,
+  LayoutDashboard,
   Users,
   Settings,
   UserCog,
   Key,
   Building2,
-  ChevronRight,
   Users2,
   FileText,
   X,
@@ -20,9 +19,12 @@ import {
   GitBranch,
   CalendarDays,
   Wallet,
+  ChevronRight,
+  Palette,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { type SpecialistProfile } from '@/lib/b2b/api'
+import { useBranding } from '@/lib/b2b/brandingContext'
 
 interface SidebarProps {
   profile: SpecialistProfile | null
@@ -30,6 +32,64 @@ interface SidebarProps {
   isMobileOpen?: boolean
   isClosing?: boolean
   onMobileClose?: () => void
+}
+
+interface NavItem {
+  href: string
+  labelKey: string
+  icon: React.ElementType
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+function valueOrDefault(value: number | null | undefined, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function logoCropStyle(branding: ReturnType<typeof useBranding>['branding']) {
+  return {
+    objectPosition: `${valueOrDefault(branding?.logoPositionX, 50)}% ${valueOrDefault(
+      branding?.logoPositionY,
+      50
+    )}%`,
+    transform: `scale(${valueOrDefault(branding?.logoScale, 1)})`,
+  }
+}
+
+function NavLink({
+  item,
+  active,
+  onClick,
+}: {
+  item: NavItem
+  active: boolean
+  onClick?: () => void
+}) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className={clsx(
+        'flex items-center gap-3.5 px-4 py-3 rounded-xl text-[16px] font-medium transition-colors min-h-[48px] group',
+        active
+          ? 'bg-primary-50 text-primary-700 font-bold shadow-sm shadow-primary-500/5'
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+      )}
+    >
+      <Icon
+        className={clsx(
+          'w-[21px] h-[21px] shrink-0 transition-colors',
+          active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
+        )}
+      />
+      <span className="flex-1 truncate">{item.labelKey}</span>
+      {active && <ChevronRight className="w-[17px] h-[17px] text-primary-400 shrink-0" />}
+    </Link>
+  )
 }
 
 export function Sidebar({
@@ -45,171 +105,215 @@ export function Sidebar({
     profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
   const isOrgAdmin = currentOrg?.role === 'admin'
 
+  const { branding } = useBranding()
+
   const pathForMatch = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
   const isActive = (href: string) => {
     const path = href.split('?')[0]
-    if (path === '/b2b') {
-      return pathForMatch === '/b2b' || pathForMatch === '/b2b/'
-    }
+    if (path === '/b2b') return pathForMatch === '/b2b' || pathForMatch === '/b2b/'
     return pathForMatch.startsWith(path)
   }
 
   const withOrg = (path: string) => (currentOrgId ? `${path}?orgId=${currentOrgId}` : path)
-  const specialistNavItems = [
-    {
-      href: currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b',
-      labelKey: 'dashboard' as const,
-      icon: Grid,
-    },
-    {
-      href: withOrg('/b2b/children'),
-      labelKey: 'children' as const,
-      icon: Users,
-    },
-    {
-      href: withOrg('/b2b/groups'),
-      labelKey: 'groups' as const,
-      icon: Users2,
-    },
-    {
-      href: withOrg('/b2b/reports'),
-      labelKey: 'reports' as const,
-      icon: BarChart3,
-    },
-    {
-      href: withOrg('/b2b/assignments'),
-      labelKey: 'assignments' as const,
-      icon: FileText,
-    },
-    ...(!isOrgAdmin
-      ? [
-          {
-            href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=attendance' : '?tab=attendance'}`,
-            labelKey: 'attendance' as const,
-            icon: CalendarDays,
-          },
-        ]
-      : []),
-    {
-      href: withOrg('/b2b/invites'),
-      labelKey: 'inviteCodes' as const,
-      icon: Key,
-    },
-    ...(isOrgAdmin
-      ? [
-          { href: withOrg('/b2b/team'), labelKey: 'specialists' as const, icon: UserCog },
-          {
-            href: withOrg('/b2b/organization'),
-            labelKey: 'organization' as const,
-            icon: Building2,
-          },
-          { href: withOrg('/b2b/branches'), labelKey: 'branches' as const, icon: GitBranch },
-          { href: withOrg('/b2b/finance'), labelKey: 'finance' as const, icon: Wallet },
-          { href: withOrg('/b2b/billing'), labelKey: 'billing' as const, icon: CreditCard },
-        ]
-      : []),
-    { href: '/b2b/settings', labelKey: 'settings' as const, icon: Settings },
-  ]
+
+  // ── Navigation groups ─────────────────────────────────────────────────────
+
+  const coreGroup: NavGroup = {
+    label: 'Core',
+    items: [
+      {
+        href: currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b',
+        labelKey: t('dashboard'),
+        icon: LayoutDashboard,
+      },
+      { href: withOrg('/b2b/children'), labelKey: t('children'), icon: Users },
+      { href: withOrg('/b2b/groups'), labelKey: t('groups'), icon: Users2 },
+      { href: withOrg('/b2b/assignments'), labelKey: t('assignments'), icon: FileText },
+    ],
+  }
+
+  const operationsGroup: NavGroup = {
+    label: 'Operations',
+    items: [
+      { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
+      ...(!isOrgAdmin
+        ? [
+            {
+              href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=attendance' : '?tab=attendance'}`,
+              labelKey: t('attendance'),
+              icon: CalendarDays,
+            },
+          ]
+        : []),
+      ...(isOrgAdmin
+        ? [
+            { href: withOrg('/b2b/finance'), labelKey: t('finance'), icon: Wallet },
+            { href: withOrg('/b2b/branches'), labelKey: t('branches'), icon: GitBranch },
+          ]
+        : []),
+    ],
+  }
+
+  const teamGroup: NavGroup = {
+    label: 'Team',
+    items: [
+      ...(isOrgAdmin
+        ? [{ href: withOrg('/b2b/team'), labelKey: t('specialists'), icon: UserCog }]
+        : []),
+      { href: withOrg('/b2b/invites'), labelKey: t('inviteCodes'), icon: Key },
+    ],
+  }
+
+  const adminGroup: NavGroup | null = isOrgAdmin
+    ? {
+        label: 'Admin',
+        items: [
+          { href: withOrg('/b2b/organization'), labelKey: t('organization'), icon: Building2 },
+          { href: withOrg('/b2b/brand'), labelKey: t('brandSettings'), icon: Palette },
+          { href: withOrg('/b2b/billing'), labelKey: t('billing'), icon: CreditCard },
+        ],
+      }
+    : null
+
+  const settingsItem: NavItem = {
+    href: '/b2b/settings',
+    labelKey: t('settings'),
+    icon: Settings,
+  }
+
+  const groups = [coreGroup, operationsGroup, teamGroup, ...(adminGroup ? [adminGroup] : [])]
 
   const mobileOpen = isMobileOpen && !isClosing
+
   return (
     <div
       className={clsx(
-        'fixed inset-y-0 left-0 w-64 max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:top-0 md:bottom-0 md:w-64 md:max-w-none md:h-screen flex flex-col overflow-hidden bg-white border-r border-gray-200',
+        'fixed inset-y-0 left-0 w-[17rem] max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:top-0 md:bottom-0 md:w-[17rem] md:max-w-none md:h-screen flex flex-col overflow-hidden bg-white border-r border-gray-100',
         mobileOpen ? 'z-50' : 'z-[38] md:z-30',
         'transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:transition-none',
-        'md:shadow-none',
         mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0',
         !mobileOpen ? 'pointer-events-none md:pointer-events-auto' : ''
       )}
     >
-      <div className="md:hidden flex items-center justify-end p-2 border-b border-gray-200 shrink-0">
+      {/* Mobile close */}
+      <div className="md:hidden flex items-center justify-end p-2 border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={onMobileClose}
-          className="flex items-center justify-center w-11 h-11 rounded-lg text-gray-500 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-          aria-label="Close menu"
+          className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+          aria-label={t('closeMenu')}
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
+
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
-        <div className="p-4 lg:p-6 border-b border-gray-200 shrink-0">
-          <Link href="/b2b" className="flex items-center space-x-3 mb-4" onClick={onMobileClose}>
-            <Image
-              src="/logo.png"
-              alt="NeuroKids Logo"
-              width={32}
-              height={32}
-              className="rounded-lg"
-              unoptimized
-            />
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">NeuroKids</h1>
-              <p className="text-xs text-gray-500">{t('b2bPlatform')}</p>
+        {/* Identity — one block, org name appears exactly once */}
+        <div className="px-4 py-5 border-b border-gray-100 shrink-0">
+          <Link href="/b2b" className="flex items-center gap-3.5 min-w-0" onClick={onMobileClose}>
+            {branding?.logo ? (
+              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">
+                <img
+                  src={branding.logo}
+                  alt={branding.name || 'Logo'}
+                  className="h-full w-full object-cover"
+                  style={logoCropStyle(branding)}
+                />
+              </div>
+            ) : (
+              <Image
+                src="/Logo.svg"
+                alt="Nuroo"
+                width={48}
+                height={48}
+                className="rounded-xl flex-shrink-0"
+                unoptimized
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="text-xl font-bold text-gray-900 block leading-tight truncate">
+                {branding?.name || currentOrg?.orgName || 'Nuroo'}
+              </span>
+              <span className="text-sm text-primary-500 font-semibold leading-tight mt-1 block">
+                {isOrgAdmin ? t('admin') : t('b2bPlatform')}
+              </span>
             </div>
           </Link>
-          {currentOrg && (
-            <div className="mt-2 min-w-0">
-              <p className="text-sm font-medium text-gray-900 break-words">{currentOrg.orgName}</p>
-              {isOrgAdmin && (
-                <span className="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
-                  {t('admin')}
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto overscroll-contain p-4 pb-6 space-y-1">
-          {specialistNavItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            if (!Icon) return null
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onMobileClose}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] min-w-0 ${
-                  active
-                    ? 'bg-primary-50 text-primary-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span className="min-w-0 truncate">{t(item.labelKey)}</span>
-                {active && <ChevronRight className="w-4 h-4 ml-auto" />}
-              </Link>
-            )
-          })}
+        {/* Nav — no section labels, groups separated by thin dividers */}
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+          <div className="space-y-1">
+            {groups.map((group, gi) => (
+              <div key={group.label}>
+                {gi > 0 && <div className="my-2.5 mx-3.5 border-t border-gray-100" />}
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.href)}
+                    onClick={onMobileClose}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
 
+          {/* Settings */}
+          <div className="mt-2.5 pt-2.5 border-t border-gray-100">
+            <NavLink
+              item={settingsItem}
+              active={isActive(settingsItem.href)}
+              onClick={onMobileClose}
+            />
+          </div>
+
+          {/* Switch org — only shown when user belongs to multiple orgs */}
           {profile && profile.organizations.length > 1 && (
-            <div className="pt-4 mt-4 border-t border-gray-200">
-              <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                {t('organizations')}
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <p className="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                {t('switchCenter')}
               </p>
-              {profile.organizations.map((org) => (
-                <Link
-                  key={org.orgId}
-                  href={`/b2b?orgId=${org.orgId}`}
-                  onClick={onMobileClose}
-                  className={`flex items-center space-x-3 px-4 py-2 rounded-lg text-sm transition-colors min-h-[44px] items-center ${
-                    org.orgId === currentOrgId
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4" />
-                  <span className="truncate">{org.orgName}</span>
-                  {org.role === 'admin' && (
-                    <span className="ml-auto text-xs text-primary-600">{t('admin')}</span>
-                  )}
-                </Link>
-              ))}
+              <div className="space-y-0.5">
+                {profile.organizations.map((org) => (
+                  <Link
+                    key={org.orgId}
+                    href={`/b2b?orgId=${org.orgId}`}
+                    onClick={onMobileClose}
+                    className={clsx(
+                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors',
+                      org.orgId === currentOrgId
+                        ? 'bg-primary-50 text-primary-700 font-medium'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                    )}
+                  >
+                    <Building2 className="w-3 h-3 shrink-0" />
+                    <span className="flex-1 truncate">{org.orgName}</span>
+                    {org.role === 'admin' && (
+                      <span className="text-[10px] text-primary-500 font-medium">{t('admin')}</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </nav>
+
+        <div className="shrink-0 border-t border-gray-100 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <Image
+              src="/Logo.svg"
+              alt="Nuroo"
+              width={20}
+              height={20}
+              className="shrink-0"
+              unoptimized
+            />
+            <span>
+              {t('poweredBy')} <span className="font-semibold text-primary-600">Nuroo</span>
+            </span>
+          </div>
+        </div>
       </aside>
     </div>
   )

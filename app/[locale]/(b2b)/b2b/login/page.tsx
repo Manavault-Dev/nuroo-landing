@@ -1,23 +1,11 @@
 'use client'
 
-import { useState, FormEvent, useRef } from 'react'
+import { useState, FormEvent } from 'react'
 import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import {
-  LogIn,
-  Mail,
-  Lock,
-  AlertCircle,
-  ChevronDown,
-  Building2,
-  UserCircle2,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-} from 'lucide-react'
+import { LogIn, Mail, Lock, AlertCircle, Building2, UserCircle2, ArrowRight } from 'lucide-react'
 
 const DEMO_ACCOUNTS = [
   {
@@ -34,13 +22,10 @@ const DEMO_ACCOUNTS = [
 
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
-  const demoSectionRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null)
-  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({})
 
   const performLogin = async (nextEmail: string, nextPassword: string) => {
     if (loading) return
@@ -72,42 +57,12 @@ export default function LoginPage() {
   }
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail)
-    setPassword(demoPassword)
     await performLogin(demoEmail, demoPassword)
-  }
-
-  const copyDemoCredentials = async (
-    demoEmail: string,
-    demoPassword: string,
-    accountId: string
-  ) => {
-    try {
-      await navigator.clipboard.writeText(`email: ${demoEmail}\npassword: ${demoPassword}`)
-      setCopiedAccountId(accountId)
-      setTimeout(() => setCopiedAccountId(null), 1800)
-    } catch {
-      // ignore clipboard errors in unsupported environments
-    }
-  }
-
-  const toggleRevealPassword = (accountId: string) => {
-    setRevealedPasswords((prev) => ({
-      ...prev,
-      [accountId]: !prev[accountId],
-    }))
-  }
-
-  const scrollToDemoSection = () => {
-    demoSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl w-full space-y-8">
+      <div className="max-w-2xl w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-primary-100 p-3 rounded-full">
@@ -116,16 +71,6 @@ export default function LoginPage() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
-          <div className="mt-4 mx-auto max-w-md rounded-2xl border border-primary-100 bg-white/85 px-4 py-4 shadow-sm backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={scrollToDemoSection}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-transform transition-colors hover:bg-primary-600 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-            >
-              <span>{t('jury.cta')}</span>
-              <ChevronDown className="h-4 w-4 animate-bounce" />
-            </button>
-          </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
@@ -192,97 +137,35 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <div ref={demoSectionRef} className="mt-8 border-t border-gray-100 pt-8">
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900">{t('demo.title')}</h3>
+          <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
+                  {t('demo.kicker')}
+                </p>
+                <h3 className="text-sm font-semibold text-gray-900">{t('demo.title')}</h3>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {DEMO_ACCOUNTS.map((account) => (
-                  <div
-                    key={account.id}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                          {account.id === 'organizer' ? (
-                            <Building2 className="w-4 h-4 text-primary-600" />
-                          ) : (
-                            <UserCircle2 className="w-4 h-4 text-primary-600" />
-                          )}
-                          {t(`demo.${account.id}.title`)}
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyDemoCredentials(account.email, account.password, account.id)
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                          aria-label="Copy demo credentials"
-                        >
-                          {copiedAccountId === account.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-green-600" />
-                              <span className="text-green-700">Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {DEMO_ACCOUNTS.map((account) => {
+                  const Icon = account.id === 'organizer' ? Building2 : UserCircle2
 
-                      <div className="space-y-3">
-                        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {t('demo.emailLabel')}
-                          </p>
-                          <p className="mt-1 break-all text-sm font-medium text-gray-900">
-                            {account.email}
-                          </p>
-                        </div>
-
-                        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                              {t('demo.passwordLabel')}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => toggleRevealPassword(account.id)}
-                              className="inline-flex items-center justify-center rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                              aria-label="Toggle password visibility"
-                            >
-                              {revealedPasswords[account.id] ? (
-                                <EyeOff className="h-3.5 w-3.5" />
-                              ) : (
-                                <Eye className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          </div>
-                          <p className="mt-1 text-sm font-medium text-gray-900">
-                            {revealedPasswords[account.id]
-                              ? account.password
-                              : '•'.repeat(Math.max(account.password.length, 8))}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={loading}
-                        onClick={() => handleDemoLogin(account.email, account.password)}
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {loading ? t('signingIn') : t(`demo.${account.id}.cta`)}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  return (
+                    <button
+                      key={account.id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleDemoLogin(account.email, account.password)}
+                      className="group inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      {loading ? t('signingIn') : t(`demo.${account.id}.cta`)}
+                      <ArrowRight className="h-3.5 w-3.5 text-primary-600 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
