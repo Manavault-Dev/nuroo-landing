@@ -203,17 +203,10 @@ export class ApiClient {
 
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('b2b_token')
-    }
   }
 
   setToken(token: string | null) {
     this.token = token
-    if (typeof window !== 'undefined') {
-      token ? localStorage.setItem('b2b_token', token) : localStorage.removeItem('b2b_token')
-    }
-    // Clear cache when token changes (user switch)
     if (!token) {
       cache.invalidate()
     }
