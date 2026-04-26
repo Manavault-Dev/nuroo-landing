@@ -14,14 +14,17 @@
       "createAccount": "Create account"
     },
     "hero": {
-      "badge": "Available on App Store and Google Play",
-      "badgeShort": "Available Now",
-      "headline1": "AI-Powered Support",
-      "headline2": "for Every Child with Special Needs",
-      "subtitle": "Exercises and progress at home. One platform for organizations and specialists.",
+      "badge": "For Centers, Specialists, and Families",
+      "badgeShort": "B2B2C Platform",
+      "headline1": "Centers, Specialists,",
+      "headline2": "and Families - One Ecosystem",
+      "subtitle": "Organizations run operations, specialists guide development, parents continue at home - all connected in one system.",
       "organizersSpecialists": "For Professionals",
       "logIn": "Log in",
       "createAccount": "Create account",
+      "ctaPrimary": "Get started",
+      "ctaSecondary": "Log in",
+      "trustLine": "Used by centers, specialists, and families across Central Asia",
       "statMain": "1,500+ families already use NeuroKids in 30 countries",
       "statFamilies": "families using",
       "statCountries": "countries",
@@ -31,7 +34,13 @@
       "floatCardCategory": "Motor skills",
       "floatCardTime": "5 min ago",
       "floatCardProgress": "Progress +18%",
-      "floatCardWeek": "This week"
+      "floatCardWeek": "This week",
+      "ecosystemOrgs": "For Centers",
+      "ecosystemOrgsDesc": "Management & analytics",
+      "ecosystemSpecialists": "For Specialists",
+      "ecosystemSpecialistsDesc": "Less admin, more therapy",
+      "ecosystemParents": "For Families",
+      "ecosystemParentsDesc": "Progress on their phone"
     },
     "problem": {
       "badge": "The Challenge",
@@ -73,7 +82,11 @@
       "parentSatisfaction": "Parent Satisfaction",
       "fasterProgress": "Faster Progress",
       "costReduction": "Cost Reduction",
-      "availableSupport": "24/7 Support"
+      "availableSupport": "24/7 Support",
+      "sectionBadge": "One ecosystem - three paths",
+      "sectionTitle": "Built for everyone",
+      "sectionTitleHighlight": "in child development",
+      "sectionIntro": "Whether you run a center, work as a specialist, or care for your child at home - NeuroKids has a path designed for you."
     },
     "pricing": {
       "badge": "Pricing",
@@ -135,7 +148,7 @@
       "includedFinance": "Finance module and analytics",
       "includedLaunch": "Onboarding and launch support",
       "onRequest": "On request",
-      "requestDemo": "Request a demo",
+      "requestDemo": "Get started",
       "soon": "soon",
       "cta": "Get started",
       "afterRegister": "After registration, choose a plan and pay in the dashboard.",
@@ -146,6 +159,12 @@
       "title": "For Organizations & Specialists",
       "intro": "Groups, content, progress, and parent engagement — in one place.",
       "intro2": "Video lessons and reports.",
+      "sectionBadge": "AI-powered for every role",
+      "sectionTitle": "Intelligence built",
+      "sectionTitleHighlight": "into every layer",
+      "sectionIntro": "AI works differently for each role - helping centers operate, specialists guide, and parents continue development at home.",
+      "ctaPrimary": "Create account",
+      "ctaSecondary": "Log in to platform",
       "forOrganizations": "For Organizations",
       "forOrganizationsDesc": "Create your org, invite specialists, manage groups and families in one place.",
       "forSpecialists": "For Specialists",
@@ -156,6 +175,93 @@
       "videoLessonsDesc": "Expert-led lessons for families and professionals.",
       "logInToPlatform": "Log in",
       "createAccount": "Create account"
+    },
+    "forOrgs": {
+      "badge": "For Organizations",
+      "title": "Your center. Your digital operating system.",
+      "subtitle": "Children, team, schedule, finances, and branding — in one workspace.",
+      "f1Title": "Center Management",
+      "f1Desc": "Add children, specialists, groups, and programs. Everything in one place.",
+      "f2Title": "Finance & Attendance",
+      "f2Desc": "Track payments, fee status, and attendance — no spreadsheets needed.",
+      "f3Title": "Branches & Scale",
+      "f3Desc": "Multiple locations, one unified management system.",
+      "cta": "Create account"
+    },
+    "forSpecialists": {
+      "badge": "For Specialists",
+      "title": "Less admin. More therapy.",
+      "subtitle": "Assign tasks, track progress, and communicate with families — without the paperwork.",
+      "f1Title": "Tasks & Content",
+      "f1Desc": "Personalized exercises, video lessons, and development roadmaps.",
+      "f2Title": "Child History",
+      "f2Desc": "All notes, progress, and completed tasks — in one profile.",
+      "f3Title": "Parent Communication",
+      "f3Desc": "Notifications, progress updates, and direct messaging — no WhatsApp chaos."
+    },
+    "forParents": {
+      "badge": "For Families",
+      "title": "Parents stay connected between sessions.",
+      "subtitle": "Specialist-assigned tasks, child progress, and AI support — right on their phone.",
+      "f1Title": "Home Tasks",
+      "f1Desc": "Specialist assigns. Parent completes. Simple and clear.",
+      "f2Title": "Real-Time Progress",
+      "f2Desc": "Every milestone tracked. See results between sessions.",
+      "f3Title": "AI Support 24/7",
+      "f3Desc": "Answers to child development questions anytime."
+    },
+    "startAlone": {
+      "badge": "Start Independently",
+      "title": "Start at home - connect a specialist later",
+      "subtitle": "You don't need a center or specialist to begin. Independent parents and families can use NeuroKids right now.",
+      "step1Title": "Download the app",
+      "step1Desc": "Free on App Store and Google Play",
+      "step2Title": "AI assigns activities",
+      "step2Desc": "Personalized exercises for your child's age and needs",
+      "step3Title": "Track progress",
+      "step3Desc": "Every exercise and milestone recorded and visible",
+      "step4Title": "Connect a specialist",
+      "step4Desc": "When ready — add a specialist or center in one tap",
+      "cta": "Download App",
+      "independentSpec": "Working as an independent specialist?",
+      "independentSpecLink": "Connect directly →",
+      "forSpecTitle": "For Independent Specialists",
+      "forSpecDesc": "Work without a center: manage families, assign tasks, track progress, and use the AI assistant independently."
+    },
+    "aiCopilot": {
+      "badge": "AI for Centers & Specialists",
+      "title": "AI copilot for center operations.",
+      "subtitle": "Helps your team find data faster, draft parent responses, and handle routine tasks with less effort.",
+      "f1": "Search across center data",
+      "f2": "Draft parent responses",
+      "f3": "Progress recommendations per child",
+      "f4": "Handle routine tasks with fewer clicks"
+    },
+    "parentAI": {
+      "badge": "AI for Families",
+      "title": "AI support — right between sessions.",
+      "subtitle": "Explains exercises, guides home practice, and answers child development questions — any time of day.",
+      "f1": "Explains exercises in plain language",
+      "f2": "Daily home practice guidance",
+      "f3": "Development advice for parents",
+      "f4": "Answers questions between sessions"
+    },
+    "branding": {
+      "badge": "Branding",
+      "title": "Your brand. Your digital center.",
+      "subtitle": "Logo, colors, public page, and materials — all in your center's style.",
+      "f1": "Organization logo and colors",
+      "f2": "Public center page",
+      "f3": "Official materials for parents"
+    },
+    "reports": {
+      "badge": "Analytics",
+      "title": "Turn therapy work into measurable progress.",
+      "subtitle": "Reports on children, groups, and finances. Export to CSV and PDF.",
+      "f1": "Per-child progress reports",
+      "f2": "Group activity analytics",
+      "f3": "Financial analytics and payment history",
+      "f4": "CSV / PDF export"
     },
     "features": {
       "badge": "Features",
@@ -212,6 +318,13 @@
       "technology": "Technology",
       "joinNow": "Join Now",
       "earlyAccess": "Early Access"
+    },
+    "storeButtons": {
+      "appStoreAria": "Download on the App Store",
+      "appStorePrefix": "Download on the",
+      "googlePlayAria": "Get it on Google Play",
+      "googlePlayPrefix": "GET IT ON",
+      "soon": "Soon"
     },
     "footer": {
       "tagline": "AI support for children with special needs",
