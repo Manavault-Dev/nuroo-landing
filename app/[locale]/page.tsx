@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Hero } from '@/components/Hero'
 import { Solution } from '@/components/Solution'
+import { IndependentPath } from '@/components/IndependentPath'
 import { Platform } from '@/components/Platform'
 import { Pricing } from '@/components/Pricing'
 import { Footer } from '@/components/Footer'
@@ -179,6 +180,7 @@ export default function Home({ params }: Props) {
       <div className="min-h-screen bg-white dark:bg-gray-900 min-w-0 overflow-x-hidden">
         <Hero />
         <Solution />
+        <IndependentPath />
         <Platform />
         <Pricing />
         <Footer />
