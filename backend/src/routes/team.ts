@@ -88,7 +88,6 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // PATCH /orgs/:orgId/members/:uid - Update member role (org_admin only)
   fastify.patch<{
     Params: { orgId: string; uid: string }
     Body: z.infer<typeof updateMemberRoleSchema>
@@ -122,7 +121,6 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
         updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
       })
 
-      // Update specialist profile orgId/role
       const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${targetUid}`)
       const specialistSnap = await specialistRef.get()
       if (specialistSnap.exists) {
@@ -144,7 +142,6 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // DELETE /orgs/:orgId/members/:uid - Remove member (org_admin only)
   fastify.delete<{ Params: { orgId: string; uid: string } }>(
     '/orgs/:orgId/members/:uid',
     async (request, reply) => {
@@ -171,14 +168,12 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(404).send({ error: 'Member not found' })
         }
 
-        // Deactivate instead of delete to preserve history
         await memberRef.update({
           status: 'inactive',
           removedAt: admin.firestore.Timestamp.fromDate(new Date()),
           removedBy: currentUid,
         })
 
-        // Clear org from specialist profile
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${targetUid}`)
         const specialistSnap = await specialistRef.get()
         if (specialistSnap.exists) {

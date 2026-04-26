@@ -91,7 +91,6 @@ async function getSpecialistDisplayName(
   return (d?.fullName || d?.name || specialistUid.slice(0, 8)) as string
 }
 
-/** For org_admin: fetch all groups in the org (from all specialists), with owner info */
 async function fetchAllOrgGroups(
   db: admin.firestore.Firestore,
   orgId: string
@@ -162,7 +161,6 @@ async function resolveUserName(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<{ name: string; email: string | null }> {
-  // 1. users/{uid} — where mobile app stores the name
   const userSnap = await db.doc(`users/${uid}`).get()
   if (userSnap.exists) {
     const d = userSnap.data()!
@@ -170,7 +168,6 @@ async function resolveUserName(
     if (name) return { name: name as string, email: d.email || null }
   }
 
-  // 2. Firebase Auth
   try {
     const user = await admin.auth().getUser(uid)
     const name = user.displayName || user.email?.split('@')[0] || uid.slice(0, 8)
@@ -192,7 +189,6 @@ async function fetchChildData(
   let name = childData?.name || childData?.childName || ''
   let age = childData?.age || childData?.childAge
 
-  // Fallback to users collection (mobile app stores child name here)
   if (!name) {
     const userSnap = await db.doc(`users/${childId}`).get()
     if (userSnap.exists) {
@@ -202,16 +198,13 @@ async function fetchChildData(
     }
   }
 
-  // Fallback to Firebase Auth displayName
   if (!name) {
     const uidToLookup = parentUserId || childId
     try {
       const user = await admin.auth().getUser(uidToLookup)
       if (user.displayName) name = user.displayName
       else if (user.email) name = user.email.split('@')[0]
-    } catch {
-      // user not found
-    }
+    } catch {}
   }
 
   return {
@@ -643,7 +636,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // GET /orgs/:orgId/groups/:groupId/assignments — assignment history for a group
   fastify.get<{
     Params: { orgId: string; groupId: string }
     Querystring: { ownerId?: string }
@@ -652,7 +644,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       const { orgId, groupId } = request.params
       const member = await requireOrgMember(request, reply, orgId)
       const { uid } = request.user!
-      // Specialist sees only their group's assignments; org_admin can pass ownerId to see a specialist's group
+
       const ownerId =
         member.role === 'org_admin' && (request.query as { ownerId?: string })?.ownerId
           ? (request.query as { ownerId: string }).ownerId
@@ -669,7 +661,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           .limit(20)
           .get()
       } catch (err: any) {
-        // Index not ready — fall back to unordered
         if (err.code === 9 || err.message?.includes('index')) {
           const plain = await db
             .collection(`organizations/${orgId}/groupAssignments`)
@@ -713,7 +704,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /orgs/:orgId/groups/:groupId/assign — assign existing content tasks to all children in a group
   fastify.post<{
     Params: { orgId: string; groupId: string }
     Querystring: { ownerId?: string }
@@ -731,7 +721,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       const db = getFirestore()
 
-      // Verify group exists (using resolved ownerId)
       const groupRef = db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`)
       const groupSnap = await groupRef.get()
       if (!groupSnap.exists) return reply.code(404).send({ error: 'Group not found' })
@@ -739,13 +728,10 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(403).send({ error: 'Group does not belong to this organization' })
       }
 
-      // Validate at least one task or roadmap selected
       if (body.contentTaskIds.length === 0 && body.contentRoadmapIds.length === 0) {
         return reply.code(400).send({ error: 'At least one task or roadmap must be selected' })
       }
 
-      // Collect all task IDs: direct + from roadmaps
-      // Also build taskId → roadmapId map so each child task knows its roadmap
       const allTaskIdSet = new Set(body.contentTaskIds)
       const taskIdToRoadmapId = new Map<string, string>()
       const roadmapNames: string[] = []
@@ -764,7 +750,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Fetch content tasks from the org library
       const contentTaskDocs = await Promise.all(
         Array.from(allTaskIdSet).map((id) =>
           db.doc(`organizations/${orgId}/contentTasks/${id}`).get()
@@ -778,7 +763,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'No valid content tasks found' })
       }
 
-      // Collect all unique child IDs from group parents
       const parentsSnap = await db.collection(COLLECTIONS.GROUP_PARENTS(ownerId, groupId)).get()
       const childIdSet = new Set<string>()
       for (const parentDoc of parentsSnap.docs) {
@@ -798,11 +782,9 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       const taskTitles = contentTasks.map((ct: any) => (ct as any).title || 'Untitled')
       const dueDateValue = body.dueDate ? new Date(body.dueDate) : null
 
-      // Create assignment doc first to get its ID
       const assignmentRef = db.collection(`organizations/${orgId}/groupAssignments`).doc()
       const assignmentId = assignmentRef.id
 
-      // For each child, create one task per content task
       for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
         const batch = db.batch()
         const chunk = childIds.slice(i, i + BATCH_SIZE)
@@ -841,7 +823,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         await batch.commit()
       }
 
-      // Save assignment doc with childIds for efficient submission queries
       await assignmentRef.set({
         groupId,
         groupName: groupSnap.data()!.name,
@@ -860,7 +841,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         dueDate: dueDateValue ? admin.firestore.Timestamp.fromDate(dueDateValue) : null,
       })
 
-      // Update group document with last assignment metadata (for list display)
       await groupRef.update({
         lastAssignedAt: now,
         lastAssignedTaskTitles: taskTitles,
@@ -879,8 +859,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(500).send({ error: 'Failed to assign group tasks', details: error.message })
     }
   })
-
-  // ─── Assignment Detail ───────────────────────────────────────────────────────
 
   fastify.get<{
     Params: { orgId: string; groupId: string; assignmentId: string }
@@ -918,9 +896,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
               taskId = tasksSnap.docs[0].id
               taskData = tasksSnap.docs[0].data()
             }
-          } catch {
-            /* index not ready — submission shows as pending */
-          }
+          } catch {}
 
           const status = taskData
             ? taskData.submittedAt
@@ -946,7 +922,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         })
       )
 
-      // Fetch roadmap breakdowns (name + task titles per roadmap)
       const contentRoadmapIds: string[] = aData.contentRoadmapIds || []
       const roadmapDetails = await Promise.all(
         contentRoadmapIds.map(async (roadmapId) => {
@@ -1046,7 +1021,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(403).send({ error: 'You can only delete your own assignments' })
         }
 
-        // Delete comments subcollection
         const commentsSnap = await db
           .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
           .get()
@@ -1056,18 +1030,13 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           await commentBatch.commit()
         }
 
-        // Delete individual child tasks that belong to this assignment
         let childIds: string[] = aData.childIds || []
 
-        // Fallback for old assignments created before childIds tracking:
-        // query all children in the org to find tasks with matching groupAssignmentId
         if (childIds.length === 0) {
           try {
             const orgChildrenSnap = await db.collection(`organizations/${orgId}/children`).get()
             childIds = orgChildrenSnap.docs.map((d) => d.id)
-          } catch {
-            // ignore — will skip task deletion
-          }
+          } catch {}
         }
 
         if (childIds.length > 0) {
@@ -1082,9 +1051,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
                   .where('groupAssignmentId', '==', assignmentId)
                   .get()
                 tasksSnap.docs.forEach((doc) => taskBatch.delete(doc.ref))
-              } catch {
-                // skip if collection query fails for this child
-              }
+              } catch {}
             }
             await taskBatch.commit()
           }
@@ -1099,8 +1066,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
-
-  // ─── Comments ────────────────────────────────────────────────────────────────
 
   fastify.get<{ Params: { orgId: string; groupId: string; assignmentId: string } }>(
     '/orgs/:orgId/groups/:groupId/assignments/:assignmentId/comments',
@@ -1161,9 +1126,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           const d = snap.data()!
           authorName = d.fullName || d.name || authorName
         }
-      } catch {
-        /* specialist lookup optional */
-      }
+      } catch {}
 
       const commentRef = db
         .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
@@ -1192,8 +1155,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // ─── Submission Review ───────────────────────────────────────────────────────
-
   fastify.patch<{
     Params: { orgId: string; groupId: string; assignmentId: string; childId: string }
     Body: z.infer<typeof reviewSubmissionSchema>
@@ -1208,7 +1169,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const now = admin.firestore.Timestamp.fromDate(new Date())
 
-        // Verify specialist owns this assignment
         const assignmentSnap = await db
           .doc(`organizations/${orgId}/groupAssignments/${assignmentId}`)
           .get()
@@ -1220,7 +1180,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
             .send({ error: 'You can only review submissions for your own assignments' })
         }
 
-        // Find the child's task for this assignment
         const tasksSnap = await db
           .collection(`children/${childId}/tasks`)
           .where('groupAssignmentId', '==', assignmentId)

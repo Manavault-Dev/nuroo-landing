@@ -86,9 +86,7 @@ export class AIAssistantService {
           }
         }
       }
-    } catch {
-      // Not JSON, return as regular response
-    }
+    } catch {}
 
     return {
       response,

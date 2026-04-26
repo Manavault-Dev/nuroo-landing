@@ -117,9 +117,7 @@ export const joinRoute: FastifyPluginAsync = async (fastify) => {
 
     try {
       await inviteRef.update({ usedCount: usedCount + 1 })
-    } catch {
-      // Non-critical: ignore count update failure
-    }
+    } catch {}
 
     return { ok: true, orgId }
   })

@@ -25,14 +25,10 @@ export interface LinkedOrganization {
   linkedAt: Date
 }
 
-/**
- * Verify that the parent has access to this child
- */
 export async function verifyParentChildAccess(
   childId: string,
   parentUid: string
 ): Promise<boolean> {
-  // Check if child document has this parentUid
   const childRef = getChildRef(childId)
   const childSnap = await childRef.get()
 
@@ -42,12 +38,10 @@ export async function verifyParentChildAccess(
 
   const childData = childSnap.data()!
 
-  // Check if the child's parentUid matches
   if (childData.parentUid === parentUid) {
     return true
   }
 
-  // Also check the parent's linkedChildren array
   const parentRef = getParentRef(parentUid)
   const parentSnap = await parentRef.get()
 
@@ -62,9 +56,6 @@ export async function verifyParentChildAccess(
   return false
 }
 
-/**
- * Get linked organizations for a parent
- */
 export async function getParentLinkedOrganizations(
   parentUid: string
 ): Promise<LinkedOrganization[]> {
@@ -87,14 +78,10 @@ export async function getParentLinkedOrganizations(
   )
 }
 
-/**
- * Get specialists that have access to a child
- */
 export async function getChildSpecialists(
   childId: string,
   parentUid: string
 ): Promise<LinkedSpecialist[]> {
-  // First verify parent has access
   const hasAccess = await verifyParentChildAccess(childId, parentUid)
   if (!hasAccess) {
     throw new Error('Access denied: You do not have access to this child')
@@ -103,7 +90,6 @@ export async function getChildSpecialists(
   const specialists: LinkedSpecialist[] = []
   const _db = getFirestore()
 
-  // Get all organizations the child is linked to
   const childRef = getChildRef(childId)
   const childSnap = await childRef.get()
 
@@ -118,12 +104,10 @@ export async function getChildSpecialists(
     return []
   }
 
-  // Get organization info
   const orgRef = getOrganizationRef(orgId)
   const orgSnap = await orgRef.get()
   const orgName = orgSnap.exists ? orgSnap.data()!.name : 'Organization'
 
-  // Find the child's entry in the org to get specialist info
   const orgChildrenRef = getOrgChildrenRef(orgId)
   const orgChildSnap = await orgChildrenRef.doc(childId).get()
 
@@ -152,27 +136,23 @@ export async function getChildSpecialists(
   return specialists
 }
 
-/**
- * Get notes for a child that are visible to the parent
- */
 export async function getChildNotesForParent(
   childId: string,
   parentUid: string
 ): Promise<SpecialistNote[]> {
-  // First verify parent has access
   const hasAccess = await verifyParentChildAccess(childId, parentUid)
   if (!hasAccess) {
     throw new Error('Access denied: You do not have access to this child')
   }
 
   const notesRef = getChildNotesRef(childId)
-  // Get notes that are visible to parent (default: true)
+
   const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
   return notesSnapshot.docs
     .filter((doc) => {
       const data = doc.data()
-      // If visibleToParent is not set, default to true
+
       return data.visibleToParent !== false
     })
     .map((doc) => {
@@ -191,9 +171,6 @@ export async function getChildNotesForParent(
     })
 }
 
-/**
- * Get all children linked to a parent
- */
 export async function getParentChildren(parentUid: string): Promise<string[]> {
   const parentRef = getParentRef(parentUid)
   const parentSnap = await parentRef.get()
