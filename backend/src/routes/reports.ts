@@ -52,7 +52,6 @@ async function getChildName(
 ): Promise<string> {
   const uid = parentUserId || childId
 
-  // 1. children/{childId} — legacy path
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   if (childSnap.exists) {
     const d = childSnap.data()
@@ -61,7 +60,6 @@ async function getChildName(
     if (d?.firstName) return d.lastName ? `${d.firstName} ${d.lastName}` : (d.firstName as string)
   }
 
-  // 2. users/{uid} — where the mobile app stores the child name during onboarding
   const userSnap = await db.doc(`users/${uid}`).get()
   if (userSnap.exists) {
     const d = userSnap.data()
@@ -70,14 +68,11 @@ async function getChildName(
     if (d?.firstName) return d.lastName ? `${d.firstName} ${d.lastName}` : (d.firstName as string)
   }
 
-  // 3. Firebase Auth displayName — last resort
   try {
     const user = await admin.auth().getUser(uid)
     if (user.displayName) return user.displayName
     if (user.email) return user.email.split('@')[0]
-  } catch {
-    // not found
-  }
+  } catch {}
 
   return childId
 }
@@ -121,7 +116,6 @@ async function getOrgContentCompletions(
     const data = doc.data()
     const childId = data.childId as string | undefined
 
-    // If a specialist scope is given, skip children not in their list
     if (allowedChildIds && childId && !allowedChildIds.has(childId)) return
 
     totalCompleted++
@@ -166,7 +160,6 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
         const snap = await orgChildrenRef.where('assigned', '==', true).get()
         docs = snap.docs
       } else {
-        // 1. Directly assigned children
         const directSnap = await orgChildrenRef
           .where('assigned', '==', true)
           .where('assignedSpecialistId', '==', uid)
@@ -175,7 +168,6 @@ export const reportsRoute: FastifyPluginAsync = async (fastify) => {
         const seenIds = new Set(directSnap.docs.map((d) => d.id))
         docs = [...directSnap.docs]
 
-        // 2. Children from this specialist's groups
         const groupsSnap = await db
           .collection(`specialists/${uid}/groups`)
           .where('orgId', '==', orgId)

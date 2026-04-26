@@ -20,13 +20,6 @@ const updateOrgSchema = z
     message: 'At least one field (name or country) must be provided',
   })
 
-/**
- * Self-serve organization creation.
- *
- * This is the "Organizer" flow:
- * - authenticated user creates an org
- * - user becomes `org_admin` of that org
- */
 export const orgsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: z.infer<typeof createOrgSchema> }>('/orgs', async (request, reply) => {
     if (!request.user) {
@@ -40,7 +33,6 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
     const trialExpiresAt = new Date(now)
     trialExpiresAt.setDate(trialExpiresAt.getDate() + FREE_TRIAL_DAYS)
 
-    // Prevent duplicate org names for the same creator (simple UX guard).
     const existing = await db
       .collection('organizations')
       .where('createdBy', '==', uid)
@@ -69,7 +61,6 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       },
     })
 
-    // Make requester an org admin.
     await orgRef
       .collection('members')
       .doc(uid)
@@ -79,7 +70,6 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
         joinedAt: admin.firestore.Timestamp.fromDate(now),
       })
 
-    // Ensure specialist profile exists (session endpoint requires it).
     const specialistRef = db.doc(`specialists/${uid}`)
     const specialistSnap = await specialistRef.get()
     if (specialistSnap.exists) {

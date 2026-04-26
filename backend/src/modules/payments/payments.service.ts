@@ -10,7 +10,6 @@ import {
 } from './payments.repository.js'
 import type { CreatePaymentInput, WebhookInput } from './payments.schema.js'
 
-// Official Finik signing library (@mancho.devs/authorizer)
 const _require = createRequire(import.meta.url)
 const { Signer } = _require('@mancho.devs/authorizer') as {
   Signer: new (data: {
@@ -24,7 +23,6 @@ const { Signer } = _require('@mancho.devs/authorizer') as {
   }
 }
 
-// Configuration
 const _finikRawUrl = config.FINIK_API_URL || 'https://api.acquiring.averspay.kg/payment'
 const _finikParsed = new URL(_finikRawUrl)
 const FINIK_HOST = _finikParsed.hostname
@@ -46,7 +44,6 @@ const PLANS: Record<string, { price: number; name: string }> = {
   enterprise: { price: 4500, name: 'NeuroKids' },
 }
 
-// Shallow sort — matches official Finik library behavior
 function shallowSort(body: Record<string, unknown>): Record<string, unknown> {
   return Object.entries(body)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -59,7 +56,6 @@ function shallowSort(body: Record<string, unknown>): Record<string, unknown> {
     )
 }
 
-// Payment service
 export async function createPayment(input: CreatePaymentInput, _userId: string) {
   if (!FINIK_API_KEY || !FINIK_ACCOUNT_ID || !FINIK_PRIVATE_KEY) {
     throw new Error('Finik payment system is not configured')
@@ -88,7 +84,6 @@ export async function createPayment(input: CreatePaymentInput, _userId: string) 
     RedirectUrl: `${B2B_URL}/b2b/billing/success?paymentId=${paymentId}`,
   }
 
-  // Sign using the official Finik authorizer package
   const signer = new Signer({
     httpMethod: 'POST',
     path: FINIK_PATH,

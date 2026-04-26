@@ -178,7 +178,6 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(503).send({ error: 'AI not configured' })
     }
 
-    // Build session context string for the LLM
     const ctxLines: string[] = []
     if (context?.lastGroupName) ctxLines.push(`Last referenced group: "${context.lastGroupName}"`)
     if (context?.lastChildNames?.length)
@@ -214,9 +213,7 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
       let params: Record<string, unknown> = {}
       try {
         params = JSON.parse(toolCall.function.arguments)
-      } catch {
-        // keep empty params
-      }
+      } catch {}
 
       return { type: toolCall.function.name, params, raw: message }
     } catch (error) {
@@ -225,10 +222,6 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /orgs/:orgId/ai/chat — mobile-compatible AI assistant chat.
-  // The original /ai/chat reads orgId from JWT custom claims which mobile users
-  // don't have. This endpoint accepts orgId via the route param and uses the
-  // same aiAssistant.process() service with no duplicated business logic.
   fastify.post<{
     Params: { orgId: string }
     Body: { message: string; mode?: 'chat' | 'voice' }

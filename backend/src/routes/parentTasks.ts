@@ -20,10 +20,6 @@ const completeBodySchema = z.object({
   completed: z.boolean(),
 })
 
-/**
- * Parent-facing API: list tasks for a child and mark as complete.
- * Requires Firebase Bearer token; caller must be the parent of the child in the org.
- */
 export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { childId: string } }>(
     '/api/parent/children/:childId/tasks',
@@ -148,7 +144,6 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // Parent submits homework evidence (text + optional file URL from Firebase Storage)
   fastify.patch<{
     Params: { childId: string; taskId: string }
     Body: { submissionText?: string; fileUrl?: string }

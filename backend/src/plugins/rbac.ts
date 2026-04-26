@@ -34,13 +34,6 @@ export async function requireOrgMember(
   }
 }
 
-/**
- * Check if user can access a child
- * Rules:
- * - Org Admin: Can access ALL children in their org
- * - Specialist: Can access children assigned to them directly (assignedSpecialistId === their uid)
- *              OR children that belong to any of their groups in this org
- */
 export async function requireChildAccess(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -95,16 +88,14 @@ export async function requireChildAccess(
     assignmentSnap = byParentSnap.docs[0]
   }
 
-  // Org Admin can access all children
   if (role === 'org_admin') {
     if (!assignmentSnap.exists || assignmentSnap.data()?.assigned !== true) {
       return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
     }
 
-    return resolvedChildId // Org Admin has access
+    return resolvedChildId
   }
 
-  // Specialist: Check direct assignment or group membership
   if (role === 'specialist') {
     if (!assignmentSnap.exists) {
       return reply.code(404).send({ error: 'Child not assigned to this organization' }) as never
@@ -115,13 +106,11 @@ export async function requireChildAccess(
       return reply.code(403).send({ error: 'Child assignment is inactive' }) as never
     }
 
-    // 1. Direct assignment
     const assignedSpecialistId = assignmentData.assignedSpecialistId
     if (assignedSpecialistId === uid) {
-      return resolvedChildId // Has direct access
+      return resolvedChildId
     }
 
-    // 2. Group membership — check if this child is in any of the specialist's groups
     const groupsSnap = await db
       .collection(`specialists/${uid}/groups`)
       .where('orgId', '==', orgId)
@@ -134,7 +123,7 @@ export async function requireChildAccess(
       for (const parentDoc of parentsSnap.docs) {
         const childIds = (parentDoc.data().childIds as string[]) || []
         if (childIds.includes(resolvedChildId)) {
-          return resolvedChildId // Has access via group
+          return resolvedChildId
         }
       }
     }
@@ -142,14 +131,9 @@ export async function requireChildAccess(
     return reply.code(403).send({ error: 'Child is not assigned to you' }) as never
   }
 
-  // Unknown role
   return reply.code(403).send({ error: 'Invalid role' }) as never
 }
 
-/**
- * @deprecated Use requireChildAccess instead
- * Kept for backward compatibility
- */
 export async function requireChildAssigned(
   request: FastifyRequest,
   reply: FastifyReply,

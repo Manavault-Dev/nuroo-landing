@@ -7,7 +7,6 @@ import fs from 'fs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const nodeEnv = process.env.NODE_ENV || 'development'
 
-// Load env files in priority order (later overrides earlier)
 const envFiles = [
   path.join(__dirname, '../.env'),
   path.join(__dirname, '../.env.local'),

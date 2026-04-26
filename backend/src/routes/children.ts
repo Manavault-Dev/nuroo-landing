@@ -52,7 +52,6 @@ async function fetchAssignedChildren(
     return orgChildrenRef.where('assigned', '==', true).get()
   }
 
-  // 1. Children directly assigned to this specialist via assignedSpecialistId
   const directSnap = await orgChildrenRef
     .where('assigned', '==', true)
     .where('assignedSpecialistId', '==', uid)
@@ -61,7 +60,6 @@ async function fetchAssignedChildren(
   const seenIds = new Set(directSnap.docs.map((d) => d.id))
   const allDocs: admin.firestore.QueryDocumentSnapshot[] = [...directSnap.docs]
 
-  // 2. Children from this specialist's groups (added via group membership)
   const groupsSnap = await db
     .collection(`specialists/${uid}/groups`)
     .where('orgId', '==', orgId)
@@ -83,7 +81,6 @@ async function fetchAssignedChildren(
       }
     }
 
-    // Fetch org_children docs for group children in batches of 10 (Firestore limit)
     for (let i = 0; i < newChildIds.length; i += 10) {
       const batch = newChildIds.slice(i, i + 10)
       const batchSnap = await orgChildrenRef
@@ -96,7 +93,6 @@ async function fetchAssignedChildren(
   return { docs: allDocs }
 }
 
-/** Name fields as stored by registration / sync (org link, child profile, user doc). */
 function pickStoredProfileName(
   data: admin.firestore.DocumentData | null | undefined
 ): string | null {
@@ -123,11 +119,9 @@ async function resolveChildName(
   parentUserId?: string,
   orgLinkData?: admin.firestore.DocumentData | null
 ): Promise<string> {
-  // 0. Denormalized name on org–child link (same payload the API persists when present)
   const fromLink = pickStoredProfileName(orgLinkData ?? undefined)
   if (fromLink) return fromLink
 
-  // 1. Global child profile (canonical registration doc)
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   if (childSnap.exists) {
     const d = childSnap.data()
@@ -135,7 +129,6 @@ async function resolveChildName(
     if (fromChild && fromChild !== 'Unknown') return fromChild
   }
 
-  // 2. Child’s own user doc (mobile: users/{childId})
   const userSnap = await db.doc(`users/${childId}`).get()
   if (userSnap.exists) {
     const u = userSnap.data()
@@ -143,7 +136,6 @@ async function resolveChildName(
     if (fromUser && fromUser !== 'Unknown') return fromUser
   }
 
-  // 3. Parent profile may mirror childName for the linked minor
   if (parentUserId && parentUserId !== childId) {
     const parentSnap = await db.doc(`users/${parentUserId}`).get()
     if (parentSnap.exists) {
@@ -153,16 +145,13 @@ async function resolveChildName(
     }
   }
 
-  // 4. Firebase Auth — child account first, then parent (matches finance route ordering)
   const authUids = [...new Set([childId, parentUserId].filter(Boolean) as string[])]
   for (const uid of authUids) {
     try {
       const user = await admin.auth().getUser(uid)
       if (user.displayName?.trim()) return user.displayName.trim()
       if (user.email) return user.email.split('@')[0]
-    } catch {
-      // try next uid
-    }
+    } catch {}
   }
 
   return 'Unknown'
@@ -208,7 +197,6 @@ async function fetchChildDetails(
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   const childData = childSnap.exists ? childSnap.data() : null
 
-  // Also check users collection for age
   const userSnap = await db.doc(`users/${childId}`).get()
   const userData = userSnap.exists ? userSnap.data() : null
 
@@ -272,7 +260,6 @@ async function resolveUserName(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<{ name: string; email: string | null }> {
-  // 1. users/{uid} — where mobile app stores the name
   const userSnap = await db.doc(`users/${uid}`).get()
   if (userSnap.exists) {
     const d = userSnap.data()!
@@ -280,7 +267,6 @@ async function resolveUserName(
     if (name) return { name: name as string, email: d.email || null }
   }
 
-  // 2. Firebase Auth
   try {
     const user = await admin.auth().getUser(uid)
     const name = user.displayName || user.email?.split('@')[0] || uid.slice(0, 8)
@@ -534,7 +520,6 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        // Get the parentUserId from the org-child link
         const linkSnap = await db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get()
         const linkData = linkSnap.exists ? linkSnap.data() : null
         const parentUserId = linkData?.parentUserId
@@ -543,7 +528,6 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         const childSnap = await childRef.get()
         const childData = childSnap.exists ? childSnap.data() : null
 
-        // Also check users collection
         const userSnap = await db.doc(`users/${resolvedChildId}`).get()
         const userData = userSnap.exists ? userSnap.data() : null
 
@@ -632,7 +616,6 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // ——— Tasks: list and create (specialist/org_admin) ———
   fastify.get<{ Params: { orgId: string; childId: string } }>(
     '/orgs/:orgId/children/:childId/tasks',
     async (request, reply) => {
@@ -672,8 +655,6 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // DELETE /orgs/:orgId/connections/:parentUserId
-  // Org-admin only: disconnect a parent from the org and cascade-remove from all groups
   fastify.delete<{ Params: { orgId: string; parentUserId: string } }>(
     '/orgs/:orgId/connections/:parentUserId',
     async (request, reply) => {
@@ -687,7 +668,6 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const now = admin.firestore.Timestamp.fromDate(new Date())
 
-        // Step A: soft-delete all children of this parent in the org
         const orgChildrenRef = db.collection(COLLECTIONS.ORG_CHILDREN(orgId))
         const childrenSnap = await orgChildrenRef.where('parentUserId', '==', parentUserId).get()
 
@@ -704,10 +684,8 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        // Step B: delete the orgParents record
         await db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`).delete()
 
-        // Step C: remove parent from all specialist groups in this org
         const membersSnap = await db.collection(`organizations/${orgId}/members`).get()
         let groupsUpdated = 0
 
