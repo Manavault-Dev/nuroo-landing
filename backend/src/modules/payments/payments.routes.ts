@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 import { requireOrgMember } from '../../shared/guards/index.js'
 import {
@@ -123,12 +124,15 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!result.ok) {
           return reply.code(404).send({ error: result.error })
         }
+        // Verify caller is a member of the org that owns this payment
+        if (result.payment && (result as any).orgId) {
+          await requireOrgMember(request, reply, (result as any).orgId)
+          if (reply.sent) return
+        }
         return result
       } catch (error: unknown) {
-        console.error('Error verifying payment:', error)
-        return reply
-          .code(500)
-          .send({ error: error instanceof Error ? error.message : 'Failed to verify payment' })
+        fastify.log.error(error, 'Error verifying payment')
+        return reply.code(500).send({ error: 'Failed to verify payment' })
       }
     }
   )
@@ -137,6 +141,22 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
     '/webhooks/finik',
     async (request, reply) => {
       try {
+        const secret = process.env.FINIK_WEBHOOK_SECRET
+        if (secret) {
+          const sig = request.headers['x-finik-signature'] as string | undefined
+          const expected = createHmac('sha256', secret)
+            .update(JSON.stringify(request.body))
+            .digest('hex')
+          const sigBuf = Buffer.from(sig ?? '', 'utf8')
+          const expectedBuf = Buffer.from(expected, 'utf8')
+          if (
+            sigBuf.length !== expectedBuf.length ||
+            !timingSafeEqual(sigBuf, expectedBuf)
+          ) {
+            return reply.code(401).send({ error: 'Invalid webhook signature' })
+          }
+        }
+
         const body = webhookSchema.parse(request.body)
         const result = await handleWebhook(body)
 

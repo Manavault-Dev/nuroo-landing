@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
+import { randomInt } from 'crypto'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
 import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
@@ -12,6 +13,28 @@ const createInviteSchema = z.object({
   maxUses: z.number().min(1).max(1000).optional(),
   expiresInDays: z.number().min(1).max(365).default(30),
 })
+
+/** Display name from child profile / user doc — copied onto org–child link for stable API reads. */
+function registeredChildDisplayName(
+  childData: admin.firestore.DocumentData | null | undefined,
+  userData?: admin.firestore.DocumentData | null | undefined
+): string | undefined {
+  const flat =
+    childData?.childName ||
+    childData?.name ||
+    childData?.displayName ||
+    childData?.fullName ||
+    userData?.childName ||
+    userData?.name ||
+    userData?.displayName
+  if (typeof flat === 'string' && flat.trim()) return flat.trim()
+  if (childData?.firstName) {
+    return childData.lastName
+      ? `${childData.firstName} ${childData.lastName}`.trim()
+      : String(childData.firstName).trim()
+  }
+  return undefined
+}
 
 export const invitesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof createInviteSchema> }>(
@@ -35,7 +58,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
       let inviteCode = ''
       for (let i = 0; i < 8; i++) {
-        inviteCode += chars.charAt(Math.floor(Math.random() * chars.length))
+        inviteCode += chars.charAt(randomInt(0, chars.length))
       }
 
       const expiresAt = new Date()
@@ -90,10 +113,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
         const now = new Date()
 
-        // Generate 6-character invite code
+        const parentInviteChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
         let inviteCode = ''
-        for (let i = 0; i < 6; i++) {
-          inviteCode += Math.random().toString(36).charAt(2).toUpperCase()
+        for (let i = 0; i < 8; i++) {
+          inviteCode += parentInviteChars.charAt(randomInt(0, parentInviteChars.length))
         }
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + 365) // 1 year expiration
@@ -107,10 +130,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
           expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
           createdAt: admin.firestore.Timestamp.fromDate(now),
         })
-
-        console.log(
-          `✅ [INVITES] Created parent invite code ${inviteCode} for specialist ${uid} in org ${orgId}`
-        )
 
         return {
           ok: true,
@@ -183,8 +202,8 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
       let inviteCode = ''
-      for (let i = 0; i < 6; i++) {
-        inviteCode += chars.charAt(Math.floor(Math.random() * chars.length))
+      for (let i = 0; i < 8; i++) {
+        inviteCode += chars.charAt(randomInt(0, chars.length))
       }
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + 365)
@@ -347,6 +366,7 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const orgId = inviteData.orgId as string
+      const callerUid = request.user.uid
       const childRef = db.doc(`children/${childId}`)
       const childSnap = await childRef.get()
 
@@ -354,25 +374,31 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Child not found' })
       }
 
+      const childData = childSnap.data()
+      if (childData?.parentUserId && childData.parentUserId !== callerUid) {
+        return reply.code(403).send({ error: 'Child does not belong to this account' })
+      }
+
       const orgChildrenRef = db.doc(`organizations/${orgId}/children/${childId}`)
       const orgChildrenSnap = await orgChildrenRef.get()
 
       const now = new Date()
+
+      const linkBase = {
+        assigned: true,
+        assignedAt: admin.firestore.Timestamp.fromDate(now),
+      }
+      const registeredName = registeredChildDisplayName(childData)
+      const linkPayload = registeredName ? { ...linkBase, childName: registeredName } : linkBase
 
       if (!orgChildrenSnap.exists) {
         const canAdd = await checkOrgCanAddChild(orgId)
         if (!canAdd.ok) {
           return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
         }
-        await orgChildrenRef.set({
-          assigned: true,
-          assignedAt: admin.firestore.Timestamp.fromDate(now),
-        })
+        await orgChildrenRef.set(linkPayload)
       } else {
-        await orgChildrenRef.update({
-          assigned: true,
-          assignedAt: admin.firestore.Timestamp.fromDate(now),
-        })
+        await orgChildrenRef.update(linkPayload)
       }
 
       await childRef.update({
@@ -402,12 +428,6 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
     Body?: z.infer<typeof _useInviteSchema>
     Querystring?: { inviteCode?: string; code?: string; childId?: string }
   }>('/api/org/parent-invites/accept', async (request, reply) => {
-    console.log('🔍 /api/org/parent-invites/accept called', {
-      body: request.body,
-      query: request.query,
-      hasUser: !!request.user,
-    })
-
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -426,51 +446,26 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (!inviteCode || !childId) {
         const query = request.query as any
-        if (!inviteCode) {
-          inviteCode = query?.inviteCode || query?.code || query?.invite_code
-        }
-        if (!childId) {
-          childId = query?.childId || query?.child_id
-        }
+        if (!inviteCode) inviteCode = query?.inviteCode || query?.code || query?.invite_code
+        if (!childId) childId = query?.childId || query?.child_id
       }
 
       if (!inviteCode || typeof inviteCode !== 'string') {
         return reply.code(400).send({ error: 'Invite code is required' })
       }
-
       if (!childId || typeof childId !== 'string') {
         return reply.code(400).send({ error: 'Child ID is required' })
       }
 
       const normalizedCode = inviteCode.trim().toUpperCase()
-      console.log(
-        '🔍 [ACCEPT] Looking for invite code:',
-        normalizedCode,
-        'in collection: parentInvites'
-      )
       const inviteRef = db.doc(`parentInvites/${normalizedCode}`)
       const inviteSnap = await inviteRef.get()
 
-      console.log('🔍 [ACCEPT] Invite exists:', inviteSnap.exists)
       if (!inviteSnap.exists) {
-        console.log('❌ [ACCEPT] Invite code not found:', normalizedCode)
-        try {
-          const allInvites = await db.collection('parentInvites').limit(5).get()
-          console.log(
-            '📋 [ACCEPT] Sample invite codes in DB:',
-            allInvites.docs.map((d) => d.id)
-          )
-        } catch (e) {
-          console.error('Error listing invites:', e)
-        }
-        return reply.code(404).send({ error: 'Invalid invite code', code: normalizedCode })
+        return reply.code(404).send({ error: 'Invalid invite code' })
       }
 
       const inviteData = inviteSnap.data()!
-      console.log('✅ [ACCEPT] Invite found:', {
-        orgId: inviteData.orgId,
-        specialistId: inviteData.specialistId,
-      })
 
       if (inviteData.expiresAt) {
         const expiresAt = inviteData.expiresAt.toDate()
@@ -481,66 +476,50 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
       const orgId = inviteData.orgId as string
       const specialistId = inviteData.specialistId as string | undefined
-      console.log('🔍 [ACCEPT] Looking for child:', childId)
-      console.log('🔍 [ACCEPT] Organization:', orgId, 'Specialist:', specialistId)
-      console.log('🔍 [ACCEPT] Invite data:', {
-        orgId: inviteData.orgId,
-        specialistId: inviteData.specialistId,
-        hasSpecialistId: !!inviteData.specialistId,
-      })
       const childRef = db.doc(`children/${childId}`)
       const childSnap = await childRef.get()
-
-      console.log('🔍 [ACCEPT] Child exists:', childSnap.exists)
-
       const now = new Date()
 
-      // Get parent user ID from request (mobile app user)
-      const parentUid = request.user?.uid
-      if (!parentUid) {
-        return reply.code(401).send({ error: 'Parent user ID required' })
+      const parentUid = request.user.uid
+
+      // Verify child ownership if parentUserId is already set
+      const childData = childSnap.exists ? childSnap.data() : null
+      if (childData?.parentUserId && childData.parentUserId !== parentUid) {
+        return reply.code(403).send({ error: 'Child does not belong to this account' })
       }
 
-      // Save parent link in orgParents collection
-      if (parentUid) {
-        const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
-        const orgParentSnap = await orgParentRef.get()
+      const orgParentRef = db.doc(`orgParents/${orgId}/parents/${parentUid}`)
+      const orgParentSnap = await orgParentRef.get()
 
-        if (!orgParentSnap.exists) {
-          console.log('📝 [ACCEPT] Creating parent-org link')
-          await orgParentRef.set({
-            linkedSpecialistUid: specialistId || null,
-            joinedAt: admin.firestore.Timestamp.fromDate(now),
-          })
-        } else {
-          console.log('📝 [ACCEPT] Parent-org link already exists, updating')
-          await orgParentRef.update({
-            linkedSpecialistUid: specialistId || null,
-          })
-        }
+      if (!orgParentSnap.exists) {
+        await orgParentRef.set({
+          linkedSpecialistUid: specialistId || null,
+          joinedAt: admin.firestore.Timestamp.fromDate(now),
+        })
+      } else {
+        await orgParentRef.update({ linkedSpecialistUid: specialistId || null })
       }
 
       const orgChildrenRef = db.doc(`organizations/${orgId}/children/${childId}`)
       const orgChildrenSnap = await orgChildrenRef.get()
 
+      const userSnapForName = await db.doc(`users/${childId}`).get()
+      const userDataForName = userSnapForName.exists ? userSnapForName.data() : null
+      const registeredName = registeredChildDisplayName(childData, userDataForName)
+
       const childLinkData: any = {
         assigned: true,
         assignedAt: admin.firestore.Timestamp.fromDate(now),
         childId,
-        parentUserId: parentUid, // Save parentUserId for faster lookups
+        parentUserId: parentUid,
       }
 
-      // If specialistId is provided, assign child to that specialist
-      // Otherwise, child is available to all specialists in the org (Org Admin can see all)
+      if (registeredName) {
+        childLinkData.childName = registeredName
+      }
+
       if (specialistId) {
         childLinkData.assignedSpecialistId = specialistId
-        console.log('📝 [ACCEPT] Assigning child to specialist:', specialistId)
-        console.log('📝 [ACCEPT] Child link data will be:', childLinkData)
-      } else {
-        console.log(
-          '⚠️  [ACCEPT] No specialistId in invite! Child will NOT be visible to specialists, only to Org Admin'
-        )
-        console.log('⚠️  [ACCEPT] Invite data:', inviteData)
       }
 
       if (!orgChildrenSnap.exists) {
@@ -548,39 +527,16 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         if (!canAdd.ok) {
           return reply.code(403).send({ error: canAdd.error ?? 'Cannot add child.' })
         }
-        console.log('📝 [ACCEPT] Creating child-org link')
         await orgChildrenRef.set(childLinkData)
-        console.log('✅ [ACCEPT] Child-org link created:', childLinkData)
-
-        // Verify data was saved
-        const verifySnap = await orgChildrenRef.get()
-        if (verifySnap.exists) {
-          console.log('✅ [ACCEPT] Verification - Data saved correctly:', verifySnap.data())
-        } else {
-          console.error('❌ [ACCEPT] Verification FAILED - Data was not saved!')
-        }
       } else {
-        console.log('📝 [ACCEPT] Updating child-org link')
         await orgChildrenRef.update(childLinkData)
-        console.log('✅ [ACCEPT] Child-org link updated:', childLinkData)
-
-        // Verify data was updated
-        const verifySnap = await orgChildrenRef.get()
-        if (verifySnap.exists) {
-          console.log('✅ [ACCEPT] Verification - Data updated correctly:', verifySnap.data())
-        } else {
-          console.error('❌ [ACCEPT] Verification FAILED - Data was not updated!')
-        }
       }
 
       if (childSnap.exists) {
-        console.log('✅ [ACCEPT] Updating child organizationId')
         await childRef.update({
           organizationId: orgId,
           updatedAt: admin.firestore.Timestamp.fromDate(now),
         })
-      } else {
-        console.log('ℹ️  [ACCEPT] Child not yet created in Firestore, will be linked when created')
       }
 
       try {
@@ -589,16 +545,10 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         // Non-critical: ignore count update failure
       }
 
-      console.log('✅ [ACCEPT] Successfully connected child to specialist')
-      return {
-        ok: true,
-        orgId,
-        childId,
-        message: 'Child successfully connected to specialist',
-      }
+      return { ok: true, orgId, childId, message: 'Child successfully connected to specialist' }
     } catch (error: any) {
-      console.error('❌ [ACCEPT] Error accepting parent invite:', error)
-      return reply.code(500).send({ error: error.message || 'Failed to accept invite code' })
+      fastify.log.error(error, '[ACCEPT] Error accepting parent invite')
+      return reply.code(500).send({ error: 'Failed to accept invite code' })
     }
   })
 
@@ -765,13 +715,18 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         continue
       }
 
-      // Get child details - check children collection, users collection, then Firebase Auth
+      // Prefer name persisted on org–child link (set at invite accept), then profile / Auth
+      const fromLink =
+        (typeof linkData.childName === 'string' && linkData.childName.trim()) ||
+        (typeof linkData.name === 'string' && linkData.name.trim()) ||
+        ''
+
       const childRef = db.doc(`children/${childId}`)
       const childSnap = await childRef.get()
       const userRef = db.doc(`users/${childId}`)
       const userSnap = await userRef.get()
 
-      let childName = 'Unknown'
+      let childName = fromLink || 'Unknown'
       let childAge: number | undefined
 
       if (childSnap.exists) {
@@ -787,14 +742,22 @@ export const invitesRoute: FastifyPluginAsync = async (fastify) => {
         childAge = childAge || userData.age || userData.childAge
       }
 
-      // Fallback to Firebase Auth displayName
+      // Fallback to Firebase Auth — child first, then parent
       if (childName === 'Unknown') {
-        try {
-          const authUser = await admin.auth().getUser(parentUserId || childId)
-          if (authUser.displayName) childName = authUser.displayName
-          else if (authUser.email) childName = authUser.email.split('@')[0]
-        } catch {
-          // user not found
+        for (const uid of [...new Set([childId, parentUserId])]) {
+          try {
+            const authUser = await admin.auth().getUser(uid)
+            if (authUser.displayName) {
+              childName = authUser.displayName
+              break
+            }
+            if (authUser.email) {
+              childName = authUser.email.split('@')[0]
+              break
+            }
+          } catch {
+            // try next uid
+          }
         }
       }
 
