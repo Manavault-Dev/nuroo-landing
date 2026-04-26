@@ -1,9 +1,7 @@
 import { getFirestore } from './firebase.js'
 
-// Re-export getFirestore for convenience
 export { getFirestore }
 
-// Collection name constants
 export const COLLECTIONS = {
   ORGANIZATIONS: 'organizations',
   SPECIALISTS: 'specialists',
@@ -14,7 +12,6 @@ export const COLLECTIONS = {
   PARENTS: 'parents',
 } as const
 
-// Collection reference helpers
 export function getOrganizationsRef() {
   return getFirestore().collection(COLLECTIONS.ORGANIZATIONS)
 }

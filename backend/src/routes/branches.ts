@@ -28,7 +28,6 @@ function transformBranch(doc: admin.firestore.QueryDocumentSnapshot) {
 }
 
 export const branchesRoute: FastifyPluginAsync = async (fastify) => {
-  // GET /orgs/:orgId/branches — list all (any org member)
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/branches', async (request, reply) => {
     try {
       const { orgId } = request.params
@@ -52,7 +51,6 @@ export const branchesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /orgs/:orgId/branches — create (admin only)
   fastify.post<{ Params: { orgId: string }; Body: z.infer<typeof branchSchema> }>(
     '/orgs/:orgId/branches',
     async (request, reply) => {
@@ -96,7 +94,6 @@ export const branchesRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // PATCH /orgs/:orgId/branches/:branchId — update (admin only)
   fastify.patch<{
     Params: { orgId: string; branchId: string }
     Body: Partial<z.infer<typeof branchSchema>>
@@ -137,7 +134,6 @@ export const branchesRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // DELETE /orgs/:orgId/branches/:branchId — delete (admin only)
   fastify.delete<{ Params: { orgId: string; branchId: string } }>(
     '/orgs/:orgId/branches/:branchId',
     async (request, reply) => {

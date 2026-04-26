@@ -124,7 +124,7 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
         if (!result.ok) {
           return reply.code(404).send({ error: result.error })
         }
-        // Verify caller is a member of the org that owns this payment
+
         if (result.payment && (result as any).orgId) {
           await requireOrgMember(request, reply, (result as any).orgId)
           if (reply.sent) return

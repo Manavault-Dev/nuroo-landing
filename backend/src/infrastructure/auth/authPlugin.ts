@@ -8,19 +8,15 @@ declare module 'fastify' {
   }
 }
 
-// Routes that don't require authentication
 const PUBLIC_ROUTES = ['/health', '/plans']
 
-// Routes that require special handling
 const SKIP_AUTH_PATTERNS = [{ path: '/bootstrap/', prefix: true }]
 
 function shouldSkipAuth(url: string, method: string): boolean {
-  // Allow health check and OPTIONS
   if (PUBLIC_ROUTES.includes(url) || method === 'OPTIONS') {
     return true
   }
 
-  // Check special patterns
   for (const pattern of SKIP_AUTH_PATTERNS) {
     if (pattern.prefix && url.startsWith(pattern.path)) {
       return true

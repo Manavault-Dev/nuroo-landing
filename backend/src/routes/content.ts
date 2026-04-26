@@ -8,7 +8,6 @@ import { getFirestore, getStorage, getApp, getAuth } from '../infrastructure/dat
 const COLLECTIONS = {
   TASKS: 'content/tasks/items',
   ROADMAPS: 'content/roadmaps/items',
-  /** Completions for org content (legacy name; always keyed by orgId) */
   CONTENT_TASK_COMPLETIONS: 'alphakidsTaskCompletions',
   PARENT_INVITES: 'parentInvites',
   ORG_TASKS: (orgId: string) => `organizations/${orgId}/contentTasks`,
@@ -34,7 +33,6 @@ async function getParentInviteDoc(
   }
 }
 
-/** Resolve code to org only (parent invite). AlphaKids is no longer a special case — use an organization with invite codes. */
 async function resolveAccessCode(
   db: admin.firestore.Firestore,
   code: string
@@ -127,7 +125,6 @@ async function _getStorageBucket() {
 export const contentRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(multipart, { limits: { fileSize: 500 * 1024 * 1024 } })
 
-  /** Validate organization invite code. Parent uses this for "Join organization by code" flow. */
   fastify.post('/api/parent/access/validate', async (request, reply) => {
     const db = getFirestore()
     const body = (request.body as { code?: string }) || {}
@@ -147,7 +144,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     })
   })
 
-  /** @removed AlphaKids is no longer a separate mode. Use POST /api/parent/access/validate with organization invite code. */
   fastify.post('/api/parent/alphakids/validate', async (_request, reply) => {
     return reply.code(410).send({
       ok: false,
@@ -176,7 +172,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     return db
   }
 
-  /** Require valid org invite code; return db and orgId. Content is always org-scoped. */
   async function requireAccessCodeWithSource(
     request: { query?: { code?: string } },
     reply: { code: (n: number) => { send: (body: unknown) => unknown } }
@@ -426,9 +421,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     return { ok: true, task: transformDoc(snap) }
   })
 
-  /** @removed Global admin content removed. Content is per-organization (use /orgs/:orgId/content/*). */
-
-  /** @removed Use organization parent-invites for access codes. */
   fastify.post('/admin/content/alphakids-codes', async (_request, reply) => {
     return reply.code(410).send({
       ok: false,
@@ -438,7 +430,6 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
     })
   })
 
-  /** @removed AlphaKids is no longer a separate mode. */
   fastify.get('/admin/content/alphakids-codes', async (_request, reply) => {
     return reply.code(410).send({
       ok: false,
@@ -448,6 +439,4 @@ export const contentRoute: FastifyPluginAsync = async (fastify) => {
       count: 0,
     })
   })
-
-  /** @removed Global upload removed. Use org content and upload per organization. */
 }

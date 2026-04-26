@@ -5,7 +5,6 @@ import { AppError } from '../../shared/errors/AppError.js'
 export function errorHandler(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
   request.log.error(error)
 
-  // Handle Zod validation errors
   if (error instanceof ZodError) {
     return reply.code(400).send({
       error: 'Validation error',
@@ -16,7 +15,6 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
     })
   }
 
-  // Handle custom app errors
   if (error instanceof AppError) {
     return reply.code(error.statusCode).send({
       error: error.message,
@@ -24,7 +22,6 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
     })
   }
 
-  // Handle Firebase errors
   if (error.message?.includes('auth/')) {
     const code = error.message.match(/auth\/([a-z-]+)/)?.[1] || 'unknown'
     return reply.code(400).send({
@@ -33,7 +30,6 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
     })
   }
 
-  // Default error response
   const statusCode = error.statusCode || 500
   return reply.code(statusCode).send({
     error: statusCode >= 500 ? 'Internal server error' : error.message,

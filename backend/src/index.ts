@@ -32,6 +32,7 @@ import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js
 import { branchesRoute } from './routes/branches.js'
 import { financeRoute } from './routes/finance.js'
 import { brandingRoute } from './routes/branding.js'
+import { parentAiRoute } from './routes/parentAi.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -75,7 +76,7 @@ async function buildServer() {
   try {
     initializeFirebaseAdmin()
   } catch {
-    // Will retry on first use (e.g. ADC in Cloud Run)
+    // optional in some local/test setups; routes that need Firebase will fail fast
   }
 
   const defaultOrigins = [
@@ -167,6 +168,7 @@ async function buildServer() {
     branchesRoute,
     financeRoute,
     brandingRoute,
+    parentAiRoute,
   ]
 
   for (const route of routes) {
