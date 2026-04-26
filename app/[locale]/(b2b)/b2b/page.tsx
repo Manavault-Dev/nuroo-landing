@@ -794,7 +794,13 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {orgId && <Assistant orgId={orgId} onCommandExecuted={handleAssistantCommandExecuted} />}
+        {orgId && (
+          <Assistant
+            orgId={orgId}
+            locale={locale}
+            onCommandExecuted={handleAssistantCommandExecuted}
+          />
+        )}
       </div>
     )
   }
@@ -1004,7 +1010,13 @@ export default function DashboardPage() {
         />
       )}
 
-      {orgId && <Assistant orgId={orgId} onCommandExecuted={handleAssistantCommandExecuted} />}
+      {orgId && (
+        <Assistant
+          orgId={orgId}
+          locale={locale}
+          onCommandExecuted={handleAssistantCommandExecuted}
+        />
+      )}
     </div>
   )
 }
