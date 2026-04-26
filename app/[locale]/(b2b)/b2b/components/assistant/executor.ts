@@ -180,7 +180,7 @@ export class ActionExecutor {
     const avgCompletion = r.childCompletion.length
       ? Math.round(r.childCompletion.reduce((s, c) => s + c.percent, 0) / r.childCompletion.length)
       : 0
-    const bestGroup = r.groupCompletion.sort((a, b) => b.percent - a.percent)[0]
+    const bestGroup = [...r.groupCompletion].sort((a, b) => b.percent - a.percent)[0]
     const lines: string[] = [
       `📊 Report — last ${days} days`,
       ``,

@@ -227,7 +227,10 @@ export default function Assistant({ orgId, locale, onCommandExecuted }: Assistan
                   t={t}
                   onFormSubmit={(action) => handleFormSubmit(msg.id, action)}
                   onFormCancel={() => handleCancel(msg.id)}
-                  onConfirm={() => handleConfirm(msg.id, msg.pending!.action)}
+                  onConfirm={() => {
+                    const action = msg.pending?.action
+                    if (action) handleConfirm(msg.id, action)
+                  }}
                   onCancel={() => handleCancel(msg.id)}
                   onSuggestion={handleSuggestionAction}
                 />
