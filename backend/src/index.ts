@@ -1,5 +1,8 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import compress from '@fastify/compress'
+import rateLimit from '@fastify/rate-limit'
+import type { DecodedIdToken } from 'firebase-admin/auth'
 import { config } from './config/index.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
 import type { AuthenticatedUser } from './types.js'
@@ -36,6 +39,32 @@ declare module 'fastify' {
   }
 }
 
+const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000
+const TOKEN_CACHE_MAX_SIZE = 500
+const tokenCache = new Map<string, { decoded: DecodedIdToken; expiresAt: number }>()
+
+async function verifyIdTokenCached(token: string): Promise<DecodedIdToken> {
+  const now = Date.now()
+  const cached = tokenCache.get(token)
+
+  if (cached && cached.expiresAt > now) {
+    return cached.decoded
+  }
+
+  tokenCache.delete(token)
+  const decoded = await getAuth().verifyIdToken(token)
+  const tokenExpiresAt = decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS
+  const expiresAt = Math.min(now + TOKEN_CACHE_TTL_MS, tokenExpiresAt)
+
+  tokenCache.set(token, { decoded, expiresAt })
+  if (tokenCache.size > TOKEN_CACHE_MAX_SIZE) {
+    const oldestKey = tokenCache.keys().next().value
+    if (oldestKey) tokenCache.delete(oldestKey)
+  }
+
+  return decoded
+}
+
 async function buildServer() {
   const isProduction = config.NODE_ENV === 'production'
 
@@ -59,7 +88,7 @@ async function buildServer() {
     ? config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     : ['https://usenuroo.com']
 
-  const corsOrigins = isProduction ? [...productionOrigins, ...defaultOrigins] : defaultOrigins
+  const corsOrigins = isProduction ? productionOrigins : defaultOrigins
 
   await fastify.register(cors, {
     origin: corsOrigins,
@@ -68,6 +97,19 @@ async function buildServer() {
     credentials: true,
     preflight: true,
     strictPreflight: false,
+  })
+
+  await fastify.register(compress, {
+    global: true,
+    encodings: ['gzip', 'deflate', 'br'],
+  })
+
+  await fastify.register(rateLimit, {
+    global: false,
+    max: 1000,
+    timeWindow: '1 minute',
+    keyGenerator: (request) => request.ip,
+    errorResponseBuilder: () => ({ error: 'Too many requests, please slow down.' }),
   })
 
   fastify.addHook('preHandler', async (request, reply) => {
@@ -87,7 +129,7 @@ async function buildServer() {
 
     try {
       const token = authHeader.substring(7)
-      const decoded = await getAuth().verifyIdToken(token)
+      const decoded = await verifyIdTokenCached(token)
       request.user = {
         uid: decoded.uid,
         email: decoded.email,

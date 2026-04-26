@@ -96,48 +96,114 @@ async function fetchAssignedChildren(
   return { docs: allDocs }
 }
 
+/** Name fields as stored by registration / sync (org link, child profile, user doc). */
+function pickStoredProfileName(
+  data: admin.firestore.DocumentData | null | undefined
+): string | null {
+  if (!data) return null
+  const n =
+    data.childName ||
+    data.name ||
+    data.displayName ||
+    data.fullName ||
+    data.registeredName ||
+    data.nickname
+  if (typeof n === 'string' && n.trim()) return n.trim()
+  if (data.firstName) {
+    const fn = data.firstName as string
+    const ln = data.lastName as string | undefined
+    return ln ? `${fn} ${ln}`.trim() : fn
+  }
+  return null
+}
+
 async function resolveChildName(
   db: admin.firestore.Firestore,
   childId: string,
-  parentUserId?: string
+  parentUserId?: string,
+  orgLinkData?: admin.firestore.DocumentData | null
 ): Promise<string> {
-  // 1. Try the global children collection
+  // 0. Denormalized name on org–child link (same payload the API persists when present)
+  const fromLink = pickStoredProfileName(orgLinkData ?? undefined)
+  if (fromLink) return fromLink
+
+  // 1. Global child profile (canonical registration doc)
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   if (childSnap.exists) {
     const d = childSnap.data()
-    if (d?.name) return d.name as string
-    if (d?.childName) return d.childName as string
-    if (d?.fullName) return d.fullName as string
-    if (d?.firstName) {
-      return d.lastName ? `${d.firstName} ${d.lastName}` : (d.firstName as string)
-    }
+    const fromChild = pickStoredProfileName(d ?? undefined)
+    if (fromChild && fromChild !== 'Unknown') return fromChild
   }
 
-  // 2. Try the users collection (mobile app stores child name in users/{uid}.name)
+  // 2. Child’s own user doc (mobile: users/{childId})
   const userSnap = await db.doc(`users/${childId}`).get()
   if (userSnap.exists) {
     const u = userSnap.data()
-    if (u?.name) return u.name as string
-    if (u?.childName) return u.childName as string
+    const fromUser = pickStoredProfileName(u ?? undefined)
+    if (fromUser && fromUser !== 'Unknown') return fromUser
   }
 
-  // 3. Fallback to Firebase Auth displayName
-  const uidToLookup = parentUserId || childId
-  try {
-    const user = await admin.auth().getUser(uidToLookup)
-    if (user.displayName) return user.displayName
-    if (user.email) return user.email.split('@')[0]
-  } catch {
-    // user not found in Auth
+  // 3. Parent profile may mirror childName for the linked minor
+  if (parentUserId && parentUserId !== childId) {
+    const parentSnap = await db.doc(`users/${parentUserId}`).get()
+    if (parentSnap.exists) {
+      const p = parentSnap.data()
+      const fromParent = pickStoredProfileName(p ?? undefined)
+      if (fromParent && fromParent !== 'Unknown') return fromParent
+    }
+  }
+
+  // 4. Firebase Auth — child account first, then parent (matches finance route ordering)
+  const authUids = [...new Set([childId, parentUserId].filter(Boolean) as string[])]
+  for (const uid of authUids) {
+    try {
+      const user = await admin.auth().getUser(uid)
+      if (user.displayName?.trim()) return user.displayName.trim()
+      if (user.email) return user.email.split('@')[0]
+    } catch {
+      // try next uid
+    }
   }
 
   return 'Unknown'
 }
 
+function resolveChildNameFromData(
+  childId: string,
+  childData: admin.firestore.DocumentData | null | undefined,
+  userData: admin.firestore.DocumentData | null | undefined
+): string | null {
+  const childName =
+    childData?.name ||
+    childData?.childName ||
+    childData?.fullName ||
+    (childData?.firstName
+      ? childData.lastName
+        ? `${childData.firstName} ${childData.lastName}`
+        : childData.firstName
+      : undefined)
+  if (childName) return childName as string
+
+  const userName =
+    userData?.name ||
+    userData?.childName ||
+    userData?.fullName ||
+    userData?.displayName ||
+    (userData?.firstName
+      ? userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName
+      : undefined)
+  if (userName) return userName as string
+
+  return childId || null
+}
+
 async function fetchChildDetails(
   db: admin.firestore.Firestore,
   childId: string,
-  parentUserId?: string
+  parentUserId?: string,
+  orgLinkData?: admin.firestore.DocumentData | null
 ) {
   const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
   const childData = childSnap.exists ? childSnap.data() : null
@@ -146,21 +212,25 @@ async function fetchChildDetails(
   const userSnap = await db.doc(`users/${childId}`).get()
   const userData = userSnap.exists ? userSnap.data() : null
 
-  const name = await resolveChildName(db, childId, parentUserId)
+  const name = await resolveChildName(db, childId, parentUserId, orgLinkData)
   const age = childData?.age || childData?.childAge || userData?.age || userData?.childAge
 
   return { name, age }
 }
 
-function groupChildrenByParent(
-  childrenDocs: admin.firestore.QueryDocumentSnapshot[]
-): Map<string, ChildInfo[]> {
+function groupChildrenByParent(childrenDocs: admin.firestore.QueryDocumentSnapshot[]): {
+  parentMap: Map<string, ChildInfo[]>
+  orgLinkByChildId: Map<string, admin.firestore.DocumentData>
+} {
   const parentMap = new Map<string, ChildInfo[]>()
+  const orgLinkByChildId = new Map<string, admin.firestore.DocumentData>()
 
   for (const childDoc of childrenDocs) {
     const linkData = childDoc.data()
     const childId = childDoc.id
     const parentUserId = linkData.parentUserId
+
+    orgLinkByChildId.set(childId, linkData)
 
     if (!parentUserId) {
       continue
@@ -178,20 +248,24 @@ function groupChildrenByParent(
     })
   }
 
-  return parentMap
+  return { parentMap, orgLinkByChildId }
 }
 
 async function enrichChildrenWithDetails(
   db: admin.firestore.Firestore,
-  parentMap: Map<string, ChildInfo[]>
+  parentMap: Map<string, ChildInfo[]>,
+  orgLinkByChildId: Map<string, admin.firestore.DocumentData>
 ) {
-  for (const [parentUserId, children] of parentMap.entries()) {
-    for (const child of children) {
-      const details = await fetchChildDetails(db, child.childId, parentUserId)
-      child.childName = details.name
-      child.childAge = details.age
-    }
-  }
+  await Promise.all(
+    Array.from(parentMap.entries()).flatMap(([parentUserId, children]) =>
+      children.map(async (child) => {
+        const linkData = orgLinkByChildId.get(child.childId)
+        const details = await fetchChildDetails(db, child.childId, parentUserId, linkData)
+        child.childName = details.name
+        child.childAge = details.age
+      })
+    )
+  )
 }
 
 async function resolveUserName(
@@ -358,9 +432,9 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
 
       const db = getFirestore()
       const assignedChildrenSnap = await fetchAssignedChildren(db, orgId, role, uid)
-      const parentMap = groupChildrenByParent(assignedChildrenSnap.docs)
+      const { parentMap, orgLinkByChildId } = groupChildrenByParent(assignedChildrenSnap.docs)
 
-      await enrichChildrenWithDetails(db, parentMap)
+      await enrichChildrenWithDetails(db, parentMap, orgLinkByChildId)
 
       const connections = await Promise.all(
         Array.from(parentMap.entries()).map(([parentUserId, children]) =>
@@ -401,35 +475,43 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         return []
       }
 
-      const children: ChildSummary[] = []
+      const children = await Promise.all(
+        childIds.map(async (childId): Promise<ChildSummary> => {
+          const linkDoc = assignedChildrenSnap.docs.find((d) => d.id === childId)
+          const linkData = linkDoc?.data()
+          const parentUserId = linkData?.parentUserId
 
-      for (const childId of childIds) {
-        const linkDoc = assignedChildrenSnap.docs.find((d) => d.id === childId)
-        const parentUserId = linkDoc?.data()?.parentUserId
+          const [progressData, completedTasksCount, userSnap, childSnap] = await Promise.all([
+            fetchChildProgress(db, childId),
+            countCompletedTasks(db, childId),
+            db.doc(`users/${childId}`).get(),
+            db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get(),
+          ])
 
-        const progressData = await fetchChildProgress(db, childId)
-        const completedTasksCount = await countCompletedTasks(db, childId)
-        const childName = await resolveChildName(db, childId, parentUserId)
+          const userData = userSnap.exists ? userSnap.data() : null
+          const childData = childSnap.exists ? childSnap.data() : null
+          let childName =
+            pickStoredProfileName(linkData) ||
+            resolveChildNameFromData(childId, childData, userData)
 
-        // Also try to get age from users collection
-        const userSnap = await db.doc(`users/${childId}`).get()
-        const userData = userSnap.exists ? userSnap.data() : null
-        const childSnap = await db.doc(`${COLLECTIONS.CHILDREN}/${childId}`).get()
-        const childData = childSnap.exists ? childSnap.data() : null
+          if (!childName || childName === childId) {
+            childName = await resolveChildName(db, childId, parentUserId, linkData)
+          }
 
-        children.push({
-          id: childId,
-          name: childName,
-          age: childData?.age || childData?.childAge || userData?.age || userData?.childAge,
-          speechStepId: progressData?.currentStepId,
-          speechStepNumber: progressData?.currentStepNumber,
-          lastActiveDate:
-            childData?.lastActiveDate?.toDate() ||
-            childData?.updatedAt?.toDate() ||
-            userData?.updatedAt?.toDate?.(),
-          completedTasksCount,
+          return {
+            id: childId,
+            name: childName,
+            age: childData?.age || childData?.childAge || userData?.age || userData?.childAge,
+            speechStepId: progressData?.currentStepId,
+            speechStepNumber: progressData?.currentStepNumber,
+            lastActiveDate:
+              childData?.lastActiveDate?.toDate() ||
+              childData?.updatedAt?.toDate() ||
+              userData?.updatedAt?.toDate?.(),
+            completedTasksCount,
+          }
         })
-      }
+      )
 
       return children
     } catch (error: unknown) {
@@ -448,30 +530,31 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         const { orgId, childId } = request.params
 
         await requireOrgMember(request, reply, orgId)
-        await requireChildAccess(request, reply, orgId, childId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
 
         // Get the parentUserId from the org-child link
-        const linkSnap = await db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`).get()
-        const parentUserId = linkSnap.exists ? linkSnap.data()?.parentUserId : undefined
+        const linkSnap = await db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get()
+        const linkData = linkSnap.exists ? linkSnap.data() : null
+        const parentUserId = linkData?.parentUserId
 
-        const childRef = db.doc(`${COLLECTIONS.CHILDREN}/${childId}`)
+        const childRef = db.doc(`${COLLECTIONS.CHILDREN}/${resolvedChildId}`)
         const childSnap = await childRef.get()
         const childData = childSnap.exists ? childSnap.data() : null
 
         // Also check users collection
-        const userSnap = await db.doc(`users/${childId}`).get()
+        const userSnap = await db.doc(`users/${resolvedChildId}`).get()
         const userData = userSnap.exists ? userSnap.data() : null
 
         if (!childSnap.exists && !userSnap.exists) {
           return reply.code(404).send({ error: 'Child not found' })
         }
 
-        const childName = await resolveChildName(db, childId, parentUserId)
-        const progressData = await fetchChildProgress(db, childId)
+        const childName = await resolveChildName(db, resolvedChildId, parentUserId, linkData)
+        const progressData = await fetchChildProgress(db, resolvedChildId)
 
-        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(childId))
+        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId))
         const tasksSnapshot = await tasksRef.orderBy('updatedAt', 'desc').limit(10).get()
 
         const recentTasks = tasksSnapshot.docs.map((doc) => {
@@ -484,10 +567,10 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
 
-        const completedTasksCount = await countCompletedTasks(db, childId)
+        const completedTasksCount = await countCompletedTasks(db, resolvedChildId)
 
         const detail: ChildDetail = {
-          id: childId,
+          id: resolvedChildId,
           name: childName,
           age: childData?.age || userData?.age,
           organizationId: childData?.organizationId || orgId,
@@ -518,20 +601,20 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       const days = parseTimelineDays(request.query.days)
 
       await requireOrgMember(request, reply, orgId)
-      await requireChildAccess(request, reply, orgId, childId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
       const now = new Date()
       const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
       const startTimestamp = admin.firestore.Timestamp.fromDate(startDate)
 
-      const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(childId))
+      const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId))
       const tasksSnapshot = await tasksRef
         .where('updatedAt', '>=', startTimestamp)
         .orderBy('updatedAt', 'desc')
         .get()
 
-      const feedbackRef = db.collection(COLLECTIONS.CHILD_FEEDBACK(childId))
+      const feedbackRef = db.collection(COLLECTIONS.CHILD_FEEDBACK(resolvedChildId))
       const feedbackSnapshot = await feedbackRef.where('timestamp', '>=', startTimestamp).get()
 
       const activityMap = buildActivityMap(tasksSnapshot.docs)
@@ -556,10 +639,10 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       try {
         const { orgId, childId } = request.params
         await requireOrgMember(request, reply, orgId)
-        await requireChildAccess(request, reply, orgId, childId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
-        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(childId))
+        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId))
         const snapshot = await tasksRef.orderBy('updatedAt', 'desc').get()
 
         const tasks = snapshot.docs.map((doc) => {
@@ -669,7 +752,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId } = request.params
       await requireOrgMember(request, reply, orgId)
-      await requireChildAccess(request, reply, orgId, childId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
       if (!request.user) return
 
       const parse = createTaskSchema.safeParse(request.body)
@@ -692,7 +775,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         updatedAt: now,
         completedAt: null,
       }
-      const taskRef = await db.collection(COLLECTIONS.CHILD_TASKS(childId)).add(taskData)
+      const taskRef = await db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId)).add(taskData)
 
       return reply.code(201).send({
         id: taskRef.id,

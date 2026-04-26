@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { config } from '../config/index.js'
 
 const ORG_CHILDREN = (orgId: string) => `organizations/${orgId}/children`
 const ORG_ATTENDANCE = (orgId: string) => `organizations/${orgId}/attendance`
@@ -78,7 +79,7 @@ async function resolveChildName(
     }
   }
 
-  return 'Ребёнок'
+  return 'Unknown'
 }
 
 function computeBillingMeta(
@@ -120,13 +121,25 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       try {
         const { orgId } = request.params
-        await requireOrgMember(request, reply, orgId)
+        const member = await requireOrgMember(request, reply, orgId)
+        const uid = request.user!.uid
 
         const date = (request.query as any).date || new Date().toISOString().split('T')[0]
 
         const db = getFirestore()
 
-        const childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
+        // Specialists see only their assigned children; admins see all
+        let childrenSnap: admin.firestore.QuerySnapshot
+        if (member.role === 'org_admin') {
+          childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
+        } else {
+          childrenSnap = await db
+            .collection(ORG_CHILDREN(orgId))
+            .where('assigned', '==', true)
+            .where('assignedSpecialistId', '==', uid)
+            .get()
+        }
+
         const children = await Promise.all(
           childrenSnap.docs.map(async (doc) => {
             const data = doc.data()
@@ -174,7 +187,10 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, date, records }
       } catch (error: any) {
         console.error('[FINANCE] Error getting attendance:', error)
-        return reply.code(500).send({ error: 'Failed to get attendance', details: error.message })
+        return reply.code(500).send({
+          error: 'Failed to get attendance',
+          details: config.NODE_ENV === 'production' ? undefined : error.message,
+        })
       }
     }
   )
@@ -210,7 +226,10 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, message: 'Attendance recorded' }
       } catch (error: any) {
         console.error('[FINANCE] Error saving attendance:', error)
-        return reply.code(500).send({ error: 'Failed to save attendance', details: error.message })
+        return reply.code(500).send({
+          error: 'Failed to save attendance',
+          details: config.NODE_ENV === 'production' ? undefined : error.message,
+        })
       }
     }
   )
@@ -282,7 +301,10 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, month, records }
       } catch (error: any) {
         console.error('[FINANCE] Error getting fees:', error)
-        return reply.code(500).send({ error: 'Failed to get fees', details: error.message })
+        return reply.code(500).send({
+          error: 'Failed to get fees',
+          details: config.NODE_ENV === 'production' ? undefined : error.message,
+        })
       }
     }
   )
@@ -326,7 +348,10 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, message: 'Fee recorded' }
       } catch (error: any) {
         console.error('[FINANCE] Error saving fee:', error)
-        return reply.code(500).send({ error: 'Failed to save fee', details: error.message })
+        return reply.code(500).send({
+          error: 'Failed to save fee',
+          details: config.NODE_ENV === 'production' ? undefined : error.message,
+        })
       }
     }
   )
