@@ -111,7 +111,7 @@ export default function ChildrenPage() {
     : children
 
   const activeCount = children.filter((c) => (daysSince(c.lastActiveDate) ?? 99) <= 7).length
-  const inactiveCount = children.filter((c) => (daysSince(c.lastActiveDate) ?? 99) > 14).length
+  const inactiveCount = children.filter((c) => getStatus(c) === 'inactive').length
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl">

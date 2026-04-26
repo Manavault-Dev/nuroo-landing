@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { translations } from './translations'
 import { TranslationSet } from './types'
 import { useAssistant } from './useAssistant'
@@ -9,12 +9,20 @@ import { Mic, MicOff, X, Loader2, MessageCircle, Send, Bot, HelpCircle } from 'l
 
 interface AssistantProps {
   orgId: string
+  /** App locale from `useLocale()` — keeps assistant copy in sync on first paint (no post-mount pathname race). */
+  locale: string
   onCommandExecuted?: () => void
 }
 
-export default function Assistant({ orgId, onCommandExecuted }: AssistantProps) {
-  const [locale, setLocale] = useState<string>('en')
-  const [t, setT] = useState<TranslationSet>(translations.en)
+function translationForLocale(locale: string): TranslationSet {
+  if (locale === 'ru' || locale === 'ky' || locale === 'en') {
+    return translations[locale]
+  }
+  return translations.en
+}
+
+export default function Assistant({ orgId, locale, onCommandExecuted }: AssistantProps) {
+  const t = useMemo(() => translationForLocale(locale), [locale])
   const [isOpen, setIsOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'error'>('idle')
@@ -22,6 +30,8 @@ export default function Assistant({ orgId, onCommandExecuted }: AssistantProps) 
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const handleInputRef = useRef<(text: string) => Promise<void>>(async () => {})
+  /** One auto `show_reports` per panel open when the thread is empty (avoids duplicate if `handleChipAction` identity changes mid-bootstrap). */
+  const didBootstrapReportsRef = useRef(false)
 
   const {
     messages,
@@ -40,29 +50,19 @@ export default function Assistant({ orgId, onCommandExecuted }: AssistantProps) 
   } = useAssistant(orgId, t, onCommandExecuted)
 
   useEffect(() => {
-    const path = window.location.pathname
-    if (path.startsWith('/ru')) {
-      setLocale('ru')
-      setT(translations.ru)
-    } else if (path.startsWith('/ky')) {
-      setLocale('ky')
-      setT(translations.ky)
-    } else {
-      setLocale('en')
-      setT(translations.en)
-    }
-  }, [])
-
-  useEffect(() => {
     handleInputRef.current = handleInput
   }, [handleInput])
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (!isOpen) {
+      didBootstrapReportsRef.current = false
+      return
+    }
+    if (messages.length === 0 && !didBootstrapReportsRef.current) {
+      didBootstrapReportsRef.current = true
       handleChipAction('show_reports')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  }, [isOpen, messages.length, handleChipAction])
 
   useEffect(() => {
     const SR =
