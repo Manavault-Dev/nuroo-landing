@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { sendPushToUser } from '../services/pushNotificationService.js'
 
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
@@ -97,6 +98,14 @@ export const assignmentsRoute: FastifyPluginAsync = async (fastify) => {
 
         const childAssignmentRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`)
         await childAssignmentRef.update(buildAssignmentUpdate(specialistId, now))
+
+        const childName = (await childAssignmentRef.get()).data()?.name || 'A child'
+        sendPushToUser(specialistId, {
+          type: 'child_assigned',
+          title: `👶 New child assigned`,
+          body: `${childName} has been assigned to you`,
+          data: { childId, orgId },
+        }).catch(() => {})
 
         return {
           ok: true,

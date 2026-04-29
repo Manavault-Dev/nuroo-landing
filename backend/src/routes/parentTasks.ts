@@ -3,6 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
+import { sendPushToUser } from '../services/pushNotificationService.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',
@@ -123,11 +124,26 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const now = admin.firestore.Timestamp.fromDate(new Date())
+      const taskTitle = taskSnap.data()?.title || 'Task'
+      const childName = childSnap.data()?.name || 'Child'
+
       await taskRef.update({
         status: completed ? 'completed' : 'pending',
         completedAt: completed ? now : null,
         updatedAt: now,
       })
+
+      if (completed) {
+        const specialistId = orgChildSnap.data()?.assignedSpecialistId
+        if (specialistId) {
+          sendPushToUser(specialistId, {
+            type: 'task_completed',
+            title: `✅ Task completed`,
+            body: `${childName}'s parent completed "${taskTitle}"`,
+            data: { childId, taskId, orgId },
+          }).catch(() => {})
+        }
+      }
 
       return {
         ok: true,
@@ -173,6 +189,8 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
 
       const body = request.body as { submissionText?: string; fileUrl?: string }
       const now = admin.firestore.Timestamp.fromDate(new Date())
+      const taskTitle = taskSnap.data()?.title || 'Task'
+      const childName = childSnap.data()?.name || 'Child'
 
       await taskRef.update({
         submissionText: body.submissionText ?? null,
@@ -180,6 +198,16 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
         submittedAt: now,
         updatedAt: now,
       })
+
+      const specialistId = orgChildSnap.data()?.assignedSpecialistId
+      if (specialistId) {
+        sendPushToUser(specialistId, {
+          type: 'homework_submitted',
+          title: `📎 Homework submitted`,
+          body: `${childName}'s parent submitted "${taskTitle}" for review`,
+          data: { childId, taskId, orgId },
+        }).catch(() => {})
+      }
 
       return { ok: true, taskId, submittedAt: now.toDate() }
     } catch (error: any) {
