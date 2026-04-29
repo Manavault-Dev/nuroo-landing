@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
+import { sendPushToUser } from '../services/pushNotificationService.js'
 import type { SpecialistNote } from '../types.js'
 
 const COLLECTIONS = {
@@ -129,7 +130,22 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const now = new Date()
       const noteData = buildNoteData(orgId, uid, specialistName, body.text, body.tags, now)
 
-      const noteRef = await notesRef.add(noteData)
+      const [noteRef, orgChildSnap] = await Promise.all([
+        notesRef.add(noteData),
+        db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get(),
+      ])
+
+      const parentUserId = orgChildSnap.data()?.parentUserId
+      const childName = orgChildSnap.data()?.name || 'your child'
+
+      if (parentUserId) {
+        sendPushToUser(parentUserId, {
+          type: 'note_added',
+          title: `📋 New note from ${specialistName}`,
+          body: `${specialistName} left a note about ${childName}`,
+          data: { childId: resolvedChildId, orgId, specialistId: uid },
+        }).catch(() => {})
+      }
 
       const note: SpecialistNote = {
         id: noteRef.id,
