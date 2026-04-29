@@ -33,20 +33,19 @@ function getStatus(child: ChildSummary): Status {
   return 'inactive'
 }
 
-function StatusPill({ status }: { status: Status }) {
+function StatusPill({ status, label }: { status: Status; label: string }) {
   const map = {
     active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     inactive: 'bg-amber-50 text-amber-700 ring-amber-200',
     new: 'bg-sky-50 text-sky-700 ring-sky-200',
   }
-  const labels = { active: 'Active', inactive: 'Inactive', new: 'New' }
   const dots = { active: 'bg-emerald-500', inactive: 'bg-amber-400', new: 'bg-sky-400' }
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ${map[status]}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dots[status]}`} />
-      {labels[status]}
+      {label}
     </span>
   )
 }
@@ -112,9 +111,14 @@ export default function ChildrenPage() {
 
   const activeCount = children.filter((c) => (daysSince(c.lastActiveDate) ?? 99) <= 7).length
   const inactiveCount = children.filter((c) => getStatus(c) === 'inactive').length
+  const statusLabels: Record<Status, string> = {
+    active: t('statusActive'),
+    inactive: t('statusInactive'),
+    new: t('statusNew'),
+  }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl">
+    <div className="p-6 lg:p-8 w-full">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
@@ -129,15 +133,20 @@ export default function ChildrenPage() {
       {children.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-5">
           {[
-            { label: 'Total', value: children.length, icon: Users, color: 'text-gray-500' },
             {
-              label: 'Active this week',
+              label: t('statTotal'),
+              value: children.length,
+              icon: Users,
+              color: 'text-gray-500',
+            },
+            {
+              label: t('statActiveThisWeek'),
               value: activeCount,
               icon: CheckCircle2,
               color: 'text-emerald-500',
             },
             {
-              label: 'Needs attention',
+              label: t('statNeedsAttention'),
               value: inactiveCount,
               icon: Clock,
               color: 'text-amber-500',
@@ -165,7 +174,7 @@ export default function ChildrenPage() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search students…"
+            placeholder={t('searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 placeholder:text-gray-400"
           />
         </div>
@@ -174,18 +183,20 @@ export default function ChildrenPage() {
       {/* Column headers */}
       {children.length > 0 && (
         <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 mb-1">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Student</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+            {t('columnStudent')}
+          </span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-center">
-            Status
+            {t('columnStatus')}
           </span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-right">
-            Step
+            {t('columnStep')}
           </span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-right">
-            Tasks
+            {t('columnTasks')}
           </span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-20 text-right">
-            Last active
+            {t('columnLastActive')}
           </span>
         </div>
       )}
@@ -201,7 +212,7 @@ export default function ChildrenPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
-          <p className="text-sm text-gray-500">No students match &ldquo;{query}&rdquo;</p>
+          <p className="text-sm text-gray-500">{t('noStudentsMatch', { query })}</p>
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
@@ -229,24 +240,30 @@ export default function ChildrenPage() {
                   </div>
                   {/* Mobile: show status inline */}
                   <div className="sm:hidden mt-1">
-                    <StatusPill status={status} />
+                    <StatusPill status={status} label={statusLabels[status]} />
                   </div>
                 </div>
 
                 {/* Desktop columns */}
                 <div className="hidden sm:flex items-center gap-4 shrink-0">
                   <div className="w-16 flex justify-center">
-                    <StatusPill status={status} />
+                    <StatusPill status={status} label={statusLabels[status]} />
                   </div>
                   <span className="text-xs text-gray-400 w-16 text-right">
-                    {child.speechStepNumber ? `Step ${child.speechStepNumber}` : '—'}
+                    {child.speechStepNumber
+                      ? t('stepPrefix', { step: child.speechStepNumber })
+                      : t('dash')}
                   </span>
                   <div className="flex items-center gap-1 text-xs text-gray-500 w-16 justify-end">
                     <CheckCircle2 className="w-3.5 h-3.5 text-gray-300" />
                     {child.completedTasksCount}
                   </div>
                   <span className="text-xs text-gray-400 w-20 text-right">
-                    {days === null ? '—' : days === 0 ? 'Today' : `${days}d ago`}
+                    {days === null
+                      ? t('dash')
+                      : days === 0
+                        ? t('todayLabel')
+                        : t('lastActiveDaysAgo', { days })}
                   </span>
                 </div>
 
