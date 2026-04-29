@@ -38,10 +38,7 @@ async function getUserPushToken(userId: string): Promise<string | null> {
   return token
 }
 
-async function writeNotificationHistory(
-  userId: string,
-  payload: PushPayload,
-): Promise<void> {
+async function writeNotificationHistory(userId: string, payload: PushPayload): Promise<void> {
   const db = getFirestore()
   await db.collection(`users/${userId}/notifications`).add({
     type: payload.type,
@@ -105,7 +102,7 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
       const token = await getUserPushToken(uid)
       await writeNotificationHistory(uid, payload)
       return token
-    }),
+    })
   )
 
   const messages: ExpoPushMessage[] = tokens
