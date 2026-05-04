@@ -13,7 +13,11 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  Users2,
+  Calendar,
+  Check,
 } from 'lucide-react'
+import { AIInstructionHelper } from './AIInstructionHelper'
 
 export type ContentManagementMode = 'global' | 'org'
 
@@ -51,6 +55,12 @@ interface ContentItem {
   updatedAt?: string
 }
 
+interface OrgGroup {
+  id: string
+  name: string
+  color: string
+}
+
 export function ContentManagement({
   mode,
   orgId,
@@ -71,6 +81,15 @@ export function ContentManagement({
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [taskSelectValue, setTaskSelectValue] = useState('')
+
+  // Split-panel state (org mode tasks tab)
+  const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null)
+  const [orgGroups, setOrgGroups] = useState<OrgGroup[]>([])
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set())
+  const [assignDueDate, setAssignDueDate] = useState('')
+  const [assigning, setAssigning] = useState(false)
+  const [assignSuccess, setAssignSuccess] = useState(false)
+  const [loadingGroups, setLoadingGroups] = useState(false)
 
   const loadContent = async () => {
     try {
@@ -102,7 +121,18 @@ export function ContentManagement({
       setLoading(true)
       loadContent()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadContent is stable, avoid refetch loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, orgId])
+
+  // Load org groups once for the assignment panel
+  useEffect(() => {
+    if (mode !== 'org' || !orgId) return
+    setLoadingGroups(true)
+    apiClient
+      .getGroups(orgId)
+      .then((res) => setOrgGroups(res.groups || []))
+      .catch(() => setOrgGroups([]))
+      .finally(() => setLoadingGroups(false))
   }, [mode, orgId])
 
   const handleCreate = () => {
@@ -118,11 +148,9 @@ export function ContentManagement({
     setEditingItem(item)
     const editData: Record<string, unknown> = { ...item }
     if (!editData.taskIds && item.steps) {
-      editData.taskIds = item.steps.filter((step) => step.taskId).map((step) => step.taskId!)
+      editData.taskIds = item.steps.filter((s) => s.taskId).map((s) => s.taskId!)
     }
-    if (!editData.taskIds) {
-      editData.taskIds = []
-    }
+    if (!editData.taskIds) editData.taskIds = []
     setIsModalOpen(true)
     setFormData(editData)
     setMediaFile(null)
@@ -319,24 +347,49 @@ export function ContentManagement({
     if (!confirm(t(type === 'tasks' ? 'deleteTaskConfirm' : 'deleteRoadmapConfirm'))) return
     try {
       if (mode === 'org' && orgId) {
-        if (type === 'tasks') {
-          await apiClient.deleteOrgContentTask(orgId, id)
-        } else {
-          await apiClient.deleteOrgContentRoadmap(orgId, id)
-        }
+        if (type === 'tasks') await apiClient.deleteOrgContentTask(orgId, id)
+        else await apiClient.deleteOrgContentRoadmap(orgId, id)
       } else {
-        if (type === 'tasks') {
-          await apiClient.deleteTask(id)
-        } else {
-          await apiClient.deleteRoadmap(id)
-        }
+        if (type === 'tasks') await apiClient.deleteTask(id)
+        else await apiClient.deleteRoadmap(id)
       }
       setTasks((prev) => (type === 'tasks' ? prev.filter((t) => t.id !== id) : prev))
       setRoadmaps((prev) => (type === 'roadmaps' ? prev.filter((r) => r.id !== id) : prev))
+      if (selectedTask?.id === id) setSelectedTask(null)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('deleteError')
       alert(errorMessage)
     }
+  }
+
+  const handleAssign = async () => {
+    if (!orgId || !selectedTask || selectedGroupIds.size === 0) return
+    setAssigning(true)
+    setAssignSuccess(false)
+    try {
+      await Promise.all(
+        Array.from(selectedGroupIds).map((groupId) =>
+          apiClient.assignGroupTasks(orgId, groupId, [selectedTask.id], assignDueDate || null)
+        )
+      )
+      setAssignSuccess(true)
+      setSelectedGroupIds(new Set())
+      setAssignDueDate('')
+      setTimeout(() => setAssignSuccess(false), 2500)
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : 'Ошибка при назначении')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const toggleGroup = (id: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const updateFormField = (field: string, value: unknown) => {
@@ -350,31 +403,93 @@ export function ContentManagement({
 
     return (
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isRoadmap ? t('roadmapName') : t('taskTitle')} *
-          </label>
-          <input
-            type="text"
-            value={((isRoadmap ? formData.name : formData.title) as string) || ''}
-            onChange={(e) => updateFormField(isRoadmap ? 'name' : 'title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder={isRoadmap ? t('enterRoadmapName') : t('enterTaskTitle')}
-            required
+        {/* Roadmap name/description fields — tasks use the AI helper instead */}
+        {isRoadmap && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('roadmapName')} *
+              </label>
+              <input
+                type="text"
+                value={(formData.name as string) || ''}
+                onChange={(e) => updateFormField('name', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder={t('enterRoadmapName')}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('roadmapDescription')}
+              </label>
+              <textarea
+                value={(formData.description as string) || ''}
+                onChange={(e) => updateFormField('description', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder={t('enterDescription')}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Task title field — global mode only (org mode uses AI helper below) */}
+        {isTask && mode === 'global' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('taskTitle')} *
+            </label>
+            <input
+              type="text"
+              value={(formData.title as string) || ''}
+              onChange={(e) => updateFormField('title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder={t('enterTaskTitle')}
+              required
+            />
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('taskDescription')}
+              </label>
+              <textarea
+                value={(formData.description as string) || ''}
+                onChange={(e) => updateFormField('description', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder={t('enterDescription')}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* AI Instruction Helper — org task mode: title + description are set here */}
+        {isTask && mode === 'org' && (
+          <AIInstructionHelper
+            initialResult={
+              editingItem
+                ? {
+                    title: (formData.title as string) || '',
+                    description: (formData.description as string) || '',
+                    instructions: (formData.instructions as string[]) || [],
+                    parentTip: '',
+                    expectedResult: '',
+                  }
+                : undefined
+            }
+            context={{
+              category: (formData.category as string) || undefined,
+              ageMin: (formData.ageRange as { min: number; max: number } | undefined)?.min,
+              ageMax: (formData.ageRange as { min: number; max: number } | undefined)?.max,
+            }}
+            onApply={(result) => {
+              updateFormField('title', result.title)
+              updateFormField('description', result.description)
+              updateFormField('instructions', result.instructions)
+            }}
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isRoadmap ? t('roadmapDescription') : t('taskDescription')}
-          </label>
-          <textarea
-            value={(formData.description as string) || ''}
-            onChange={(e) => updateFormField('description', e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder={t('enterDescription')}
-          />
-        </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
           <input
@@ -520,13 +635,10 @@ export function ContentManagement({
                             <button
                               type="button"
                               onClick={() => {
-                                const newTaskIds = [...((formData.taskIds as string[]) || [])]
+                                const ids = [...((formData.taskIds as string[]) || [])]
                                 if (index > 0) {
-                                  ;[newTaskIds[index], newTaskIds[index - 1]] = [
-                                    newTaskIds[index - 1],
-                                    newTaskIds[index],
-                                  ]
-                                  updateFormField('taskIds', newTaskIds)
+                                  ;[ids[index], ids[index - 1]] = [ids[index - 1], ids[index]]
+                                  updateFormField('taskIds', ids)
                                 }
                               }}
                               disabled={index === 0}
@@ -538,13 +650,10 @@ export function ContentManagement({
                             <button
                               type="button"
                               onClick={() => {
-                                const newTaskIds = [...((formData.taskIds as string[]) || [])]
-                                if (index < newTaskIds.length - 1) {
-                                  ;[newTaskIds[index], newTaskIds[index + 1]] = [
-                                    newTaskIds[index + 1],
-                                    newTaskIds[index],
-                                  ]
-                                  updateFormField('taskIds', newTaskIds)
+                                const ids = [...((formData.taskIds as string[]) || [])]
+                                if (index < ids.length - 1) {
+                                  ;[ids[index], ids[index + 1]] = [ids[index + 1], ids[index]]
+                                  updateFormField('taskIds', ids)
                                 }
                               }}
                               disabled={index === ((formData.taskIds as string[]) || []).length - 1}
@@ -556,10 +665,10 @@ export function ContentManagement({
                             <button
                               type="button"
                               onClick={() => {
-                                const newTaskIds = ((formData.taskIds as string[]) || []).filter(
+                                const ids = ((formData.taskIds as string[]) || []).filter(
                                   (id: string) => id !== taskId
                                 )
-                                updateFormField('taskIds', newTaskIds.length > 0 ? newTaskIds : [])
+                                updateFormField('taskIds', ids)
                               }}
                               className="p-1 text-red-400 hover:text-red-600"
                               title={t('remove')}
@@ -587,9 +696,9 @@ export function ContentManagement({
                   if (!taskId) return
                   setTaskSelectValue('')
                   setFormData((prev) => {
-                    const currentTaskIds = (prev.taskIds as string[]) || []
-                    if (currentTaskIds.includes(taskId)) return prev
-                    return { ...prev, taskIds: [...currentTaskIds, taskId] }
+                    const current = (prev.taskIds as string[]) || []
+                    if (current.includes(taskId)) return prev
+                    return { ...prev, taskIds: [...current, taskId] }
                   })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -621,9 +730,7 @@ export function ContentManagement({
                 const file = e.target.files?.[0]
                 if (file) {
                   setMediaFile(file)
-                  if (!formData.title) {
-                    updateFormField('title', file.name.replace(/\.[^/.]+$/, ''))
-                  }
+                  if (!formData.title) updateFormField('title', file.name.replace(/\.[^/.]+$/, ''))
                 }
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -664,27 +771,23 @@ export function ContentManagement({
     { id: 'roadmaps' as ContentType, label: t('roadmaps'), icon: BookOpen, count: roadmaps.length },
   ]
 
-  const getCurrentItems = () => {
-    switch (activeTab) {
-      case 'tasks':
-        return tasks
-      case 'roadmaps':
-        return roadmaps
-    }
-  }
-
-  const currentItems = getCurrentItems()
+  const currentItems = activeTab === 'tasks' ? tasks : roadmaps
   const isTasksTab = activeTab === 'tasks'
   const title = pageTitle ?? (mode === 'org' ? t('title') : t('contentManagement'))
   const subtitle = pageSubtitle ?? (mode === 'org' ? t('subtitle') : t('contentManagementSubtitle'))
 
+  // ── Split-panel layout for org mode tasks ────────────────────────────────
+  const showSplitPanel = mode === 'org' && isTasksTab
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
+      {/* Header */}
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
         <p className="text-gray-600">{subtitle}</p>
       </div>
 
+      {/* Tabs */}
       <div className="mb-6 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => {
@@ -694,22 +797,16 @@ export function ContentManagement({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  ${
-                    isActive
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
-                `}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  setSelectedTask(null)
+                }}
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{tab.label}</span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-xs ${
-                    isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-xs ${isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}
                 >
                   {tab.count}
                 </span>
@@ -719,6 +816,7 @@ export function ContentManagement({
         </nav>
       </div>
 
+      {/* Create button */}
       <div className="mb-4 flex justify-end">
         <button
           type="button"
@@ -730,14 +828,15 @@ export function ContentManagement({
         </button>
       </div>
 
+      {/* Empty state */}
       {currentItems.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {(() => {
-              const activeTabData = tabs.find((t) => t.id === activeTab)
-              const Icon = activeTabData?.icon
-              return Icon ? <Icon className="w-8 h-8 text-gray-400" /> : null
-            })()}
+            {isTasksTab ? (
+              <CheckSquare className="w-8 h-8 text-gray-400" />
+            ) : (
+              <BookOpen className="w-8 h-8 text-gray-400" />
+            )}
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             {isTasksTab ? t('noTasksYet') : t('noRoadmapsYet')}
@@ -755,7 +854,197 @@ export function ContentManagement({
         </div>
       )}
 
-      {currentItems.length > 0 && (
+      {/* ── SPLIT PANEL: org mode tasks ── */}
+      {showSplitPanel && currentItems.length > 0 && (
+        <div className="flex gap-4 min-h-[520px]">
+          {/* Left: task cards */}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {tasks.map((task) => {
+              const isSelected = selectedTask?.id === task.id
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => {
+                    setSelectedTask(task)
+                    setSelectedGroupIds(new Set())
+                    setAssignDueDate('')
+                    setAssignSuccess(false)
+                  }}
+                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${isSelected ? 'border-primary-500 ring-2 ring-primary-100 shadow-sm' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">
+                        {task.title || t('untitled')}
+                      </h3>
+                      {task.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {task.category && (
+                          <span className="text-[11px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
+                            {task.category}
+                          </span>
+                        )}
+                        {task.difficulty && (
+                          <span
+                            className={`text-[11px] px-2 py-0.5 rounded-full ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                          >
+                            {t(
+                              task.difficulty === 'easy'
+                                ? 'difficultyEasy'
+                                : task.difficulty === 'medium'
+                                  ? 'difficultyMedium'
+                                  : 'difficultyHard'
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className="flex items-center gap-1 flex-shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(task)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                        title={t('edit')}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete('tasks', task.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                        title={t('delete')}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Right: group assignment panel */}
+          <div className="w-72 flex-shrink-0">
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden sticky top-4">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                <Users2 className="w-4 h-4 text-primary-600" />
+                <span className="text-sm font-semibold text-gray-800">Назначить группам</span>
+              </div>
+
+              {!selectedTask ? (
+                <div className="px-4 py-8 text-center">
+                  <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <CheckSquare className="w-5 h-5 text-gray-300" />
+                  </div>
+                  <p className="text-sm text-gray-400">Выберите задание слева</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-4">
+                  {/* Selected task preview */}
+                  <div className="bg-primary-50 rounded-lg px-3 py-2">
+                    <p className="text-[11px] font-semibold text-primary-600 uppercase tracking-wide mb-0.5">
+                      Задание
+                    </p>
+                    <p className="text-sm font-medium text-primary-900 line-clamp-2">
+                      {selectedTask.title}
+                    </p>
+                  </div>
+
+                  {/* Groups checklist */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Группы
+                    </p>
+                    {loadingGroups ? (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Загрузка…</span>
+                      </div>
+                    ) : orgGroups.length === 0 ? (
+                      <p className="text-sm text-gray-400">Нет групп</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {orgGroups.map((group) => {
+                          const checked = selectedGroupIds.has(group.id)
+                          return (
+                            <label
+                              key={group.id}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-primary-50 border border-primary-200' : 'hover:bg-gray-50 border border-transparent'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleGroup(group.id)}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                              />
+                              <span
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                style={{ background: group.color || '#94a3b8' }}
+                              />
+                              <span className="text-sm text-gray-800 truncate flex-1">
+                                {group.name}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Due date */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      Срок выполнения
+                    </label>
+                    <input
+                      type="date"
+                      value={assignDueDate}
+                      onChange={(e) => setAssignDueDate(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Assign button */}
+                  <button
+                    type="button"
+                    onClick={handleAssign}
+                    disabled={assigning || selectedGroupIds.size === 0}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${assignSuccess ? 'bg-green-100 text-green-700' : 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+                  >
+                    {assigning ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Назначаю…</span>
+                      </>
+                    ) : assignSuccess ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Назначено!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Users2 className="w-4 h-4" />
+                        <span>Назначить ({selectedGroupIds.size})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── GRID layout: global mode or roadmaps tab ── */}
+      {!showSplitPanel && currentItems.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentItems.map((item) => (
             <div
@@ -824,40 +1113,10 @@ export function ContentManagement({
                     </span>
                   </div>
                 )}
-                {item.type && (
-                  <div>
-                    <span className="font-medium">{t('type')}:</span>{' '}
-                    <span className="capitalize">{item.type}</span>
-                  </div>
-                )}
                 {item.taskIds && item.taskIds.length > 0 && (
                   <div className="text-sm text-gray-600">
                     <span className="font-medium">{t('tasks')}:</span>{' '}
                     {t('tasksCount', { count: item.taskIds.length })}
-                  </div>
-                )}
-                {item.videoUrl && (
-                  <div className="pt-2">
-                    <a
-                      href={item.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-700 underline"
-                    >
-                      {t('viewVideo')}
-                    </a>
-                  </div>
-                )}
-                {item.imageUrl && (
-                  <div className="pt-2">
-                    <a
-                      href={item.imageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-700 underline"
-                    >
-                      {t('viewImage')}
-                    </a>
                   </div>
                 )}
                 {item.createdAt && (
@@ -872,6 +1131,7 @@ export function ContentManagement({
         </div>
       )}
 
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
