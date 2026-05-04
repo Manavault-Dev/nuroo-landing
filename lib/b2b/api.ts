@@ -36,6 +36,9 @@ export interface ParentInfo {
 export interface ChildDetail extends ChildSummary {
   organizationId: string
   parentInfo?: ParentInfo
+  status?: 'active' | 'paused' | 'completed' | 'archived'
+  assignedSpecialistName?: string
+  groupName?: string
   recentTasks: Array<{
     id: string
     title: string
@@ -84,6 +87,67 @@ export interface ActivityDay {
 }
 
 export type TimelineResponse = { days: ActivityDay[] }
+
+export type GuardianRelationship = 'mother' | 'father' | 'guardian' | 'other'
+export type ContactMethod = 'phone' | 'whatsapp' | 'email'
+
+export interface Guardian {
+  id: string
+  fullName: string
+  relationship: GuardianRelationship
+  phone?: string
+  whatsapp?: string
+  email?: string
+  preferredContactMethod?: ContactMethod
+  isPrimaryContact: boolean
+  isEmergencyContact: boolean
+  appUserId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChildProfileData {
+  firstName?: string
+  lastName?: string
+  fullName: string
+  photoUrl?: string
+  dateOfBirth?: string
+  age?: number
+  gender?: 'male' | 'female' | 'other'
+  status: 'active' | 'paused' | 'completed' | 'archived'
+  startDate?: string
+  branchId?: string
+  primaryConcern?: string
+  diagnosis?: string
+  developmentalNotes?: string
+  communicationLevel?: string
+  therapyGoals?: string
+  contraindications?: string
+  importantNotes?: string
+  internalCode?: string
+}
+
+export type ActivityEventType =
+  | 'child_created'
+  | 'specialist_assigned'
+  | 'specialist_removed'
+  | 'group_assigned'
+  | 'group_removed'
+  | 'task_assigned'
+  | 'task_completed'
+  | 'note_added'
+  | 'profile_updated'
+  | 'guardian_added'
+  | 'guardian_removed'
+
+export interface ActivityEvent {
+  id: string
+  type: ActivityEventType | string
+  actorId?: string
+  actorName?: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+}
 
 export interface Branch {
   id: string
@@ -370,6 +434,50 @@ export class ApiClient {
       `/orgs/${orgId}/children/${childId}/timeline?days=${days}`,
       `timeline:${orgId}:${childId}:${days}`,
       'default'
+    )
+  }
+
+  async getChildProfile(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; profile: Partial<ChildProfileData> }>(
+      `/orgs/${orgId}/children/${childId}/profile`
+    )
+  }
+
+  async updateChildProfile(orgId: string, childId: string, data: Partial<ChildProfileData>) {
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getGuardians(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; guardians: Guardian[] }>(
+      `/orgs/${orgId}/children/${childId}/guardians`
+    )
+  }
+
+  async createGuardian(
+    orgId: string,
+    childId: string,
+    data: Omit<Guardian, 'id' | 'createdAt' | 'updatedAt'>
+  ) {
+    return this.request<{ ok: boolean; guardian: Guardian }>(
+      `/orgs/${orgId}/children/${childId}/guardians`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async deleteGuardian(orgId: string, childId: string, guardianId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/children/${childId}/guardians/${guardianId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getActivityEvents(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; events: ActivityEvent[] }>(
+      `/orgs/${orgId}/children/${childId}/events`
     )
   }
 
@@ -1271,6 +1379,26 @@ export class ApiClient {
     }>('/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ message, mode }),
+    })
+  }
+
+  async improveInstruction(payload: {
+    roughText: string
+    language?: 'ru' | 'en' | 'ky'
+    context?: { title?: string; category?: string; ageMin?: number; ageMax?: number }
+  }): Promise<{
+    ok: boolean
+    result: {
+      title: string
+      description: string
+      instructions: string[]
+      parentTip: string
+      expectedResult: string
+    }
+  }> {
+    return this.request('/api/specialist/ai/improve-instruction', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     })
   }
 
