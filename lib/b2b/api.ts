@@ -278,7 +278,14 @@ export class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers)
-    headers.set('Content-Type', 'application/json')
+    const hasBody = options.body !== undefined && options.body !== null
+    const isFormData =
+      typeof FormData !== 'undefined' && hasBody && options.body instanceof FormData
+    if (hasBody && !isFormData) {
+      headers.set('Content-Type', 'application/json')
+    } else {
+      headers.delete('Content-Type')
+    }
     if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
 
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
