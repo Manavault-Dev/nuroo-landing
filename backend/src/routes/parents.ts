@@ -1,8 +1,17 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
+import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+
+const parentProfileUpdateSchema = z.object({
+  fullName: z.string().min(1).max(200).optional(),
+  phone: z.string().max(50).optional(),
+  whatsapp: z.string().max(50).optional(),
+  address: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
+})
 
 const COLLECTIONS = {
   ORG_PARENTS: (orgId: string) => `organizations/${orgId}/parents`,
@@ -126,4 +135,44 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
   })
+
+  // ── PATCH /api/parent/profile — parent updates own info from mobile app ────
+  fastify.patch<{ Body: z.infer<typeof parentProfileUpdateSchema> }>(
+    '/api/parent/profile',
+    async (request, reply) => {
+      try {
+        if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+        const { uid } = request.user
+
+        const parse = parentProfileUpdateSchema.safeParse(request.body)
+        if (!parse.success) {
+          return reply.code(400).send({ error: 'Invalid data', details: parse.error.errors })
+        }
+
+        const db = getFirestore()
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+
+        // Find all orgs this parent belongs to and update their profile
+        const parentSnaps = await db
+          .collectionGroup('parents')
+          .where(admin.firestore.FieldPath.documentId(), '==', uid)
+          .get()
+
+        if (parentSnaps.empty) {
+          return reply.code(404).send({ error: 'Parent profile not found' })
+        }
+
+        const updateData = { ...parse.data, updatedAt: now }
+        await Promise.all(parentSnaps.docs.map((doc) => doc.ref.set(updateData, { merge: true })))
+
+        return { ok: true, profile: parse.data }
+      } catch (error: unknown) {
+        console.error('[PARENTS] Error updating parent profile:', error)
+        return reply.code(500).send({
+          error: 'Failed to update parent profile',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
 }
