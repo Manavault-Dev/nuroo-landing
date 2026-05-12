@@ -42,15 +42,407 @@ import {
   Users,
   BarChart2,
   X,
+  Info,
+  Save,
 } from 'lucide-react'
 
-type Tab = 'overview' | 'guardians' | 'progress' | 'notes' | 'timeline'
+type Tab = 'overview' | 'info' | 'guardians' | 'progress' | 'notes' | 'timeline'
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
   paused: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-blue-100 text-blue-700',
   archived: 'bg-gray-100 text-gray-600',
+}
+
+const GENDER_LABELS: Record<string, string> = {
+  male: 'Мужской',
+  female: 'Женский',
+  other: 'Другой',
+}
+
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  mother: 'Мама',
+  father: 'Папа',
+  guardian: 'Опекун',
+  other: 'Другое',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Активен',
+  paused: 'На паузе',
+  completed: 'Завершён',
+  archived: 'В архиве',
+}
+
+// ─── InfoTab component ────────────────────────────────────────────────────────
+function InfoTab({
+  profile,
+  orgId,
+  childId,
+  onSaved,
+}: {
+  profile: Partial<ChildProfileData> | null
+  orgId: string
+  childId: string
+  onSaved: (data: Partial<ChildProfileData>) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState<Partial<ChildProfileData>>(profile || {})
+
+  const inp =
+    'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100'
+  const ta = `${inp} resize-none`
+  const lbl = 'block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1'
+  const val = (v: string | null | undefined) => v || <span className="text-gray-400 italic">—</span>
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      await apiClient.updateChildProfile(orgId, childId, form)
+      onSaved(form)
+      setEditing(false)
+    } catch {
+      setError('Не удалось сохранить. Попробуйте ещё раз.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          Информация о ребёнке
+        </h2>
+        {!editing ? (
+          <button
+            onClick={() => {
+              setForm(profile || {})
+              setEditing(true)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 transition-colors"
+          >
+            <Edit2 className="w-3.5 h-3.5" /> Редактировать
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            >
+              <Save className="w-3.5 h-3.5" /> {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Основная информация */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">
+          Основная информация
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          {editing ? (
+            <>
+              <div>
+                <label className={lbl}>Имя</label>
+                <input
+                  className={inp}
+                  value={form.firstName || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Фамилия</label>
+                <input
+                  className={inp}
+                  value={form.lastName || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Дата рождения</label>
+                <input
+                  type="date"
+                  className={inp}
+                  value={form.dateOfBirth || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Пол</label>
+                <select
+                  className={inp}
+                  value={form.gender || ''}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      gender: e.target.value as 'male' | 'female' | 'other',
+                    }))
+                  }
+                >
+                  <option value="">—</option>
+                  <option value="male">Мужской</option>
+                  <option value="female">Женский</option>
+                  <option value="other">Другой</option>
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Внутренний код</label>
+                <input
+                  className={inp}
+                  value={form.internalCode || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, internalCode: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Статус</label>
+                <select
+                  className={inp}
+                  value={form.status || 'active'}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, status: e.target.value as ChildProfileData['status'] }))
+                  }
+                >
+                  <option value="active">Активен</option>
+                  <option value="paused">На паузе</option>
+                  <option value="completed">Завершён</option>
+                  <option value="archived">В архиве</option>
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Дата начала</label>
+                <input
+                  type="date"
+                  className={inp}
+                  value={form.startDate || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className={lbl}>Имя</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.firstName)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Фамилия</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">{val(profile?.lastName)}</p>
+              </div>
+              <div>
+                <p className={lbl}>Дата рождения</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.dateOfBirth)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Пол</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {profile?.gender ? (
+                    GENDER_LABELS[profile.gender]
+                  ) : (
+                    <span className="text-gray-400 italic">—</span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Внутренний код</p>
+                <p className="text-sm font-mono text-gray-900 dark:text-gray-100">
+                  {val(profile?.internalCode)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Статус</p>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[profile?.status || 'active']}`}
+                >
+                  {STATUS_LABELS[profile?.status || 'active']}
+                </span>
+              </div>
+              <div>
+                <p className={lbl}>Дата начала</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.startDate)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Клиническая информация */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">
+          Клиническая информация
+        </h3>
+        <div className="space-y-3">
+          {editing ? (
+            <>
+              <div>
+                <label className={lbl}>Основная проблема</label>
+                <input
+                  className={inp}
+                  value={form.primaryConcern || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, primaryConcern: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Диагноз</label>
+                <input
+                  className={inp}
+                  value={form.diagnosis || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, diagnosis: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Уровень коммуникации</label>
+                <input
+                  className={inp}
+                  value={form.communicationLevel || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, communicationLevel: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Цели терапии</label>
+                <textarea
+                  rows={3}
+                  className={ta}
+                  value={form.therapyGoals || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, therapyGoals: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Заметки о развитии</label>
+                <textarea
+                  rows={3}
+                  className={ta}
+                  value={form.developmentalNotes || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, developmentalNotes: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className={lbl}>Основная проблема</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.primaryConcern)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Диагноз</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.diagnosis)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Уровень коммуникации</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
+                  {val(profile?.communicationLevel)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Цели терапии</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  {val(profile?.therapyGoals)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Заметки о развитии</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  {val(profile?.developmentalNotes)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Дополнительно */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">
+          Дополнительно
+        </h3>
+        <div className="space-y-3">
+          {editing ? (
+            <>
+              <div>
+                <label className={lbl}>Противопоказания</label>
+                <textarea
+                  rows={2}
+                  className={ta}
+                  value={form.contraindications || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, contraindications: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Важные заметки</label>
+                <textarea
+                  rows={2}
+                  className={ta}
+                  value={form.importantNotes || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, importantNotes: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className={lbl}>Противопоказания</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  {val(profile?.contraindications)}
+                </p>
+              </div>
+              <div>
+                <p className={lbl}>Важные заметки</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  {val(profile?.importantNotes)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {editing && (
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={() => setEditing(false)}
+            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Отмена
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" /> {saving ? 'Сохранение...' : 'Сохранить изменения'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ChildDetailPage() {
@@ -308,6 +700,7 @@ export default function ChildDetailPage() {
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: t('tabOverview'), icon: <User className="w-4 h-4" /> },
+    { id: 'info', label: 'Информация', icon: <Info className="w-4 h-4" /> },
     {
       id: 'guardians',
       label: `${t('tabGuardians')} (${guardians.length})`,
@@ -414,203 +807,131 @@ export default function ChildDetailPage() {
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-gray-900">Profile Information</h2>
-                <button
-                  onClick={() => setEditingProfile(!editingProfile)}
-                  className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  {editingProfile ? 'Cancel' : 'Edit'}
-                  {editingProfile ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                </button>
+              {/* ── Quick stats ───────────────────────────────────────── */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  {
+                    label: 'Задач выполнено',
+                    value: childDetail.completedTasksCount,
+                    color: 'text-primary-600',
+                    bg: 'bg-primary-50',
+                  },
+                  {
+                    label: 'Возраст',
+                    value: childDetail.age ? `${childDetail.age} лет` : '—',
+                    color: 'text-gray-700',
+                    bg: 'bg-gray-50',
+                  },
+                  {
+                    label: 'Статус',
+                    value: STATUS_LABELS[profile?.status || 'active'] || '—',
+                    color: 'text-green-600',
+                    bg: 'bg-green-50',
+                  },
+                  {
+                    label: 'Диагноз',
+                    value: profile?.diagnosis || '—',
+                    color: 'text-gray-700',
+                    bg: 'bg-gray-50',
+                  },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} className={`${bg} rounded-xl p-3`}>
+                    <p className="text-xs text-gray-500 mb-1">{label}</p>
+                    <p className={`text-sm font-semibold ${color} truncate`}>{value}</p>
+                  </div>
+                ))}
               </div>
 
-              {editingProfile ? (
-                <div className="bg-gray-50 rounded-lg p-5 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      { label: 'First name', key: 'firstName' },
-                      { label: 'Last name', key: 'lastName' },
-                      { label: 'Date of birth (YYYY-MM-DD)', key: 'dateOfBirth' },
-                      { label: 'Internal code', key: 'internalCode' },
-                      { label: 'Primary concern', key: 'primaryConcern' },
-                      { label: 'Diagnosis', key: 'diagnosis' },
-                      { label: 'Communication level', key: 'communicationLevel' },
-                    ].map(({ label, key }) => (
-                      <div key={key}>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          {label}
-                        </label>
-                        <input
-                          value={(profileDraft as Record<string, string>)[key] || ''}
-                          onChange={(e) =>
-                            setProfileDraft((d) => ({ ...d, [key]: e.target.value }))
-                          }
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                    ))}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
-                      <select
-                        value={profileDraft.gender || ''}
-                        onChange={(e) =>
-                          setProfileDraft((d) => ({
-                            ...d,
-                            gender: e.target.value as 'male' | 'female' | 'other',
-                          }))
-                        }
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">Not specified</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                      <select
-                        value={profileDraft.status || 'active'}
-                        onChange={(e) =>
-                          setProfileDraft((d) => ({
-                            ...d,
-                            status: e.target.value as ChildProfileData['status'],
-                          }))
-                        }
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="active">{t('statusActive')}</option>
-                        <option value="paused">{t('statusPaused')}</option>
-                        <option value="completed">{t('statusCompleted')}</option>
-                        <option value="archived">{t('statusArchived')}</option>
-                      </select>
-                    </div>
-                  </div>
-                  {[
-                    { label: t('developmentalNotesLabel'), key: 'developmentalNotes', rows: 3 },
-                    { label: 'Therapy goals', key: 'therapyGoals', rows: 3 },
-                    { label: 'Contraindications', key: 'contraindications', rows: 2 },
-                    { label: t('importantNotesLabel'), key: 'importantNotes', rows: 2 },
-                  ].map(({ label, key, rows }) => (
-                    <div key={key}>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        {label}
-                      </label>
-                      <textarea
-                        value={(profileDraft as Record<string, string>)[key] || ''}
-                        onChange={(e) => setProfileDraft((d) => ({ ...d, [key]: e.target.value }))}
-                        rows={rows}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                      />
-                    </div>
-                  ))}
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={savingProfile}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors"
-                  >
-                    {savingProfile ? 'Saving...' : 'Save changes'}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {[
-                      {
-                        label: 'Date of birth',
-                        value: profile?.dateOfBirth ? fmtShort(profile.dateOfBirth) : undefined,
-                      },
-                      { label: 'Gender', value: profile?.gender },
-                      { label: 'Internal code', value: profile?.internalCode },
-                      {
-                        label: 'Start date',
-                        value: profile?.startDate ? fmtShort(profile.startDate) : undefined,
-                      },
-                      { label: 'Communication', value: profile?.communicationLevel },
-                      { label: 'Diagnosis', value: profile?.diagnosis },
-                    ].map(({ label, value }) =>
-                      value ? (
-                        <div key={label} className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-                          <p className="text-sm font-medium text-gray-900">{value}</p>
-                        </div>
-                      ) : null
-                    )}
+              {/* ── Key clinical highlights (read-only) ──────────────── */}
+              {(profile?.primaryConcern ||
+                profile?.therapyGoals ||
+                profile?.communicationLevel ||
+                profile?.contraindications ||
+                profile?.importantNotes) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-700">Ключевые данные</h3>
+                    <button
+                      onClick={() => setActiveTab('info')}
+                      className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                    >
+                      <Edit2 className="w-3 h-3" /> Редактировать
+                    </button>
                   </div>
                   {profile?.primaryConcern && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-amber-700 mb-1 uppercase tracking-wide">
-                        Primary concern
+                        Основная проблема
                       </p>
                       <p className="text-sm text-gray-800">{profile.primaryConcern}</p>
                     </div>
                   )}
                   {profile?.therapyGoals && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-blue-700 mb-1 uppercase tracking-wide">
-                        Therapy goals
+                        Цели терапии
                       </p>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap line-clamp-3">
                         {profile.therapyGoals}
                       </p>
                     </div>
                   )}
-                  {profile?.developmentalNotes && (
-                    <div className="rounded-lg border border-gray-200 p-4">
+                  {profile?.communicationLevel && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                        {t('developmentalNotesLabel')}
+                        Уровень коммуникации
                       </p>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                        {profile.developmentalNotes}
-                      </p>
+                      <p className="text-sm text-gray-800">{profile.communicationLevel}</p>
                     </div>
                   )}
                   {profile?.contraindications && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-red-700 mb-1 uppercase tracking-wide">
-                        Contraindications
+                        Противопоказания
                       </p>
                       <p className="text-sm text-gray-800">{profile.contraindications}</p>
                     </div>
                   )}
                   {profile?.importantNotes && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-purple-700 mb-1 uppercase tracking-wide">
                         {t('importantNotesLabel')}
                       </p>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap line-clamp-3">
                         {profile.importantNotes}
                       </p>
                     </div>
                   )}
-                  {!profile?.primaryConcern &&
-                    !profile?.therapyGoals &&
-                    !profile?.developmentalNotes &&
-                    !profile?.dateOfBirth && (
-                      <p className="text-sm text-gray-400 py-4">
-                        No profile details yet. Click Edit to add information.
-                      </p>
-                    )}
                 </div>
               )}
+              {!profile?.primaryConcern &&
+                !profile?.therapyGoals &&
+                !profile?.diagnosis &&
+                !profile?.dateOfBirth && (
+                  <button
+                    onClick={() => setActiveTab('info')}
+                    className="w-full border border-dashed border-gray-300 rounded-xl p-4 text-sm text-gray-400 hover:border-primary-400 hover:text-primary-600 transition-colors text-center"
+                  >
+                    <Info className="w-4 h-4 inline mr-1.5" />
+                    Профиль ещё не заполнен — перейдите во вкладку «Информация»
+                  </button>
+                )}
 
-              {/* Parent info */}
-              <div className="border-t border-gray-100 pt-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                  Parent / App Connection
+              {/* ── Parent / App Connection ───────────────────────────── */}
+              <div className="border-t border-gray-100 pt-5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Link2 className="w-4 h-4 text-gray-400" />
+                  {t('parentAppConnectionTitle', { defaultValue: 'Подключение через приложение' })}
                 </h3>
                 {childDetail.parentInfo ? (
-                  <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                       <User className="w-4 h-4 text-green-600" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
+                        Родитель подключён
+                      </p>
                       {childDetail.parentInfo.displayName && (
                         <p className="text-sm font-semibold text-gray-900">
                           {childDetail.parentInfo.displayName}
@@ -634,12 +955,22 @@ export default function ChildDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-sm text-gray-500">
+                  <div className="border border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500">
                     {t('parentNotConnectedDescription')}
                   </div>
                 )}
               </div>
             </div>
+          )}
+
+          {/* INFO TAB */}
+          {activeTab === 'info' && (
+            <InfoTab
+              profile={profile}
+              orgId={orgId}
+              childId={childId}
+              onSaved={(updated) => setProfile((prev) => ({ ...prev, ...updated }))}
+            />
           )}
 
           {/* GUARDIANS TAB */}
@@ -791,31 +1122,48 @@ export default function ChildDetailPage() {
               )}
 
               {guardians.length === 0 ? (
-                <p className="text-sm text-gray-400 py-6 text-center">No guardians added yet.</p>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                  <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-gray-500 mb-1">Опекуны не добавлены</p>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Родитель может добавить информацию через мобильное приложение, или добавьте
+                    вручную
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {guardians.map((g) => (
-                    <div key={g.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                    <div
+                      key={g.id}
+                      className="border border-gray-200 rounded-lg p-4 bg-white dark:bg-gray-900 dark:border-gray-700"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <User className="w-5 h-5 text-gray-500" />
+                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+                            <User className="w-5 h-5 text-primary-500" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-gray-900">{g.fullName}</p>
-                              <span className="text-xs text-gray-500 capitalize">
-                                {g.relationship}
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {g.fullName}
+                              </p>
+                              <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                {RELATIONSHIP_LABELS[g.relationship] || g.relationship}
                               </span>
                               {g.isPrimaryContact && (
-                                <span className="flex items-center gap-0.5 text-xs text-amber-600 font-medium">
+                                <span className="flex items-center gap-0.5 text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">
                                   <Star className="w-3 h-3 fill-amber-400 stroke-amber-500" />{' '}
-                                  Primary
+                                  Основной
                                 </span>
                               )}
                               {g.isEmergencyContact && (
-                                <span className="flex items-center gap-0.5 text-xs text-red-600 font-medium">
-                                  <Shield className="w-3 h-3" /> Emergency
+                                <span className="flex items-center gap-0.5 text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                                  <Shield className="w-3 h-3" /> Экстренный
+                                </span>
+                              )}
+                              {g.appUserId && (
+                                <span className="flex items-center gap-0.5 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                                  <CheckCircle className="w-3 h-3" /> Есть аккаунт
                                 </span>
                               )}
                             </div>
