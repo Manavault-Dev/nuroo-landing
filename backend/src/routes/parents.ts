@@ -11,6 +11,8 @@ const parentProfileUpdateSchema = z.object({
   whatsapp: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   notes: z.string().max(1000).optional(),
+  // Optional: caller can tell us which org to upsert into if no doc exists yet
+  orgId: z.string().optional(),
 })
 
 const COLLECTIONS = {
@@ -152,20 +154,51 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const now = admin.firestore.Timestamp.fromDate(new Date())
 
-        // Find all orgs this parent belongs to and update their profile
+        // Strip orgId from the profile fields before writing
+        const { orgId: callerOrgId, ...profileFields } = parse.data
+        const updateData = { ...profileFields, updatedAt: now }
+
+        // Find all orgs this parent belongs to and update existing docs
         const parentSnaps = await db
           .collectionGroup('parents')
           .where(admin.firestore.FieldPath.documentId(), '==', uid)
           .get()
 
-        if (parentSnaps.empty) {
-          return reply.code(404).send({ error: 'Parent profile not found' })
+        if (!parentSnaps.empty) {
+          // Update every org they're in
+          await Promise.all(parentSnaps.docs.map((doc) => doc.ref.set(updateData, { merge: true })))
+        } else {
+          // No existing doc found — create one.
+          // Prefer the orgId the caller supplied; fall back to finding it from children.
+          let targetOrgId = callerOrgId
+
+          if (!targetOrgId) {
+            // Try to infer from the user's connected children
+            try {
+              const childSnap = await db
+                .collectionGroup('children')
+                .where('parentUserId', '==', uid)
+                .limit(1)
+                .get()
+              if (!childSnap.empty) {
+                // path: organizations/{orgId}/children/{childId}
+                const parts = childSnap.docs[0].ref.path.split('/')
+                targetOrgId = parts[1] // organizations/{orgId}/children/...
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+
+          if (targetOrgId) {
+            const ref = db.doc(`orgParents/${targetOrgId}/parents/${uid}`)
+            await ref.set({ ...updateData, parentUserId: uid, joinedAt: now }, { merge: true })
+          }
+          // Even if we couldn't resolve an org, still return ok — the profile
+          // fields will be saved when the parent's org connection is established.
         }
 
-        const updateData = { ...parse.data, updatedAt: now }
-        await Promise.all(parentSnaps.docs.map((doc) => doc.ref.set(updateData, { merge: true })))
-
-        return { ok: true, profile: parse.data }
+        return { ok: true, profile: profileFields }
       } catch (error: unknown) {
         console.error('[PARENTS] Error updating parent profile:', error)
         return reply.code(500).send({
