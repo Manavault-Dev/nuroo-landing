@@ -87,7 +87,7 @@ function ConnectPageInner() {
       .finally(() => setLoading(false))
   }, [orgId])
 
-  const displayName = org?.branding?.name || org?.orgName || t('yourCenter')
+  const displayName = org?.orgName || org?.branding?.name || t('yourCenter')
   const color = usePrimaryColor(org?.branding?.primaryColor)
   const coverCropStyle = imageCropStyle(
     org?.branding?.coverPositionX,
