@@ -38,6 +38,7 @@ function cleanBranding(data: BrandingData): Record<string, unknown> {
 }
 
 export const brandingRoute: FastifyPluginAsync = async (fastify) => {
+  // GET /public/orgs/:orgId/branding — no auth required (used by parent connect page)
   fastify.get<{ Params: { orgId: string } }>(
     '/public/orgs/:orgId/branding',
     async (request, reply) => {
@@ -52,7 +53,7 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
 
         const data = orgSnap.data()!
         const branding = (data.branding as BrandingData) || null
-
+        // Return only safe public fields — org name always included
         return {
           ok: true,
           orgName: data.name as string,
@@ -80,6 +81,7 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
     }
   )
 
+  // GET /orgs/:orgId/branding — any org member can read
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/branding', async (request, reply) => {
     try {
       const { orgId } = request.params
@@ -101,6 +103,7 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // PUT /orgs/:orgId/branding — org admin only
   fastify.put<{ Params: { orgId: string }; Body: BrandingData }>(
     '/orgs/:orgId/branding',
     async (request, reply) => {
