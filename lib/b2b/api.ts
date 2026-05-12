@@ -99,15 +99,18 @@ export interface Guardian {
   id: string
   fullName: string
   relationship: GuardianRelationship
-  phone?: string
-  whatsapp?: string
-  email?: string
-  preferredContactMethod?: ContactMethod
+  phone?: string | null
+  whatsapp?: string | null
+  email?: string | null
+  address?: string | null
+  preferredContactMethod?: ContactMethod | null
   isPrimaryContact: boolean
   isEmergencyContact: boolean
-  appUserId?: string
-  createdAt: string
-  updatedAt: string
+  appUserId?: string | null
+  /** true when this entry was auto-synthesised from the parent's app profile */
+  fromApp?: boolean
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface ChildProfileData {

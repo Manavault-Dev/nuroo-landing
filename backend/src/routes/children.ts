@@ -975,7 +975,35 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
-        const snap = await db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).get()
+
+        // Fetch manually-added guardians + org-children link (for parentUserId) in parallel
+        const [snap, linkSnap] = await Promise.all([
+          db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).get(),
+          db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get(),
+        ])
+
+        const parentUserId: string | null = linkSnap.exists
+          ? (linkSnap.data()?.parentUserId ?? null)
+          : null
+
+        // Fetch orgParents doc once if there is a connected parent
+        let orgParentData: admin.firestore.DocumentData | null = null
+        let parentAuthDisplayName: string | null = null
+        let parentAuthEmail: string | null = null
+        if (parentUserId) {
+          const [opSnap] = await Promise.all([
+            db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`).get(),
+          ])
+          orgParentData = opSnap.exists ? (opSnap.data() ?? null) : null
+          // Also try Firebase Auth for display name / email
+          try {
+            const authUser = await admin.auth().getUser(parentUserId)
+            parentAuthDisplayName = authUser.displayName || null
+            parentAuthEmail = authUser.email || null
+          } catch {
+            /* ignore */
+          }
+        }
 
         const guardians = await Promise.all(
           snap.docs.map(async (doc) => {
@@ -1013,6 +1041,33 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
             }
           })
         )
+
+        // Synthesize a virtual guardian from the app-connected parent if:
+        // 1. There is a connected parent (parentUserId exists)
+        // 2. There is contact data in orgParents OR at least Auth display name
+        // 3. No existing guardian already has appUserId === parentUserId
+        const alreadyLinked = guardians.some((g) => g.appUserId === parentUserId)
+        if (parentUserId && !alreadyLinked && (orgParentData || parentAuthEmail)) {
+          const syntheticGuardian = {
+            id: `__app__${parentUserId}`,
+            fullName:
+              orgParentData?.fullName || parentAuthDisplayName || orgParentData?.name || 'Родитель',
+            relationship: 'guardian' as const,
+            phone: orgParentData?.phone ?? null,
+            whatsapp: orgParentData?.whatsapp ?? null,
+            email: parentAuthEmail ?? orgParentData?.email ?? null,
+            address: orgParentData?.address ?? null,
+            preferredContactMethod: null,
+            isPrimaryContact: true,
+            isEmergencyContact: false,
+            appUserId: parentUserId,
+            fromApp: true, // flag so frontend knows this is auto-synthesised
+            createdAt: null,
+            updatedAt: orgParentData?.updatedAt?.toDate?.()?.toISOString() ?? null,
+          }
+          // Prepend — app-linked parent shows first
+          guardians.unshift(syntheticGuardian as any)
+        }
 
         return { ok: true, guardians }
       } catch (error: unknown) {
