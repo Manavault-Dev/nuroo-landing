@@ -11,12 +11,48 @@ const createTaskSchema = z.object({
   description: z.string().max(2000).optional(),
 })
 
+const childProfileUpdateSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  fullName: z.string().min(1).max(200).optional(),
+  photoUrl: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  age: z.number().int().min(0).max(30).optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  status: z.enum(['active', 'paused', 'completed', 'archived']).optional(),
+  startDate: z.string().optional(),
+  branchId: z.string().optional(),
+  primaryConcern: z.string().max(500).optional(),
+  diagnosis: z.string().max(500).optional(),
+  developmentalNotes: z.string().max(2000).optional(),
+  communicationLevel: z.string().max(200).optional(),
+  therapyGoals: z.string().max(2000).optional(),
+  contraindications: z.string().max(1000).optional(),
+  importantNotes: z.string().max(2000).optional(),
+  internalCode: z.string().max(100).optional(),
+})
+
+const guardianCreateSchema = z.object({
+  fullName: z.string().min(1).max(200),
+  relationship: z.enum(['mother', 'father', 'guardian', 'other']),
+  phone: z.string().max(50).optional(),
+  whatsapp: z.string().max(50).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  preferredContactMethod: z.enum(['phone', 'whatsapp', 'email']).optional(),
+  isPrimaryContact: z.boolean().optional().default(false),
+  isEmergencyContact: z.boolean().optional().default(false),
+  appUserId: z.string().optional(),
+})
+
+const guardianUpdateSchema = guardianCreateSchema.partial()
+
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
   CHILDREN: 'children',
   CHILD_PROGRESS: (childId: string) => `children/${childId}/progress/speech`,
   CHILD_TASKS: (childId: string) => `children/${childId}/tasks`,
   CHILD_FEEDBACK: (childId: string) => `children/${childId}/feedback`,
+  CHILD_GUARDIANS: (childId: string) => `children/${childId}/guardians`,
   ORG_PARENTS: (orgId: string) => `orgParents/${orgId}/parents`,
 } as const
 
@@ -535,11 +571,16 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(404).send({ error: 'Child not found' })
         }
 
-        const childName = await resolveChildName(db, resolvedChildId, parentUserId, linkData)
-        const progressData = await fetchChildProgress(db, resolvedChildId)
-
-        const tasksRef = db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId))
-        const tasksSnapshot = await tasksRef.orderBy('updatedAt', 'desc').limit(10).get()
+        const [childName, progressData, tasksSnapshot, completedTasksCount] = await Promise.all([
+          resolveChildName(db, resolvedChildId, parentUserId, linkData),
+          fetchChildProgress(db, resolvedChildId),
+          db
+            .collection(COLLECTIONS.CHILD_TASKS(resolvedChildId))
+            .orderBy('updatedAt', 'desc')
+            .limit(10)
+            .get(),
+          countCompletedTasks(db, resolvedChildId),
+        ])
 
         const recentTasks = tasksSnapshot.docs.map((doc) => {
           const taskData = doc.data()
@@ -551,7 +592,45 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
 
-        const completedTasksCount = await countCompletedTasks(db, resolvedChildId)
+        // Resolve parent info from Firebase Auth + org link metadata
+        let parentInfo: import('../types.js').ParentInfo | undefined
+        if (parentUserId) {
+          try {
+            const parentAuthUser = await admin.auth().getUser(parentUserId)
+            // linkedAt: prefer createdAt on org-children link, fallback to joinedAt in orgParents
+            let linkedAt: Date | undefined
+            if (linkData?.createdAt?.toDate) {
+              linkedAt = linkData.createdAt.toDate()
+            } else if (linkData?.assignedAt?.toDate) {
+              linkedAt = linkData.assignedAt.toDate()
+            } else {
+              // try orgParents doc
+              try {
+                const orgParentSnap = await db
+                  .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
+                  .get()
+                const opData = orgParentSnap.data()
+                linkedAt =
+                  opData?.joinedAt?.toDate?.() || opData?.createdAt?.toDate?.() || undefined
+              } catch {
+                /* ignore */
+              }
+            }
+            parentInfo = {
+              uid: parentUserId,
+              displayName:
+                parentAuthUser.displayName ||
+                (childData?.parentName as string | undefined) ||
+                (linkData?.parentName as string | undefined) ||
+                undefined,
+              email: parentAuthUser.email || undefined,
+              linkedAt,
+            }
+          } catch {
+            // Auth user not found or deleted — still show minimal info
+            parentInfo = { uid: parentUserId }
+          }
+        }
 
         const detail: ChildDetail = {
           id: resolvedChildId,
@@ -563,6 +642,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           lastActiveDate: childData?.lastActiveDate?.toDate() || userData?.updatedAt?.toDate?.(),
           completedTasksCount,
           recentTasks,
+          parentInfo,
         }
 
         return detail
@@ -769,4 +849,274 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
   })
+
+  // ── GET /orgs/:orgId/children/:childId/profile ─────────────────────────────
+  fastify.get<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/children/:childId/profile',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+        const db = getFirestore()
+        const [orgDoc, globalDoc] = await Promise.all([
+          db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get(),
+          db.doc(`${COLLECTIONS.CHILDREN}/${resolvedChildId}`).get(),
+        ])
+
+        const orgData = orgDoc.exists ? orgDoc.data() : {}
+        const globalData = globalDoc.exists ? globalDoc.data() : {}
+        const merged = { ...globalData, ...orgData }
+
+        const profile = {
+          firstName: merged.firstName ?? null,
+          lastName: merged.lastName ?? null,
+          fullName: merged.fullName || merged.name || '',
+          photoUrl: merged.photoUrl ?? null,
+          dateOfBirth: merged.dateOfBirth ?? null,
+          age: merged.age ?? null,
+          gender: merged.gender ?? null,
+          status: merged.status || 'active',
+          startDate: merged.startDate ?? null,
+          branchId: merged.branchId ?? null,
+          primaryConcern: merged.primaryConcern ?? null,
+          diagnosis: merged.diagnosis ?? null,
+          developmentalNotes: merged.developmentalNotes ?? null,
+          communicationLevel: merged.communicationLevel ?? null,
+          therapyGoals: merged.therapyGoals ?? null,
+          contraindications: merged.contraindications ?? null,
+          importantNotes: merged.importantNotes ?? null,
+          internalCode: merged.internalCode ?? null,
+        }
+
+        return { ok: true, profile }
+      } catch (error: unknown) {
+        console.error('[CHILDREN] Error fetching profile:', error)
+        return reply.code(500).send({
+          error: 'Failed to fetch child profile',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
+
+  // ── PATCH /orgs/:orgId/children/:childId/profile ───────────────────────────
+  fastify.patch<{
+    Params: { orgId: string; childId: string }
+    Body: z.infer<typeof childProfileUpdateSchema>
+  }>('/orgs/:orgId/children/:childId/profile', async (request, reply) => {
+    try {
+      const { orgId, childId } = request.params
+      await requireOrgMember(request, reply, orgId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+      const parse = childProfileUpdateSchema.safeParse(request.body)
+      if (!parse.success) {
+        return reply.code(400).send({ error: 'Invalid profile data', details: parse.error.errors })
+      }
+
+      const data = parse.data
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+
+      // Auto-compute fullName if firstName/lastName provided
+      if (data.firstName !== undefined || data.lastName !== undefined) {
+        const db = getFirestore()
+        const orgDoc = await db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get()
+        const existing = orgDoc.exists ? orgDoc.data() : {}
+        const fn = data.firstName ?? existing?.firstName ?? ''
+        const ln = data.lastName ?? existing?.lastName ?? ''
+        data.fullName = `${fn} ${ln}`.trim() || fn || ln
+      }
+
+      const updateData = { ...data, updatedAt: now }
+      const db = getFirestore()
+
+      await Promise.all([
+        db
+          .doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`)
+          .set(updateData, { merge: true }),
+        db.doc(`${COLLECTIONS.CHILDREN}/${resolvedChildId}`).set(updateData, { merge: true }),
+      ])
+
+      return { ok: true, profile: data }
+    } catch (error: unknown) {
+      console.error('[CHILDREN] Error updating profile:', error)
+      return reply.code(500).send({
+        error: 'Failed to update child profile',
+        details: error instanceof Error ? error.message : '',
+      })
+    }
+  })
+
+  // ── GET /orgs/:orgId/children/:childId/guardians ───────────────────────────
+  fastify.get<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/children/:childId/guardians',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+        const db = getFirestore()
+        const snap = await db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).get()
+
+        const guardians = await Promise.all(
+          snap.docs.map(async (doc) => {
+            const d = doc.data()
+            let enriched: Record<string, unknown> = {}
+
+            // Auto-enrich from parent app profile if linked
+            if (d.appUserId) {
+              const parentSnap = await db
+                .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${d.appUserId}`)
+                .get()
+              if (parentSnap.exists) {
+                const p = parentSnap.data()
+                enriched = {
+                  phone: p?.phone || d.phone,
+                  whatsapp: p?.whatsapp || d.whatsapp,
+                  email: p?.email || d.email,
+                }
+              }
+            }
+
+            return {
+              id: doc.id,
+              fullName: d.fullName || '',
+              relationship: d.relationship || 'guardian',
+              phone: enriched.phone ?? d.phone ?? null,
+              whatsapp: enriched.whatsapp ?? d.whatsapp ?? null,
+              email: enriched.email ?? d.email ?? null,
+              preferredContactMethod: d.preferredContactMethod ?? null,
+              isPrimaryContact: d.isPrimaryContact ?? false,
+              isEmergencyContact: d.isEmergencyContact ?? false,
+              appUserId: d.appUserId ?? null,
+              createdAt: d.createdAt?.toDate()?.toISOString() ?? null,
+              updatedAt: d.updatedAt?.toDate()?.toISOString() ?? null,
+            }
+          })
+        )
+
+        return { ok: true, guardians }
+      } catch (error: unknown) {
+        console.error('[CHILDREN] Error fetching guardians:', error)
+        return reply.code(500).send({
+          error: 'Failed to fetch guardians',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
+
+  // ── POST /orgs/:orgId/children/:childId/guardians ──────────────────────────
+  fastify.post<{
+    Params: { orgId: string; childId: string }
+    Body: z.infer<typeof guardianCreateSchema>
+  }>('/orgs/:orgId/children/:childId/guardians', async (request, reply) => {
+    try {
+      const { orgId, childId } = request.params
+      await requireOrgMember(request, reply, orgId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+      const parse = guardianCreateSchema.safeParse(request.body)
+      if (!parse.success) {
+        return reply.code(400).send({ error: 'Invalid guardian data', details: parse.error.errors })
+      }
+
+      const data = parse.data
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+      const db = getFirestore()
+
+      const docRef = await db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).add({
+        ...data,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return reply.code(201).send({
+        ok: true,
+        guardian: {
+          id: docRef.id,
+          ...data,
+          createdAt: now.toDate().toISOString(),
+          updatedAt: now.toDate().toISOString(),
+        },
+      })
+    } catch (error: unknown) {
+      console.error('[CHILDREN] Error creating guardian:', error)
+      return reply.code(500).send({
+        error: 'Failed to create guardian',
+        details: error instanceof Error ? error.message : '',
+      })
+    }
+  })
+
+  // ── PATCH /orgs/:orgId/children/:childId/guardians/:guardianId ─────────────
+  fastify.patch<{
+    Params: { orgId: string; childId: string; guardianId: string }
+    Body: z.infer<typeof guardianUpdateSchema>
+  }>('/orgs/:orgId/children/:childId/guardians/:guardianId', async (request, reply) => {
+    try {
+      const { orgId, childId, guardianId } = request.params
+      await requireOrgMember(request, reply, orgId)
+      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+      const parse = guardianUpdateSchema.safeParse(request.body)
+      if (!parse.success) {
+        return reply.code(400).send({ error: 'Invalid guardian data', details: parse.error.errors })
+      }
+
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+      const db = getFirestore()
+      const ref = db.doc(`${COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)}/${guardianId}`)
+      const snap = await ref.get()
+      if (!snap.exists) return reply.code(404).send({ error: 'Guardian not found' })
+
+      await ref.update({ ...parse.data, updatedAt: now })
+      const updated = (await ref.get()).data()
+
+      return {
+        ok: true,
+        guardian: {
+          id: guardianId,
+          ...updated,
+          createdAt: updated?.createdAt?.toDate()?.toISOString() ?? null,
+          updatedAt: now.toDate().toISOString(),
+        },
+      }
+    } catch (error: unknown) {
+      console.error('[CHILDREN] Error updating guardian:', error)
+      return reply.code(500).send({
+        error: 'Failed to update guardian',
+        details: error instanceof Error ? error.message : '',
+      })
+    }
+  })
+
+  // ── DELETE /orgs/:orgId/children/:childId/guardians/:guardianId ────────────
+  fastify.delete<{ Params: { orgId: string; childId: string; guardianId: string } }>(
+    '/orgs/:orgId/children/:childId/guardians/:guardianId',
+    async (request, reply) => {
+      try {
+        const { orgId, childId, guardianId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+        const db = getFirestore()
+        const ref = db.doc(`${COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)}/${guardianId}`)
+        const snap = await ref.get()
+        if (!snap.exists) return reply.code(404).send({ error: 'Guardian not found' })
+
+        await ref.delete()
+        return { ok: true }
+      } catch (error: unknown) {
+        console.error('[CHILDREN] Error deleting guardian:', error)
+        return reply.code(500).send({
+          error: 'Failed to delete guardian',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
 }
