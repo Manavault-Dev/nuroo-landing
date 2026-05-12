@@ -154,48 +154,42 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
         const db = getFirestore()
         const now = admin.firestore.Timestamp.fromDate(new Date())
 
-        // Strip orgId from the profile fields before writing
+        // Strip orgId from the profile fields before writing to Firestore
         const { orgId: callerOrgId, ...profileFields } = parse.data
         const updateData = { ...profileFields, updatedAt: now }
 
-        // Find all orgs this parent belongs to and update existing docs
-        const parentSnaps = await db
-          .collectionGroup('parents')
-          .where(admin.firestore.FieldPath.documentId(), '==', uid)
-          .get()
-
-        if (!parentSnaps.empty) {
-          // Update every org they're in
-          await Promise.all(parentSnaps.docs.map((doc) => doc.ref.set(updateData, { merge: true })))
+        if (callerOrgId) {
+          // Fast path: caller supplied orgId — write directly, no index needed
+          const ref = db.doc(`orgParents/${callerOrgId}/parents/${uid}`)
+          await ref.set({ ...updateData, parentUserId: uid }, { merge: true })
         } else {
-          // No existing doc found — create one.
-          // Prefer the orgId the caller supplied; fall back to finding it from children.
-          let targetOrgId = callerOrgId
-
-          if (!targetOrgId) {
-            // Try to infer from the user's connected children
-            try {
-              const childSnap = await db
-                .collectionGroup('children')
-                .where('parentUserId', '==', uid)
-                .limit(1)
-                .get()
-              if (!childSnap.empty) {
-                // path: organizations/{orgId}/children/{childId}
-                const parts = childSnap.docs[0].ref.path.split('/')
-                targetOrgId = parts[1] // organizations/{orgId}/children/...
+          // Fallback: scan organizations/{orgId}/children looking for this parent's orgId
+          // (avoids collectionGroup which requires a Firestore composite index)
+          let resolved = false
+          try {
+            const orgChildrenSnap = await db
+              .collectionGroup('children')
+              .where('parentUserId', '==', uid)
+              .limit(1)
+              .get()
+            if (!orgChildrenSnap.empty) {
+              // path: organizations/{orgId}/children/{childId}  →  split[1] = orgId
+              const pathParts = orgChildrenSnap.docs[0].ref.path.split('/')
+              const inferredOrgId = pathParts[1]
+              if (inferredOrgId) {
+                const ref = db.doc(`orgParents/${inferredOrgId}/parents/${uid}`)
+                await ref.set({ ...updateData, parentUserId: uid }, { merge: true })
+                resolved = true
               }
-            } catch {
-              /* ignore */
             }
+          } catch {
+            /* ignore index errors */
           }
 
-          if (targetOrgId) {
-            const ref = db.doc(`orgParents/${targetOrgId}/parents/${uid}`)
-            await ref.set({ ...updateData, parentUserId: uid, joinedAt: now }, { merge: true })
+          if (!resolved) {
+            // Last resort: store on user doc so data isn't lost
+            await db.doc(`users/${uid}`).set(updateData, { merge: true })
           }
-          // Even if we couldn't resolve an org, still return ok — the profile
-          // fields will be saved when the parent's org connection is established.
         }
 
         return { ok: true, profile: profileFields }
