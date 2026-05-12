@@ -924,35 +924,77 @@ export default function ChildDetailPage() {
                   {t('parentAppConnectionTitle', { defaultValue: 'Подключение через приложение' })}
                 </h3>
                 {childDetail.parentInfo ? (
-                  <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <User className="w-4 h-4 text-green-600" />
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
+                          Родитель подключён
+                        </p>
+                        {childDetail.parentInfo.displayName && (
+                          <p className="text-sm font-semibold text-gray-900">
+                            {childDetail.parentInfo.displayName}
+                          </p>
+                        )}
+                        {childDetail.parentInfo.email && (
+                          <a
+                            href={`mailto:${childDetail.parentInfo.email}`}
+                            className="text-sm text-primary-600 hover:underline flex items-center gap-1 mt-0.5"
+                          >
+                            <Mail className="w-3 h-3" />
+                            {childDetail.parentInfo.email}
+                          </a>
+                        )}
+                        {childDetail.parentInfo.linkedAt && (
+                          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                            <Link2 className="w-3 h-3" />
+                            {t('connectedSince')}: {fmtShort(childDetail.parentInfo.linkedAt)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
-                        Родитель подключён
-                      </p>
-                      {childDetail.parentInfo.displayName && (
-                        <p className="text-sm font-semibold text-gray-900">
-                          {childDetail.parentInfo.displayName}
+                    {/* Contact details filled by parent from mobile app */}
+                    {(childDetail.parentInfo.phone ||
+                      childDetail.parentInfo.whatsapp ||
+                      childDetail.parentInfo.address) && (
+                      <div className="border-t border-green-200 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {childDetail.parentInfo.phone && (
+                          <a
+                            href={`tel:${childDetail.parentInfo.phone}`}
+                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary-600 transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span>{childDetail.parentInfo.phone}</span>
+                          </a>
+                        )}
+                        {childDetail.parentInfo.whatsapp && (
+                          <a
+                            href={`https://wa.me/${childDetail.parentInfo.whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-green-600 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span>WhatsApp: {childDetail.parentInfo.whatsapp}</span>
+                          </a>
+                        )}
+                        {childDetail.parentInfo.address && (
+                          <p className="flex items-start gap-2 text-sm text-gray-700 sm:col-span-2">
+                            <Shield className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                            <span>{childDetail.parentInfo.address}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {!childDetail.parentInfo.phone &&
+                      !childDetail.parentInfo.whatsapp &&
+                      !childDetail.parentInfo.address && (
+                        <p className="text-xs text-gray-400 border-t border-green-200 pt-2">
+                          Контактные данные не заполнены — родитель может добавить их в приложении
                         </p>
                       )}
-                      {childDetail.parentInfo.email && (
-                        <a
-                          href={`mailto:${childDetail.parentInfo.email}`}
-                          className="text-sm text-primary-600 hover:underline flex items-center gap-1 mt-0.5"
-                        >
-                          <Mail className="w-3 h-3" />
-                          {childDetail.parentInfo.email}
-                        </a>
-                      )}
-                      {childDetail.parentInfo.linkedAt && (
-                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                          <Link2 className="w-3 h-3" />
-                          {t('connectedSince')}: {fmtShort(childDetail.parentInfo.linkedAt)}
-                        </p>
-                      )}
-                    </div>
                   </div>
                 ) : (
                   <div className="border border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500">
@@ -977,27 +1019,29 @@ export default function ChildDetailPage() {
           {activeTab === 'guardians' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-gray-900">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                   {t('guardiansContactsTitle')}
                 </h2>
                 <button
                   onClick={() => setShowAddGuardian(!showAddGuardian)}
                   className="flex items-center gap-1.5 text-sm bg-primary-500 text-white px-3 py-1.5 rounded-lg hover:bg-primary-600 transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Add guardian
+                  <Plus className="w-3.5 h-3.5" /> Добавить контакт
                 </button>
               </div>
 
               {showAddGuardian && (
                 <form
                   onSubmit={handleAddGuardian}
-                  className="bg-gray-50 rounded-lg border border-gray-200 p-5 space-y-4"
+                  className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4"
                 >
-                  <h3 className="text-sm font-semibold text-gray-800">New guardian</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    Новый контакт
+                  </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Full name *
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Полное имя *
                       </label>
                       <input
                         required
@@ -1009,8 +1053,8 @@ export default function ChildDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Relationship
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Тип
                       </label>
                       <select
                         value={guardianForm.relationship}
@@ -1022,14 +1066,16 @@ export default function ChildDetailPage() {
                         }
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       >
-                        <option value="mother">Mother</option>
-                        <option value="father">Father</option>
-                        <option value="guardian">Guardian</option>
-                        <option value="other">Other</option>
+                        <option value="mother">Мама</option>
+                        <option value="father">Папа</option>
+                        <option value="guardian">Опекун</option>
+                        <option value="other">Другое</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Телефон
+                      </label>
                       <input
                         value={guardianForm.phone}
                         onChange={(e) => setGuardianForm((f) => ({ ...f, phone: e.target.value }))}
@@ -1037,7 +1083,7 @@ export default function ChildDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                         WhatsApp
                       </label>
                       <input
@@ -1049,7 +1095,9 @@ export default function ChildDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Email
+                      </label>
                       <input
                         type="email"
                         value={guardianForm.email}
@@ -1058,11 +1106,11 @@ export default function ChildDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Preferred contact
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        Предпочтительный способ связи
                       </label>
                       <select
-                        value={guardianForm.preferredContactMethod}
+                        value={guardianForm.preferredContactMethod ?? 'phone'}
                         onChange={(e) =>
                           setGuardianForm((f) => ({
                             ...f,
@@ -1072,14 +1120,14 @@ export default function ChildDetailPage() {
                         }
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       >
-                        <option value="phone">Phone</option>
+                        <option value="phone">Телефон</option>
                         <option value="whatsapp">WhatsApp</option>
                         <option value="email">Email</option>
                       </select>
                     </div>
                   </div>
                   <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={guardianForm.isPrimaryContact}
@@ -1088,9 +1136,9 @@ export default function ChildDetailPage() {
                         }
                         className="w-4 h-4 text-primary-500 rounded"
                       />
-                      Primary contact
+                      Основной контакт
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={guardianForm.isEmergencyContact}
@@ -1099,7 +1147,7 @@ export default function ChildDetailPage() {
                         }
                         className="w-4 h-4 text-primary-500 rounded"
                       />
-                      Emergency contact
+                      Экстренный контакт
                     </label>
                   </div>
                   <div className="flex gap-2">
@@ -1108,14 +1156,14 @@ export default function ChildDetailPage() {
                       disabled={savingGuardian}
                       className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
                     >
-                      {savingGuardian ? 'Saving...' : 'Add'}
+                      {savingGuardian ? 'Сохранение...' : 'Добавить'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowAddGuardian(false)}
                       className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      Cancel
+                      Отмена
                     </button>
                   </div>
                 </form>
@@ -1124,10 +1172,9 @@ export default function ChildDetailPage() {
               {guardians.length === 0 ? (
                 <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
                   <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-500 mb-1">Опекуны не добавлены</p>
-                  <p className="text-xs text-gray-400 mb-4">
-                    Родитель может добавить информацию через мобильное приложение, или добавьте
-                    вручную
+                  <p className="text-sm font-medium text-gray-500 mb-1">Контакты не добавлены</p>
+                  <p className="text-xs text-gray-400">
+                    Родитель может добавить данные через мобильное приложение, или добавьте вручную
                   </p>
                 </div>
               ) : (
@@ -1135,14 +1182,24 @@ export default function ChildDetailPage() {
                   {guardians.map((g) => (
                     <div
                       key={g.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-white dark:bg-gray-900 dark:border-gray-700"
+                      className={`border rounded-xl p-4 ${
+                        g.fromApp
+                          ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800'
+                          : 'border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-700'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
-                            <User className="w-5 h-5 text-primary-500" />
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              g.fromApp ? 'bg-green-100' : 'bg-primary-50'
+                            }`}
+                          >
+                            <User
+                              className={`w-5 h-5 ${g.fromApp ? 'text-green-600' : 'text-primary-500'}`}
+                            />
                           </div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 {g.fullName}
@@ -1150,7 +1207,12 @@ export default function ChildDetailPage() {
                               <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
                                 {RELATIONSHIP_LABELS[g.relationship] || g.relationship}
                               </span>
-                              {g.isPrimaryContact && (
+                              {g.fromApp && (
+                                <span className="flex items-center gap-0.5 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                  <CheckCircle className="w-3 h-3" /> из приложения
+                                </span>
+                              )}
+                              {g.isPrimaryContact && !g.fromApp && (
                                 <span className="flex items-center gap-0.5 text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">
                                   <Star className="w-3 h-3 fill-amber-400 stroke-amber-500" />{' '}
                                   Основной
@@ -1161,17 +1223,12 @@ export default function ChildDetailPage() {
                                   <Shield className="w-3 h-3" /> Экстренный
                                 </span>
                               )}
-                              {g.appUserId && (
-                                <span className="flex items-center gap-0.5 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                                  <CheckCircle className="w-3 h-3" /> Есть аккаунт
-                                </span>
-                              )}
                             </div>
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
                               {g.phone && (
                                 <a
                                   href={`tel:${g.phone}`}
-                                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-primary-600"
+                                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-primary-600 dark:text-gray-400"
                                 >
                                   <Phone className="w-3 h-3" />
                                   {g.phone}
@@ -1191,22 +1248,36 @@ export default function ChildDetailPage() {
                               {g.email && (
                                 <a
                                   href={`mailto:${g.email}`}
-                                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-primary-600"
+                                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-primary-600 dark:text-gray-400"
                                 >
                                   <Mail className="w-3 h-3" />
                                   {g.email}
                                 </a>
                               )}
+                              {g.address && (
+                                <span className="flex items-center gap-1 text-xs text-gray-500">
+                                  <Shield className="w-3 h-3" />
+                                  {g.address}
+                                </span>
+                              )}
                             </div>
+                            {g.fromApp && !g.phone && !g.whatsapp && !g.email && (
+                              <p className="text-xs text-gray-400 mt-1 italic">
+                                Контактные данные не заполнены в приложении
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteGuardian(g.id)}
-                          disabled={deletingGuardianId === g.id}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {/* Only show delete for manually-added guardians */}
+                        {!g.fromApp && (
+                          <button
+                            onClick={() => handleDeleteGuardian(g.id)}
+                            disabled={deletingGuardianId === g.id}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

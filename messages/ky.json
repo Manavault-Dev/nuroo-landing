@@ -673,6 +673,7 @@
         "statusInProgress": "Аткарылып жатат",
         "statusPending": "Күтүүдө",
         "parentInformation": "Ата-эне жөнүндө маалымат",
+        "parentAppConnectionTitle": "Колдонмо аркылуу туташуу",
         "parentName": "Аты",
         "parentEmail": "Email",
         "connectedSince": "Туташкан күнү",

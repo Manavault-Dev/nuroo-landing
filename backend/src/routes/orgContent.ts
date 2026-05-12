@@ -170,6 +170,7 @@ export const orgContentRoute: FastifyPluginAsync = async (fastify) => {
               : undefined,
           videoUrl: isVideo ? publicUrl : undefined,
           imageUrl: !isVideo ? publicUrl : undefined,
+          mediaType: isVideo ? 'video' : 'image',
           createdBy: request.user.uid,
           createdAt: toTimestamp(),
           updatedAt: toTimestamp(),

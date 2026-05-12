@@ -677,6 +677,7 @@
         "statusInProgress": "В процессе",
         "statusPending": "Ожидает",
         "parentInformation": "Информация о родителе",
+        "parentAppConnectionTitle": "Подключение через приложение",
         "parentName": "Имя",
         "parentEmail": "Email",
         "connectedSince": "Подключён",
