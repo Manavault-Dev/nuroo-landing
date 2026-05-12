@@ -592,9 +592,20 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
 
-        // Resolve parent info from Firebase Auth + org link metadata
+        // Resolve parent info from Firebase Auth + orgParents contact data
         let parentInfo: import('../types.js').ParentInfo | undefined
         if (parentUserId) {
+          // Always fetch orgParents doc — it has contact info saved by parent from mobile app
+          let orgParentData: admin.firestore.DocumentData | null = null
+          try {
+            const orgParentSnap = await db
+              .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
+              .get()
+            orgParentData = orgParentSnap.exists ? (orgParentSnap.data() ?? null) : null
+          } catch {
+            /* ignore */
+          }
+
           try {
             const parentAuthUser = await admin.auth().getUser(parentUserId)
             // linkedAt: prefer createdAt on org-children link, fallback to joinedAt in orgParents
@@ -604,31 +615,36 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
             } else if (linkData?.assignedAt?.toDate) {
               linkedAt = linkData.assignedAt.toDate()
             } else {
-              // try orgParents doc
-              try {
-                const orgParentSnap = await db
-                  .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
-                  .get()
-                const opData = orgParentSnap.data()
-                linkedAt =
-                  opData?.joinedAt?.toDate?.() || opData?.createdAt?.toDate?.() || undefined
-              } catch {
-                /* ignore */
-              }
+              linkedAt =
+                orgParentData?.joinedAt?.toDate?.() ||
+                orgParentData?.createdAt?.toDate?.() ||
+                undefined
             }
             parentInfo = {
               uid: parentUserId,
               displayName:
+                orgParentData?.fullName ||
                 parentAuthUser.displayName ||
                 (childData?.parentName as string | undefined) ||
                 (linkData?.parentName as string | undefined) ||
                 undefined,
               email: parentAuthUser.email || undefined,
               linkedAt,
+              phone: orgParentData?.phone || undefined,
+              whatsapp: orgParentData?.whatsapp || undefined,
+              address: orgParentData?.address || undefined,
+              fullName: orgParentData?.fullName || undefined,
             }
           } catch {
-            // Auth user not found or deleted — still show minimal info
-            parentInfo = { uid: parentUserId }
+            // Auth user not found or deleted — still show minimal info from orgParents
+            parentInfo = {
+              uid: parentUserId,
+              displayName: orgParentData?.fullName || undefined,
+              phone: orgParentData?.phone || undefined,
+              whatsapp: orgParentData?.whatsapp || undefined,
+              address: orgParentData?.address || undefined,
+              fullName: orgParentData?.fullName || undefined,
+            }
           }
         }
 
@@ -959,7 +975,35 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
-        const snap = await db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).get()
+
+        // Fetch manually-added guardians + org-children link (for parentUserId) in parallel
+        const [snap, linkSnap] = await Promise.all([
+          db.collection(COLLECTIONS.CHILD_GUARDIANS(resolvedChildId)).get(),
+          db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`).get(),
+        ])
+
+        const parentUserId: string | null = linkSnap.exists
+          ? (linkSnap.data()?.parentUserId ?? null)
+          : null
+
+        // Fetch orgParents doc once if there is a connected parent
+        let orgParentData: admin.firestore.DocumentData | null = null
+        let parentAuthDisplayName: string | null = null
+        let parentAuthEmail: string | null = null
+        if (parentUserId) {
+          const [opSnap] = await Promise.all([
+            db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`).get(),
+          ])
+          orgParentData = opSnap.exists ? (opSnap.data() ?? null) : null
+          // Also try Firebase Auth for display name / email
+          try {
+            const authUser = await admin.auth().getUser(parentUserId)
+            parentAuthDisplayName = authUser.displayName || null
+            parentAuthEmail = authUser.email || null
+          } catch {
+            /* ignore */
+          }
+        }
 
         const guardians = await Promise.all(
           snap.docs.map(async (doc) => {
@@ -997,6 +1041,33 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
             }
           })
         )
+
+        // Synthesize a virtual guardian from the app-connected parent if:
+        // 1. There is a connected parent (parentUserId exists)
+        // 2. There is contact data in orgParents OR at least Auth display name
+        // 3. No existing guardian already has appUserId === parentUserId
+        const alreadyLinked = guardians.some((g) => g.appUserId === parentUserId)
+        if (parentUserId && !alreadyLinked && (orgParentData || parentAuthEmail)) {
+          const syntheticGuardian = {
+            id: `__app__${parentUserId}`,
+            fullName:
+              orgParentData?.fullName || parentAuthDisplayName || orgParentData?.name || 'Родитель',
+            relationship: 'guardian' as const,
+            phone: orgParentData?.phone ?? null,
+            whatsapp: orgParentData?.whatsapp ?? null,
+            email: parentAuthEmail ?? orgParentData?.email ?? null,
+            address: orgParentData?.address ?? null,
+            preferredContactMethod: null,
+            isPrimaryContact: true,
+            isEmergencyContact: false,
+            appUserId: parentUserId,
+            fromApp: true, // flag so frontend knows this is auto-synthesised
+            createdAt: null,
+            updatedAt: orgParentData?.updatedAt?.toDate?.()?.toISOString() ?? null,
+          }
+          // Prepend — app-linked parent shows first
+          guardians.unshift(syntheticGuardian as any)
+        }
 
         return { ok: true, guardians }
       } catch (error: unknown) {

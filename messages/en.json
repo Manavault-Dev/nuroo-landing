@@ -677,6 +677,7 @@
         "statusInProgress": "In progress",
         "statusPending": "Pending",
         "parentInformation": "Parent Information",
+        "parentAppConnectionTitle": "Parent app connection",
         "parentName": "Name",
         "parentEmail": "Email",
         "connectedSince": "Connected",

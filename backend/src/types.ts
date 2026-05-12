@@ -29,6 +29,10 @@ export interface ParentInfo {
   displayName?: string
   email?: string
   linkedAt?: Date
+  phone?: string
+  whatsapp?: string
+  address?: string
+  fullName?: string
 }
 
 export interface ChildDetail extends ChildSummary {
