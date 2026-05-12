@@ -592,9 +592,20 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
           }
         })
 
-        // Resolve parent info from Firebase Auth + org link metadata
+        // Resolve parent info from Firebase Auth + orgParents contact data
         let parentInfo: import('../types.js').ParentInfo | undefined
         if (parentUserId) {
+          // Always fetch orgParents doc — it has contact info saved by parent from mobile app
+          let orgParentData: admin.firestore.DocumentData | null = null
+          try {
+            const orgParentSnap = await db
+              .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
+              .get()
+            orgParentData = orgParentSnap.exists ? (orgParentSnap.data() ?? null) : null
+          } catch {
+            /* ignore */
+          }
+
           try {
             const parentAuthUser = await admin.auth().getUser(parentUserId)
             // linkedAt: prefer createdAt on org-children link, fallback to joinedAt in orgParents
@@ -604,31 +615,36 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
             } else if (linkData?.assignedAt?.toDate) {
               linkedAt = linkData.assignedAt.toDate()
             } else {
-              // try orgParents doc
-              try {
-                const orgParentSnap = await db
-                  .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${parentUserId}`)
-                  .get()
-                const opData = orgParentSnap.data()
-                linkedAt =
-                  opData?.joinedAt?.toDate?.() || opData?.createdAt?.toDate?.() || undefined
-              } catch {
-                /* ignore */
-              }
+              linkedAt =
+                orgParentData?.joinedAt?.toDate?.() ||
+                orgParentData?.createdAt?.toDate?.() ||
+                undefined
             }
             parentInfo = {
               uid: parentUserId,
               displayName:
+                orgParentData?.fullName ||
                 parentAuthUser.displayName ||
                 (childData?.parentName as string | undefined) ||
                 (linkData?.parentName as string | undefined) ||
                 undefined,
               email: parentAuthUser.email || undefined,
               linkedAt,
+              phone: orgParentData?.phone || undefined,
+              whatsapp: orgParentData?.whatsapp || undefined,
+              address: orgParentData?.address || undefined,
+              fullName: orgParentData?.fullName || undefined,
             }
           } catch {
-            // Auth user not found or deleted — still show minimal info
-            parentInfo = { uid: parentUserId }
+            // Auth user not found or deleted — still show minimal info from orgParents
+            parentInfo = {
+              uid: parentUserId,
+              displayName: orgParentData?.fullName || undefined,
+              phone: orgParentData?.phone || undefined,
+              whatsapp: orgParentData?.whatsapp || undefined,
+              address: orgParentData?.address || undefined,
+              fullName: orgParentData?.fullName || undefined,
+            }
           }
         }
 
