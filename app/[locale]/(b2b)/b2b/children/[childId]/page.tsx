@@ -1110,7 +1110,7 @@ export default function ChildDetailPage() {
                         Предпочтительный способ связи
                       </label>
                       <select
-                        value={guardianForm.preferredContactMethod}
+                        value={guardianForm.preferredContactMethod ?? 'phone'}
                         onChange={(e) =>
                           setGuardianForm((f) => ({
                             ...f,
