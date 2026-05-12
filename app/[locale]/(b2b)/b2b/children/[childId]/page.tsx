@@ -924,35 +924,77 @@ export default function ChildDetailPage() {
                   {t('parentAppConnectionTitle', { defaultValue: 'Подключение через приложение' })}
                 </h3>
                 {childDetail.parentInfo ? (
-                  <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <User className="w-4 h-4 text-green-600" />
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
+                          Родитель подключён
+                        </p>
+                        {childDetail.parentInfo.displayName && (
+                          <p className="text-sm font-semibold text-gray-900">
+                            {childDetail.parentInfo.displayName}
+                          </p>
+                        )}
+                        {childDetail.parentInfo.email && (
+                          <a
+                            href={`mailto:${childDetail.parentInfo.email}`}
+                            className="text-sm text-primary-600 hover:underline flex items-center gap-1 mt-0.5"
+                          >
+                            <Mail className="w-3 h-3" />
+                            {childDetail.parentInfo.email}
+                          </a>
+                        )}
+                        {childDetail.parentInfo.linkedAt && (
+                          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                            <Link2 className="w-3 h-3" />
+                            {t('connectedSince')}: {fmtShort(childDetail.parentInfo.linkedAt)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
-                        Родитель подключён
-                      </p>
-                      {childDetail.parentInfo.displayName && (
-                        <p className="text-sm font-semibold text-gray-900">
-                          {childDetail.parentInfo.displayName}
+                    {/* Contact details filled by parent from mobile app */}
+                    {(childDetail.parentInfo.phone ||
+                      childDetail.parentInfo.whatsapp ||
+                      childDetail.parentInfo.address) && (
+                      <div className="border-t border-green-200 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {childDetail.parentInfo.phone && (
+                          <a
+                            href={`tel:${childDetail.parentInfo.phone}`}
+                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary-600 transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span>{childDetail.parentInfo.phone}</span>
+                          </a>
+                        )}
+                        {childDetail.parentInfo.whatsapp && (
+                          <a
+                            href={`https://wa.me/${childDetail.parentInfo.whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-green-600 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span>WhatsApp: {childDetail.parentInfo.whatsapp}</span>
+                          </a>
+                        )}
+                        {childDetail.parentInfo.address && (
+                          <p className="flex items-start gap-2 text-sm text-gray-700 sm:col-span-2">
+                            <Shield className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                            <span>{childDetail.parentInfo.address}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {!childDetail.parentInfo.phone &&
+                      !childDetail.parentInfo.whatsapp &&
+                      !childDetail.parentInfo.address && (
+                        <p className="text-xs text-gray-400 border-t border-green-200 pt-2">
+                          Контактные данные не заполнены — родитель может добавить их в приложении
                         </p>
                       )}
-                      {childDetail.parentInfo.email && (
-                        <a
-                          href={`mailto:${childDetail.parentInfo.email}`}
-                          className="text-sm text-primary-600 hover:underline flex items-center gap-1 mt-0.5"
-                        >
-                          <Mail className="w-3 h-3" />
-                          {childDetail.parentInfo.email}
-                        </a>
-                      )}
-                      {childDetail.parentInfo.linkedAt && (
-                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                          <Link2 className="w-3 h-3" />
-                          {t('connectedSince')}: {fmtShort(childDetail.parentInfo.linkedAt)}
-                        </p>
-                      )}
-                    </div>
                   </div>
                 ) : (
                   <div className="border border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500">
