@@ -2,6 +2,9 @@
  * Single source of truth for plan feature keys.
  * Both the landing Pricing component and the B2B billing page read from here,
  * so updating a feature text in landing.pricing messages updates both places.
+ *
+ * NOTE: The backend payment system uses plan IDs 'starter' | 'growth' | 'enterprise'.
+ * 'professional' is the display alias for 'growth' — same plan, new name.
  */
 export const PLAN_FEATURE_KEYS = {
   starter: [
@@ -12,18 +15,10 @@ export const PLAN_FEATURE_KEYS = {
     'starterF5',
     'starterF6',
     'starterF7',
-    'starterF8',
   ],
-  growth: [
-    'growthF1',
-    'growthF2',
-    'growthF3',
-    'growthF4',
-    'growthF5',
-    'growthF6',
-    'growthF7',
-    'growthF8',
-  ],
+  professional: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5', 'proF6', 'proF7', 'proF8', 'proF9'],
+  /** Alias for 'professional' — used when backend returns planId 'growth' */
+  growth: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5', 'proF6', 'proF7', 'proF8', 'proF9'],
   enterprise: [
     'entF1',
     'entF2',
@@ -35,12 +30,6 @@ export const PLAN_FEATURE_KEYS = {
     'entF8',
     'entF9',
     'entF10',
-    'entF11',
-    'entF12',
-    'entF13',
-    'entF14',
-    'entF15',
-    'entF16',
   ],
 } as const satisfies Record<string, readonly string[]>
 
