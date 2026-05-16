@@ -38,8 +38,9 @@ function normalizeRole(role: string): 'org_admin' | 'specialist' {
   return role === 'org_admin' ? 'org_admin' : 'specialist'
 }
 
-function buildMemberData(role: string, now: Date) {
+function buildMemberData(uid: string, role: string, now: Date) {
   return {
+    uid,
     role: normalizeRole(role),
     status: 'active',
     joinedAt: admin.firestore.Timestamp.fromDate(now),
@@ -138,7 +139,7 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
         if (!canAdd.ok) {
           return reply.code(403).send({ error: canAdd.error ?? 'Cannot add specialist.' })
         }
-        await memberRef.set(buildMemberData(role, now))
+        await memberRef.set(buildMemberData(uid, role, now))
 
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
         const specialistSnap = await specialistRef.get()
