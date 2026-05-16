@@ -1250,7 +1250,7 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       try {
         const { orgId, childId } = request.params
-        const member = await requireOrgMember(request, reply, orgId)
+        await requireOrgMember(request, reply, orgId)
         const { uid } = request.user!
         const db = getFirestore()
 

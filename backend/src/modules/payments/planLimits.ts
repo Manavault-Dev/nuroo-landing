@@ -88,8 +88,14 @@ export interface PlanLimit {
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimit> = {
-  starter: { children: PLAN_CONFIG.starter.maxChildren, specialists: PLAN_CONFIG.starter.maxSpecialists },
-  growth: { children: PLAN_CONFIG.growth.maxChildren, specialists: PLAN_CONFIG.growth.maxSpecialists },
+  starter: {
+    children: PLAN_CONFIG.starter.maxChildren,
+    specialists: PLAN_CONFIG.starter.maxSpecialists,
+  },
+  growth: {
+    children: PLAN_CONFIG.growth.maxChildren,
+    specialists: PLAN_CONFIG.growth.maxSpecialists,
+  },
   enterprise: { children: null, specialists: null },
 }
 
@@ -239,12 +245,18 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
 
 export function getBillingBadgeKey(billingStatus: BillingStatus | undefined): string {
   switch (billingStatus) {
-    case 'trialing': return 'freeTrial'
-    case 'active': return 'active'
-    case 'past_due': return 'pastDue'
-    case 'expired': return 'expired'
-    case 'cancelled': return 'cancelled'
-    default: return 'expired'
+    case 'trialing':
+      return 'freeTrial'
+    case 'active':
+      return 'active'
+    case 'past_due':
+      return 'pastDue'
+    case 'expired':
+      return 'expired'
+    case 'cancelled':
+      return 'cancelled'
+    default:
+      return 'expired'
   }
 }
 
