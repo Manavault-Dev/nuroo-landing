@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
+import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
 
 const createTaskSchema = z.object({
@@ -473,6 +474,84 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       console.error('[CONNECTIONS] Error fetching connections:', error)
       return reply.code(500).send({
         error: 'Failed to fetch connections',
+        details: error instanceof Error ? error.message : '',
+      })
+    }
+  })
+
+  fastify.post<{
+    Params: { orgId: string }
+    Body: {
+      firstName: string
+      lastName?: string
+      dateOfBirth?: string
+      gender?: 'male' | 'female' | 'other'
+      diagnosis?: string
+      primaryConcern?: string
+    }
+  }>('/orgs/:orgId/children', async (request, reply) => {
+    try {
+      const { orgId } = request.params
+      const member = await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
+
+      if (member.role !== 'org_admin') {
+        return reply.code(403).send({ error: 'Only org admins can add children' })
+      }
+
+      const limitCheck = await checkOrgCanAddChild(orgId)
+      if (!limitCheck.ok) {
+        return reply.code(403).send({ error: limitCheck.error, upgradeRequired: true })
+      }
+
+      const body = request.body as {
+        firstName: string
+        lastName?: string
+        dateOfBirth?: string
+        gender?: string
+        diagnosis?: string
+        primaryConcern?: string
+      }
+
+      if (!body.firstName?.trim()) {
+        return reply.code(400).send({ error: 'firstName is required' })
+      }
+
+      const db = getFirestore()
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+      const fullName = [body.firstName.trim(), body.lastName?.trim()].filter(Boolean).join(' ')
+
+      const globalRef = db.collection('children').doc()
+      const childData = {
+        name: fullName,
+        firstName: body.firstName.trim(),
+        lastName: body.lastName?.trim() || null,
+        dateOfBirth: body.dateOfBirth || null,
+        gender: body.gender || null,
+        diagnosis: body.diagnosis || null,
+        primaryConcern: body.primaryConcern || null,
+        orgId,
+        createdBy: request.user!.uid,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      await globalRef.set(childData)
+      await db.collection(`organizations/${orgId}/children`).doc(globalRef.id).set({
+        childId: globalRef.id,
+        name: fullName,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return reply.code(201).send({
+        ok: true,
+        child: { id: globalRef.id, ...childData, createdAt: now.toDate(), updatedAt: now.toDate() },
+      })
+    } catch (error: unknown) {
+      console.error('[CHILDREN] Error creating child:', error)
+      return reply.code(500).send({
+        error: 'Failed to create child',
         details: error instanceof Error ? error.message : '',
       })
     }
