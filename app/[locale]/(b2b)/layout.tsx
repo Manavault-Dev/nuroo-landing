@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
 import { resolvePostLoginPath } from '@/src/config/routes'
 import { BrandingProvider } from '@/lib/b2b/brandingContext'
+import { AlertProvider } from '@/components/ui/AlertDialog'
 import { Sidebar } from '@/components/b2b/Sidebar'
 import { Header } from '@/components/b2b/Header'
 
@@ -81,7 +82,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       }
       return
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- router excluded: new object every render but functionally stable
   }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams])
 
   if (isLoading) {
@@ -99,43 +99,45 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <BrandingProvider orgId={currentOrgId}>
-      <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar
-          profile={profile}
-          currentOrgId={currentOrgId}
-          isMobileOpen={sidebarOpen}
-          isClosing={isClosing}
-          onMobileClose={closeSidebar}
-        />
-        <div className="flex-1 flex flex-col min-w-0 relative isolate md:ml-[17rem]">
-          <Header
+      <AlertProvider>
+        <div className="min-h-screen bg-gray-50 flex">
+          <Sidebar
             profile={profile}
-            isSidebarOpen={sidebarOpen}
-            onMenuClick={sidebarOpen ? closeSidebar : openSidebar}
+            currentOrgId={currentOrgId}
+            isMobileOpen={sidebarOpen}
+            isClosing={isClosing}
+            onMobileClose={closeSidebar}
           />
-          <main
-            className="flex-1 overflow-auto relative z-0 min-h-0"
-            style={{ touchAction: 'pan-y' }}
-          >
-            {children}
-          </main>
+          <div className="flex-1 flex flex-col min-w-0 relative isolate md:ml-[17rem]">
+            <Header
+              profile={profile}
+              isSidebarOpen={sidebarOpen}
+              onMenuClick={sidebarOpen ? closeSidebar : openSidebar}
+            />
+            <main
+              className="flex-1 overflow-auto relative z-0 min-h-0"
+              style={{ touchAction: 'pan-y' }}
+            >
+              {children}
+            </main>
+          </div>
+          {sidebarOpen && (
+            <div
+              role="presentation"
+              aria-hidden
+              className={[
+                'fixed inset-0 z-40 md:hidden bg-black/50 transition-opacity duration-300 ease-out',
+                isClosing
+                  ? 'opacity-0 pointer-events-none'
+                  : overlayVisible
+                    ? 'opacity-100'
+                    : 'opacity-0',
+              ].join(' ')}
+              onClick={closeSidebar}
+            />
+          )}
         </div>
-        {sidebarOpen && (
-          <div
-            role="presentation"
-            aria-hidden
-            className={[
-              'fixed inset-0 z-40 md:hidden bg-black/50 transition-opacity duration-300 ease-out',
-              isClosing
-                ? 'opacity-0 pointer-events-none'
-                : overlayVisible
-                  ? 'opacity-100'
-                  : 'opacity-0',
-            ].join(' ')}
-            onClick={closeSidebar}
-          />
-        )}
-      </div>
+      </AlertProvider>
     </BrandingProvider>
   )
 }

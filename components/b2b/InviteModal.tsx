@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { X, Copy, Check, Mail } from 'lucide-react'
+import { useAlert } from '@/components/ui/AlertDialog'
 
 interface InviteModalProps {
   isOpen: boolean
@@ -14,6 +15,7 @@ interface InviteModalProps {
 export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
   const [copied, setCopied] = useState(false)
   const t = useTranslations('b2b.pages.inviteModal')
+  const { alert } = useAlert()
 
   useEffect(() => {
     if (copied) {
@@ -39,7 +41,7 @@ export function InviteModal({ isOpen, onClose, inviteCode }: InviteModalProps) {
         document.execCommand('copy')
         setCopied(true)
       } catch {
-        alert(t('copyManually') + ' ' + text)
+        alert(t('copyManually') + ' ' + text, { type: 'warning' })
       }
       document.body.removeChild(textarea)
     }

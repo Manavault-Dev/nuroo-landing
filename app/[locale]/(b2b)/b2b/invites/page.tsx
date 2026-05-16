@@ -8,6 +8,7 @@ import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
 import { Key, Plus, Copy, Check, Loader2, ExternalLink, Smartphone } from 'lucide-react'
 import { useBranding } from '@/lib/b2b/brandingContext'
+import { useAlert } from '@/components/ui/AlertDialog'
 
 interface InviteCode {
   inviteCode: string
@@ -33,6 +34,7 @@ export default function InvitesPage() {
   const [creating, setCreating] = useState(false)
   const [creatingParentInvite, setCreatingParentInvite] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const { alert } = useAlert()
 
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
@@ -99,7 +101,7 @@ export default function InvitesPage() {
       setInvites([...invites, { ...newInvite, type: 'specialist' }])
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('failedCreateInvite')
-      alert(errorMessage)
+      alert(errorMessage, { type: 'error' })
     } finally {
       setCreating(false)
     }
@@ -119,7 +121,7 @@ export default function InvitesPage() {
       setParentInvites([...parentInvites, { ...newInvite, type: 'parent' }])
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('failedCreateParentInvite')
-      alert(errorMessage)
+      alert(errorMessage, { type: 'error' })
     } finally {
       setCreatingParentInvite(false)
     }
