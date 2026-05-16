@@ -277,10 +277,10 @@ export class ApiClient {
   }
 
   setToken(token: string | null) {
-    this.token = token
-    if (!token) {
-      cache.invalidate()
+    if (this.token !== token) {
+      cache.invalidate() // clear stale data whenever auth changes (login OR logout)
     }
+    this.token = token
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -398,9 +398,18 @@ export class ApiClient {
       active: boolean
       planId: string | null
       source: 'subscription' | 'free_trial' | null
+      billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+      badge: string | null
       error: string | null
       expiresAt: string | null
       limits: { children: number; specialists: number | null } | null
+      usage: {
+        children: number
+        specialists: number
+        childrenLimit: number | null
+        specialistsLimit: number | null
+      } | null
+      features: Record<string, boolean> | null
       trial: {
         active: boolean
         planId: string | null
