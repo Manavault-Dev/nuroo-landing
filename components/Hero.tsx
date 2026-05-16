@@ -152,7 +152,7 @@ export function Hero() {
               <div className="relative bg-gradient-to-br from-primary-100 to-secondary-100 dark:from-primary-900/40 dark:to-secondary-900/30 p-4 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl">
                 <img
                   src="/mother-and-child.png"
-                  alt="NeuroKids"
+                  alt="Nuroo"
                   className="w-full h-auto rounded-xl md:rounded-2xl shadow-lg"
                 />
               </div>
