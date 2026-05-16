@@ -1244,6 +1244,73 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // ── DELETE /orgs/:orgId/children/:childId ──────────────────────────────────
+  fastify.delete<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/children/:childId',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        const member = await requireOrgMember(request, reply, orgId)
+        const { uid } = request.user!
+        const db = getFirestore()
+
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+        const orgChildRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`)
+
+        const orgChildSnap = await orgChildRef.get()
+        if (!orgChildSnap.exists) {
+          return reply.code(404).send({ error: 'Child not found in this organization' })
+        }
+
+        await orgChildRef.update({ assigned: false, removedAt: now, removedBy: uid })
+
+        const membersSnap = await db.collection(`organizations/${orgId}/members`).get()
+        let groupsCleaned = 0
+
+        for (const memberDoc of membersSnap.docs) {
+          const specialistId = memberDoc.id
+          try {
+            const groupsSnap = await db
+              .collection(`specialists/${specialistId}/groups`)
+              .where('orgId', '==', orgId)
+              .get()
+
+            for (const groupDoc of groupsSnap.docs) {
+              const parentsSnap = await db
+                .collection(`specialists/${specialistId}/groups/${groupDoc.id}/parents`)
+                .get()
+
+              for (const parentDoc of parentsSnap.docs) {
+                const childIds = (parentDoc.data().childIds as string[]) || []
+                if (childIds.includes(resolvedChildId)) {
+                  const updated = childIds.filter((id: string) => id !== resolvedChildId)
+                  if (updated.length === 0) {
+                    await parentDoc.ref.delete()
+                  } else {
+                    await parentDoc.ref.update({ childIds: updated })
+                  }
+                  groupsCleaned++
+                }
+              }
+            }
+          } catch {
+            continue
+          }
+        }
+
+        return { ok: true, childId: resolvedChildId, groupsCleaned }
+      } catch (error: unknown) {
+        console.error('[CHILDREN] Error removing child:', error)
+        return reply.code(500).send({
+          error: 'Failed to remove child',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
+
   // ── DELETE /orgs/:orgId/children/:childId/guardians/:guardianId ────────────
   fastify.delete<{ Params: { orgId: string; childId: string; guardianId: string } }>(
     '/orgs/:orgId/children/:childId/guardians/:guardianId',
