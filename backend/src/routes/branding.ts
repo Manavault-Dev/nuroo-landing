@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { checkOrgHasFeature } from '../modules/payments/planLimits.js'
 
 const brandingSchema = z.object({
   logo: z.string().url().max(2000).optional().nullable(),
@@ -114,6 +115,11 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
 
         if (member.role !== 'org_admin') {
           return reply.code(403).send({ error: 'Only organization admins can update branding' })
+        }
+
+        const featureCheck = await checkOrgHasFeature(orgId, 'branding')
+        if (!featureCheck.ok) {
+          return reply.code(403).send({ error: featureCheck.error, upgradeRequired: true })
         }
 
         const body = brandingSchema.parse(request.body)
