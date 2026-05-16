@@ -5,6 +5,7 @@ import { useRouter, usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
+import { resolvePostLoginPath } from '@/src/config/routes'
 import { BrandingProvider } from '@/lib/b2b/brandingContext'
 import { Sidebar } from '@/components/b2b/Sidebar'
 import { Header } from '@/components/b2b/Header'
@@ -67,15 +68,21 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return
     if (!user && !isNoChromePage) {
-      router.push('/b2b/login')
+      const qs = searchParams.toString()
+      const returnPath = qs ? `${pathname}?${qs}` : pathname
+      router.push(`/b2b/login?redirect=${encodeURIComponent(returnPath)}`)
       return
     }
     if (user && isNoChromePage) {
-      if (profile?.organizations?.length) return router.replace('/b2b')
-      if (pathForMatch !== '/b2b/onboarding') return router.replace('/b2b/onboarding')
+      const destination = resolvePostLoginPath(profile, searchParams.get('redirect'))
+      const destPath = destination.split('?')[0]
+      if (pathForMatch !== destPath) {
+        router.replace(destination)
+      }
       return
     }
-  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router excluded: new object every render but functionally stable
+  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams])
 
   if (isLoading) {
     return <LoadingSpinner />
