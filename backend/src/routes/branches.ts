@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
+import { checkOrgHasFeature } from '../modules/payments/planLimits.js'
 
 const ORG_BRANCHES = (orgId: string) => `organizations/${orgId}/branches`
 
@@ -60,6 +61,11 @@ export const branchesRoute: FastifyPluginAsync = async (fastify) => {
 
         if (member.role !== 'org_admin') {
           return reply.code(403).send({ error: 'Only org admins can create branches' })
+        }
+
+        const featureCheck = await checkOrgHasFeature(orgId, 'branches')
+        if (!featureCheck.ok) {
+          return reply.code(403).send({ error: featureCheck.error, upgradeRequired: true })
         }
 
         const body = branchSchema.parse(request.body)
