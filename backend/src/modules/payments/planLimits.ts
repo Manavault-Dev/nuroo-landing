@@ -5,18 +5,91 @@ import { getBillingPlan, type BillingPlan } from './payments.repository.js'
 export const PLAN_IDS = ['starter', 'growth', 'enterprise'] as const
 export type PlanId = (typeof PLAN_IDS)[number]
 export type SubscriptionAccessSource = 'subscription' | 'free_trial'
+export type BillingStatus = 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled'
 
 export const FREE_TRIAL_DAYS = 30
-export const FREE_TRIAL_PLAN_ID: PlanId = 'starter'
+// Trial gives professional (growth) level access
+export const FREE_TRIAL_PLAN_ID: PlanId = 'growth'
 
+export interface PlanFeatures {
+  branding: boolean
+  advancedAnalytics: boolean
+  csvExport: boolean
+  advancedRoles: boolean
+  teamManagement: boolean
+  branches: boolean
+  finance: boolean
+  dedicatedOnboarding: boolean
+  customIntegrations: boolean
+}
+
+export interface PlanConfig {
+  priceKgs: number
+  maxChildren: number | null
+  maxSpecialists: number | null
+  features: PlanFeatures
+}
+
+export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
+  starter: {
+    priceKgs: 4900,
+    maxChildren: 20,
+    maxSpecialists: 3,
+    features: {
+      branding: false,
+      advancedAnalytics: false,
+      csvExport: false,
+      advancedRoles: false,
+      teamManagement: false,
+      branches: false,
+      finance: false,
+      dedicatedOnboarding: false,
+      customIntegrations: false,
+    },
+  },
+  growth: {
+    priceKgs: 9900,
+    maxChildren: 100,
+    maxSpecialists: 15,
+    features: {
+      branding: true,
+      advancedAnalytics: true,
+      csvExport: true,
+      advancedRoles: true,
+      teamManagement: true,
+      branches: false,
+      finance: false,
+      dedicatedOnboarding: false,
+      customIntegrations: false,
+    },
+  },
+  enterprise: {
+    priceKgs: 19900,
+    maxChildren: null,
+    maxSpecialists: null,
+    features: {
+      branding: true,
+      advancedAnalytics: true,
+      csvExport: true,
+      advancedRoles: true,
+      teamManagement: true,
+      branches: true,
+      finance: true,
+      dedicatedOnboarding: true,
+      customIntegrations: true,
+    },
+  },
+}
+
+// Keep for backward compatibility
 export interface PlanLimit {
   children: number | null
   specialists: number | null
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimit> = {
-  starter: { children: 30, specialists: 3 },
-  growth: { children: 80, specialists: null },
+  starter: { children: PLAN_CONFIG.starter.maxChildren, specialists: PLAN_CONFIG.starter.maxSpecialists },
+  growth: { children: PLAN_CONFIG.growth.maxChildren, specialists: PLAN_CONFIG.growth.maxSpecialists },
   enterprise: { children: null, specialists: null },
 }
 
@@ -29,10 +102,20 @@ const LEGACY_PLAN_MAP: Record<string, PlanId> = {
   professional: 'growth',
 }
 
+export function normalizePlanId(id: string): PlanId | null {
+  return LEGACY_PLAN_MAP[id] ?? (isPlanId(id) ? id : null)
+}
+
 export function getPlanLimits(planId: string): PlanLimit | null {
-  const mapped = LEGACY_PLAN_MAP[planId] ?? (isPlanId(planId) ? planId : null)
+  const mapped = normalizePlanId(planId)
   if (!mapped) return null
   return PLAN_LIMITS[mapped]
+}
+
+export function getPlanConfig(planId: string): PlanConfig | null {
+  const mapped = normalizePlanId(planId)
+  if (!mapped) return null
+  return PLAN_CONFIG[mapped]
 }
 
 export function isSubscriptionActive(billing: BillingPlan | null): boolean {
@@ -57,22 +140,14 @@ export async function getFreeTrialStatus(orgId: string): Promise<{
   if (!trial) return null
 
   const planId = typeof trial.planId === 'string' ? trial.planId : FREE_TRIAL_PLAN_ID
-  if (!getPlanLimits(planId)) {
-    return {
-      active: false,
-      error: 'Free trial has an invalid plan. Please choose a plan and pay in Billing.',
-      planId,
-      startedAt: trial.startedAt ?? null,
-      expiresAt: trial.expiresAt ?? null,
-    }
-  }
+  const normalizedPlanId = normalizePlanId(planId) ?? FREE_TRIAL_PLAN_ID
 
   const expiresAt = trial.expiresAt?.toDate?.()
   if (!expiresAt) {
     return {
       active: false,
-      error: 'Free trial is missing an expiration date. Please choose a plan and pay in Billing.',
-      planId,
+      error: 'Free trial is missing an expiration date. Please choose a plan in Billing.',
+      planId: normalizedPlanId,
       startedAt: trial.startedAt ?? null,
       expiresAt: trial.expiresAt ?? null,
     }
@@ -82,7 +157,7 @@ export async function getFreeTrialStatus(orgId: string): Promise<{
     return {
       active: false,
       error: 'Free trial expired. Please choose a plan and pay in Billing.',
-      planId,
+      planId: normalizedPlanId,
       startedAt: trial.startedAt ?? null,
       expiresAt: trial.expiresAt ?? null,
     }
@@ -90,7 +165,7 @@ export async function getFreeTrialStatus(orgId: string): Promise<{
 
   return {
     active: true,
-    planId,
+    planId: normalizedPlanId,
     startedAt: trial.startedAt ?? null,
     expiresAt: trial.expiresAt ?? null,
   }
@@ -101,6 +176,7 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
   error?: string
   planId?: string
   source?: SubscriptionAccessSource
+  billingStatus?: BillingStatus
   expiresAt?: admin.firestore.Timestamp | null
 }> {
   const billing = await getBillingPlan(orgId)
@@ -110,6 +186,7 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
         active: false,
         error: 'Subscription is not active. Please renew in Billing.',
         source: 'subscription',
+        billingStatus: billing.status === 'cancelled' ? 'cancelled' : 'expired',
         expiresAt: billing.expiresAt ?? null,
       }
     }
@@ -119,6 +196,7 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
         active: false,
         error: 'Subscription expired. Please renew in Billing.',
         source: 'subscription',
+        billingStatus: 'expired',
         expiresAt: billing.expiresAt ?? null,
       }
     }
@@ -126,6 +204,7 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
       active: true,
       planId: billing.planId,
       source: 'subscription',
+      billingStatus: 'active',
       expiresAt: billing.expiresAt ?? null,
     }
   }
@@ -136,20 +215,44 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
       active: true,
       planId: trial.planId,
       source: 'free_trial',
+      billingStatus: 'trialing',
       expiresAt: trial.expiresAt ?? null,
     }
   }
 
-  if (trial) {
+  if (trial && !trial.active) {
     return {
       active: false,
       error: trial.error ?? 'Free trial expired. Please choose a plan and pay in Billing.',
       source: 'free_trial',
+      billingStatus: 'expired',
       expiresAt: trial.expiresAt ?? null,
     }
   }
 
-  return { active: false, error: 'No subscription. Please choose a plan and pay in Billing.' }
+  return {
+    active: false,
+    error: 'No subscription. Please choose a plan and pay in Billing.',
+    billingStatus: 'expired',
+  }
+}
+
+export function getBillingBadgeKey(billingStatus: BillingStatus | undefined): string {
+  switch (billingStatus) {
+    case 'trialing': return 'freeTrial'
+    case 'active': return 'active'
+    case 'past_due': return 'pastDue'
+    case 'expired': return 'expired'
+    case 'cancelled': return 'cancelled'
+    default: return 'expired'
+  }
+}
+
+export async function hasFeature(orgId: string, feature: keyof PlanFeatures): Promise<boolean> {
+  const status = await getSubscriptionStatus(orgId)
+  if (!status.active) return false
+  const planId = normalizePlanId(status.planId ?? 'starter') ?? 'starter'
+  return PLAN_CONFIG[planId].features[feature] === true
 }
 
 export async function checkOrgCanAddChild(orgId: string): Promise<{ ok: boolean; error?: string }> {
@@ -157,19 +260,15 @@ export async function checkOrgCanAddChild(orgId: string): Promise<{ ok: boolean;
   if (!status.active) {
     return { ok: false, error: status.error ?? 'Subscription required.' }
   }
-  const planId = status.planId ?? 'starter'
-  const limits = getPlanLimits(planId)
-  if (!limits) {
-    return { ok: false, error: 'Invalid plan. Please renew in Billing.' }
-  }
-  if (limits.children === null) return { ok: true }
+  const planId = normalizePlanId(status.planId ?? 'starter') ?? 'starter'
+  const { maxChildren } = PLAN_CONFIG[planId]
+  if (maxChildren === null) return { ok: true }
   const db = getFirestore()
-  const childrenSnap = await db.collection('organizations').doc(orgId).collection('children').get()
-  const count = childrenSnap.size
-  if (count >= limits.children) {
+  const snap = await db.collection('organizations').doc(orgId).collection('children').get()
+  if (snap.size >= maxChildren) {
     return {
       ok: false,
-      error: `Plan limit: ${limits.children} children. Upgrade in Billing to add more.`,
+      error: `You've reached the limit of ${maxChildren} children on your current plan. Upgrade to continue.`,
     }
   }
   return { ok: true }
@@ -182,19 +281,40 @@ export async function checkOrgCanAddSpecialist(
   if (!status.active) {
     return { ok: false, error: status.error ?? 'Subscription required.' }
   }
-  const planId = status.planId ?? 'starter'
-  const limits = getPlanLimits(planId)
-  if (!limits) {
-    return { ok: false, error: 'Invalid plan. Please renew in Billing.' }
-  }
-  if (limits.specialists === null) return { ok: true }
+  const planId = normalizePlanId(status.planId ?? 'starter') ?? 'starter'
+  const { maxSpecialists } = PLAN_CONFIG[planId]
+  if (maxSpecialists === null) return { ok: true }
   const db = getFirestore()
-  const membersSnap = await db.collection('organizations').doc(orgId).collection('members').get()
-  const count = membersSnap.size
-  if (count >= limits.specialists) {
+  const snap = await db.collection('organizations').doc(orgId).collection('members').get()
+  if (snap.size >= maxSpecialists) {
     return {
       ok: false,
-      error: `Plan limit: ${limits.specialists} specialists. Upgrade in Billing to add more.`,
+      error: `You've reached the limit of ${maxSpecialists} specialists on your current plan. Upgrade to continue.`,
+    }
+  }
+  return { ok: true }
+}
+
+export async function checkOrgHasFeature(
+  orgId: string,
+  feature: keyof PlanFeatures
+): Promise<{ ok: boolean; error?: string }> {
+  const ok = await hasFeature(orgId, feature)
+  if (!ok) {
+    const featureLabels: Record<keyof PlanFeatures, string> = {
+      branding: 'White-label branding (Professional plan)',
+      advancedAnalytics: 'Advanced analytics (Professional plan)',
+      csvExport: 'CSV/PDF export (Professional plan)',
+      advancedRoles: 'Advanced roles (Professional plan)',
+      teamManagement: 'Team management (Professional plan)',
+      branches: 'Multiple branches (Enterprise plan)',
+      finance: 'Finance module (Enterprise plan)',
+      dedicatedOnboarding: 'Dedicated onboarding (Enterprise plan)',
+      customIntegrations: 'Custom integrations (Enterprise plan)',
+    }
+    return {
+      ok: false,
+      error: `${featureLabels[feature]} is not included in your current plan. Upgrade to continue.`,
     }
   }
   return { ok: true }
