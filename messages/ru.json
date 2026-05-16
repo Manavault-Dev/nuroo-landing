@@ -1274,7 +1274,17 @@
     },
     "common": {
       "loading": "Загрузка...",
-      "checkingAuth": "Проверка входа..."
+      "checkingAuth": "Проверка входа...",
+      "alertDialog": {
+        "ok": "OK",
+        "confirmTitle": "Подтверждение",
+        "confirm": "Подтвердить",
+        "cancel": "Отмена",
+        "success": "Успешно",
+        "error": "Ошибка",
+        "warning": "Предупреждение",
+        "info": "Информация"
+      }
     }
   },
   "common": {

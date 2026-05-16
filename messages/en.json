@@ -1274,7 +1274,17 @@
     },
     "common": {
       "loading": "Loading...",
-      "checkingAuth": "Checking authentication..."
+      "checkingAuth": "Checking authentication...",
+      "alertDialog": {
+        "ok": "OK",
+        "confirmTitle": "Confirmation",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "success": "Success",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Information"
+      }
     }
   },
   "common": {

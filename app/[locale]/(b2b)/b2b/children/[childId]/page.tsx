@@ -16,6 +16,7 @@ import {
   type ChildProfileData,
   type ActivityEvent,
 } from '@/lib/b2b/api'
+import { useAlert } from '@/components/ui/AlertDialog'
 import {
   Send,
   Calendar,
@@ -462,6 +463,7 @@ export default function ChildDetailPage() {
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { confirm } = useAlert()
 
   const [noteContent, setNoteContent] = useState('')
   const [visibleToParent, setVisibleToParent] = useState(true)
@@ -630,7 +632,8 @@ export default function ChildDetailPage() {
   }
 
   const handleDeleteGuardian = async (guardianId: string) => {
-    if (!confirm('Remove this guardian?')) return
+    const ok = await confirm('Remove this guardian?')
+    if (!ok) return
     setDeletingGuardianId(guardianId)
     try {
       if (!(await ensureToken())) return

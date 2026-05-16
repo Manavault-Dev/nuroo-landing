@@ -1270,7 +1270,17 @@
     },
     "common": {
       "loading": "Жүктөлүп жатат...",
-      "checkingAuth": "Кирүү текшерилип жатат..."
+      "checkingAuth": "Кирүү текшерилип жатат...",
+      "alertDialog": {
+        "ok": "OK",
+        "confirmTitle": "Ырастоо",
+        "confirm": "Ырастоо",
+        "cancel": "Жокко чыгаруу",
+        "success": "Ийгиликтүү",
+        "error": "Ката",
+        "warning": "Эскертүү",
+        "info": "Маалымат"
+      }
     }
   },
   "common": {

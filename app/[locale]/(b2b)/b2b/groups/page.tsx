@@ -23,6 +23,7 @@ import {
 } from './mappers'
 import { PRESET_COLORS, formatDate, pluralChildren } from './utils'
 import { Modal, Skeleton, Toast } from './ui'
+import { useAlert } from '@/components/ui/AlertDialog'
 import {
   AssignmentsTab,
   GroupCard,
@@ -70,6 +71,7 @@ export default function GroupsPage() {
   const [orgId, setOrgId] = useState<string | null>(null)
   const [isOrgAdmin, setIsOrgAdmin] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const { confirm } = useAlert()
 
   // Group panel (right drawer)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
@@ -282,7 +284,9 @@ export default function GroupsPage() {
 
   const handleDeleteGroup = async (groupId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!orgId || !confirm(t('confirmDeleteGroup'))) return
+    if (!orgId) return
+    const confirmed = await confirm(t('confirmDeleteGroup'))
+    if (!confirmed) return
     try {
       await apiClient.deleteGroup(orgId, groupId)
       if (selectedGroup?.id === groupId) setSelectedGroup(null)
@@ -399,8 +403,11 @@ export default function GroupsPage() {
   const libraryEmpty = contentTaskLibrary.length === 0 && contentRoadmapLibrary.length === 0
 
   const handleDeleteAssignment = async (a: Assignment) => {
-    if (!orgId || !selectedGroup || !confirm(t('confirmDeleteAssignment', { title: a.title })))
-      return
+    if (!orgId || !selectedGroup) return
+    const confirmedDeleteAssignment = await confirm(
+      t('confirmDeleteAssignment', { title: a.title })
+    )
+    if (!confirmedDeleteAssignment) return
     try {
       await apiClient.deleteGroupAssignment(orgId, selectedGroup.id, a.id)
       setGroupAssignments((prev) => prev.filter((x) => x.id !== a.id))
@@ -503,7 +510,9 @@ export default function GroupsPage() {
   }
 
   const handleRemoveParent = async (parentUserId: string) => {
-    if (!orgId || !selectedGroup || !confirm(t('confirmRemoveParent'))) return
+    if (!orgId || !selectedGroup) return
+    const confirmedRemoveParent = await confirm(t('confirmRemoveParent'))
+    if (!confirmedRemoveParent) return
     try {
       await apiClient.removeParentFromGroup(orgId, selectedGroup.id, parentUserId)
       setGroupParents((prev) => prev.filter((p) => p.parentUserId !== parentUserId))
@@ -514,7 +523,9 @@ export default function GroupsPage() {
   }
 
   const handleDisconnect = async (parentUserId: string) => {
-    if (!orgId || !isOrgAdmin || !confirm(t('confirmDisconnectParent'))) return
+    if (!orgId || !isOrgAdmin) return
+    const confirmedDisconnect = await confirm(t('confirmDisconnectParent'))
+    if (!confirmedDisconnect) return
     setDisconnecting(parentUserId)
     try {
       await apiClient.disconnectParent(orgId, parentUserId)
