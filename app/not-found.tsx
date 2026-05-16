@@ -230,7 +230,7 @@ export default function NotFound() {
 
           {/* Bottom hint */}
           <p className="mt-12 text-xs text-slate-700 tracking-widest uppercase">
-            NeuroKids · детская платформа развития
+            Nuroo · детская платформа развития
           </p>
         </div>
       </div>

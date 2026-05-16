@@ -6,12 +6,13 @@ const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'NeuroKids — AI Support for Children with Special Needs',
-    template: '%s | NeuroKids',
+    default: 'Nuroo — AI Support for Children with Special Needs',
+    template: '%s | Nuroo',
   },
   description:
-    'NeuroKids — AI-powered exercises, NeuroKids chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
+    'Nuroo — AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
   keywords: [
+    'Nuroo',
     // English
     'special needs app',
     'AI therapy children',
@@ -19,17 +20,27 @@ export const metadata: Metadata = {
     'ADHD children',
     'child development platform',
     'therapy at home',
+    'neurodiversity',
+    'early intervention',
+    'speech therapy',
+    'ABA therapy',
+    'special education',
     // Russian (high search volume in CIS)
     'приложение для детей с особыми потребностями',
     'аутизм приложение',
     'ЗПР упражнения',
     'СДВГ ребёнок',
     'детская реабилитация',
-    'NeuroKids',
+    'логопед онлайн',
+    'коррекционная педагогика',
+    'нейроразнообразие',
+    // Kyrgyz
+    'атайын муктаждыктары бар балдар',
   ],
-  authors: [{ name: 'NeuroKids Team' }],
-  creator: 'NeuroKids',
-  publisher: 'NeuroKids',
+  authors: [{ name: 'Nuroo by Manavault Studio' }],
+  creator: 'Nuroo',
+  publisher: 'Nuroo',
+  category: 'Education',
   formatDetection: {
     email: false,
     address: false,
@@ -41,22 +52,22 @@ export const metadata: Metadata = {
     locale: 'ru_RU',
     alternateLocale: ['en_US', 'ky_KG'],
     url: 'https://usenuroo.com',
-    siteName: 'NeuroKids',
-    title: 'NeuroKids — AI Support for Children with Special Needs',
+    siteName: 'Nuroo',
+    title: 'Nuroo — AI Support for Children with Special Needs',
     description:
-      'AI-powered exercises, NeuroKids chat and progress tracking for children with autism, ADHD and developmental delays.',
+      'AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays.',
     images: [
       {
         url: '/mother-and-child.png',
         width: 1200,
         height: 630,
-        alt: 'NeuroKids — AI Support for Children with Special Needs',
+        alt: 'Nuroo — AI Support for Children with Special Needs',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NeuroKids — AI Support for Children with Special Needs',
+    title: 'Nuroo — AI Support for Children with Special Needs',
     description:
       'AI-powered exercises and support for children with autism, ADHD and developmental delays.',
     images: ['/mother-and-child.png'],
