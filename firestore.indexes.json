@@ -1,0 +1,28 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "uid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "children",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "parentUserId", "order": "ASCENDING" }]
+    },
+    {
+      "collectionGroup": "children",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "parentUserId", "order": "ASCENDING" }]
+    },
+    {
+      "collectionGroup": "organizations",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "createdBy", "order": "ASCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}
