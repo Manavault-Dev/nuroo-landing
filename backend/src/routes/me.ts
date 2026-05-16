@@ -69,54 +69,77 @@ async function findOrganizationsForUser(
     }
   }
 
+  // Strategy 1: efficient indexed query (requires uid field on member docs + composite index)
+  let memberDocs: admin.firestore.QueryDocumentSnapshot[] = []
   try {
-    const membershipsSnapshot = await db
+    const snapshot = await db
       .collectionGroup('members')
       .where('status', '==', 'active')
+      .where('uid', '==', uid)
       .get()
+    memberDocs = snapshot.docs
+  } catch (err) {
+    console.warn('[me] Strategy 1 (uid index) failed:', err)
+  }
 
-    const orgEntries = await Promise.all(
-      membershipsSnapshot.docs
-        .filter((memberDoc) => memberDoc.id === uid)
-        .map(async (memberDoc) => {
-          const memberData = memberDoc.data()
+  // Strategy 2: status-only collection-group query, filter by doc.id in JS
+  if (memberDocs.length === 0) {
+    try {
+      const snapshot = await db.collectionGroup('members').where('status', '==', 'active').get()
+      memberDocs = snapshot.docs.filter((doc) => doc.id === uid)
+    } catch (err) {
+      console.warn('[me] Strategy 2 (status filter) failed:', err)
+    }
+  }
 
-          const orgRef = memberDoc.ref.parent.parent
-          if (!orgRef) return null
-
-          const orgSnap = await orgRef.get()
-          if (!orgSnap.exists) return null
-
+  // Strategy 3: scan all orgs and check each member sub-doc directly — no index needed
+  if (memberDocs.length === 0) {
+    console.warn('[me] Strategy 3: scanning organizations collection for uid:', uid)
+    try {
+      const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
+      const directChecks = await Promise.all(
+        orgsSnapshot.docs.map(async (orgDoc) => {
+          const memberRef = db.doc(`${COLLECTIONS.ORGANIZATIONS}/${orgDoc.id}/members/${uid}`)
+          const memberSnap = await memberRef.get()
+          if (!memberSnap.exists) return null
+          const data = memberSnap.data()!
+          if (data.status !== 'active') return null
           return {
-            orgId: orgSnap.id,
-            orgData: orgSnap.data()!,
-            role: normalizeRole(memberData.role),
+            orgId: orgDoc.id,
+            orgData: orgDoc.data(),
+            role: normalizeRole(data.role),
           }
         })
-    )
-
-    for (const entry of orgEntries) {
-      if (!entry) continue
-      addOrganization(entry.orgId, entry.orgData, entry.role)
+      )
+      for (const entry of directChecks) {
+        if (entry) addOrganization(entry.orgId, entry.orgData, entry.role)
+      }
+    } catch (err) {
+      console.error('[me] Strategy 3 (direct scan) failed:', err)
     }
-  } catch (error) {
-    console.warn('[ME] Collection group query failed, falling back to org scan:', error)
+    return organizations
+  }
 
-    const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
+  const orgEntries = await Promise.all(
+    memberDocs.map(async (memberDoc) => {
+      const memberData = memberDoc.data()
+      const orgRef = memberDoc.ref.parent.parent
+      if (!orgRef) return null
 
-    for (const orgDoc of orgsSnapshot.docs) {
-      const orgId = orgDoc.id
-      if (seenOrgIds.has(orgId)) continue
+      const orgSnap = await orgRef.get()
+      if (!orgSnap.exists) return null
 
-      const memberRef = db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
-      const memberSnap = await memberRef.get()
-      if (!memberSnap.exists) continue
+      return {
+        orgId: orgSnap.id,
+        orgData: orgSnap.data()!,
+        role: normalizeRole(memberData.role),
+      }
+    })
+  )
 
-      const memberData = memberSnap.data()
-      if (memberData?.status !== 'active') continue
-
-      addOrganization(orgId, orgDoc.data(), normalizeRole(memberData.role))
-    }
+  for (const entry of orgEntries) {
+    if (!entry) continue
+    addOrganization(entry.orgId, entry.orgData, entry.role)
   }
 
   return organizations
