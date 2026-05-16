@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
-import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type ChildSummary, type SpecialistProfile } from '@/lib/b2b/api'
@@ -207,20 +206,24 @@ export default function ChildrenPage() {
       {/* Column headers */}
       {children.length > 0 && (
         <div className="hidden sm:flex items-center gap-3 px-4 mb-1">
+          <span className="w-9 shrink-0" />
+          {/* avatar spacer */}
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide flex-1 min-w-0">
             {t('columnStudent')}
           </span>
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-center">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-24 text-center">
             {t('columnStatus')}
           </span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-right">
             {t('columnTasks')}
           </span>
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-20 text-right">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-24 text-right">
             {t('columnLastActive')}
           </span>
           <span className="w-10 shrink-0" />
+          {/* delete button spacer */}
           <span className="w-4 shrink-0" />
+          {/* chevron spacer */}
         </div>
       )}
 
@@ -242,54 +245,59 @@ export default function ChildrenPage() {
           {filtered.map((child) => {
             const status = getStatus(child)
             const days = daysSince(child.lastActiveDate)
+            const childHref = `/b2b/children/${child.id}${orgId ? `?orgId=${orgId}` : ''}`
             return (
               <div
                 key={child.id}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group"
+                onClick={() => router.push(childHref)}
+                className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group cursor-pointer"
               >
-                <Link
-                  href={`/b2b/children/${child.id}${orgId ? `?orgId=${orgId}` : ''}`}
-                  className="flex items-center gap-3 flex-1 min-w-0"
-                >
-                  <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 text-sm font-semibold flex items-center justify-center shrink-0">
-                    {getInitials(child.name)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">
-                        {child.name}
-                      </span>
-                      {child.age !== undefined && (
-                        <span className="text-xs text-gray-400 shrink-0">{child.age}y</span>
-                      )}
-                    </div>
-                    <div className="sm:hidden mt-1">
-                      <StatusPill status={status} label={statusLabels[status]} />
-                    </div>
-                  </div>
+                {/* Avatar */}
+                <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 text-sm font-semibold flex items-center justify-center shrink-0">
+                  {getInitials(child.name)}
+                </div>
 
-                  <div className="hidden sm:flex items-center gap-4 shrink-0">
-                    <div className="w-16 flex justify-center">
-                      <StatusPill status={status} label={statusLabels[status]} />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 w-16 justify-end">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-gray-300" />
-                      {child.completedTasksCount}
-                    </div>
-                    <span className="text-xs text-gray-400 w-20 text-right">
-                      {days === null
-                        ? t('dash')
-                        : days === 0
-                          ? t('todayLabel')
-                          : t('lastActiveDaysAgo', { days })}
-                    </span>
+                {/* Name + age */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900 truncate">{child.name}</span>
+                    {child.age !== undefined && (
+                      <span className="text-xs text-gray-400 shrink-0">{child.age}y</span>
+                    )}
                   </div>
+                  <div className="sm:hidden mt-1">
+                    <StatusPill status={status} label={statusLabels[status]} />
+                  </div>
+                </div>
 
-                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors shrink-0" />
-                </Link>
+                {/* Status */}
+                <div className="hidden sm:flex w-24 justify-center shrink-0">
+                  <StatusPill status={status} label={statusLabels[status]} />
+                </div>
 
+                {/* Tasks */}
+                <div className="hidden sm:flex items-center justify-end gap-1 w-16 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-gray-300" />
+                  <span className="text-xs text-gray-500">{child.completedTasksCount}</span>
+                </div>
+
+                {/* Last active */}
+                <div className="hidden sm:block w-24 text-right shrink-0">
+                  <span className="text-xs text-gray-400">
+                    {days === null
+                      ? t('dash')
+                      : days === 0
+                        ? t('todayLabel')
+                        : t('lastActiveDaysAgo', { days })}
+                  </span>
+                </div>
+
+                {/* Delete */}
                 <button
-                  onClick={(e) => handleRemove(child.id, e)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemove(child.id, e)
+                  }}
                   disabled={removingChildId === child.id}
                   className="shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
                   title={t('removeChild')}
@@ -300,6 +308,9 @@ export default function ChildrenPage() {
                     <Trash2 className="w-4 h-4" />
                   )}
                 </button>
+
+                {/* Chevron */}
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors shrink-0" />
               </div>
             )
           })}

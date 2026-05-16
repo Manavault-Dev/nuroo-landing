@@ -491,6 +491,10 @@ export class ApiClient {
     )
   }
 
+  async removeChild(orgId: string, childId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}`, { method: 'DELETE' })
+  }
+
   async deleteGuardian(orgId: string, childId: string, guardianId: string) {
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/children/${childId}/guardians/${guardianId}`,
