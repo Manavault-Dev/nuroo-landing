@@ -19,6 +19,7 @@ import { aiDomain } from './domains/ai/index.js'
 import { childrenDomain } from './domains/children/index.js'
 import { groupsDomain } from './domains/groups/index.js'
 import { contentDomain } from './domains/content/index.js'
+import { activityDomain } from './domains/activity/index.js'
 
 // External modules (untouched)
 import { paymentsRoutes } from './modules/payments/index.js'
@@ -146,6 +147,7 @@ async function buildServer() {
     childrenDomain,
     groupsDomain,
     contentDomain,
+    activityDomain,
     // External modules (notifications, payments, parent-api, ai-assistant)
     paymentsRoutes,
     parentApiRoutes,
