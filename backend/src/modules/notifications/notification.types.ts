@@ -1,16 +1,16 @@
 // ── Notification Types ────────────────────────────────────────────────────────
 
 export type NotificationType =
-  | 'task_assigned'       // parent ← specialist created task for child
-  | 'task_reviewed'       // parent ← specialist reviewed / commented on submission
-  | 'task_completed'      // specialist ← parent completed task
-  | 'homework_submitted'  // specialist ← parent submitted homework
+  | 'task_assigned' // parent ← specialist created task for child
+  | 'task_reviewed' // parent ← specialist reviewed / commented on submission
+  | 'task_completed' // specialist ← parent completed task
+  | 'homework_submitted' // specialist ← parent submitted homework
   | 'assignment_reminder' // parent ← pending task reminder
-  | 'progress_update'     // parent ← progress report added
-  | 'note_added'          // parent ← specialist note (existing)
-  | 'child_assigned'      // specialist ← admin assigned child (existing)
-  | 'specialist_joined'   // admin ← specialist accepted invite
-  | 'new_child_added'     // admin ← child added to org
+  | 'progress_update' // parent ← progress report added
+  | 'note_added' // parent ← specialist note (existing)
+  | 'child_assigned' // specialist ← admin assigned child (existing)
+  | 'specialist_joined' // admin ← specialist accepted invite
+  | 'new_child_added' // admin ← child added to org
   | 'subscription_update' // admin ← billing / trial status
 
 export type NotificationCategory =

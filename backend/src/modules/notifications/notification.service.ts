@@ -48,7 +48,10 @@ export async function updateUserPreferences(
 
 // ── Preference check ──────────────────────────────────────────────────────────
 
-function isCategoryEnabled(prefs: NotificationPreferences, category: NotificationCategory): boolean {
+function isCategoryEnabled(
+  prefs: NotificationPreferences,
+  category: NotificationCategory
+): boolean {
   if (!prefs.allEnabled) return false
   return prefs.categories[category] ?? true
 }
@@ -221,10 +224,7 @@ export async function markAsRead(userId: string, notificationId: string): Promis
 
 export async function markAllAsRead(userId: string): Promise<number> {
   const db = getFirestore()
-  const snap = await db
-    .collection(`users/${userId}/notifications`)
-    .where('read', '==', false)
-    .get()
+  const snap = await db.collection(`users/${userId}/notifications`).where('read', '==', false).get()
   if (snap.empty) return 0
   const batch = db.batch()
   const now = admin.firestore.FieldValue.serverTimestamp()
@@ -250,10 +250,7 @@ export async function listNotifications(
   const db = getFirestore()
   const limit = Math.min(options.limit ?? 50, 100)
 
-  let q = db
-    .collection(`users/${userId}/notifications`)
-    .orderBy('createdAt', 'desc')
-    .limit(limit)
+  let q = db.collection(`users/${userId}/notifications`).orderBy('createdAt', 'desc').limit(limit)
 
   if (options.unreadOnly) {
     q = q.where('read', '==', false) as typeof q
