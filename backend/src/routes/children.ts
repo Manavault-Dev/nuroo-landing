@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
 import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
+import { dispatch } from '../modules/notifications/index.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
 
 const createTaskSchema = z.object({
@@ -929,6 +930,24 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
         completedAt: null,
       }
       const taskRef = await db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId)).add(taskData)
+
+      // Notify parent about new assignment (fire-and-forget)
+      const orgChildSnap = await db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get()
+      const parentUserId = orgChildSnap.data()?.parentUserId
+      const childName: string = orgChildSnap.data()?.name || 'your child'
+      if (parentUserId) {
+        dispatch({
+          userId: parentUserId,
+          orgId,
+          role: 'parent',
+          type: 'task_assigned',
+          category: 'assignments',
+          title: 'New assignment',
+          body: `You have a new assignment for ${childName}.`,
+          metadata: { childId: resolvedChildId, taskId: taskRef.id, orgId },
+          dedupKey: `task_assigned:${resolvedChildId}:${taskRef.id}`,
+        }).catch(() => {})
+      }
 
       return reply.code(201).send({
         id: taskRef.id,

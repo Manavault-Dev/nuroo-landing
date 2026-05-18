@@ -3,8 +3,8 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
+import { dispatch } from '../modules/notifications/index.js'
 import { requireOrgMember } from '../plugins/rbac.js'
-import { sendPushToUser } from '../services/pushNotificationService.js'
 
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
@@ -100,11 +100,17 @@ export const assignmentsRoute: FastifyPluginAsync = async (fastify) => {
         await childAssignmentRef.update(buildAssignmentUpdate(specialistId, now))
 
         const childName = (await childAssignmentRef.get()).data()?.name || 'A child'
-        sendPushToUser(specialistId, {
+        dispatch({
+          userId: specialistId,
+          orgId,
+          role: 'specialist',
           type: 'child_assigned',
-          title: `👶 New child assigned`,
+          category: 'organizationUpdates',
+          title: '👶 New child assigned',
           body: `${childName} has been assigned to you`,
-          data: { childId, orgId },
+          metadata: { childId, orgId },
+          dedupKey: `child_assigned:${childId}:${specialistId}`,
+          channel: 'both',
         }).catch(() => {})
 
         return {
