@@ -16,21 +16,10 @@ export const PLAN_FEATURE_KEYS = {
     'starterF6',
     'starterF7',
   ],
-  professional: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5', 'proF6', 'proF7', 'proF8', 'proF9'],
+  professional: ['proF1', 'proF2', 'proF4', 'proF5', 'proF6', 'proF7', 'proF9'],
   /** Alias for 'professional' — used when backend returns planId 'growth' */
-  growth: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5', 'proF6', 'proF7', 'proF8', 'proF9'],
-  enterprise: [
-    'entF1',
-    'entF2',
-    'entF3',
-    'entF4',
-    'entF5',
-    'entF6',
-    'entF7',
-    'entF8',
-    'entF9',
-    'entF10',
-  ],
+  growth: ['proF1', 'proF2', 'proF4', 'proF5', 'proF6', 'proF7', 'proF9'],
+  enterprise: ['entF1', 'entF2', 'entF3', 'entF5', 'entF8', 'entF10'],
 } as const satisfies Record<string, readonly string[]>
 
 export type PlanId = keyof typeof PLAN_FEATURE_KEYS
