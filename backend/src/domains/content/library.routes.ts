@@ -3,7 +3,12 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 import multipart from '@fastify/multipart'
 
-import { getFirestore, getStorage, getApp, getAuth } from '../infrastructure/database/firebase.js'
+import {
+  getFirestore,
+  getStorage,
+  getApp,
+  getAuth,
+} from '../../infrastructure/database/firebase.js'
 
 const COLLECTIONS = {
   TASKS: 'content/tasks/items',

@@ -2,10 +2,10 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
-import { dispatch } from '../modules/notifications/index.js'
-import type { SpecialistNote } from '../types.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
+import { dispatch } from '../../modules/notifications/index.js'
+import type { SpecialistNote } from '../../types.js'
 
 const COLLECTIONS = {
   CHILD_NOTES: (childId: string) => `children/${childId}/specialistNotes`,

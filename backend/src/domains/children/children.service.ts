@@ -629,9 +629,7 @@ export async function getChildGuardians(
       let enriched: Record<string, unknown> = {}
 
       if (d.appUserId) {
-        const parentSnap = await db
-          .doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${d.appUserId}`)
-          .get()
+        const parentSnap = await db.doc(`${COLLECTIONS.ORG_PARENTS(orgId)}/${d.appUserId}`).get()
         if (parentSnap.exists) {
           const p = parentSnap.data()
           enriched = {

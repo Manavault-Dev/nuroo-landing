@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { dispatch } from '../modules/notifications/index.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { dispatch } from '../../modules/notifications/index.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',

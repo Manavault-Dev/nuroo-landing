@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../plugins/rbac.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
 
 const COLLECTIONS = {
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,

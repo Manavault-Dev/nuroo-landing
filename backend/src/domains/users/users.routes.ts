@@ -1,5 +1,3 @@
-// Re-export all user-domain route plugins from original locations.
-// The original files stay in routes/ until TypeScript check passes.
-export { meRoute } from '../../routes/me.js'
-export { parentsRoute } from '../../routes/parents.js'
-export { sessionRoute } from '../../routes/session.js'
+export { meRoute } from './me.routes.js'
+export { parentsRoute } from './parents.routes.js'
+export { sessionRoute } from './session.routes.js'

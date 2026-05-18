@@ -2,9 +2,9 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../plugins/rbac.js'
-import { checkOrgHasFeature } from '../modules/payments/planLimits.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
+import { checkOrgHasFeature } from '../../modules/payments/planLimits.js'
 
 const ORG_BRANCHES = (orgId: string) => `organizations/${orgId}/branches`
 

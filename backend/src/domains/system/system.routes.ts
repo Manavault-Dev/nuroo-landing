@@ -1,5 +1,4 @@
-// Re-export all system/utility route plugins from original locations.
-export { healthRoute } from '../../routes/health.js'
-export { bootstrapRoute } from '../../routes/bootstrap.js'
-export { devRoute } from '../../routes/dev.js'
-export { pushTokensRoute } from '../../routes/pushTokens.js'
+export { healthRoute } from './health.routes.js'
+export { bootstrapRoute } from './bootstrap.routes.js'
+export { devRoute } from './dev.routes.js'
+export { pushTokensRoute } from './pushTokens.routes.js'

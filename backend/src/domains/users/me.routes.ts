@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import type { SpecialistProfile } from '../types.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import type { SpecialistProfile } from '../../types.js'
 import { z } from 'zod'
 
 const COLLECTIONS = {

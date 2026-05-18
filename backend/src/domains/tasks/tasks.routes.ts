@@ -1,3 +1,2 @@
-// Re-export all task-domain route plugins from original locations.
-export { assignmentsRoute } from '../../routes/assignments.js'
-export { parentTasksRoute } from '../../routes/parentTasks.js'
+export { assignmentsRoute } from './assignments.routes.js'
+export { parentTasksRoute } from './parentTasks.routes.js'

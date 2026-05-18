@@ -2,10 +2,10 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../plugins/rbac.js'
-import { config } from '../config/index.js'
-import { checkOrgHasFeature } from '../modules/payments/planLimits.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
+import { config } from '../../config/index.js'
+import { checkOrgHasFeature } from '../../modules/payments/planLimits.js'
 
 const ORG_CHILDREN = (orgId: string) => `organizations/${orgId}/children`
 const ORG_ATTENDANCE = (orgId: string) => `organizations/${orgId}/attendance`

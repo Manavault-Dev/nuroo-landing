@@ -297,9 +297,7 @@ export async function assignTasksToGroup(
   }
 
   const contentTaskDocs = await Promise.all(
-    Array.from(allTaskIdSet).map((id) =>
-      db.doc(`organizations/${orgId}/contentTasks/${id}`).get()
-    )
+    Array.from(allTaskIdSet).map((id) => db.doc(`organizations/${orgId}/contentTasks/${id}`).get())
   )
   const contentTasks = contentTaskDocs
     .filter((snap) => snap.exists)

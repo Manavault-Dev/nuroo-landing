@@ -2,9 +2,9 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { FREE_TRIAL_DAYS, FREE_TRIAL_PLAN_ID } from '../modules/payments/planLimits.js'
-import { requireOrgMember } from '../plugins/rbac.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { FREE_TRIAL_DAYS, FREE_TRIAL_PLAN_ID } from '../../modules/payments/planLimits.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
 
 const createOrgSchema = z.object({
   name: z.string().trim().min(1).max(200),
