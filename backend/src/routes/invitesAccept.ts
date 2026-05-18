@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { checkOrgCanAddSpecialist } from '../modules/payments/planLimits.js'
+import { dispatch } from '../modules/notifications/index.js'
 
 const COLLECTIONS = {
   INVITES: 'invites',
@@ -165,6 +166,34 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
       await inviteRef.update({
         usedCount: admin.firestore.FieldValue.increment(1),
       })
+
+      // Notify org admins that a specialist joined (fire-and-forget)
+      const specialistDisplayName =
+        (await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()).data()?.fullName ||
+        email?.split('@')[0] ||
+        'A specialist'
+      db.collection(`${COLLECTIONS.ORG_MEMBERS(orgId)}`)
+        .where('role', '==', 'org_admin')
+        .get()
+        .then((adminSnap) => {
+          adminSnap.docs.forEach((adminDoc) => {
+            const adminUid: string = adminDoc.data().uid || adminDoc.id
+            if (adminUid !== uid) {
+              dispatch({
+                userId: adminUid,
+                orgId,
+                role: 'admin',
+                type: 'specialist_joined',
+                category: 'organizationUpdates',
+                title: 'New specialist joined',
+                body: `${specialistDisplayName} joined your organization.`,
+                metadata: { specialistId: uid, orgId },
+                dedupKey: `specialist_joined:${uid}:${orgId}`,
+              }).catch(() => {})
+            }
+          })
+        })
+        .catch(() => {})
 
       return {
         ok: true,
