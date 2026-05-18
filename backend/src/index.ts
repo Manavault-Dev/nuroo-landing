@@ -7,35 +7,24 @@ import { config } from './config/index.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
 import type { AuthenticatedUser } from './types.js'
 
-import { healthRoute } from './routes/health.js'
-import { meRoute } from './routes/me.js'
-import { joinRoute } from './routes/join.js'
-import { sessionRoute } from './routes/session.js'
-import { childrenRoute } from './routes/children.js'
-import { notesRoute } from './routes/notes.js'
-import { invitesRoute } from './routes/invites.js'
-import { invitesAcceptRoute } from './routes/invitesAccept.js'
-import { devRoute } from './routes/dev.js'
-import { parentsRoute } from './routes/parents.js'
-import { assignmentsRoute } from './routes/assignments.js'
-import { bootstrapRoute } from './routes/bootstrap.js'
-import { teamRoute } from './routes/team.js'
-import { groupsRoute } from './routes/groups.js'
-import { contentRoute } from './routes/content.js'
-import { orgContentRoute } from './routes/orgContent.js'
-import { orgsRoute } from './routes/orgs.js'
-import { reportsRoute } from './routes/reports.js'
-import { parentTasksRoute } from './routes/parentTasks.js'
+// Domain imports — structured by bounded context
+import { systemDomain } from './domains/system/index.js'
+import { usersDomain } from './domains/users/index.js'
+import { organizationsDomain } from './domains/organizations/index.js'
+import { invitationsDomain } from './domains/invitations/index.js'
+import { messagingDomain } from './domains/messaging/index.js'
+import { tasksDomain } from './domains/tasks/index.js'
+import { financeDomain } from './domains/finance/index.js'
+import { aiDomain } from './domains/ai/index.js'
+import { childrenDomain } from './domains/children/index.js'
+import { groupsDomain } from './domains/groups/index.js'
+import { contentDomain } from './domains/content/index.js'
+import { activityDomain } from './domains/activity/index.js'
+
+// External modules (untouched)
 import { paymentsRoutes } from './modules/payments/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
-import { branchesRoute } from './routes/branches.js'
-import { financeRoute } from './routes/finance.js'
-import { brandingRoute } from './routes/branding.js'
-import { parentAiRoute } from './routes/parentAi.js'
-import { specialistAiRoute } from './routes/specialistAi.js'
-import { pushTokensRoute } from './routes/pushTokens.js'
-import { messagesRoute } from './routes/messages.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -145,36 +134,25 @@ async function buildServer() {
   })
 
   const routes = [
-    healthRoute,
-    meRoute,
-    joinRoute,
-    sessionRoute,
-    childrenRoute,
-    notesRoute,
-    invitesRoute,
-    invitesAcceptRoute,
-    devRoute,
-    parentsRoute,
-    assignmentsRoute,
-    bootstrapRoute,
-    teamRoute,
-    groupsRoute,
-    contentRoute,
-    orgContentRoute,
-    orgsRoute,
-    reportsRoute,
-    parentTasksRoute,
+    // System utilities
+    systemDomain,
+    // Domain plugins
+    usersDomain,
+    organizationsDomain,
+    invitationsDomain,
+    messagingDomain,
+    tasksDomain,
+    financeDomain,
+    aiDomain,
+    childrenDomain,
+    groupsDomain,
+    contentDomain,
+    activityDomain,
+    // External modules (notifications, payments, parent-api, ai-assistant)
     paymentsRoutes,
     parentApiRoutes,
     aiAssistantRoutes,
     intentRoutes,
-    branchesRoute,
-    financeRoute,
-    brandingRoute,
-    parentAiRoute,
-    specialistAiRoute,
-    pushTokensRoute,
-    messagesRoute,
   ]
 
   for (const route of routes) {
