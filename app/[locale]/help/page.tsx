@@ -10,10 +10,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = params
   const t = await getTranslations({ locale, namespace: 'helpPage' })
   return {
-    title: `${t('title')} - NeuroKids`,
+    title: `${t('title')} - Nuroo`,
     description: t('subtitle'),
     openGraph: {
-      title: `${t('title')} - NeuroKids`,
+      title: `${t('title')} - Nuroo`,
       description: t('subtitle'),
       type: 'website',
       locale: locale === 'ru' ? 'ru_RU' : locale === 'ky' ? 'ky_KG' : 'en_US',
@@ -38,8 +38,8 @@ export default async function HelpPage({ params }: Props) {
               </span>
             </Link>
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/Logo.svg" alt="NeuroKids" className="h-8 w-8" />
-              <span className="text-xl font-bold text-primary-600">NeuroKids</span>
+              <img src="/Logo.svg" alt="Nuroo" className="h-8 w-8" />
+              <span className="text-xl font-bold text-primary-600">Nuroo</span>
             </Link>
           </div>
         </div>

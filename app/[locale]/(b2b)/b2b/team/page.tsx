@@ -7,6 +7,7 @@ import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
 import { Users, UserCog, Mail, Crown, Shield, UserPlus, Trash2, Loader2 } from 'lucide-react'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { useAlert } from '@/components/ui/AlertDialog'
 
 interface TeamMember {
   uid: string
@@ -28,6 +29,7 @@ export default function TeamPage() {
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [removingUid, setRemovingUid] = useState<string | null>(null)
   const [updatingUid, setUpdatingUid] = useState<string | null>(null)
+  const { alert, confirm } = useAlert()
 
   const currentUid = profile?.uid
 
@@ -62,13 +64,15 @@ export default function TeamPage() {
   }, [isLoading, profile, isAdmin, orgId, loadTeam])
 
   const handleRemove = async (uid: string) => {
-    if (!orgId || !confirm(t('removeConfirm'))) return
+    if (!orgId) return
+    const confirmed = await confirm(t('removeConfirm'))
+    if (!confirmed) return
     setRemovingUid(uid)
     try {
       await apiClient.removeMember(orgId, uid)
       setTeamMembers((prev) => prev.filter((m) => m.uid !== uid))
     } catch (err) {
-      alert(err instanceof Error ? err.message : t('failedRemove'))
+      alert(err instanceof Error ? err.message : t('failedRemove'), { type: 'error' })
     } finally {
       setRemovingUid(null)
     }
@@ -85,7 +89,7 @@ export default function TeamPage() {
         )
       )
     } catch (err) {
-      alert(err instanceof Error ? err.message : t('failedUpdateRole'))
+      alert(err instanceof Error ? err.message : t('failedUpdateRole'), { type: 'error' })
     } finally {
       setUpdatingUid(null)
     }

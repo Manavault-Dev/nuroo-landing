@@ -104,6 +104,58 @@ function mergeParents(realParents: ParentRow[], legacyParents: ParentRow[]) {
 }
 
 export const parentsRoute: FastifyPluginAsync = async (fastify) => {
+  // ── GET /parent/organizations — returns parent's linked orgs with fresh names ──
+  fastify.get('/parent/organizations', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+
+    try {
+      const { uid } = request.user
+      const db = getFirestore()
+
+      const userSnap = await db.doc(`users/${uid}`).get()
+      const byId = ((userSnap.data() as any)?.linkedOrganizationsById || {}) as Record<
+        string,
+        {
+          orgId?: string
+          orgName?: string | null
+          specialistId?: string | null
+          specialistName?: string | null
+          joinedAt?: string | null
+          linkedAt?: string | null
+        }
+      >
+
+      const entries = Object.entries(byId)
+      if (entries.length === 0) {
+        return { ok: true, organizations: [], count: 0 }
+      }
+
+      const organizations = await Promise.all(
+        entries.map(async ([keyId, org]) => {
+          const resolvedOrgId = org.orgId || keyId
+          const orgSnap = await db.doc(`organizations/${resolvedOrgId}`).get()
+          const orgData = orgSnap.exists ? (orgSnap.data() as any) : null
+          const freshOrgName = orgData?.name?.trim() || org.orgName || 'Organization'
+          return {
+            orgId: resolvedOrgId,
+            orgName: freshOrgName,
+            specialistId: org.specialistId ?? null,
+            specialistName: org.specialistName ?? null,
+            joinedAt: org.joinedAt || org.linkedAt || null,
+          }
+        })
+      )
+
+      return { ok: true, organizations, count: organizations.length }
+    } catch (err: unknown) {
+      console.error('[PARENTS] Error fetching parent organizations:', err)
+      return reply.code(500).send({
+        error: 'Failed to fetch organizations',
+        details: err instanceof Error ? err.message : '',
+      })
+    }
+  })
+
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/parents', async (request, reply) => {
     try {
       const { orgId } = request.params

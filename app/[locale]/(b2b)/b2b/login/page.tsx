@@ -5,59 +5,39 @@ import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle, Building2, UserCircle2, ArrowRight } from 'lucide-react'
-
-const DEMO_ACCOUNTS = [
-  {
-    id: 'organizer',
-    email: 'aijan@gmail.com',
-    password: 'aijan123',
-  },
-  {
-    id: 'specialist',
-    email: 'akylai@gmail.com',
-    password: 'akylai',
-  },
-] as const
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
+  const tCommon = useTranslations('b2b.common')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const performLogin = async (nextEmail: string, nextPassword: string) => {
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
     if (loading) return
 
     setError('')
     setLoading(true)
 
     try {
-      const userCredential = await signIn(nextEmail, nextPassword)
+      const userCredential = await signIn(email, password)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      const idTokenForCheck = await getIdToken(true)
-      if (idTokenForCheck) {
-        apiClient.setToken(idTokenForCheck)
-      }
+      const refreshedToken = await getIdToken(true)
+      if (refreshedToken) apiClient.setToken(refreshedToken)
+
+      // Don't navigate here — the layout's auth effect detects the new user
+      // and redirects to the correct page (with ?redirect= support).
     } catch (err: unknown) {
-      const errorMessage =
+      setError(
         err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.'
-      setError(errorMessage)
-    } finally {
+      )
       setLoading(false)
     }
-  }
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    await performLogin(email, password)
-  }
-
-  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    await performLogin(demoEmail, demoPassword)
   }
 
   return (
@@ -132,43 +112,10 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? t('signingIn') : t('signIn')}
+                {loading ? tCommon('loading') : t('signIn')}
               </button>
             </div>
           </form>
-
-          <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-600">
-                  {t('demo.kicker')}
-                </p>
-                <h3 className="text-sm font-semibold text-gray-900">{t('demo.title')}</h3>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                {DEMO_ACCOUNTS.map((account) => {
-                  const Icon = account.id === 'organizer' ? Building2 : UserCircle2
-
-                  return (
-                    <button
-                      key={account.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => handleDemoLogin(account.email, account.password)}
-                      className="group inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      {loading ? t('signingIn') : t(`demo.${account.id}.cta`)}
-                      <ArrowRight className="h-3.5 w-3.5 text-primary-600 transition-transform group-hover:translate-x-0.5" />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

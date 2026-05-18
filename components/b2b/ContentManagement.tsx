@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
+import { useAlert } from '@/components/ui/AlertDialog'
 import {
   Plus,
   BookOpen,
@@ -90,6 +91,7 @@ export function ContentManagement({
   const [assigning, setAssigning] = useState(false)
   const [assignSuccess, setAssignSuccess] = useState(false)
   const [loadingGroups, setLoadingGroups] = useState(false)
+  const { alert, confirm } = useAlert()
 
   const loadContent = async () => {
     try {
@@ -110,7 +112,7 @@ export function ContentManagement({
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('loadError')
-      alert(errorMessage)
+      alert(errorMessage, { type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -176,15 +178,15 @@ export function ContentManagement({
 
   const handleSave = async () => {
     if (activeTab === 'roadmaps' && !formData.name) {
-      alert(t('nameRequired'))
+      alert(t('nameRequired'), { type: 'warning' })
       return
     }
     if (activeTab !== 'roadmaps' && !formData.title) {
-      alert(t('titleRequired'))
+      alert(t('titleRequired'), { type: 'warning' })
       return
     }
     if (requireMediaForNewTask) {
-      alert(t('mediaRequired'))
+      alert(t('mediaRequired'), { type: 'warning' })
       return
     }
 
@@ -334,17 +336,23 @@ export function ContentManagement({
       const wasEditing = !!editingItem
       handleCloseModal()
       await loadContent()
-      setTimeout(() => alert(wasEditing ? t('updatedSuccess') : t('createdSuccess')), 100)
+      setTimeout(
+        () => alert(wasEditing ? t('updatedSuccess') : t('createdSuccess'), { type: 'success' }),
+        300
+      )
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('saveError')
-      alert(errorMessage)
+      alert(errorMessage, { type: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (type: ContentType, id: string) => {
-    if (!confirm(t(type === 'tasks' ? 'deleteTaskConfirm' : 'deleteRoadmapConfirm'))) return
+    const confirmed = await confirm(
+      t(type === 'tasks' ? 'deleteTaskConfirm' : 'deleteRoadmapConfirm')
+    )
+    if (!confirmed) return
     try {
       if (mode === 'org' && orgId) {
         if (type === 'tasks') await apiClient.deleteOrgContentTask(orgId, id)
@@ -358,7 +366,7 @@ export function ContentManagement({
       if (selectedTask?.id === id) setSelectedTask(null)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('deleteError')
-      alert(errorMessage)
+      alert(errorMessage, { type: 'error' })
     }
   }
 
@@ -377,7 +385,7 @@ export function ContentManagement({
       setAssignDueDate('')
       setTimeout(() => setAssignSuccess(false), 2500)
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Ошибка при назначении')
+      alert(error instanceof Error ? error.message : 'Ошибка при назначении', { type: 'error' })
     } finally {
       setAssigning(false)
     }

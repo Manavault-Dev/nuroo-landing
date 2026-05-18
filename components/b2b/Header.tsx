@@ -2,10 +2,11 @@
 
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, User, Bell, Menu, X } from 'lucide-react'
+import { LogOut, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { LocaleSwitcher } from '@/components/LocaleSwitcher'
+import { NotificationBell } from './NotificationBell'
 
 interface HeaderProps {
   profile: SpecialistProfile | null
@@ -27,6 +28,7 @@ const PAGE_PATH_KEYS: Record<string, string> = {
   '/b2b/admin': 'admin',
   '/b2b/onboarding': 'onboarding',
   '/b2b/brand': 'brand',
+  '/b2b/notifications': 'notifications',
 }
 
 export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderProps) {
@@ -92,12 +94,7 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
 
       <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 flex-shrink-0">
         <LocaleSwitcher />
-        <button
-          className="p-2 sm:p-2.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-          aria-label={t('notifications')}
-        >
-          <Bell className="w-5 h-5" />
-        </button>
+        <NotificationBell />
 
         <div className="hidden sm:flex items-center space-x-3">
           <div className="text-right max-w-[140px] lg:max-w-none">

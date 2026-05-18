@@ -24,6 +24,7 @@ import { InviteModal } from '@/components/b2b/InviteModal'
 import Assistant from './components/assistant'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { useLocale, useTranslations } from 'next-intl'
+import { useAlert } from '@/components/ui/AlertDialog'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -330,6 +331,7 @@ export default function DashboardPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [currentOrgId, setCurrentOrgId] = useState<string | undefined>()
+  const { alert } = useAlert()
 
   useEffect(() => {
     const load = async () => {
@@ -819,7 +821,7 @@ export default function DashboardPage() {
       setInviteCode(invite.inviteCode)
       setInviteModalOpen(true)
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : t('failedCreateInviteCode'))
+      alert(e instanceof Error ? e.message : t('failedCreateInviteCode'), { type: 'error' })
     }
   }
 

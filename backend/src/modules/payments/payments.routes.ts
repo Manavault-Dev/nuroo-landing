@@ -9,9 +9,17 @@ import {
   getPlanPrices,
   getPlanNames,
 } from './payments.service.js'
-import { PLAN_LIMITS, type PlanId } from './planLimits.js'
+import {
+  PLAN_LIMITS,
+  PLAN_CONFIG,
+  getPlanLimits,
+  getSubscriptionStatus,
+  getFreeTrialStatus,
+  getBillingBadgeKey,
+  normalizePlanId,
+  type PlanId,
+} from './planLimits.js'
 import { createPaymentSchema, webhookSchema } from './payments.schema.js'
-import { getSubscriptionStatus, getPlanLimits, getFreeTrialStatus } from './planLimits.js'
 import { getBillingPlan } from './payments.repository.js'
 
 export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -53,17 +61,37 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
       const billing = await getBillingPlan(orgId)
       const trial = await getFreeTrialStatus(orgId)
       const limits = status.planId ? getPlanLimits(status.planId) : null
+      const normalizedPlanId = normalizePlanId(status.planId ?? 'starter') ?? 'starter'
+      const planConfig = PLAN_CONFIG[normalizedPlanId]
+      const badge = getBillingBadgeKey(status.billingStatus)
+
+      // Count current usage
+      const db = (await import('../../infrastructure/database/firebase.js')).getFirestore()
+      const [childrenSnap, membersSnap] = await Promise.all([
+        db.collection('organizations').doc(orgId).collection('children').count().get(),
+        db.collection('organizations').doc(orgId).collection('members').count().get(),
+      ])
+
       return {
         ok: true,
         active: status.active,
         planId: status.planId ?? null,
         source: status.source ?? null,
+        billingStatus: status.billingStatus ?? null,
+        badge,
         error: status.error ?? null,
         expiresAt:
           status.expiresAt?.toDate?.()?.toISOString() ??
           billing?.expiresAt?.toDate?.()?.toISOString() ??
           null,
         limits: limits ? { children: limits.children, specialists: limits.specialists } : null,
+        usage: {
+          children: childrenSnap.data().count,
+          specialists: membersSnap.data().count,
+          childrenLimit: planConfig?.maxChildren ?? null,
+          specialistsLimit: planConfig?.maxSpecialists ?? null,
+        },
+        features: planConfig?.features ?? null,
         trial: trial
           ? {
               active: trial.active,

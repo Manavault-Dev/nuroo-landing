@@ -35,6 +35,7 @@ import { brandingRoute } from './routes/branding.js'
 import { parentAiRoute } from './routes/parentAi.js'
 import { specialistAiRoute } from './routes/specialistAi.js'
 import { pushTokensRoute } from './routes/pushTokens.js'
+import { messagesRoute } from './routes/messages.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -173,6 +174,7 @@ async function buildServer() {
     parentAiRoute,
     specialistAiRoute,
     pushTokensRoute,
+    messagesRoute,
   ]
 
   for (const route of routes) {

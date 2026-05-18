@@ -39,9 +39,9 @@ const FINIK_WEBHOOK_URL =
 const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 
 const PLANS: Record<string, { price: number; name: string }> = {
-  starter: { price: 1500, name: 'Starter' },
-  growth: { price: 3500, name: 'Growth' },
-  enterprise: { price: 4500, name: 'NeuroKids' },
+  starter: { price: 4900, name: 'Starter' },
+  growth: { price: 9900, name: 'Professional' },
+  enterprise: { price: 19900, name: 'Enterprise' },
 }
 
 function shallowSort(body: Record<string, unknown>): Record<string, unknown> {
@@ -77,7 +77,7 @@ export async function createPayment(input: CreatePaymentInput, _userId: string) 
       accountId: FINIK_ACCOUNT_ID,
       description: plan.name,
       merchantCategoryCode: '0742',
-      name_en: `NeuroKids: ${plan.name}`,
+      name_en: `Nuroo: ${plan.name}`,
       ...(FINIK_WEBHOOK_URL && { webhookUrl: FINIK_WEBHOOK_URL }),
     },
     PaymentId: finikPaymentId,

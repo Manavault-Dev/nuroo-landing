@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { checkOrgCanAddSpecialist } from '../modules/payments/planLimits.js'
+import { dispatch } from '../modules/notifications/index.js'
 
 const COLLECTIONS = {
   INVITES: 'invites',
@@ -38,8 +39,9 @@ function normalizeRole(role: string): 'org_admin' | 'specialist' {
   return role === 'org_admin' ? 'org_admin' : 'specialist'
 }
 
-function buildMemberData(role: string, now: Date) {
+function buildMemberData(uid: string, role: string, now: Date) {
   return {
+    uid,
     role: normalizeRole(role),
     status: 'active',
     joinedAt: admin.firestore.Timestamp.fromDate(now),
@@ -138,7 +140,7 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
         if (!canAdd.ok) {
           return reply.code(403).send({ error: canAdd.error ?? 'Cannot add specialist.' })
         }
-        await memberRef.set(buildMemberData(role, now))
+        await memberRef.set(buildMemberData(uid, role, now))
 
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
         const specialistSnap = await specialistRef.get()
@@ -164,6 +166,34 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
       await inviteRef.update({
         usedCount: admin.firestore.FieldValue.increment(1),
       })
+
+      // Notify org admins that a specialist joined (fire-and-forget)
+      const specialistDisplayName =
+        (await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()).data()?.fullName ||
+        email?.split('@')[0] ||
+        'A specialist'
+      db.collection(`${COLLECTIONS.ORG_MEMBERS(orgId)}`)
+        .where('role', '==', 'org_admin')
+        .get()
+        .then((adminSnap) => {
+          adminSnap.docs.forEach((adminDoc) => {
+            const adminUid: string = adminDoc.data().uid || adminDoc.id
+            if (adminUid !== uid) {
+              dispatch({
+                userId: adminUid,
+                orgId,
+                role: 'admin',
+                type: 'specialist_joined',
+                category: 'organizationUpdates',
+                title: 'New specialist joined',
+                body: `${specialistDisplayName} joined your organization.`,
+                metadata: { specialistId: uid, orgId },
+                dedupKey: `specialist_joined:${uid}:${orgId}`,
+              }).catch(() => {})
+            }
+          })
+        })
+        .catch(() => {})
 
       return {
         ok: true,

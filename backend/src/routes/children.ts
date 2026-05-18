@@ -4,6 +4,8 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
+import { checkOrgCanAddChild } from '../modules/payments/planLimits.js'
+import { dispatch } from '../modules/notifications/index.js'
 import type { ChildSummary, ChildDetail, ActivityDay, TimelineResponse } from '../types.js'
 
 const createTaskSchema = z.object({
@@ -478,6 +480,84 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  fastify.post<{
+    Params: { orgId: string }
+    Body: {
+      firstName: string
+      lastName?: string
+      dateOfBirth?: string
+      gender?: 'male' | 'female' | 'other'
+      diagnosis?: string
+      primaryConcern?: string
+    }
+  }>('/orgs/:orgId/children', async (request, reply) => {
+    try {
+      const { orgId } = request.params
+      const member = await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
+
+      if (member.role !== 'org_admin') {
+        return reply.code(403).send({ error: 'Only org admins can add children' })
+      }
+
+      const limitCheck = await checkOrgCanAddChild(orgId)
+      if (!limitCheck.ok) {
+        return reply.code(403).send({ error: limitCheck.error, upgradeRequired: true })
+      }
+
+      const body = request.body as {
+        firstName: string
+        lastName?: string
+        dateOfBirth?: string
+        gender?: string
+        diagnosis?: string
+        primaryConcern?: string
+      }
+
+      if (!body.firstName?.trim()) {
+        return reply.code(400).send({ error: 'firstName is required' })
+      }
+
+      const db = getFirestore()
+      const now = admin.firestore.Timestamp.fromDate(new Date())
+      const fullName = [body.firstName.trim(), body.lastName?.trim()].filter(Boolean).join(' ')
+
+      const globalRef = db.collection('children').doc()
+      const childData = {
+        name: fullName,
+        firstName: body.firstName.trim(),
+        lastName: body.lastName?.trim() || null,
+        dateOfBirth: body.dateOfBirth || null,
+        gender: body.gender || null,
+        diagnosis: body.diagnosis || null,
+        primaryConcern: body.primaryConcern || null,
+        orgId,
+        createdBy: request.user!.uid,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      await globalRef.set(childData)
+      await db.collection(`organizations/${orgId}/children`).doc(globalRef.id).set({
+        childId: globalRef.id,
+        name: fullName,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return reply.code(201).send({
+        ok: true,
+        child: { id: globalRef.id, ...childData, createdAt: now.toDate(), updatedAt: now.toDate() },
+      })
+    } catch (error: unknown) {
+      console.error('[CHILDREN] Error creating child:', error)
+      return reply.code(500).send({
+        error: 'Failed to create child',
+        details: error instanceof Error ? error.message : '',
+      })
+    }
+  })
+
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/children', async (request, reply) => {
     try {
       const { orgId } = request.params
@@ -851,6 +931,24 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       }
       const taskRef = await db.collection(COLLECTIONS.CHILD_TASKS(resolvedChildId)).add(taskData)
 
+      // Notify parent about new assignment (fire-and-forget)
+      const orgChildSnap = await db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get()
+      const parentUserId = orgChildSnap.data()?.parentUserId
+      const childName: string = orgChildSnap.data()?.name || 'your child'
+      if (parentUserId) {
+        dispatch({
+          userId: parentUserId,
+          orgId,
+          role: 'parent',
+          type: 'task_assigned',
+          category: 'assignments',
+          title: 'New assignment',
+          body: `You have a new assignment for ${childName}.`,
+          metadata: { childId: resolvedChildId, taskId: taskRef.id, orgId },
+          dedupKey: `task_assigned:${resolvedChildId}:${taskRef.id}`,
+        }).catch(() => {})
+      }
+
       return reply.code(201).send({
         id: taskRef.id,
         ...taskData,
@@ -1164,6 +1262,73 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
       })
     }
   })
+
+  // ── DELETE /orgs/:orgId/children/:childId ──────────────────────────────────
+  fastify.delete<{ Params: { orgId: string; childId: string } }>(
+    '/orgs/:orgId/children/:childId',
+    async (request, reply) => {
+      try {
+        const { orgId, childId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const { uid } = request.user!
+        const db = getFirestore()
+
+        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+
+        const now = admin.firestore.Timestamp.fromDate(new Date())
+        const orgChildRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${resolvedChildId}`)
+
+        const orgChildSnap = await orgChildRef.get()
+        if (!orgChildSnap.exists) {
+          return reply.code(404).send({ error: 'Child not found in this organization' })
+        }
+
+        await orgChildRef.update({ assigned: false, removedAt: now, removedBy: uid })
+
+        const membersSnap = await db.collection(`organizations/${orgId}/members`).get()
+        let groupsCleaned = 0
+
+        for (const memberDoc of membersSnap.docs) {
+          const specialistId = memberDoc.id
+          try {
+            const groupsSnap = await db
+              .collection(`specialists/${specialistId}/groups`)
+              .where('orgId', '==', orgId)
+              .get()
+
+            for (const groupDoc of groupsSnap.docs) {
+              const parentsSnap = await db
+                .collection(`specialists/${specialistId}/groups/${groupDoc.id}/parents`)
+                .get()
+
+              for (const parentDoc of parentsSnap.docs) {
+                const childIds = (parentDoc.data().childIds as string[]) || []
+                if (childIds.includes(resolvedChildId)) {
+                  const updated = childIds.filter((id: string) => id !== resolvedChildId)
+                  if (updated.length === 0) {
+                    await parentDoc.ref.delete()
+                  } else {
+                    await parentDoc.ref.update({ childIds: updated })
+                  }
+                  groupsCleaned++
+                }
+              }
+            }
+          } catch {
+            continue
+          }
+        }
+
+        return { ok: true, childId: resolvedChildId, groupsCleaned }
+      } catch (error: unknown) {
+        console.error('[CHILDREN] Error removing child:', error)
+        return reply.code(500).send({
+          error: 'Failed to remove child',
+          details: error instanceof Error ? error.message : '',
+        })
+      }
+    }
+  )
 
   // ── DELETE /orgs/:orgId/children/:childId/guardians/:guardianId ────────────
   fastify.delete<{ Params: { orgId: string; childId: string; guardianId: string } }>(

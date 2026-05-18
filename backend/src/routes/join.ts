@@ -26,8 +26,9 @@ function validateInviteUsage(usedCount: number, maxUses: number | undefined): bo
   return usedCount < maxUses
 }
 
-function buildMemberData(role: string, now: Date) {
+function buildMemberData(uid: string, role: string, now: Date) {
   return {
+    uid,
     role,
     status: 'active',
     joinedAt: admin.firestore.Timestamp.fromDate(now),
@@ -101,7 +102,7 @@ export const joinRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const now = new Date()
-    await memberRef.set(buildMemberData(role, now))
+    await memberRef.set(buildMemberData(uid, role, now))
 
     const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
     const specialistSnap = await specialistRef.get()

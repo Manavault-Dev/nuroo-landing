@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../plugins/rbac.js'
 import { config } from '../config/index.js'
+import { checkOrgHasFeature } from '../modules/payments/planLimits.js'
 
 const ORG_CHILDREN = (orgId: string) => `organizations/${orgId}/children`
 const ORG_ATTENDANCE = (orgId: string) => `organizations/${orgId}/attendance`
@@ -190,8 +191,13 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
       try {
         const { orgId } = request.params
         await requireOrgMember(request, reply, orgId)
-        const markedBy = request.user?.uid ?? 'unknown'
 
+        const featureCheck = await checkOrgHasFeature(orgId, 'finance')
+        if (!featureCheck.ok) {
+          return reply.code(403).send({ error: featureCheck.error, upgradeRequired: true })
+        }
+
+        const markedBy = request.user?.uid ?? 'unknown'
         const body = attendanceSchema.parse(request.body)
         const now = new Date()
         const db = getFirestore()
@@ -307,6 +313,11 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         if (member.role !== 'org_admin') {
           return reply.code(403).send({ error: 'Only org admins can record fees' })
+        }
+
+        const featureCheck = await checkOrgHasFeature(orgId, 'finance')
+        if (!featureCheck.ok) {
+          return reply.code(403).send({ error: featureCheck.error, upgradeRequired: true })
         }
 
         const body = feeSchema.parse(request.body)

@@ -3,6 +3,40 @@ const API_BASE_URL =
     ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
     : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
 
+// ── Notification types ────────────────────────────────────────────────────────
+export interface NotificationItem {
+  id: string
+  type: string
+  category: string
+  title: string
+  body: string
+  read: boolean
+  createdAt: string | Date | null
+  readAt?: string | Date | null
+  metadata?: {
+    childId?: string
+    taskId?: string
+    orgId?: string
+    deepLink?: string
+    specialistId?: string
+    parentId?: string
+  }
+}
+
+export interface NotificationPreferences {
+  allEnabled: boolean
+  pushEnabled: boolean
+  inAppEnabled: boolean
+  categories: {
+    assignments: boolean
+    messages: boolean
+    reminders: boolean
+    progressUpdates: boolean
+    organizationUpdates: boolean
+    billingUpdates: boolean
+  }
+}
+
 // Types
 export interface SpecialistProfile {
   uid: string
@@ -277,10 +311,10 @@ export class ApiClient {
   }
 
   setToken(token: string | null) {
-    this.token = token
-    if (!token) {
-      cache.invalidate()
+    if (this.token !== token) {
+      cache.invalidate() // clear stale data whenever auth changes (login OR logout)
     }
+    this.token = token
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -398,9 +432,18 @@ export class ApiClient {
       active: boolean
       planId: string | null
       source: 'subscription' | 'free_trial' | null
+      billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+      badge: string | null
       error: string | null
       expiresAt: string | null
       limits: { children: number; specialists: number | null } | null
+      usage: {
+        children: number
+        specialists: number
+        childrenLimit: number | null
+        specialistsLimit: number | null
+      } | null
+      features: Record<string, boolean> | null
       trial: {
         active: boolean
         planId: string | null
@@ -480,6 +523,10 @@ export class ApiClient {
       `/orgs/${orgId}/children/${childId}/guardians`,
       { method: 'POST', body: JSON.stringify(data) }
     )
+  }
+
+  async removeChild(orgId: string, childId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}`, { method: 'DELETE' })
   }
 
   async deleteGuardian(orgId: string, childId: string, guardianId: string) {
@@ -1413,6 +1460,40 @@ export class ApiClient {
     return this.request('/api/specialist/ai/improve-instruction', {
       method: 'POST',
       body: JSON.stringify(payload),
+    })
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+
+  async getNotifications(options: { limit?: number; unreadOnly?: boolean } = {}) {
+    const qs = new URLSearchParams()
+    if (options.limit) qs.set('limit', String(options.limit))
+    if (options.unreadOnly) qs.set('unreadOnly', 'true')
+    return this.request<{ notifications: NotificationItem[] }>(`/api/notifications?${qs}`)
+  }
+
+  async getUnreadCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count')
+  }
+
+  async markNotificationRead(id: string) {
+    return this.request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PATCH' })
+  }
+
+  async markAllNotificationsRead() {
+    return this.request<{ ok: boolean; updated: number }>('/api/notifications/read-all', {
+      method: 'PATCH',
+    })
+  }
+
+  async getNotificationPreferences() {
+    return this.request<{ preferences: NotificationPreferences }>('/api/notifications/preferences')
+  }
+
+  async updateNotificationPreferences(prefs: Partial<NotificationPreferences>) {
+    return this.request<{ ok: boolean }>('/api/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(prefs),
     })
   }
 
