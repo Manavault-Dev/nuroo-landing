@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient, type Branch } from '@/lib/b2b/api'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { useAlert } from '@/components/ui/AlertDialog'
 import { GitBranch, Plus, Edit2, Trash2, X, Save, Loader2, MapPin, Phone, User } from 'lucide-react'
 
 interface BranchForm {
@@ -23,6 +24,7 @@ export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [loadingBranches, setLoadingBranches] = useState(false)
   const [error, setError] = useState('')
+  const { confirm } = useAlert()
 
   const [showModal, setShowModal] = useState(false)
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
@@ -95,7 +97,9 @@ export default function BranchesPage() {
   }
 
   const handleDelete = async (branchId: string) => {
-    if (!orgId || !window.confirm(t('deleteConfirm'))) return
+    if (!orgId) return
+    const ok = await confirm(t('deleteConfirm'))
+    if (!ok) return
     try {
       await apiClient.deleteBranch(orgId, branchId)
       await loadBranches(orgId)

@@ -3,7 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
-import { sendPushToUser } from '../services/pushNotificationService.js'
+import { dispatch } from '../modules/notifications/index.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',
@@ -136,11 +136,17 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       if (completed) {
         const specialistId = orgChildSnap.data()?.assignedSpecialistId
         if (specialistId) {
-          sendPushToUser(specialistId, {
+          dispatch({
+            userId: specialistId,
+            orgId,
+            role: 'specialist',
             type: 'task_completed',
-            title: `✅ Task completed`,
-            body: `${childName}'s parent completed "${taskTitle}"`,
-            data: { childId, taskId, orgId },
+            category: 'assignments',
+            title: '✅ Task completed',
+            body: `${childName}'s parent marked "${taskTitle}" as done`,
+            metadata: { childId, taskId, orgId },
+            dedupKey: `task_completed:${taskId}`,
+            channel: 'both',
           }).catch(() => {})
         }
       }
@@ -193,6 +199,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       const childName = childSnap.data()?.name || 'Child'
 
       await taskRef.update({
+        status: 'submitted',
         submissionText: body.submissionText ?? null,
         fileUrl: body.fileUrl ?? null,
         submittedAt: now,
@@ -201,15 +208,22 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
 
       const specialistId = orgChildSnap.data()?.assignedSpecialistId
       if (specialistId) {
-        sendPushToUser(specialistId, {
+        dispatch({
+          userId: specialistId,
+          orgId,
+          role: 'specialist',
           type: 'homework_submitted',
-          title: `📎 Homework submitted`,
+          category: 'assignments',
+          title: '📎 New submission to review',
           body: `${childName}'s parent submitted "${taskTitle}" for review`,
-          data: { childId, taskId, orgId },
+          metadata: { childId, taskId, orgId },
+          dedupKey: `homework_submitted:${taskId}`,
+          channel: 'both',
+          priority: 'high',
         }).catch(() => {})
       }
 
-      return { ok: true, taskId, submittedAt: now.toDate() }
+      return { ok: true, taskId, status: 'submitted', submittedAt: now.toDate() }
     } catch (error: any) {
       console.error('[PARENT_TASKS] Error submitting homework:', error)
       return reply.code(500).send({ error: 'Failed to submit homework', details: error.message })

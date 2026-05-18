@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../plugins/rbac.js'
-import { sendPushToUser } from '../services/pushNotificationService.js'
+import { dispatch } from '../modules/notifications/index.js'
 import type { SpecialistNote } from '../types.js'
 
 const COLLECTIONS = {
@@ -139,12 +139,62 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const childName = orgChildSnap.data()?.name || 'your child'
 
       if (parentUserId) {
-        sendPushToUser(parentUserId, {
+        dispatch({
+          userId: parentUserId,
+          orgId,
+          role: 'parent',
           type: 'note_added',
+          category: 'progressUpdates',
           title: `📋 New note from ${specialistName}`,
           body: `${specialistName} left a note about ${childName}`,
-          data: { childId: resolvedChildId, orgId, specialistId: uid },
+          metadata: { childId: resolvedChildId, orgId, specialistId: uid },
+          dedupKey: `note_added:${noteRef.id}`,
+          channel: 'both',
         }).catch(() => {})
+      }
+
+      // Write note to the conversation thread (awaited so failures are visible in logs)
+      // convId format: {orgId}_{childId}_{specialistId} — one thread per specialist-child pair
+      const convId = `${orgId}_${resolvedChildId}_${uid}`
+      const convRef = db.doc(`conversations/${convId}`)
+
+      try {
+        // Upsert conversation document in a single atomic merge
+        const convData: Record<string, unknown> = {
+          orgId,
+          childId: resolvedChildId,
+          childName,
+          specialistId: uid,
+          specialistName,
+          lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastMessageText: body.text.slice(0, 120),
+          lastMessageSenderId: uid,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+        if (parentUserId) {
+          convData.parentId = parentUserId
+        }
+
+        await convRef.set(convData, { merge: true })
+
+        // Increment parent's unread count
+        if (parentUserId) {
+          await convRef.update({
+            [`unread.${parentUserId}`]: admin.firestore.FieldValue.increment(1),
+          })
+        }
+
+        // Add the note as a message in the conversation
+        await db.collection(`conversations/${convId}/messages`).add({
+          senderId: uid,
+          senderRole: 'specialist',
+          senderName: specialistName,
+          text: body.text,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          isNote: true,
+        })
+      } catch (convErr) {
+        console.error('[NOTES] Failed to write conversation message:', convErr)
       }
 
       const note: SpecialistNote = {

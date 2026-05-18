@@ -65,6 +65,7 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       .collection('members')
       .doc(uid)
       .set({
+        uid,
         role: 'org_admin',
         status: 'active',
         joinedAt: admin.firestore.Timestamp.fromDate(now),

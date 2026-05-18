@@ -1,28 +1,31 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
-import { Loader2, Building2, Star } from 'lucide-react'
+import { Loader2, Building2, Star, TrendingUp, Users, ArrowRight } from 'lucide-react'
+import { BillingBadge, type BillingBadgeKey } from '@/components/ui/BillingBadge'
 import { PricingCard } from '@/components/ui/PricingCard'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
-
-interface Plan {
-  id: string
-  name: string
-  price: number
-  currency: string
-  limits?: { children: number; specialists: number | null } | null
-}
 
 interface BillingStatus {
   active: boolean
   planId: string | null
   source: 'subscription' | 'free_trial' | null
+  billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+  badge: string | null
   expiresAt: string | null
+  usage: {
+    children: number
+    specialists: number
+    childrenLimit: number | null
+    specialistsLimit: number | null
+  } | null
+  features: Record<string, boolean> | null
+  error?: string
   trial: {
     active: boolean
     planId: string | null
@@ -38,14 +41,12 @@ export default function BillingPage() {
   const tPricing = useTranslations('landing.pricing')
   const locale = useLocale()
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
-  const [plans, setPlans] = useState<Plan[]>([])
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
   const [billingStatusLoading, setBillingStatusLoading] = useState(true)
   const [billingStatusOrgId, setBillingStatusOrgId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const plansFetchedRef = useRef(false)
 
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
@@ -74,25 +75,6 @@ export default function BillingPage() {
 
         const profileData = await apiClient.getMe()
         setProfile(profileData)
-
-        if (!plansFetchedRef.current) {
-          plansFetchedRef.current = true
-          try {
-            const plansData = await apiClient.getPlans()
-            if (plansData.ok && plansData.plans && plansData.plans.length > 0) {
-              setPlans(plansData.plans)
-            } else {
-              setError('No subscription plans available. Please contact support.')
-            }
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Unknown error'
-            setError(
-              msg === 'Failed to fetch'
-                ? 'Cannot reach the server. Check that the backend is running and NEXT_PUBLIC_API_URL is correct.'
-                : `Failed to load subscription plans: ${msg}`
-            )
-          }
-        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load billing data')
       } finally {
@@ -123,7 +105,11 @@ export default function BillingPage() {
             active: statusRes?.active ?? false,
             planId: statusRes?.planId ?? null,
             source: statusRes?.source ?? null,
+            billingStatus: statusRes?.billingStatus ?? null,
+            badge: statusRes?.badge ?? null,
             expiresAt: statusRes?.expiresAt ?? null,
+            usage: statusRes?.usage ?? null,
+            features: statusRes?.features ?? null,
             trial: statusRes?.trial ?? null,
           })
         }
@@ -156,7 +142,11 @@ export default function BillingPage() {
     }
   }, [loading, profile, isAdmin, router])
 
-  const handleSubscribe = async (planId: 'starter' | 'growth' | 'enterprise') => {
+  const handleSubscribe = async (
+    planId: 'starter' | 'growth' | 'enterprise',
+    displayId?: string
+  ) => {
+    void displayId // display-only label, backend still receives planId
     if (!currentOrgId) {
       setError('Organization ID is missing')
       return
@@ -243,7 +233,7 @@ export default function BillingPage() {
 
   const planLabel = (planId: string | null) => {
     if (planId === 'starter') return t('starterPlan')
-    if (planId === 'growth') return t('growthPlan')
+    if (planId === 'growth' || planId === 'professional') return t('growthPlan')
     if (planId === 'enterprise') return t('enterprisePlan')
     return planId || ''
   }
@@ -270,20 +260,16 @@ export default function BillingPage() {
     return `${planLabel(billingStatus.planId)} — ${t('planActive')}`
   }
 
-  const trialPlan =
-    billingStatus?.source === 'free_trial'
-      ? plans.find((plan) => plan.id === billingStatus.planId)
-      : null
-  const trialFeatureKeys = trialPlan
-    ? (PLAN_FEATURE_KEYS[trialPlan.id as keyof typeof PLAN_FEATURE_KEYS] ?? [])
-    : []
-  const trialFeatures = trialFeatureKeys
-    .slice(0, 4)
-    .map((key) => tPricing(key as Parameters<typeof tPricing>[0]))
-  const enterpriseFromApi = plans.find((plan) => plan.id === 'enterprise')
-  const neuroKidsPlan: Plan = enterpriseFromApi
-    ? { ...enterpriseFromApi, name: 'NeuroKids', price: 4500, currency: 'KGS' }
-    : { id: 'enterprise', name: 'NeuroKids', price: 4500, currency: 'KGS' }
+  const billingPlans: Array<{
+    id: 'starter' | 'growth' | 'enterprise'
+    name: string
+    price: number
+    currency: string
+  }> = [
+    { id: 'starter', name: tPricing('starterName'), price: 4900, currency: 'KGS' },
+    { id: 'growth', name: tPricing('professionalName'), price: 9900, currency: 'KGS' },
+    { id: 'enterprise', name: tPricing('enterpriseName'), price: 19900, currency: 'KGS' },
+  ]
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -303,54 +289,145 @@ export default function BillingPage() {
       </div>
 
       <div className="max-w-6xl">
-        {/* Current plan status */}
+        {/* Current plan status card */}
         <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-start space-x-4">
-            <div className="bg-primary-100 p-4 rounded-lg">
-              <Building2 className="w-8 h-8 text-primary-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">{currentOrg.orgName}</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                {t('currentPlan')}: <span className="font-medium">{statusLabel()}</span>
-              </p>
-              {billingStatus?.source === 'free_trial' &&
-                billingStatus.active &&
-                trialFeatures.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-900">{t('trialIncludes')}</p>
-                    <ul className="mt-2 list-disc pl-5 text-sm text-gray-600 space-y-1">
-                      {trialFeatures.map((feature) => (
-                        <li key={feature}>{feature}</li>
-                      ))}
-                    </ul>
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-start space-x-4 flex-1 min-w-0">
+              <div className="bg-primary-100 p-3 rounded-lg shrink-0">
+                <Building2 className="w-7 h-7 text-primary-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-1">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+                    {currentOrg.orgName}
+                  </h3>
+                  {billingStatus?.badge && !billingStatusLoading && (
+                    <BillingBadge
+                      badge={billingStatus.badge as BillingBadgeKey}
+                      trialEndsAt={billingStatus.trial?.expiresAt}
+                    />
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">
+                  {t('currentPlan')}:{' '}
+                  <span className="font-medium text-gray-800">{statusLabel()}</span>
+                </p>
+
+                {/* Expired / payment required alert */}
+                {billingStatus && !billingStatus.active && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {billingStatus.error ?? t('subscriptionRequired')}
+                    <span className="font-semibold"> {t('upgradeToUnlock')}</span>
                   </div>
                 )}
+              </div>
             </div>
           </div>
+
+          {/* Usage meters */}
+          {billingStatus?.usage && !billingStatusLoading && (
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Children */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <TrendingUp className="w-4 h-4 text-primary-500" />
+                    {t('usageChildren')}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {billingStatus.usage.children}
+                    {billingStatus.usage.childrenLimit !== null
+                      ? ` / ${billingStatus.usage.childrenLimit}`
+                      : ' / ∞'}
+                  </span>
+                </div>
+                {billingStatus.usage.childrenLimit !== null && (
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${
+                        billingStatus.usage.children >= billingStatus.usage.childrenLimit
+                          ? 'bg-red-500'
+                          : billingStatus.usage.children >= billingStatus.usage.childrenLimit * 0.8
+                            ? 'bg-amber-400'
+                            : 'bg-primary-500'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (billingStatus.usage.children / billingStatus.usage.childrenLimit) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                {billingStatus.usage.childrenLimit !== null &&
+                  billingStatus.usage.children >= billingStatus.usage.childrenLimit && (
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">{t('limitReached')}</p>
+                  )}
+              </div>
+
+              {/* Specialists */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Users className="w-4 h-4 text-primary-500" />
+                    {t('usageSpecialists')}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {billingStatus.usage.specialists}
+                    {billingStatus.usage.specialistsLimit !== null
+                      ? ` / ${billingStatus.usage.specialistsLimit}`
+                      : ' / ∞'}
+                  </span>
+                </div>
+                {billingStatus.usage.specialistsLimit !== null && (
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${
+                        billingStatus.usage.specialists >= billingStatus.usage.specialistsLimit
+                          ? 'bg-red-500'
+                          : billingStatus.usage.specialists >=
+                              billingStatus.usage.specialistsLimit * 0.8
+                            ? 'bg-amber-400'
+                            : 'bg-primary-500'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (billingStatus.usage.specialists / billingStatus.usage.specialistsLimit) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                {billingStatus.usage.specialistsLimit !== null &&
+                  billingStatus.usage.specialists >= billingStatus.usage.specialistsLimit && (
+                    <p className="mt-1.5 text-xs text-red-600 font-medium">{t('limitReached')}</p>
+                  )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Plans grid — same PricingCard as on landing for consistent UI */}
-        <div className="grid grid-cols-1 gap-6 max-w-3xl">
-          {[neuroKidsPlan].map((plan) => {
-            const planId = 'enterprise' as const
-            const featureKeys = PLAN_FEATURE_KEYS[planId as keyof typeof PLAN_FEATURE_KEYS] ?? []
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl">
+          {billingPlans.map((plan) => {
+            const featureKey = plan.id === 'growth' ? 'professional' : plan.id
+            const featureKeys =
+              PLAN_FEATURE_KEYS[featureKey as keyof typeof PLAN_FEATURE_KEYS] ?? []
             const isCurrent =
               billingStatus?.active === true &&
-              billingStatus?.planId === 'enterprise' &&
+              billingStatus?.planId === plan.id &&
               (billingStatus.source === 'subscription' || billingStatus.source === null)
-            const isEnterprise = true
+            const isPopular = plan.id === 'growth'
+            const isEnterprise = plan.id === 'enterprise'
 
             return (
               <PricingCard
                 key={plan.id}
-                variant={isEnterprise ? 'enterprise' : 'default'}
+                variant={isEnterprise ? 'enterprise' : isPopular ? 'popular' : 'default'}
                 badge={
                   isCurrent ? (
                     <span className="inline-flex items-center gap-1">
                       <Star className="w-3.5 h-3.5" />
                       {t('current')}
                     </span>
+                  ) : isPopular && !isCurrent ? (
+                    <span>{tPricing('popular')}</span>
                   ) : undefined
                 }
                 title={plan.name}
@@ -360,30 +437,38 @@ export default function BillingPage() {
                   text: tPricing(key as Parameters<typeof tPricing>[0]),
                 }))}
               >
-                <button
-                  onClick={() => handleSubscribe(planId)}
-                  disabled={creatingPayment === planId || isCurrent}
-                  className={`w-full py-3.5 px-4 rounded-xl font-medium transition-colors ${
-                    isCurrent
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
-                      : creatingPayment === planId
-                        ? 'bg-primary-400 text-white cursor-wait'
-                        : isEnterprise
-                          ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
+                {isEnterprise ? (
+                  <a
+                    href="mailto:hello@usenuroo.com"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-medium bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+                  >
+                    {t('contactUs')}
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => handleSubscribe(plan.id)}
+                    disabled={creatingPayment === plan.id || isCurrent}
+                    className={`w-full py-3.5 px-4 rounded-xl font-medium transition-colors ${
+                      isCurrent
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                        : creatingPayment === plan.id
+                          ? 'bg-primary-400 text-white cursor-wait'
                           : 'bg-primary-600 text-white hover:bg-primary-700'
-                  }`}
-                >
-                  {creatingPayment === planId ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {t('creatingPayment')}
-                    </span>
-                  ) : isCurrent ? (
-                    t('current')
-                  ) : (
-                    t('subscribe')
-                  )}
-                </button>
+                    }`}
+                  >
+                    {creatingPayment === plan.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {t('creatingPayment')}
+                      </span>
+                    ) : isCurrent ? (
+                      t('current')
+                    ) : (
+                      t('subscribe')
+                    )}
+                  </button>
+                )}
               </PricingCard>
             )
           })}
