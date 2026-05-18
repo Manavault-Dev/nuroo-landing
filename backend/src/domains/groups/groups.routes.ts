@@ -1,20 +1,31 @@
 import { FastifyPluginAsync } from 'fastify'
-import admin from 'firebase-admin'
 import { z } from 'zod'
+import admin from 'firebase-admin'
 
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../plugins/rbac.js'
+import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
 
-const DEFAULT_GROUP_COLOR = '#6366f1'
-
-const COLLECTIONS = {
-  SPECIALIST_GROUPS: (uid: string) => `specialists/${uid}/groups`,
-  GROUP_PARENTS: (uid: string, groupId: string) => `specialists/${uid}/groups/${groupId}/parents`,
-  ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,
-  ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
-  SPECIALISTS: 'specialists',
-  CHILDREN: 'children',
-} as const
+import {
+  DEFAULT_GROUP_COLOR,
+  COLLECTIONS,
+  fetchAllOrgGroups,
+  fetchGroupsWithFallback,
+  countGroupParents,
+  getSpecialistDisplayName,
+  transformGroup,
+  resolveUserName,
+  fetchChildData,
+  getChildIdsForParent,
+  verifyGroupOwnership,
+  buildGroupData,
+  fetchAssignmentHistory,
+  assignTasksToGroup,
+  getAssignmentDetail,
+  deleteAssignment,
+  getAssignmentComments,
+  addComment,
+  reviewSubmission,
+} from './groups.service.js'
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(100),
@@ -51,196 +62,6 @@ const assignGroupTasksSchema = z.object({
   contentRoadmapIds: z.array(z.string().min(1)).max(20).default([]),
   dueDate: z.string().nullable().optional(),
 })
-
-function isIndexError(error: any): boolean {
-  return error.code === 9 || error.message?.includes('index')
-}
-
-function sortByCreatedAt(
-  docs: admin.firestore.QueryDocumentSnapshot[]
-): admin.firestore.QueryDocumentSnapshot[] {
-  return docs.sort((a, b) => {
-    const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0
-    const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0
-    return bTime - aTime
-  })
-}
-
-async function fetchGroupsWithFallback(db: admin.firestore.Firestore, uid: string, orgId: string) {
-  const groupsRef = db.collection(COLLECTIONS.SPECIALIST_GROUPS(uid)).where('orgId', '==', orgId)
-
-  try {
-    return await groupsRef.orderBy('createdAt', 'desc').get()
-  } catch (error: any) {
-    if (isIndexError(error)) {
-      const snapshot = await groupsRef.get()
-      return { docs: sortByCreatedAt(snapshot.docs) } as any
-    }
-    throw error
-  }
-}
-
-async function getSpecialistDisplayName(
-  db: admin.firestore.Firestore,
-  specialistUid: string
-): Promise<string> {
-  const ref = db.doc(`${COLLECTIONS.SPECIALISTS}/${specialistUid}`)
-  const snap = await ref.get()
-  if (!snap.exists) return specialistUid.slice(0, 8)
-  const d = snap.data()
-  return (d?.fullName || d?.name || specialistUid.slice(0, 8)) as string
-}
-
-async function fetchAllOrgGroups(
-  db: admin.firestore.Firestore,
-  orgId: string
-): Promise<Array<{ doc: admin.firestore.QueryDocumentSnapshot; ownerId: string }>> {
-  const membersSnap = await db.collection(COLLECTIONS.ORG_MEMBERS(orgId)).get()
-  const result: Array<{ doc: admin.firestore.QueryDocumentSnapshot; ownerId: string }> = []
-
-  for (const memberDoc of membersSnap.docs) {
-    const ownerId = memberDoc.id
-    let snap: admin.firestore.QuerySnapshot
-    try {
-      snap = await db
-        .collection(COLLECTIONS.SPECIALIST_GROUPS(ownerId))
-        .where('orgId', '==', orgId)
-        .orderBy('createdAt', 'desc')
-        .get()
-    } catch (error: any) {
-      if (isIndexError(error)) {
-        const plain = await db
-          .collection(COLLECTIONS.SPECIALIST_GROUPS(ownerId))
-          .where('orgId', '==', orgId)
-          .get()
-        snap = { docs: sortByCreatedAt(plain.docs) } as any
-      } else throw error
-    }
-    for (const doc of snap.docs) {
-      result.push({ doc, ownerId })
-    }
-  }
-  result.sort((a, b) => {
-    const aTime = a.doc.data().createdAt?.toDate?.()?.getTime() ?? 0
-    const bTime = b.doc.data().createdAt?.toDate?.()?.getTime() ?? 0
-    return bTime - aTime
-  })
-  return result
-}
-
-async function countGroupParents(db: admin.firestore.Firestore, uid: string, groupId: string) {
-  const parentsSnapshot = await db.collection(COLLECTIONS.GROUP_PARENTS(uid, groupId)).get()
-  return parentsSnapshot.docs.length
-}
-
-function transformGroup(
-  doc: admin.firestore.QueryDocumentSnapshot,
-  parentCount: number,
-  owner?: { ownerId: string; ownerName: string }
-) {
-  const data = doc.data()
-  const base = {
-    id: doc.id,
-    name: data.name,
-    description: data.description || null,
-    color: data.color || DEFAULT_GROUP_COLOR,
-    orgId: data.orgId,
-    parentCount,
-    lastAssignedAt: data.lastAssignedAt?.toDate?.()?.toISOString() || null,
-    lastAssignedTaskTitles: (data.lastAssignedTaskTitles as string[] | undefined) || null,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
-  }
-  if (owner) {
-    return { ...base, ownerId: owner.ownerId, ownerName: owner.ownerName }
-  }
-  return base
-}
-
-async function resolveUserName(
-  db: admin.firestore.Firestore,
-  uid: string
-): Promise<{ name: string; email: string | null }> {
-  const userSnap = await db.doc(`users/${uid}`).get()
-  if (userSnap.exists) {
-    const d = userSnap.data()!
-    const name = d.name || d.childName || d.fullName || d.displayName
-    if (name) return { name: name as string, email: d.email || null }
-  }
-
-  try {
-    const user = await admin.auth().getUser(uid)
-    const name = user.displayName || user.email?.split('@')[0] || uid.slice(0, 8)
-    return { name, email: user.email || null }
-  } catch {
-    return { name: uid.slice(0, 8), email: null }
-  }
-}
-
-async function fetchChildData(
-  db: admin.firestore.Firestore,
-  childId: string,
-  parentUserId?: string
-) {
-  const childRef = db.doc(`${COLLECTIONS.CHILDREN}/${childId}`)
-  const childSnap = await childRef.get()
-  const childData = childSnap.exists ? childSnap.data() : null
-
-  let name = childData?.name || childData?.childName || ''
-  let age = childData?.age || childData?.childAge
-
-  if (!name) {
-    const userSnap = await db.doc(`users/${childId}`).get()
-    if (userSnap.exists) {
-      const userData = userSnap.data()!
-      name = userData.name || userData.childName || ''
-      age = age || userData.age || userData.childAge
-    }
-  }
-
-  if (!name) {
-    const uidToLookup = parentUserId || childId
-    try {
-      const user = await admin.auth().getUser(uidToLookup)
-      if (user.displayName) name = user.displayName
-      else if (user.email) name = user.email.split('@')[0]
-    } catch {}
-  }
-
-  return {
-    id: childId,
-    name: name || 'Unknown',
-    age,
-  }
-}
-
-async function getChildIdsForParent(
-  db: admin.firestore.Firestore,
-  orgId: string,
-  parentUserId: string
-): Promise<string[]> {
-  const childrenDocs = await db
-    .collection(COLLECTIONS.ORG_CHILDREN(orgId))
-    .where('parentUserId', '==', parentUserId)
-    .get()
-
-  return childrenDocs.docs.map((doc) => doc.id)
-}
-
-function verifyGroupOwnership(groupData: admin.firestore.DocumentData, orgId: string): boolean {
-  return groupData.orgId === orgId
-}
-
-function buildGroupData(body: z.infer<typeof createGroupSchema>, orgId: string, now: Date) {
-  return {
-    name: body.name,
-    description: body.description || null,
-    color: body.color || DEFAULT_GROUP_COLOR,
-    orgId,
-    createdAt: admin.firestore.Timestamp.fromDate(now),
-    updatedAt: admin.firestore.Timestamp.fromDate(now),
-  }
-}
 
 export const groupsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/groups', async (request, reply) => {
@@ -312,7 +133,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       const groupRef = db.collection(COLLECTIONS.SPECIALIST_GROUPS(uid)).doc()
       const groupId = groupRef.id
-      const groupData = buildGroupData(body, orgId, now)
+      const groupData = buildGroupData({ name: body.name!, description: body.description, color: body.color }, orgId, now)
 
       await groupRef.set(groupData)
 
@@ -465,7 +286,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       const parentData = {
         childIds,
-        updatedAt: admin.firestore.Timestamp.fromDate(now),
+        updatedAt: admin_timestamp(now),
       }
 
       if (parentSnap.exists) {
@@ -473,7 +294,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       } else {
         await parentRef.set({
           ...parentData,
-          addedAt: admin.firestore.Timestamp.fromDate(now),
+          addedAt: admin_timestamp(now),
         })
       }
 
@@ -568,7 +389,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const updateData: any = {
-        updatedAt: admin.firestore.Timestamp.fromDate(now),
+        updatedAt: admin_timestamp(now),
       }
 
       if (body.name) updateData.name = body.name
@@ -651,50 +472,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           : uid
 
       const db = getFirestore()
-      let snap: admin.firestore.QuerySnapshot
-      try {
-        snap = await db
-          .collection(`organizations/${orgId}/groupAssignments`)
-          .where('groupId', '==', groupId)
-          .where('ownerId', '==', ownerId)
-          .orderBy('assignedAt', 'desc')
-          .limit(20)
-          .get()
-      } catch (err: any) {
-        if (err.code === 9 || err.message?.includes('index')) {
-          const plain = await db
-            .collection(`organizations/${orgId}/groupAssignments`)
-            .where('groupId', '==', groupId)
-            .where('ownerId', '==', ownerId)
-            .get()
-          snap = {
-            docs: plain.docs.sort((a, b) => {
-              const aT = a.data().assignedAt?.toDate?.()?.getTime() ?? 0
-              const bT = b.data().assignedAt?.toDate?.()?.getTime() ?? 0
-              return bT - aT
-            }),
-          } as any
-        } else throw err
-      }
-
-      const assignments = snap.docs.map((doc) => {
-        const d = doc.data()
-        return {
-          id: doc.id,
-          groupId: d.groupId,
-          groupName: d.groupName,
-          title: d.title || d.taskTitles?.[0] || 'Задание',
-          taskTitles: d.taskTitles || [],
-          contentTaskIds: d.contentTaskIds || [],
-          contentRoadmapIds: d.contentRoadmapIds || [],
-          roadmapNames: d.roadmapNames || [],
-          childCount: d.childCount || 0,
-          tasksCreated: d.tasksCreated || 0,
-          assignedBy: d.assignedBy,
-          assignedAt: d.assignedAt?.toDate?.()?.toISOString() || null,
-        }
-      })
-
+      const assignments = await fetchAssignmentHistory(db, orgId, groupId, ownerId)
       return { ok: true, assignments, count: assignments.length }
     } catch (error: any) {
       console.error('[GROUPS] Error fetching assignment history:', error)
@@ -721,8 +499,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
 
       const db = getFirestore()
 
-      const groupRef = db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`)
-      const groupSnap = await groupRef.get()
+      const groupSnap = await db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`).get()
       if (!groupSnap.exists) return reply.code(404).send({ error: 'Group not found' })
       if (!verifyGroupOwnership(groupSnap.data()!, orgId)) {
         return reply.code(403).send({ error: 'Group does not belong to this organization' })
@@ -732,127 +509,22 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'At least one task or roadmap must be selected' })
       }
 
-      const allTaskIdSet = new Set(body.contentTaskIds)
-      const taskIdToRoadmapId = new Map<string, string>()
-      const roadmapNames: string[] = []
-      for (const roadmapId of body.contentRoadmapIds) {
-        const roadmapSnap = await db
-          .doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`)
-          .get()
-        if (roadmapSnap.exists) {
-          const rData = roadmapSnap.data()!
-          roadmapNames.push(rData.name || 'Program')
-          const taskIds: string[] = rData.taskIds || []
-          taskIds.forEach((id) => {
-            allTaskIdSet.add(id)
-            taskIdToRoadmapId.set(id, roadmapId)
-          })
+      try {
+        const result = await assignTasksToGroup(db, orgId, groupId, ownerId, uid, {
+          contentTaskIds: body.contentTaskIds,
+          contentRoadmapIds: body.contentRoadmapIds,
+          dueDate: body.dueDate,
+        })
+        return {
+          ok: true,
+          ...result,
+          message: `${result.taskCount} task(s) assigned to ${result.childCount} children`,
         }
-      }
-
-      const contentTaskDocs = await Promise.all(
-        Array.from(allTaskIdSet).map((id) =>
-          db.doc(`organizations/${orgId}/contentTasks/${id}`).get()
-        )
-      )
-      const contentTasks = contentTaskDocs
-        .filter((snap) => snap.exists)
-        .map((snap) => ({ id: snap.id, ...snap.data()! }))
-
-      if (contentTasks.length === 0) {
-        return reply.code(400).send({ error: 'No valid content tasks found' })
-      }
-
-      const parentsSnap = await db.collection(COLLECTIONS.GROUP_PARENTS(ownerId, groupId)).get()
-      const childIdSet = new Set<string>()
-      for (const parentDoc of parentsSnap.docs) {
-        const childIds = (parentDoc.data().childIds as string[]) || []
-        childIds.forEach((id) => childIdSet.add(id))
-      }
-
-      if (childIdSet.size === 0) {
-        return reply.code(400).send({ error: 'No children in this group' })
-      }
-
-      const childIds = Array.from(childIdSet)
-      const now = admin.firestore.Timestamp.fromDate(new Date())
-      const BATCH_SIZE = 400
-      let tasksCreated = 0
-
-      const taskTitles = contentTasks.map((ct: any) => (ct as any).title || 'Untitled')
-      const dueDateValue = body.dueDate ? new Date(body.dueDate) : null
-
-      const assignmentRef = db.collection(`organizations/${orgId}/groupAssignments`).doc()
-      const assignmentId = assignmentRef.id
-
-      for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
-        const batch = db.batch()
-        const chunk = childIds.slice(i, i + BATCH_SIZE)
-        for (const childId of chunk) {
-          for (const ct of contentTasks) {
-            const taskRef = db.collection(`children/${childId}/tasks`).doc()
-            batch.set(taskRef, {
-              title: (ct as any).title,
-              description: (ct as any).description ?? null,
-              category: (ct as any).category ?? null,
-              estimatedDuration: (ct as any).estimatedDuration ?? null,
-              difficulty: (ct as any).difficulty ?? null,
-              instructions: (ct as any).instructions ?? null,
-              videoUrl: (ct as any).videoUrl ?? null,
-              imageUrl: (ct as any).imageUrl ?? null,
-              mediaType: (ct as any).mediaType ?? null,
-              ageRange: (ct as any).ageRange ?? null,
-              status: 'pending',
-              submissionStatus: 'pending',
-              grade: null,
-              feedback: null,
-              createdBy: uid,
-              groupId,
-              contentTaskId: ct.id,
-              contentRoadmapId: taskIdToRoadmapId.get(ct.id) ?? null,
-              groupAssignmentId: assignmentId,
-              dueDate: dueDateValue ? admin.firestore.Timestamp.fromDate(dueDateValue) : null,
-              createdAt: now,
-              updatedAt: now,
-              completedAt: null,
-              submittedAt: null,
-            })
-            tasksCreated++
-          }
+      } catch (err: any) {
+        if (err.statusCode === 400) {
+          return reply.code(400).send({ error: err.message })
         }
-        await batch.commit()
-      }
-
-      await assignmentRef.set({
-        groupId,
-        groupName: groupSnap.data()!.name,
-        ownerId,
-        contentTaskIds: Array.from(allTaskIdSet),
-        contentRoadmapIds: body.contentRoadmapIds,
-        roadmapNames,
-        taskTitles,
-        title: roadmapNames.length > 0 ? roadmapNames.join(', ') : taskTitles[0] || 'Задание',
-        childCount: childIds.length,
-        childIds,
-        tasksCreated,
-        assignedBy: uid,
-        assignedAt: now,
-        status: 'active',
-        dueDate: dueDateValue ? admin.firestore.Timestamp.fromDate(dueDateValue) : null,
-      })
-
-      await groupRef.update({
-        lastAssignedAt: now,
-        lastAssignedTaskTitles: taskTitles,
-        updatedAt: now,
-      })
-
-      return {
-        ok: true,
-        tasksCreated,
-        childCount: childIds.length,
-        taskCount: contentTasks.length,
-        message: `${contentTasks.length} task(s) assigned to ${childIds.length} children`,
+        throw err
       }
     } catch (error: any) {
       console.error('[GROUPS] Error assigning group tasks:', error)
@@ -870,95 +542,39 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       const { uid } = request.user!
       const db = getFirestore()
 
-      const assignmentRef = db.doc(`organizations/${orgId}/groupAssignments/${assignmentId}`)
-      const assignmentSnap = await assignmentRef.get()
-      if (!assignmentSnap.exists) return reply.code(404).send({ error: 'Assignment not found' })
+      try {
+        const { aData, childIds, submissions, contentRoadmapIds, roadmaps } =
+          await getAssignmentDetail(db, orgId, assignmentId)
 
-      const aData = assignmentSnap.data()!
-      if (member.role === 'specialist' && aData.ownerId !== uid) {
-        return reply.code(403).send({ error: 'You can only view your own assignments' })
-      }
+        if (member.role === 'specialist' && aData.ownerId !== uid) {
+          return reply.code(403).send({ error: 'You can only view your own assignments' })
+        }
 
-      const childIds: string[] = aData.childIds || []
-
-      const submissions = await Promise.all(
-        childIds.map(async (childId) => {
-          const childInfo = await fetchChildData(db, childId)
-          let taskId: string | null = null
-          let taskData: any = null
-          try {
-            const tasksSnap = await db
-              .collection(`children/${childId}/tasks`)
-              .where('groupAssignmentId', '==', assignmentId)
-              .limit(1)
-              .get()
-            if (!tasksSnap.empty) {
-              taskId = tasksSnap.docs[0].id
-              taskData = tasksSnap.docs[0].data()
-            }
-          } catch {}
-
-          const status = taskData
-            ? taskData.submittedAt
-              ? taskData.grade
-                ? 'graded'
-                : 'submitted'
-              : 'pending'
-            : 'pending'
-
-          return {
-            childId,
-            childName: childInfo.name,
-            age: childInfo.age,
-            taskId,
-            status,
-            submissionText: taskData?.submissionText ?? null,
-            fileUrl: taskData?.fileUrl ?? null,
-            submittedAt: taskData?.submittedAt?.toDate?.()?.toISOString() ?? null,
-            grade: taskData?.grade ?? null,
-            feedback: taskData?.feedback ?? null,
-            feedbackAt: taskData?.feedbackAt?.toDate?.()?.toISOString() ?? null,
-          }
-        })
-      )
-
-      const contentRoadmapIds: string[] = aData.contentRoadmapIds || []
-      const roadmapDetails = await Promise.all(
-        contentRoadmapIds.map(async (roadmapId) => {
-          const roadmapSnap = await db
-            .doc(`organizations/${orgId}/contentRoadmaps/${roadmapId}`)
-            .get()
-          if (!roadmapSnap.exists) return null
-          const rData = roadmapSnap.data()!
-          const taskIds: string[] = rData.taskIds || []
-          const taskSnaps = await Promise.all(
-            taskIds.map((tid) => db.doc(`organizations/${orgId}/contentTasks/${tid}`).get())
-          )
-          const taskTitles = taskSnaps.filter((s) => s.exists).map((s) => s.data()!.title || '')
-          return { id: roadmapId, name: rData.name || 'Program', taskTitles }
-        })
-      )
-      const roadmaps = roadmapDetails.filter(Boolean)
-
-      return {
-        ok: true,
-        assignment: {
-          id: assignmentId,
-          groupId: aData.groupId,
-          groupName: aData.groupName,
-          ownerId: aData.ownerId,
-          title: aData.title || (aData.taskTitles?.[0] ?? 'Задание'),
-          description: aData.description ?? null,
-          dueDate: aData.dueDate ?? null,
-          taskTitles: aData.taskTitles || [],
-          contentRoadmapIds,
-          roadmapNames: aData.roadmapNames || [],
-          roadmaps,
-          childCount: aData.childCount || childIds.length,
-          status: aData.status || 'active',
-          assignedAt: aData.assignedAt?.toDate?.()?.toISOString() ?? null,
-          submissions,
-        },
+        return {
+          ok: true,
+          assignment: {
+            id: assignmentId,
+            groupId: aData.groupId,
+            groupName: aData.groupName,
+            ownerId: aData.ownerId,
+            title: aData.title || (aData.taskTitles?.[0] ?? 'Задание'),
+            description: aData.description ?? null,
+            dueDate: aData.dueDate ?? null,
+            taskTitles: aData.taskTitles || [],
+            contentRoadmapIds,
+            roadmapNames: aData.roadmapNames || [],
+            roadmaps,
+            childCount: aData.childCount || childIds.length,
+            status: aData.status || 'active',
+            assignedAt: aData.assignedAt?.toDate?.()?.toISOString() ?? null,
+            submissions,
+          },
+        }
+      } catch (err: any) {
+        if (err.statusCode === 404) {
+          return reply.code(404).send({ error: 'Assignment not found' })
+        }
+        throw err
       }
     } catch (error: any) {
       console.error('[GROUPS] Error fetching assignment detail:', error)
@@ -989,7 +605,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const updates: Record<string, any> = {
-        updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+        updatedAt: admin_timestamp(new Date()),
       }
       if (body.status) updates.status = body.status
       if (body.dueDate !== undefined) updates.dueDate = body.dueDate
@@ -1021,43 +637,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(403).send({ error: 'You can only delete your own assignments' })
         }
 
-        const commentsSnap = await db
-          .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
-          .get()
-        if (commentsSnap.docs.length > 0) {
-          const commentBatch = db.batch()
-          commentsSnap.docs.forEach((doc) => commentBatch.delete(doc.ref))
-          await commentBatch.commit()
-        }
-
-        let childIds: string[] = aData.childIds || []
-
-        if (childIds.length === 0) {
-          try {
-            const orgChildrenSnap = await db.collection(`organizations/${orgId}/children`).get()
-            childIds = orgChildrenSnap.docs.map((d) => d.id)
-          } catch {}
-        }
-
-        if (childIds.length > 0) {
-          const BATCH_SIZE = 400
-          for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
-            const chunk = childIds.slice(i, i + BATCH_SIZE)
-            const taskBatch = db.batch()
-            for (const childId of chunk) {
-              try {
-                const tasksSnap = await db
-                  .collection(`children/${childId}/tasks`)
-                  .where('groupAssignmentId', '==', assignmentId)
-                  .get()
-                tasksSnap.docs.forEach((doc) => taskBatch.delete(doc.ref))
-              } catch {}
-            }
-            await taskBatch.commit()
-          }
-        }
-
-        await assignmentRef.delete()
+        await deleteAssignment(db, orgId, assignmentId, aData.childIds || [])
         return { ok: true }
       } catch (error: any) {
         return reply
@@ -1074,32 +654,7 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         const { orgId, assignmentId } = request.params
         await requireOrgMember(request, reply, orgId)
         const db = getFirestore()
-
-        let snap: admin.firestore.QuerySnapshot
-        try {
-          snap = await db
-            .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
-            .orderBy('createdAt', 'asc')
-            .get()
-        } catch (err: any) {
-          if (err.code === 9 || err.message?.includes('index')) {
-            snap = await db
-              .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
-              .get()
-          } else throw err
-        }
-
-        const comments = snap.docs.map((doc) => {
-          const d = doc.data()
-          return {
-            id: doc.id,
-            authorId: d.authorId,
-            authorName: d.authorName,
-            authorRole: d.authorRole,
-            text: d.text,
-            createdAt: d.createdAt?.toDate?.()?.toISOString() ?? null,
-          }
-        })
+        const comments = await getAssignmentComments(db, orgId, assignmentId)
         return { ok: true, comments }
       } catch (error: any) {
         return reply.code(500).send({ error: 'Failed to fetch comments', details: error.message })
@@ -1117,32 +672,20 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       const { uid } = request.user!
       const body = addCommentSchema.parse(request.body)
       const db = getFirestore()
-      const now = admin.firestore.Timestamp.fromDate(new Date())
 
-      let authorName = uid.slice(0, 8)
-      try {
-        const snap = await db.doc(`specialists/${uid}`).get()
-        if (snap.exists) {
-          const d = snap.data()!
-          authorName = d.fullName || d.name || authorName
-        }
-      } catch {}
-
-      const commentRef = db
-        .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
-        .doc()
-      await commentRef.set({
-        authorId: uid,
-        authorName,
-        authorRole: member.role,
-        text: body.text,
-        createdAt: now,
-      })
+      const { id, authorName, now } = await addComment(
+        db,
+        orgId,
+        assignmentId,
+        uid,
+        member.role,
+        body.text
+      )
 
       return {
         ok: true,
         comment: {
-          id: commentRef.id,
+          id,
           authorId: uid,
           authorName,
           authorRole: member.role,
@@ -1167,7 +710,6 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
         const { uid } = request.user!
         const body = reviewSubmissionSchema.parse(request.body)
         const db = getFirestore()
-        const now = admin.firestore.Timestamp.fromDate(new Date())
 
         const assignmentSnap = await db
           .doc(`organizations/${orgId}/groupAssignments/${assignmentId}`)
@@ -1180,26 +722,15 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
             .send({ error: 'You can only review submissions for your own assignments' })
         }
 
-        const tasksSnap = await db
-          .collection(`children/${childId}/tasks`)
-          .where('groupAssignmentId', '==', assignmentId)
-          .limit(1)
-          .get()
-
-        if (tasksSnap.empty) {
-          return reply.code(404).send({ error: 'Task not found for this child and assignment' })
+        try {
+          await reviewSubmission(db, orgId, assignmentId, childId, uid, body.grade, body.feedback)
+          return { ok: true, childId, grade: body.grade }
+        } catch (err: any) {
+          if (err.statusCode === 404) {
+            return reply.code(404).send({ error: err.message })
+          }
+          throw err
         }
-
-        await tasksSnap.docs[0].ref.update({
-          grade: body.grade,
-          feedback: body.feedback ?? null,
-          feedbackBy: uid,
-          feedbackAt: now,
-          status: body.grade === 'approved' ? 'completed' : 'pending',
-          updatedAt: now,
-        })
-
-        return { ok: true, childId, grade: body.grade }
       } catch (error: any) {
         return reply
           .code(500)
@@ -1207,4 +738,8 @@ export const groupsRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+}
+
+function admin_timestamp(date: Date) {
+  return admin.firestore.Timestamp.fromDate(date)
 }
