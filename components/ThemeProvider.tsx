@@ -29,13 +29,14 @@ export function ThemeProvider({
   children,
   defaultTheme = 'system',
   storageKey = 'nuroo-theme',
-  attribute = 'class',
+  attribute: _attribute = 'class',
   enableSystem = true,
-  disableTransitionOnChange = false,
+  disableTransitionOnChange: _disableTransitionOnChange = false,
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
-    () => (typeof window !== 'undefined' && localStorage.getItem(storageKey)) as Theme || defaultTheme
+    () =>
+      ((typeof window !== 'undefined' && localStorage.getItem(storageKey)) as Theme) || defaultTheme
   )
 
   useEffect(() => {
@@ -44,8 +45,7 @@ export function ThemeProvider({
     root.classList.remove('light', 'dark')
 
     if (theme === 'system' && enableSystem) {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light'
 
@@ -74,8 +74,7 @@ export function ThemeProvider({
 export const useTheme = () => {
   const context = useContext(ThemeProviderContext)
 
-  if (context === undefined)
-    throw new Error('useTheme must be used within a ThemeProvider')
+  if (context === undefined) throw new Error('useTheme must be used within a ThemeProvider')
 
   return context
 }

@@ -1,61 +1,76 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { Header } from '@/components/Header'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    template: '%s | Nuroo'
+    default: 'Nuroo — AI Support for Children with Special Needs',
+    template: '%s | Nuroo',
   },
-  description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+  description:
+    'Nuroo — AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
   keywords: [
-    'special needs support',
-    'AI therapy',
-    'developmental exercises',
-    'child development',
+    'Nuroo',
+    // English
     'special needs app',
+    'AI therapy children',
+    'autism app',
+    'ADHD children',
+    'child development platform',
     'therapy at home',
-    'autism support',
-    'learning disabilities',
-    'developmental support',
-    'AI chat support'
+    'neurodiversity',
+    'early intervention',
+    'speech therapy',
+    'ABA therapy',
+    'special education',
+    // Russian (high search volume in CIS)
+    'приложение для детей с особыми потребностями',
+    'аутизм приложение',
+    'ЗПР упражнения',
+    'СДВГ ребёнок',
+    'детская реабилитация',
+    'логопед онлайн',
+    'коррекционная педагогика',
+    'нейроразнообразие',
+    // Kyrgyz
+    'атайын муктаждыктары бар балдар',
   ],
-  authors: [{ name: 'Nuroo Team' }],
+  authors: [{ name: 'Nuroo by Manavault Studio' }],
   creator: 'Nuroo',
   publisher: 'Nuroo',
+  category: 'Education',
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
   metadataBase: new URL('https://usenuroo.com'),
-  alternates: {
-    canonical: '/',
-  },
   openGraph: {
     type: 'website',
-    locale: 'en_US',
+    locale: 'ru_RU',
+    alternateLocale: ['en_US', 'ky_KG'],
     url: 'https://usenuroo.com',
     siteName: 'Nuroo',
-    title: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
+    title: 'Nuroo — AI Support for Children with Special Needs',
+    description:
+      'AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays.',
     images: [
       {
-        url: '/logo.png',
+        url: '/mother-and-child.png',
         width: 1200,
         height: 630,
-        alt: 'Nuroo - AI-Powered Support for Children with Special Needs',
+        alt: 'Nuroo — AI Support for Children with Special Needs',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nuroo - AI-Powered Support for Children with Special Needs',
-    description: 'Nuroo provides AI-powered exercises, NurooAi chat support, and progress tracking for children with special needs. Making therapy accessible and affordable for every family.',
-    images: ['/logo.png'],
+    title: 'Nuroo — AI Support for Children with Special Needs',
+    description:
+      'AI-powered exercises and support for children with autism, ADHD and developmental delays.',
+    images: ['/mother-and-child.png'],
     creator: '@nuroo',
   },
   robots: {
@@ -69,16 +84,9 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    google: 'your-google-verification-code',
-  },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -86,14 +94,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/logo.png" />
-        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#14b8a6" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={inter.className}>
-        <Header />
-        <main>{children}</main>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }

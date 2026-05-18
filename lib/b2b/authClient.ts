@@ -1,0 +1,64 @@
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User,
+  UserCredential,
+} from 'firebase/auth'
+import { auth } from '@/lib/firebase/config'
+import { apiClient } from './api'
+
+export async function signIn(email: string, password: string): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase Auth is not initialized. Please configure Firebase in .env.local')
+  }
+  const authInstance = auth
+  return signInWithEmailAndPassword(authInstance, email, password)
+}
+
+export async function register(
+  email: string,
+  password: string,
+  _name: string
+): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase Auth is not initialized. Please configure Firebase in .env.local')
+  }
+  const authInstance = auth
+  return createUserWithEmailAndPassword(authInstance, email, password)
+}
+
+export async function signOut(): Promise<void> {
+  if (!auth) {
+    return
+  }
+  const authInstance = auth
+  await firebaseSignOut(authInstance)
+  // Clear token from localStorage
+  apiClient.setToken(null)
+}
+
+export function getCurrentUser(): User | null {
+  return auth?.currentUser || null
+}
+
+export async function getIdToken(forceRefresh = false): Promise<string | null> {
+  if (!auth) {
+    return null
+  }
+  const user = auth.currentUser
+  if (!user) return null
+  return user.getIdToken(forceRefresh)
+}
+
+export function onAuthChange(callback: (user: User | null) => void) {
+  if (!auth) {
+    callback(null)
+    return () => {
+      /* noop unsubscribe when auth is null */
+    }
+  }
+  const authInstance = auth
+  return onAuthStateChanged(authInstance, callback)
+}

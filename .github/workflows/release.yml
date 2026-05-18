@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/dependabot.yml'
+      - '.github/pull_request_template.md'
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  # Create Release
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+    steps:
+      - name: Release Please
+        uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          release-type: node
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log Release Info
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          echo "Release created: ${{ steps.release.outputs.tag_name }}"
+          echo "Version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
+
+  # Tag Docker Images with Version
+
+  tag-release:
+    name: Tag Release
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ needs.release.outputs.release_created }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_REGION: 'us-central1'
+      GCP_SERVICE_NAME: 'nuroo-backend'
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set GCP Project ID for Docker
+        run: echo "GCP_PROJECT_ID=$(gcloud config get-value project -q)" >> $GITHUB_ENV
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Tag Backend Image with Version
+        run: |
+          IMAGE_BASE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/nuroo/${{ env.GCP_SERVICE_NAME }}"
+
+          # Pull latest image
+          docker pull "${IMAGE_BASE}:latest" || exit 0
+
+          # Tag with version
+          docker tag "${IMAGE_BASE}:latest" "${IMAGE_BASE}:${{ needs.release.outputs.tag_name }}"
+          docker tag "${IMAGE_BASE}:latest" "${IMAGE_BASE}:v${{ needs.release.outputs.version }}"
+
+          # Push version tags
+          docker push "${IMAGE_BASE}:${{ needs.release.outputs.tag_name }}"
+          docker push "${IMAGE_BASE}:v${{ needs.release.outputs.version }}"
+
+          echo "Tagged backend image with version ${{ needs.release.outputs.tag_name }}"
+
+  # Create GitHub Release Summary
+
+  release-summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [release, tag-release]
+    if: ${{ needs.release.outputs.release_created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Release Summary
+        run: |
+          echo "## Release ${{ needs.release.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.release.outputs.tag_name }} | Deployed via Vercel |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.release.outputs.tag_name }} | Deployed via Cloud Run |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag_name }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Production Frontend](https://usenuroo.com)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "New release ${{ needs.release.outputs.tag_name }} deployed!",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "New Release: ${{ needs.release.outputs.tag_name }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n${{ needs.release.outputs.version }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag_name }}|View Release Notes>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true

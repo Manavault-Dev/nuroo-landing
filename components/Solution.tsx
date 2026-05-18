@@ -1,171 +1,205 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { CheckCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
+import { Building2, UserCircle, Users, Heart } from 'lucide-react'
+
+const vFadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' as const } },
+}
+const vScale = {
+  hidden: { opacity: 0, scale: 0.96 },
+  show: { opacity: 1, scale: 1, transition: { duration: 0.55, ease: 'easeOut' as const } },
+}
+const vStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12 } },
+}
+
+type RoleCardProps = {
+  icon: React.ElementType
+  iconBg: string
+  iconColor: string
+  badge: string
+  badgeColor: string
+  title: string
+  subtitle: string
+  features: { title: string; desc: string }[]
+  accent: string
+}
+
+function RoleCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  badge,
+  badgeColor,
+  title,
+  subtitle,
+  features,
+  accent,
+}: RoleCardProps) {
+  return (
+    <motion.div
+      variants={vFadeUp}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      className="group flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 p-7 shadow-sm hover:shadow-xl transition-colors duration-300"
+    >
+      <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center mb-5`}>
+        <Icon className={`w-6 h-6 ${iconColor}`} />
+      </div>
+
+      <span className={`text-xs font-semibold uppercase tracking-widest ${badgeColor} mb-3`}>
+        {badge}
+      </span>
+
+      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 leading-snug">{title}</h3>
+
+      <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-6">{subtitle}</p>
+
+      <ul className="space-y-3 mt-auto">
+        {features.map((f, i) => (
+          <li key={i} className="flex items-start gap-3">
+            <div className={`w-1.5 h-1.5 rounded-full ${accent} mt-1.5 flex-shrink-0`} />
+            <div>
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                {f.title}
+              </span>
+              {f.desc && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{f.desc}</p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </motion.div>
+  )
+}
+
+function StatBadge({ number, label }: { number: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-3xl md:text-4xl font-bold text-primary-600 dark:text-primary-400">
+        {number}
+      </span>
+      <span className="text-sm text-gray-500 dark:text-gray-400 mt-1 text-center max-w-[120px]">
+        {label}
+      </span>
+    </div>
+  )
+}
 
 export function Solution() {
-  const [isVisible, setIsVisible] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    const element = document.getElementById('solution-section')
-    if (element) {
-      observer.observe(element)
-    }
-
-    return () => observer.disconnect()
-  }, [])
-
+  const tOrgs = useTranslations('landing.forOrgs')
+  const tSpec = useTranslations('landing.forSpecialists')
+  const tPar = useTranslations('landing.forParents')
+  const tSol = useTranslations('landing.solution')
 
   const stats = [
-    { number: '90%', label: 'Parent Satisfaction' },
-    { number: '3x', label: 'Faster Progress' },
-    { number: '85%', label: 'Cost Reduction' },
-    { number: '24/7', label: 'Available Support' }
+    { number: '1500+', label: tSol('parentSatisfaction') },
+    { number: '3x', label: tSol('fasterProgress') },
+    { number: '85%', label: tSol('costReduction') },
+    { number: '24/7', label: tSol('availableSupport') },
   ]
 
   return (
-    <section id="solution-section" className="section-padding bg-white dark:bg-gray-900">
-      <div className="container-custom">
-        <div className="max-w-4xl mx-auto text-center mb-12 md:mb-16">
-          <div className={`inline-flex items-center px-3 md:px-4 py-2 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs md:text-sm font-medium mb-6 md:mb-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-2" />
-            The Solution
+    <section
+      id="solution-section"
+      className="section-padding bg-gray-50 dark:bg-gray-900/50 min-w-0"
+    >
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Section header */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={vFadeUp}
+          className="text-center mb-14"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-sm font-medium mb-5">
+            <Users className="w-4 h-4" />
+            <span>{tSol('sectionBadge')}</span>
           </div>
-          
-          <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 md:mb-6 transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            Introducing 
-            <span className="gradient-text ml-2 md:ml-3">Nuroo</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
+            {tSol('sectionTitle')}
+            <br />
+            <span className="gradient-text">{tSol('sectionTitleHighlight')}</span>
           </h2>
-          
-          <p className={`text-base md:text-lg lg:text-xl text-gray-600 dark:text-gray-300 mb-8 md:mb-12 transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            The first AI-powered platform that brings professional support for children with special needs directly to your home, 
-            making therapy accessible, affordable, and effective for every child.
+          <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            {tSol('sectionIntro')}
           </p>
-        </div>
+        </motion.div>
 
-        {/* Mobile App Preview */}
-        <div className={`mb-16 md:mb-20 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          {/* App Screenshots Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16">
-            {/* Welcome Screen */}
-            <div className="relative group">
-              <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
-                <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
-                  <img 
-                    src="/welcome.png" 
-                    alt="Nuroo Welcome Screen - Personalized onboarding for special needs support" 
-                    className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
-                  />
-                </div>
-                <div className="absolute -top-1 md:-top-2 -right-1 md:-right-2 w-6 h-6 md:w-8 md:h-8 bg-primary-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">1</span>
-                </div>
-              </div>
-              <div className="text-center mt-3 md:mt-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">Welcome & Setup</h4>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">Personalized onboarding experience</p>
-              </div>
-            </div>
+        {/* Three role cards — staggered entrance */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={vStagger}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16"
+        >
+          <RoleCard
+            icon={Building2}
+            iconBg="bg-primary-50 dark:bg-primary-950/60"
+            iconColor="text-primary-600 dark:text-primary-400"
+            badge={tOrgs('badge')}
+            badgeColor="text-primary-600 dark:text-primary-400"
+            title={tOrgs('title')}
+            subtitle={tOrgs('subtitle')}
+            features={[
+              { title: tOrgs('f1Title'), desc: tOrgs('f1Desc') },
+              { title: tOrgs('f2Title'), desc: tOrgs('f2Desc') },
+              { title: tOrgs('f3Title'), desc: tOrgs('f3Desc') },
+            ]}
+            accent="bg-primary-500"
+          />
+          <RoleCard
+            icon={UserCircle}
+            iconBg="bg-cyan-50 dark:bg-cyan-950/60"
+            iconColor="text-cyan-600 dark:text-cyan-400"
+            badge={tSpec('badge')}
+            badgeColor="text-cyan-600 dark:text-cyan-400"
+            title={tSpec('title')}
+            subtitle={tSpec('subtitle')}
+            features={[
+              { title: tSpec('f1Title'), desc: tSpec('f1Desc') },
+              { title: tSpec('f2Title'), desc: tSpec('f2Desc') },
+              { title: tSpec('f3Title'), desc: tSpec('f3Desc') },
+            ]}
+            accent="bg-cyan-500"
+          />
+          <RoleCard
+            icon={Heart}
+            iconBg="bg-emerald-50 dark:bg-emerald-950/60"
+            iconColor="text-emerald-600 dark:text-emerald-400"
+            badge={tPar('badge')}
+            badgeColor="text-emerald-600 dark:text-emerald-400"
+            title={tPar('title')}
+            subtitle={tPar('subtitle')}
+            features={[
+              { title: tPar('f1Title'), desc: tPar('f1Desc') },
+              { title: tPar('f2Title'), desc: tPar('f2Desc') },
+              { title: tPar('f3Title'), desc: tPar('f3Desc') },
+            ]}
+            accent="bg-emerald-500"
+          />
+        </motion.div>
 
-            {/* Progress Screen */}
-            <div className="relative group">
-              <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
-                <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
-                  <img 
-                    src="/progress.png" 
-                    alt="Nuroo Progress Dashboard - Track your child's development journey with AI-powered support" 
-                    className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
-                  />
-                </div>
-                <div className="absolute -top-1 md:-top-2 -right-1 md:-right-2 w-6 h-6 md:w-8 md:h-8 bg-secondary-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">2</span>
-                </div>
-              </div>
-              <div className="text-center mt-3 md:mt-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">Progress Tracking</h4>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">Real-time development insights</p>
-              </div>
-            </div>
-
-            {/* AskNuroo Screen */}
-            <div className="relative group sm:col-span-2 lg:col-span-1">
-              <div className="bg-gradient-to-br from-primary-100 to-secondary-100 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-primary-200 group-hover:shadow-xl transition-all duration-300">
-                <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl p-2 md:p-3">
-                  <img 
-                    src="/asknuroo-screen.png" 
-                    alt="NurooAi Chat Support - AI-powered assistance for special needs guidance" 
-                    className="w-full h-auto rounded-lg md:rounded-xl shadow-lg"
-                  />
-                </div>
-                <div className="absolute -top-1 md:-top-2 -right-1 md:-right-2 w-6 h-6 md:w-8 md:h-8 bg-accent-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">3</span>
-                </div>
-              </div>
-              <div className="text-center mt-3 md:mt-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">NurooAi Chat</h4>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">AI-powered support 24/7</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Features Description */}
-          <div className="text-center max-w-4xl mx-auto">
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4 md:mb-6">
-              Everything Your Child Needs, 
-              <span className="gradient-text">All in One App</span>
-            </h3>
-            <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 mb-6 md:mb-8 leading-relaxed">
-              Nuroo combines the power of artificial intelligence with personalized support 
-              to create a comprehensive platform for children with special needs that works around your schedule.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
-                <div className="text-left">
-                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">Personalized Learning</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-xs md:text-sm">AI adapts to your child's unique learning style and pace</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
-                <div className="text-left">
-                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">NurooAi Support</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-xs md:text-sm">AI-powered chat assistance available 24/7 for guidance and support</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500 mt-1 flex-shrink-0" />
-                <div className="text-left">
-                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">Real-time Progress</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-xs md:text-sm">Track milestones and celebrate achievements together</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        {/* Stats */}
-        <div className={`bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl md:rounded-3xl p-6 md:p-8 border border-primary-200 transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center">
-            {stats.map((stat, index) => (
-              <div key={index}>
-                <div className="text-2xl md:text-3xl lg:text-4xl font-bold mb-1 md:mb-2">{stat.number}</div>
-                <div className="text-primary-600 text-xs md:text-sm">{stat.label}</div>
-              </div>
+        {/* Stats strip */}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={vScale}
+          className="bg-gradient-to-r from-primary-100 to-secondary-100 dark:from-primary-900/40 dark:to-secondary-900/30 rounded-2xl p-8 border border-primary-200 dark:border-primary-800/30"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {stats.map((s, i) => (
+              <StatBadge key={i} number={s.number} label={s.label} />
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   )

@@ -1,0 +1,1526 @@
+const API_BASE_URL =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
+
+// ── Notification types ────────────────────────────────────────────────────────
+export interface NotificationItem {
+  id: string
+  type: string
+  category: string
+  title: string
+  body: string
+  read: boolean
+  createdAt: string | Date | null
+  readAt?: string | Date | null
+  metadata?: {
+    childId?: string
+    taskId?: string
+    orgId?: string
+    deepLink?: string
+    specialistId?: string
+    parentId?: string
+  }
+}
+
+export interface NotificationPreferences {
+  allEnabled: boolean
+  pushEnabled: boolean
+  inAppEnabled: boolean
+  categories: {
+    assignments: boolean
+    messages: boolean
+    reminders: boolean
+    progressUpdates: boolean
+    organizationUpdates: boolean
+    billingUpdates: boolean
+  }
+}
+
+// Types
+export interface SpecialistProfile {
+  uid: string
+  email: string
+  name: string
+  organizations: Array<{
+    orgId: string
+    orgName: string
+    country?: string | null
+    role: 'admin' | 'specialist'
+  }>
+}
+
+export interface ChildSummary {
+  id: string
+  name: string
+  age?: number
+  speechStepId?: string
+  speechStepNumber?: number
+  lastActiveDate?: string
+  completedTasksCount: number
+}
+
+export interface ParentInfo {
+  uid: string
+  displayName?: string
+  email?: string
+  linkedAt?: string
+  phone?: string
+  whatsapp?: string
+  address?: string
+  fullName?: string
+}
+
+export interface ChildDetail extends ChildSummary {
+  organizationId: string
+  parentInfo?: ParentInfo
+  status?: 'active' | 'paused' | 'completed' | 'archived'
+  assignedSpecialistName?: string
+  groupName?: string
+  recentTasks: Array<{
+    id: string
+    title: string
+    status: 'completed' | 'pending' | 'in-progress'
+    completedAt?: string
+  }>
+}
+
+export interface SpecialistNote {
+  id: string
+  childId: string
+  orgId: string
+  specialistId: string
+  specialistName: string
+  text: string
+  tags?: string[]
+  visibleToParent?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChildTask {
+  id: string
+  title: string
+  description: string | null
+  status: 'pending' | 'completed'
+  createdBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  completedAt: string | null
+  submissionText: string | null
+  fileUrl: string | null
+  submittedAt: string | null
+}
+
+export type ChildTaskResponse = ChildTask & {
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ActivityDay {
+  date: string
+  tasksAttempted: number
+  tasksCompleted: number
+  feedback?: { mood: 'good' | 'ok' | 'hard'; comment?: string; timestamp: string }
+}
+
+export type TimelineResponse = { days: ActivityDay[] }
+
+export type GuardianRelationship = 'mother' | 'father' | 'guardian' | 'other'
+export type ContactMethod = 'phone' | 'whatsapp' | 'email'
+
+export interface Guardian {
+  id: string
+  fullName: string
+  relationship: GuardianRelationship
+  phone?: string | null
+  whatsapp?: string | null
+  email?: string | null
+  address?: string | null
+  preferredContactMethod?: ContactMethod | null
+  isPrimaryContact: boolean
+  isEmergencyContact: boolean
+  appUserId?: string | null
+  /** true when this entry was auto-synthesised from the parent's app profile */
+  fromApp?: boolean
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface ChildProfileData {
+  firstName?: string
+  lastName?: string
+  fullName: string
+  photoUrl?: string
+  dateOfBirth?: string
+  age?: number
+  gender?: 'male' | 'female' | 'other'
+  status: 'active' | 'paused' | 'completed' | 'archived'
+  startDate?: string
+  branchId?: string
+  primaryConcern?: string
+  diagnosis?: string
+  developmentalNotes?: string
+  communicationLevel?: string
+  therapyGoals?: string
+  contraindications?: string
+  importantNotes?: string
+  internalCode?: string
+}
+
+export type ActivityEventType =
+  | 'child_created'
+  | 'specialist_assigned'
+  | 'specialist_removed'
+  | 'group_assigned'
+  | 'group_removed'
+  | 'task_assigned'
+  | 'task_completed'
+  | 'note_added'
+  | 'profile_updated'
+  | 'guardian_added'
+  | 'guardian_removed'
+
+export interface ActivityEvent {
+  id: string
+  type: ActivityEventType | string
+  actorId?: string
+  actorName?: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+}
+
+export interface Branch {
+  id: string
+  name: string
+  address?: string | null
+  phone?: string | null
+  contactPerson?: string | null
+  createdAt?: string | null
+}
+
+export interface AttendanceRecord {
+  childId: string
+  childName: string
+  status: 'present' | 'absent' | 'late' | null
+  note?: string | null
+  markedAt?: string | null
+}
+
+export interface FeeRecord {
+  childId: string
+  childName: string
+  amount: number
+  currency: string
+  status: 'paid' | 'pending' | 'overdue'
+  paidAt?: string | null
+  note?: string | null
+  billingDay?: number
+  dueDate?: string
+  daysUntilDue?: number
+  billingStatus?: 'paid' | 'overdue' | 'due_soon' | 'upcoming'
+}
+
+// Cache entry type
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+  ttl: number
+}
+
+// In-flight request tracking to prevent duplicate requests
+const inFlightRequests = new Map<string, Promise<unknown>>()
+
+// Simple in-memory cache for API responses
+class ApiCache {
+  private cache = new Map<string, CacheEntry<unknown>>()
+
+  // Cache TTLs in milliseconds
+  private static TTL = {
+    profile: 5 * 60 * 1000, // 5 minutes for user profile
+    superAdmin: 5 * 60 * 1000, // 5 minutes for super admin check
+    children: 60 * 1000, // 1 minute for children list
+    childDetail: 30 * 1000, // 30 seconds for child details
+    organizations: 2 * 60 * 1000, // 2 minutes for org list
+    default: 30 * 1000, // 30 seconds default
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key)
+    if (!entry) return null
+
+    const now = Date.now()
+    if (now - entry.timestamp > entry.ttl) {
+      this.cache.delete(key)
+      return null
+    }
+
+    return entry.data as T
+  }
+
+  set<T>(key: string, data: T, ttlKey?: keyof typeof ApiCache.TTL): void {
+    const ttl = ttlKey ? ApiCache.TTL[ttlKey] : ApiCache.TTL.default
+    this.cache.set(key, { data, timestamp: Date.now(), ttl })
+  }
+
+  invalidate(pattern?: string): void {
+    if (!pattern) {
+      this.cache.clear()
+      inFlightRequests.clear()
+      return
+    }
+    const keys = Array.from(this.cache.keys())
+    keys.forEach((key) => {
+      if (key.includes(pattern)) {
+        this.cache.delete(key)
+      }
+    })
+    const inFlightKeys = Array.from(inFlightRequests.keys())
+    inFlightKeys.forEach((key) => {
+      if (key.includes(pattern)) {
+        inFlightRequests.delete(key)
+      }
+    })
+  }
+
+  // Invalidate on mutations
+  invalidateOnMutation(endpoint: string): void {
+    if (endpoint.includes('/notes')) {
+      this.invalidate('/notes')
+    } else if (endpoint.includes('/children')) {
+      this.invalidate('/children')
+    } else if (endpoint.includes('/invites')) {
+      this.invalidate('/invites')
+    } else if (endpoint.includes('/organizations')) {
+      this.invalidate('/organizations')
+    } else if (endpoint.includes('/groups')) {
+      this.invalidate('/groups')
+    }
+  }
+}
+
+const cache = new ApiCache()
+
+// API Client with caching and request deduplication
+export class ApiClient {
+  private baseUrl: string
+  private token: string | null = null
+
+  constructor(baseUrl = API_BASE_URL) {
+    this.baseUrl = baseUrl
+  }
+
+  setToken(token: string | null) {
+    if (this.token !== token) {
+      cache.invalidate() // clear stale data whenever auth changes (login OR logout)
+    }
+    this.token = token
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers = new Headers(options.headers)
+    const hasBody = options.body !== undefined && options.body !== null
+    const isFormData =
+      typeof FormData !== 'undefined' && hasBody && options.body instanceof FormData
+    if (hasBody && !isFormData) {
+      headers.set('Content-Type', 'application/json')
+    } else {
+      headers.delete('Content-Type')
+    }
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+    const response = await fetch(url, { ...options, headers })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(error.error || 'API request failed')
+    }
+
+    return response.json()
+  }
+
+  // Cached GET request with deduplication
+  private async cachedRequest<T>(
+    endpoint: string,
+    cacheKey: string,
+    ttlKey?: 'profile' | 'superAdmin' | 'children' | 'childDetail' | 'organizations' | 'default'
+  ): Promise<T> {
+    // Check cache first
+    const cached = cache.get<T>(cacheKey)
+    if (cached) return cached
+
+    // Check for in-flight request to prevent duplicates
+    const inFlight = inFlightRequests.get(cacheKey)
+    if (inFlight) {
+      return inFlight as Promise<T>
+    }
+
+    // Make the request
+    const requestPromise = this.request<T>(endpoint)
+      .then((data) => {
+        if (inFlightRequests.get(cacheKey) === requestPromise) {
+          cache.set(cacheKey, data, ttlKey)
+          inFlightRequests.delete(cacheKey)
+        }
+        return data
+      })
+      .catch((error) => {
+        if (inFlightRequests.get(cacheKey) === requestPromise) {
+          inFlightRequests.delete(cacheKey)
+        }
+        throw error
+      })
+
+    inFlightRequests.set(cacheKey, requestPromise)
+    return requestPromise
+  }
+
+  // Auth & Profile
+  async health() {
+    return this.request<{ status: string; timestamp: string }>('/health')
+  }
+
+  async getMe() {
+    return this.cachedRequest<SpecialistProfile>('/me', 'profile:me', 'profile')
+  }
+
+  async createProfile(name?: string) {
+    cache.invalidate('profile')
+    return this.request<{ ok: boolean; specialist: SpecialistProfile }>('/me', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    })
+  }
+
+  async getSession() {
+    return this.request<{ ok: boolean; hasOrg: boolean; orgId?: string }>('/session')
+  }
+
+  async joinOrganization(inviteCode: string) {
+    cache.invalidate()
+    return this.request<{ ok: boolean; orgId: string }>('/join', {
+      method: 'POST',
+      body: JSON.stringify({ inviteCode }),
+    })
+  }
+
+  async getPlans() {
+    return this.cachedRequest<{
+      ok: boolean
+      plans: Array<{
+        id: string
+        name: string
+        price: number
+        currency: string
+        limits?: { children: number; specialists: number | null } | null
+      }>
+    }>('/plans', 'billing:plans', 'default')
+  }
+
+  async createPayment(orgId: string, planId: 'starter' | 'growth' | 'enterprise') {
+    cache.invalidate()
+    return this.request<{ paymentUrl?: string; error?: string }>(`/orgs/${orgId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({ orgId, planId }),
+    })
+  }
+
+  async getBillingStatus(orgId: string) {
+    return this.request<{
+      ok: boolean
+      active: boolean
+      planId: string | null
+      source: 'subscription' | 'free_trial' | null
+      billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+      badge: string | null
+      error: string | null
+      expiresAt: string | null
+      limits: { children: number; specialists: number | null } | null
+      usage: {
+        children: number
+        specialists: number
+        childrenLimit: number | null
+        specialistsLimit: number | null
+      } | null
+      features: Record<string, boolean> | null
+      trial: {
+        active: boolean
+        planId: string | null
+        startedAt: string | null
+        expiresAt: string | null
+      } | null
+    }>(`/orgs/${orgId}/billing/status`)
+  }
+
+  async verifyPayment(paymentId: string) {
+    return this.request<{
+      ok: boolean
+      payment: { id: string; status: string; planId: string; amount: number; currency: string }
+      error?: string
+    }>(`/payments/${paymentId}/verify`)
+  }
+
+  async acceptInvite(code: string) {
+    cache.invalidate()
+    return this.request<{ ok: boolean; orgId: string; role: string; orgName: string }>(
+      '/invites/accept',
+      { method: 'POST', body: JSON.stringify({ code }) }
+    )
+  }
+
+  // Children
+  async getChildren(orgId: string) {
+    return this.cachedRequest<ChildSummary[]>(
+      `/orgs/${orgId}/children`,
+      `children:${orgId}`,
+      'children'
+    )
+  }
+
+  async getChildDetail(orgId: string, childId: string) {
+    return this.cachedRequest<ChildDetail>(
+      `/orgs/${orgId}/children/${childId}`,
+      `child:${orgId}:${childId}`,
+      'childDetail'
+    )
+  }
+
+  async getTimeline(orgId: string, childId: string, days = 30) {
+    return this.cachedRequest<{ days: ActivityDay[] }>(
+      `/orgs/${orgId}/children/${childId}/timeline?days=${days}`,
+      `timeline:${orgId}:${childId}:${days}`,
+      'default'
+    )
+  }
+
+  async getChildProfile(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; profile: Partial<ChildProfileData> }>(
+      `/orgs/${orgId}/children/${childId}/profile`
+    )
+  }
+
+  async updateChildProfile(orgId: string, childId: string, data: Partial<ChildProfileData>) {
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getGuardians(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; guardians: Guardian[] }>(
+      `/orgs/${orgId}/children/${childId}/guardians`
+    )
+  }
+
+  async createGuardian(
+    orgId: string,
+    childId: string,
+    data: Omit<Guardian, 'id' | 'createdAt' | 'updatedAt'>
+  ) {
+    return this.request<{ ok: boolean; guardian: Guardian }>(
+      `/orgs/${orgId}/children/${childId}/guardians`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async removeChild(orgId: string, childId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}`, { method: 'DELETE' })
+  }
+
+  async deleteGuardian(orgId: string, childId: string, guardianId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/children/${childId}/guardians/${guardianId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getActivityEvents(orgId: string, childId: string) {
+    return this.request<{ ok: boolean; events: ActivityEvent[] }>(
+      `/orgs/${orgId}/children/${childId}/events`
+    )
+  }
+
+  // Notes
+  async getNotes(orgId: string, childId: string) {
+    return this.cachedRequest<SpecialistNote[]>(
+      `/orgs/${orgId}/children/${childId}/notes`,
+      `notes:${orgId}:${childId}`,
+      'default'
+    )
+  }
+
+  async createNote(
+    orgId: string,
+    childId: string,
+    text: string,
+    tags?: string[],
+    visibleToParent = true
+  ) {
+    cache.invalidate(`notes:${orgId}:${childId}`)
+    return this.request<SpecialistNote>(`/orgs/${orgId}/children/${childId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ text, tags, visibleToParent }),
+    })
+  }
+
+  // Child tasks (assignments from specialist to parent)
+  async getChildTasks(orgId: string, childId: string) {
+    return this.cachedRequest<{ tasks: ChildTask[] }>(
+      `/orgs/${orgId}/children/${childId}/tasks`,
+      `childTasks:${orgId}:${childId}`,
+      'default'
+    )
+  }
+
+  async createChildTask(
+    orgId: string,
+    childId: string,
+    payload: { title: string; description?: string }
+  ) {
+    cache.invalidate(`childTasks:${orgId}:${childId}`)
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<ChildTaskResponse>(`/orgs/${orgId}/children/${childId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // Team
+  async getTeam(orgId: string) {
+    return this.cachedRequest<
+      Array<{
+        uid: string
+        email: string
+        name: string
+        role: 'admin' | 'specialist'
+        joinedAt: string
+      }>
+    >(`/orgs/${orgId}/team`, `team:${orgId}`, 'default')
+  }
+
+  async removeMember(orgId: string, uid: string) {
+    cache.invalidate(`team:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/members/${uid}`, { method: 'DELETE' })
+  }
+
+  async updateMemberRole(orgId: string, uid: string, role: 'org_admin' | 'specialist') {
+    cache.invalidate(`team:${orgId}`)
+    return this.request<{ ok: boolean; role: string }>(`/orgs/${orgId}/members/${uid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    })
+  }
+
+  // Invites
+  async createInvite(
+    orgId: string,
+    options?: { role?: string; maxUses?: number; expiresInDays?: number }
+  ) {
+    cache.invalidate('invites')
+    return this.request<{ ok: boolean; inviteCode: string; expiresAt: string }>(
+      `/orgs/${orgId}/invites`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          role: options?.role || 'specialist',
+          maxUses: options?.maxUses,
+          expiresInDays: options?.expiresInDays || 30,
+        }),
+      }
+    )
+  }
+
+  // Self-serve: create org and become org admin
+  async createMyOrganization(name: string, country?: string) {
+    cache.invalidate('profile')
+    cache.invalidate('organizations')
+    return this.request<{ ok: boolean; orgId: string; name: string; country: string | null }>(
+      '/orgs',
+      {
+        method: 'POST',
+        body: JSON.stringify({ name, country }),
+      }
+    )
+  }
+
+  async updateOrganization(orgId: string, updates: { name?: string; country?: string }) {
+    cache.invalidate('profile')
+    cache.invalidate('organizations')
+    return this.request<{
+      ok: boolean
+      org: {
+        id: string
+        name: string
+        country?: string | null
+        createdBy: string
+        createdAt: string
+        isActive: boolean
+        billingPlan?: string | null
+      }
+    }>(`/orgs/${orgId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async createParentInvite(orgId: string) {
+    cache.invalidate('invites')
+    return this.request<{ ok: boolean; inviteCode: string; expiresAt: string }>(
+      `/orgs/${orgId}/parent-invites`,
+      {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }
+    )
+  }
+
+  // Parents & Connections
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getParents(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; parents: any[] }>(
+      `/orgs/${orgId}/parents`,
+      `parents:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getConnections(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; connections: any[]; count: number }>(
+      `/orgs/${orgId}/connections`,
+      `connections:${orgId}`,
+      'default'
+    )
+  }
+
+  async disconnectParent(orgId: string, parentUserId: string) {
+    cache.invalidate(`connections:${orgId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean; childrenUnlinked: number; groupsUpdated: number }>(
+      `/orgs/${orgId}/connections/${encodeURIComponent(parentUserId)}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  // Groups
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getGroups(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; groups: any[]; count: number }>(
+      `/orgs/${orgId}/groups`,
+      `groups:${orgId}`,
+      'default'
+    )
+  }
+
+  async getReports(orgId: string, days = 30) {
+    return this.request<{
+      ok: boolean
+      days: number
+      childCompletion: Array<{
+        childId: string
+        childName: string
+        parentName: string | null
+        totalTasks: number
+        completedTasks: number
+        percent: number
+      }>
+      groupCompletion: Array<{
+        groupId: string
+        groupName: string
+        totalTasks: number
+        completedTasks: number
+        percent: number
+        childCount: number
+        specialistName?: string
+        ownerId?: string
+      }>
+      parentActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      topParents: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      lowActivity: Array<{
+        parentUserId: string
+        parentName: string
+        completedLast7: number
+        completedLast30: number
+      }>
+      contentActivity: {
+        totalCompleted: number
+        completedLast7Days: number
+        completedLast30Days: number
+        byChild: Array<{ childId: string; count: number }>
+      }
+    }>(`/orgs/${orgId}/reports?days=${days}`)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createGroup(orgId: string, name: string, description?: string, color?: string) {
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean; group: any }>(`/orgs/${orgId}/groups`, {
+      method: 'POST',
+      body: JSON.stringify({ name, description, color }),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getGroup(orgId: string, groupId: string, ownerId?: string) {
+    const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
+    const cacheKey = ownerId ? `group:${orgId}:${groupId}:${ownerId}` : `group:${orgId}:${groupId}`
+    return this.cachedRequest<{ ok: boolean; group: any }>(
+      `/orgs/${orgId}/groups/${groupId}${query}`,
+      cacheKey,
+      'default'
+    )
+  }
+
+  async updateGroup(
+    orgId: string,
+    groupId: string,
+    updates: { name?: string; description?: string; color?: string }
+  ) {
+    cache.invalidate(`groups:${orgId}`)
+    cache.invalidate(`group:${orgId}:${groupId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteGroup(orgId: string, groupId: string) {
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}`, { method: 'DELETE' })
+  }
+
+  async addParentToGroup(
+    orgId: string,
+    groupId: string,
+    parentUserId: string,
+    childIds?: string[]
+  ) {
+    cache.invalidate(`group:${orgId}:${groupId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/groups/${groupId}/parents`, {
+      method: 'POST',
+      body: JSON.stringify({ parentUserId, childIds }),
+    })
+  }
+
+  async removeParentFromGroup(orgId: string, groupId: string, parentUserId: string) {
+    cache.invalidate(`group:${orgId}:${groupId}`)
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/groups/${groupId}/parents/${parentUserId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async assignGroupTasks(
+    orgId: string,
+    groupId: string,
+    contentTaskIds: string[],
+    dueDate?: string | null,
+    ownerId?: string,
+    contentRoadmapIds?: string[]
+  ) {
+    const url = ownerId
+      ? `/orgs/${orgId}/groups/${groupId}/assign?ownerId=${encodeURIComponent(ownerId)}`
+      : `/orgs/${orgId}/groups/${groupId}/assign`
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{
+      ok: boolean
+      tasksCreated: number
+      childCount: number
+      taskCount: number
+    }>(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        contentTaskIds,
+        contentRoadmapIds: contentRoadmapIds ?? [],
+        dueDate: dueDate ?? null,
+      }),
+    })
+  }
+
+  async getGroupAssignment(orgId: string, groupId: string, assignmentId: string, ownerId?: string) {
+    const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
+    return this.request<{
+      ok: boolean
+      assignment: {
+        id: string
+        groupId: string
+        groupName: string
+        ownerId: string
+        title: string
+        description: string | null
+        dueDate: string | null
+        taskTitles: string[]
+        contentRoadmapIds: string[]
+        roadmapNames: string[]
+        roadmaps: { id: string; name: string; taskTitles: string[] }[]
+        childCount: number
+        status: 'active' | 'closed'
+        assignedAt: string | null
+        submissions: Array<{
+          childId: string
+          childName: string
+          age?: number
+          taskId: string | null
+          status: 'pending' | 'submitted' | 'graded'
+          submissionText: string | null
+          fileUrl: string | null
+          submittedAt: string | null
+          grade: 'approved' | 'needs_revision' | null
+          feedback: string | null
+          feedbackAt: string | null
+        }>
+      }
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}${query}`)
+  }
+
+  async updateGroupAssignment(
+    orgId: string,
+    groupId: string,
+    assignmentId: string,
+    updates: {
+      status?: 'active' | 'closed'
+      dueDate?: string | null
+      title?: string
+      description?: string | null
+    }
+  ) {
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async deleteGroupAssignment(orgId: string, groupId: string, assignmentId: string) {
+    cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groups:${orgId}`)
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getAssignmentComments(orgId: string, groupId: string, assignmentId: string) {
+    return this.request<{
+      ok: boolean
+      comments: Array<{
+        id: string
+        authorId: string
+        authorName: string
+        authorRole: string
+        text: string
+        createdAt: string | null
+      }>
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`)
+  }
+
+  async addAssignmentComment(orgId: string, groupId: string, assignmentId: string, text: string) {
+    return this.request<{
+      ok: boolean
+      comment: { id: string; authorName: string; text: string; createdAt: string }
+    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    })
+  }
+
+  async reviewSubmission(
+    orgId: string,
+    groupId: string,
+    assignmentId: string,
+    childId: string,
+    data: { grade: 'approved' | 'needs_revision'; feedback?: string }
+  ) {
+    return this.request<{ ok: boolean; childId: string; grade: string }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/submissions/${childId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
+    )
+  }
+
+  async getGroupAssignments(orgId: string, groupId: string, ownerId?: string) {
+    const url = ownerId
+      ? `/orgs/${orgId}/groups/${groupId}/assignments?ownerId=${encodeURIComponent(ownerId)}`
+      : `/orgs/${orgId}/groups/${groupId}/assignments`
+    return this.cachedRequest<{
+      ok: boolean
+      assignments: Array<{
+        id: string
+        groupId: string
+        groupName: string
+        title: string
+        taskTitles: string[]
+        contentTaskIds: string[]
+        contentRoadmapIds: string[]
+        roadmapNames: string[]
+        childCount: number
+        tasksCreated: number
+        assignedBy: string
+        assignedAt: string | null
+      }>
+      count: number
+    }>(url, `groupAssignments:${orgId}:${groupId}`, 'default')
+  }
+
+  // Admin: Organizations
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async listOrganizations() {
+    return this.cachedRequest<{ ok: boolean; organizations: any[]; count: number }>(
+      '/admin/organizations',
+      'admin:organizations',
+      'organizations'
+    )
+  }
+
+  async createOrganization(name: string, country?: string) {
+    cache.invalidate('admin:organizations')
+    return this.request<{ ok: boolean; orgId: string; name: string }>('/admin/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ name, country }),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgSpecialists(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; specialists: any[]; count: number }>(
+      `/admin/orgs/${orgId}/specialists`,
+      `admin:specialists:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgParents(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; parents: any[]; count: number }>(
+      `/admin/orgs/${orgId}/parents`,
+      `admin:parents:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgChildren(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; children: any[]; count: number }>(
+      `/admin/orgs/${orgId}/children`,
+      `admin:children:${orgId}`,
+      'default'
+    )
+  }
+
+  // Admin: Invites
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async listInvites() {
+    return this.cachedRequest<{ ok: boolean; invites: any[]; count: number }>(
+      '/admin/invites',
+      'admin:invites',
+      'default'
+    )
+  }
+
+  async generateInviteCode(data: {
+    orgId: string
+    role: string
+    expiresAt?: string
+    maxUses?: number
+  }) {
+    cache.invalidate('admin:invites')
+    return this.request<{ ok: boolean; code: string; inviteLink: string }>('/admin/invites', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Admin: Content
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getTasks() {
+    return this.cachedRequest<{ ok: boolean; tasks: any[]; count: number }>(
+      '/admin/content/tasks',
+      'admin:tasks',
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createTask(task: any) {
+    cache.invalidate('admin:tasks')
+    return this.request<{ ok: boolean; task: any }>('/admin/content/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateTask(taskId: string, updates: any) {
+    cache.invalidate('admin:tasks')
+    return this.request<{ ok: boolean; task: any }>(`/admin/content/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteTask(taskId: string) {
+    cache.invalidate('admin:tasks')
+    return this.request<{ ok: boolean }>(`/admin/content/tasks/${taskId}`, { method: 'DELETE' })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRoadmaps() {
+    return this.cachedRequest<{ ok: boolean; roadmaps: any[]; count: number }>(
+      '/admin/content/roadmaps',
+      'admin:roadmaps',
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createRoadmap(roadmap: any) {
+    cache.invalidate('admin:roadmaps')
+    return this.request<{ ok: boolean; roadmap: any }>('/admin/content/roadmaps', {
+      method: 'POST',
+      body: JSON.stringify(roadmap),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateRoadmap(roadmapId: string, updates: any) {
+    cache.invalidate('admin:roadmaps')
+    return this.request<{ ok: boolean; roadmap: any }>(`/admin/content/roadmaps/${roadmapId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteRoadmap(roadmapId: string) {
+    cache.invalidate('admin:roadmaps')
+    return this.request<{ ok: boolean }>(`/admin/content/roadmaps/${roadmapId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Org content (tasks & roadmaps for parents by org code)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentTasks(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; tasks: any[]; count: number }>(
+      `/orgs/${orgId}/content/tasks`,
+      `orgContent:tasks:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentTask(orgId: string, task: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(task),
+    })
+  }
+
+  /** Upload media file and create org task in one request. */
+  async uploadOrgTaskMedia(
+    orgId: string,
+    file: File,
+    options: {
+      title: string
+      description?: string
+      category?: string
+      difficulty?: 'easy' | 'medium' | 'hard'
+      estimatedDuration?: number
+      ageRange?: { min: number; max: number }
+      instructions?: string[]
+    }
+  ) {
+    const formData = new FormData()
+    formData.append('title', options.title)
+    if (options.description) formData.append('description', options.description)
+    if (options.category) formData.append('category', options.category)
+    if (options.difficulty) formData.append('difficulty', options.difficulty)
+    if (options.estimatedDuration != null)
+      formData.append('estimatedDuration', options.estimatedDuration.toString())
+    if (options.ageRange) {
+      formData.append('ageRangeMin', options.ageRange.min.toString())
+      formData.append('ageRangeMax', options.ageRange.max.toString())
+    }
+    if (options.instructions?.length)
+      formData.append('instructions', JSON.stringify(options.instructions))
+    formData.append('media', file)
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/content/tasks/upload`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(err.error || err.message || 'Upload failed')
+    }
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return response.json()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentTask(orgId: string, taskId: string, updates: any) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean; task: any }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteOrgContentTask(orgId: string, taskId: string) {
+    cache.invalidate(`orgContent:tasks:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/tasks/${taskId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrgContentRoadmaps(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; roadmaps: any[]; count: number }>(
+      `/orgs/${orgId}/content/roadmaps`,
+      `orgContent:roadmaps:${orgId}`,
+      'default'
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrgContentRoadmap(orgId: string, roadmap: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(`/orgs/${orgId}/content/roadmaps`, {
+      method: 'POST',
+      body: JSON.stringify(roadmap),
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateOrgContentRoadmap(orgId: string, roadmapId: string, updates: any) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean; roadmap: any }>(
+      `/orgs/${orgId}/content/roadmaps/${roadmapId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async deleteOrgContentRoadmap(orgId: string, roadmapId: string) {
+    cache.invalidate(`orgContent:roadmaps:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/content/roadmaps/${roadmapId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async uploadTaskMedia(
+    file: File,
+    title: string,
+    options?: {
+      description?: string
+      category?: string
+      difficulty?: 'easy' | 'medium' | 'hard'
+      estimatedDuration?: number
+      ageRange?: { min: number; max: number }
+      instructions?: string[]
+      taskId?: string
+    }
+  ) {
+    const formData = new FormData()
+
+    // Fields first, then file
+    formData.append('title', title)
+    if (options?.description) formData.append('description', options.description)
+    if (options?.category) formData.append('category', options.category)
+    if (options?.difficulty) formData.append('difficulty', options.difficulty)
+    if (options?.estimatedDuration)
+      formData.append('estimatedDuration', options.estimatedDuration.toString())
+    if (options?.ageRange) {
+      formData.append('ageRangeMin', options.ageRange.min.toString())
+      formData.append('ageRangeMax', options.ageRange.max.toString())
+    }
+    if (options?.instructions?.length)
+      formData.append('instructions', JSON.stringify(options.instructions))
+    formData.append('media', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const url = `${this.baseUrl}/admin/content/tasks/upload${options?.taskId ? `?taskId=${options.taskId}` : ''}`
+    const response = await fetch(url, { method: 'POST', body: formData, headers })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(error.error || error.details || 'Upload failed')
+    }
+
+    cache.invalidate('admin:tasks')
+    return response.json()
+  }
+
+  // Branches
+  async getBranches(orgId: string) {
+    return this.request<{ ok: boolean; branches: Branch[] }>(`/orgs/${orgId}/branches`)
+  }
+
+  async createBranch(
+    orgId: string,
+    data: { name: string; address?: string; phone?: string; contactPerson?: string }
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean; branch: Branch }>(`/orgs/${orgId}/branches`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateBranch(
+    orgId: string,
+    branchId: string,
+    data: Partial<{ name: string; address: string; phone: string; contactPerson: string }>
+  ) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteBranch(orgId: string, branchId: string) {
+    cache.invalidate(`branches:${orgId}`)
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/branches/${branchId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Finance — Attendance
+  async getAttendance(orgId: string, date: string) {
+    return this.request<{ ok: boolean; date: string; records: AttendanceRecord[] }>(
+      `/orgs/${orgId}/attendance?date=${date}`
+    )
+  }
+
+  async saveAttendance(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      date: string
+      status: 'present' | 'absent' | 'late'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Finance — Monthly Fees
+  async getMonthlyFees(orgId: string, month: string) {
+    return this.request<{ ok: boolean; month: string; records: FeeRecord[] }>(
+      `/orgs/${orgId}/finance?month=${month}`
+    )
+  }
+
+  async saveFee(
+    orgId: string,
+    data: {
+      childId: string
+      childName: string
+      month: string
+      amount: number
+      status: 'paid' | 'pending' | 'overdue'
+      note?: string
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/finance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Public Branding (no auth required — for parent connect pages)
+  async getPublicOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      orgName: string
+      branding: {
+        logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
+      } | null
+    }>(`/public/orgs/${orgId}/branding`, `public-branding:${orgId}`, 'default')
+  }
+
+  // Branding
+  async getOrgBranding(orgId: string) {
+    return this.cachedRequest<{
+      ok: boolean
+      branding: {
+        logo?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+        name?: string | null
+        description?: string | null
+        primaryColor?: string | null
+        welcomeMessage?: string | null
+        coverImage?: string | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
+        phone?: string | null
+        address?: string | null
+        website?: string | null
+      } | null
+    }>(`/orgs/${orgId}/branding`, `branding:${orgId}`, 'default')
+  }
+
+  async updateOrgBranding(
+    orgId: string,
+    branding: {
+      logo?: string | null
+      logoPositionX?: number | null
+      logoPositionY?: number | null
+      logoScale?: number | null
+      name?: string | null
+      description?: string | null
+      primaryColor?: string | null
+      welcomeMessage?: string | null
+      coverImage?: string | null
+      coverPositionX?: number | null
+      coverPositionY?: number | null
+      coverScale?: number | null
+      phone?: string | null
+      address?: string | null
+      website?: string | null
+    }
+  ) {
+    cache.invalidate(`branding:${orgId}`)
+    cache.invalidate(`public-branding:${orgId}`)
+    return this.request<{
+      ok: boolean
+      branding: typeof branding
+    }>(`/orgs/${orgId}/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(branding),
+    })
+  }
+
+  // Clear all cache (useful for logout)
+  clearCache() {
+    cache.invalidate()
+  }
+
+  // AI Assistant
+  async sendChatMessage(message: string, mode: 'chat' | 'voice' = 'chat') {
+    return this.request<{
+      response: string
+      speakText?: string
+      content?: string
+      success?: boolean
+    }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, mode }),
+    })
+  }
+
+  async improveInstruction(payload: {
+    roughText: string
+    language?: 'ru' | 'en' | 'ky'
+    context?: { title?: string; category?: string; ageMin?: number; ageMax?: number }
+  }): Promise<{
+    ok: boolean
+    result: {
+      title: string
+      description: string
+      instructions: string[]
+      parentTip: string
+      expectedResult: string
+    }
+  }> {
+    return this.request('/api/specialist/ai/improve-instruction', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+
+  async getNotifications(options: { limit?: number; unreadOnly?: boolean } = {}) {
+    const qs = new URLSearchParams()
+    if (options.limit) qs.set('limit', String(options.limit))
+    if (options.unreadOnly) qs.set('unreadOnly', 'true')
+    return this.request<{ notifications: NotificationItem[] }>(`/api/notifications?${qs}`)
+  }
+
+  async getUnreadCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count')
+  }
+
+  async markNotificationRead(id: string) {
+    return this.request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PATCH' })
+  }
+
+  async markAllNotificationsRead() {
+    return this.request<{ ok: boolean; updated: number }>('/api/notifications/read-all', {
+      method: 'PATCH',
+    })
+  }
+
+  async getNotificationPreferences() {
+    return this.request<{ preferences: NotificationPreferences }>('/api/notifications/preferences')
+  }
+
+  async updateNotificationPreferences(prefs: Partial<NotificationPreferences>) {
+    return this.request<{ ok: boolean }>('/api/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(prefs),
+    })
+  }
+
+  async parseAssistantIntent(
+    orgId: string,
+    message: string,
+    context?: { lastGroupName?: string; lastChildNames?: string[]; lastResultChildren?: string[] }
+  ) {
+    return this.request<{
+      type: string
+      params: {
+        name?: string
+        schedule?: string
+        groupName?: string
+        childNames?: string[]
+        newSchedule?: string
+        homeworkTitle?: string
+        homeworkDescription?: string
+        message?: string
+        period?: string
+      }
+      raw: string
+    }>(`/orgs/${orgId}/assistant/intent`, {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    })
+  }
+}
+
+export const apiClient = new ApiClient()

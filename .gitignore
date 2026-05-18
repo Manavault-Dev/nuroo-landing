@@ -5,7 +5,12 @@
 /.pnp
 .pnp.js
 .yarn/install-state.gz
-
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+coverage/
 # testing
 /coverage
 
@@ -27,7 +32,14 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.local
+.env.development
+.env.production
 .env
+backend/.env
+backend/.env.local
+backend/.env.development
+backend/.env.production
 
 # vercel
 .vercel
@@ -44,3 +56,35 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Auto Claude data directory (legacy)
+.auto-claude/
+
+# Codex logs
+.codex-logs/
+
+# Claude Code configuration and data
+.claude/
+.claude-flow/
+
+# Claude swarm state and coordination
+.swarm/
+
+# Claude memory and vector databases
+*.db
+*.db-journal
+ruvector.db
+
+# Claude MCP configuration (local settings)
+.mcp.json
+
+# Claude command history and session data
+.claude/agents/
+.claude/memory.db
+.claude/memory.db-journal
+.claude/settings.local.json
+.claude/worktrees/
+
+# Custom AI agent configuration files (Claude Code, etc.)
+CLAUDE.md
+CLAUDE.md.bak
