@@ -41,7 +41,7 @@ interface NavItem {
 }
 
 interface NavGroup {
-  label: string
+  labelKey: string
   items: NavItem[]
 }
 
@@ -119,7 +119,7 @@ export function Sidebar({
   // ── Navigation groups ─────────────────────────────────────────────────────
 
   const coreGroup: NavGroup = {
-    label: 'Core',
+    labelKey: 'core',
     items: [
       {
         href: currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b',
@@ -133,7 +133,7 @@ export function Sidebar({
   }
 
   const operationsGroup: NavGroup = {
-    label: 'Operations',
+    labelKey: 'operations',
     items: [
       { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
       ...(!isOrgAdmin
@@ -155,7 +155,7 @@ export function Sidebar({
   }
 
   const teamGroup: NavGroup = {
-    label: 'Team',
+    labelKey: 'teamSection',
     items: [
       ...(isOrgAdmin
         ? [{ href: withOrg('/b2b/team'), labelKey: t('specialists'), icon: UserCog }]
@@ -166,7 +166,7 @@ export function Sidebar({
 
   const adminGroup: NavGroup | null = isOrgAdmin
     ? {
-        label: 'Admin',
+        labelKey: 'adminSection',
         items: [
           { href: withOrg('/b2b/organization'), labelKey: t('organization'), icon: Building2 },
           { href: withOrg('/b2b/brand'), labelKey: t('brandSettings'), icon: Palette },
@@ -245,7 +245,7 @@ export function Sidebar({
         <nav className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="space-y-1">
             {groups.map((group, gi) => (
-              <div key={group.label}>
+              <div key={group.labelKey}>
                 {gi > 0 && <div className="my-2.5 mx-3.5 border-t border-gray-100" />}
                 {group.items.map((item) => (
                   <NavLink

@@ -68,7 +68,7 @@ export default function SettingsPage() {
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Failed to update profile')
+      setError(error instanceof Error ? error.message : t('updateError'))
     } finally {
       setSaving(false)
     }
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                   </div>
                   {org.role === 'admin' && (
                     <span className="px-3 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
-                      Admin
+                      {t('administrator')}
                     </span>
                   )}
                 </div>

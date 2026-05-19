@@ -76,14 +76,14 @@ export default function BillingPage() {
         const profileData = await apiClient.getMe()
         setProfile(profileData)
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load billing data')
+        setError(err instanceof Error ? err.message : t('loadError'))
       } finally {
         setLoading(false)
       }
     }
 
     loadData()
-  }, [router])
+  }, [router, t])
 
   useEffect(() => {
     if (!currentOrgId) {
@@ -148,7 +148,7 @@ export default function BillingPage() {
   ) => {
     void displayId // display-only label, backend still receives planId
     if (!currentOrgId) {
-      setError('Organization ID is missing')
+      setError(t('missingOrgId'))
       return
     }
 
@@ -168,12 +168,12 @@ export default function BillingPage() {
       if (result.paymentUrl) {
         window.location.href = result.paymentUrl
       } else {
-        setError('Payment URL not received')
+        setError(t('paymentUrlMissing'))
         setCreatingPayment(null)
       }
     } catch (error: unknown) {
       console.error('Error creating payment:', error)
-      setError(error instanceof Error ? error.message : 'Failed to create payment')
+      setError(error instanceof Error ? error.message : t('createPaymentError'))
       setCreatingPayment(null)
     }
   }
@@ -193,7 +193,7 @@ export default function BillingPage() {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          Failed to load profile. Please refresh the page.
+          {t('profileLoadError')}
         </div>
       </div>
     )
@@ -203,8 +203,7 @@ export default function BillingPage() {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-          You need to be part of an organization to manage billing. Please join or create an
-          organization first.
+          {t('organizationRequired')}
         </div>
       </div>
     )
@@ -214,8 +213,7 @@ export default function BillingPage() {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-          Only organization administrators can manage billing. Please contact your organization
-          admin.
+          {t('adminRequired')}
         </div>
       </div>
     )
@@ -225,7 +223,7 @@ export default function BillingPage() {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          Organization not found. Please select an organization.
+          {t('organizationNotFound')}
         </div>
       </div>
     )
@@ -433,6 +431,7 @@ export default function BillingPage() {
                 title={plan.name}
                 price={formatPrice(plan.price)}
                 priceSuffix={`${plan.currency} ${t('perMonth')}`}
+                soonLabel={tPricing('soon')}
                 features={featureKeys.map((key) => ({
                   text: tPricing(key as Parameters<typeof tPricing>[0]),
                 }))}

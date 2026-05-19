@@ -1250,7 +1250,7 @@ export default function GroupsPage() {
               </div>
             ) : (
               <>
-                {/* Задания */}
+                {/* Assignments */}
                 {contentTaskLibrary.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1290,7 +1290,7 @@ export default function GroupsPage() {
                   </div>
                 )}
 
-                {/* Программы */}
+                {/* Programs */}
                 {contentRoadmapLibrary.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

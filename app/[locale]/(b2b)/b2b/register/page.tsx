@@ -29,17 +29,17 @@ function RegisterForm() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address')
+      setError(t('errorValidEmail'))
       return
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errorPasswordsMismatch'))
       return
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('errorPasswordLength'))
       return
     }
 
@@ -57,9 +57,7 @@ function RegisterForm() {
           return
         } catch (acceptError: unknown) {
           const errorMessage =
-            acceptError instanceof Error
-              ? acceptError.message
-              : 'Failed to join organization. Please check your invite code.'
+            acceptError instanceof Error ? acceptError.message : t('errorJoinOrganization')
           setError(errorMessage)
           setLoading(false)
           return
@@ -69,20 +67,20 @@ function RegisterForm() {
       router.push('/b2b/onboarding')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string }
-      let errorMessage = 'Failed to create account. Please try again.'
+      let errorMessage = t('errorCreateAccount')
       if (firebaseError.code) {
         switch (firebaseError.code) {
           case 'auth/email-already-in-use':
-            errorMessage = 'This email is already registered. Please sign in instead.'
+            errorMessage = t('errorEmailInUse')
             break
           case 'auth/invalid-email':
-            errorMessage = 'Invalid email address. Please check your email format.'
+            errorMessage = t('errorInvalidEmail')
             break
           case 'auth/weak-password':
-            errorMessage = 'Password is too weak. Please use a stronger password.'
+            errorMessage = t('errorWeakPassword')
             break
           case 'auth/operation-not-allowed':
-            errorMessage = 'Email/password sign-up is not enabled. Please contact support.'
+            errorMessage = t('errorOperationNotAllowed')
             break
           default:
             errorMessage = firebaseError.message || errorMessage
@@ -134,7 +132,7 @@ function RegisterForm() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="John Doe"
+                  placeholder={t('namePlaceholder')}
                 />
               </div>
             </div>
@@ -219,12 +217,9 @@ function RegisterForm() {
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
-                placeholder="Enter your invite code"
+                placeholder={t('inviteCodePlaceholder')}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                If you don’t have an invite code yet, you can create your account now and join an
-                organization later.
-              </p>
+              <p className="mt-1 text-xs text-gray-500">{t('inviteCodeHint')}</p>
             </div>
 
             <div>

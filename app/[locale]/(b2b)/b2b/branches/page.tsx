@@ -31,18 +31,21 @@ export default function BranchesPage() {
   const [form, setForm] = useState<BranchForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
 
-  const loadBranches = useCallback(async (oid: string) => {
-    setLoadingBranches(true)
-    setError('')
-    try {
-      const res = await apiClient.getBranches(oid)
-      setBranches(res.branches ?? [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load branches')
-    } finally {
-      setLoadingBranches(false)
-    }
-  }, [])
+  const loadBranches = useCallback(
+    async (oid: string) => {
+      setLoadingBranches(true)
+      setError('')
+      try {
+        const res = await apiClient.getBranches(oid)
+        setBranches(res.branches ?? [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('loadError'))
+      } finally {
+        setLoadingBranches(false)
+      }
+    },
+    [t]
+  )
 
   useEffect(() => {
     if (orgId) loadBranches(orgId)
@@ -90,7 +93,7 @@ export default function BranchesPage() {
       await loadBranches(orgId)
       closeModal()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : t('saveError'))
     } finally {
       setSaving(false)
     }
@@ -104,7 +107,7 @@ export default function BranchesPage() {
       await apiClient.deleteBranch(orgId, branchId)
       await loadBranches(orgId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      setError(err instanceof Error ? err.message : t('deleteError'))
     }
   }
 
