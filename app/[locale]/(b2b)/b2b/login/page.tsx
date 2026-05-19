@@ -10,13 +10,13 @@ import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react'
 const DEMO_ACCOUNTS = [
   {
     role: 'specialist',
-    email: 'demo.specialist@neurokids.app',
-    password: 'Demo1234!',
+    email: 'akylai@gmail.com',
+    password: 'akylai',
   },
   {
     role: 'organizer',
-    email: 'demo.admin@neurokids.app',
-    password: 'Demo1234!',
+    email: 'aijan@gmail.com',
+    password: 'aijan123',
   },
 ] as const
 
