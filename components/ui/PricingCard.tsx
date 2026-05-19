@@ -38,7 +38,7 @@ export function PricingCard({
   price,
   priceSuffix,
   features,
-  soonLabel = 'скоро',
+  soonLabel = 'Soon',
   children,
   className = '',
 }: PricingCardProps) {

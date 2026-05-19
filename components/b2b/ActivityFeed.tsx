@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   FileText,
   MessageCircle,
@@ -38,16 +39,22 @@ type FilterType =
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtTimestamp(iso: string): string {
+function fmtTimestamp(
+  iso: string,
+  locale: string,
+  todayLabel: string,
+  yesterdayLabel: string
+): string {
   const d = new Date(iso)
   const now = new Date()
   const todayStr = now.toDateString()
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  if (d.toDateString() === todayStr) return `Сегодня ${time}`
+  const dateLocale = locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
+  const time = d.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === todayStr) return `${todayLabel} ${time}`
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  if (d.toDateString() === yesterday.toDateString()) return `Вчера ${time}`
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+  if (d.toDateString() === yesterday.toDateString()) return `${yesterdayLabel} ${time}`
+  return d.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long' })
 }
 
 function typeIcon(type: ActivityFeedItem['type']): { icon: React.ReactNode; color: string } {
@@ -84,16 +91,19 @@ function roleBadge(role: ActivityFeedItem['authorRole']): string {
   }
 }
 
-function roleLabel(role: ActivityFeedItem['authorRole']): string {
+function roleLabel(
+  role: ActivityFeedItem['authorRole'],
+  t: ReturnType<typeof useTranslations>
+): string {
   switch (role) {
     case 'specialist':
-      return 'Специалист'
+      return t('roleSpecialist')
     case 'parent':
-      return 'Родитель'
+      return t('roleParent')
     case 'admin':
-      return 'Администратор'
+      return t('roleAdmin')
     case 'system':
-      return 'Система'
+      return t('roleSystem')
   }
 }
 
@@ -116,22 +126,23 @@ function SkeletonCard() {
 }
 
 function EmptyState({ onAddNote }: { onAddNote: () => void }) {
+  const t = useTranslations('b2b.activityFeed')
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
         <Activity className="w-7 h-7 text-gray-400" />
       </div>
       <p className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">
-        Обновлений пока нет
+        {t('emptyTitle')}
       </p>
       <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mb-5">
-        Заметки специалистов, обновления заданий и ответы родителей будут отображаться здесь.
+        {t('emptyDescription')}
       </p>
       <button
         onClick={onAddNote}
         className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
       >
-        <Plus className="w-4 h-4" /> Добавить первую заметку
+        <Plus className="w-4 h-4" /> {t('addFirstNote')}
       </button>
     </div>
   )
@@ -144,7 +155,9 @@ interface CommentThreadProps {
   userRole: 'specialist' | 'admin'
 }
 
-function CommentThread({ orgId, childId, feedItemId, userRole }: CommentThreadProps) {
+function CommentThread({ orgId, childId, feedItemId, userRole: _userRole }: CommentThreadProps) {
+  const t = useTranslations('b2b.activityFeed')
+  const locale = useLocale()
   const [comments, setComments] = useState<ActivityComment[]>([])
   const [loading, setLoading] = useState(true)
   const [replyText, setReplyText] = useState('')
@@ -194,15 +207,17 @@ function CommentThread({ orgId, childId, feedItemId, userRole }: CommentThreadPr
           <span
             className={`text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${roleBadge(c.authorRole)}`}
           >
-            {roleLabel(c.authorRole)}
+            {roleLabel(c.authorRole, t)}
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="font-medium text-gray-900 dark:text-gray-100">{c.authorName}</span>
-              <span className="text-xs text-gray-400">{fmtTimestamp(c.createdAt)}</span>
+              <span className="text-xs text-gray-400">
+                {fmtTimestamp(c.createdAt, locale, t('today'), t('yesterday'))}
+              </span>
               {c.visibility === 'internal' && (
                 <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                  <Lock className="w-2.5 h-2.5" /> Внутренний
+                  <Lock className="w-2.5 h-2.5" /> {t('internal')}
                 </span>
               )}
             </div>
@@ -215,7 +230,7 @@ function CommentThread({ orgId, childId, feedItemId, userRole }: CommentThreadPr
         <textarea
           value={replyText}
           onChange={(e) => setReplyText(e.target.value)}
-          placeholder="Ответить..."
+          placeholder={t('replyPlaceholder')}
           rows={1}
           className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-100"
           onKeyDown={(e) => {
@@ -232,7 +247,7 @@ function CommentThread({ orgId, childId, feedItemId, userRole }: CommentThreadPr
               ? 'border-amber-300 bg-amber-50 text-amber-700'
               : 'border-gray-200 bg-white dark:bg-gray-800 text-gray-500'
           }`}
-          title={visibility === 'internal' ? 'Только для сотрудников' : 'Видно родителю'}
+          title={visibility === 'internal' ? t('staffOnly') : t('visibleToParent')}
         >
           {visibility === 'internal' ? (
             <Lock className="w-3.5 h-3.5" />
@@ -262,6 +277,8 @@ interface FeedCardProps {
 }
 
 function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedCardProps) {
+  const t = useTranslations('b2b.activityFeed')
+  const locale = useLocale()
   const [threadOpen, setThreadOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(item.body)
@@ -289,7 +306,7 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Удалить эту запись?')) return
+    if (!window.confirm(t('deleteConfirm'))) return
     setDeleting(true)
     try {
       await apiClient.deleteActivityFeedItem(orgId, childId, item.id)
@@ -320,16 +337,16 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
               <span
                 className={`text-xs px-1.5 py-0.5 rounded font-medium ${roleBadge(item.authorRole)}`}
               >
-                {roleLabel(item.authorRole)}
+                {roleLabel(item.authorRole, t)}
               </span>
               {item.visibility === 'internal' && (
                 <span className="flex items-center gap-0.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
-                  <Lock className="w-2.5 h-2.5" /> Внутренний
+                  <Lock className="w-2.5 h-2.5" /> {t('internal')}
                 </span>
               )}
             </div>
             <span className="text-xs text-gray-400 flex-shrink-0">
-              {fmtTimestamp(item.createdAt)}
+              {fmtTimestamp(item.createdAt, locale, t('today'), t('yesterday'))}
             </span>
           </div>
 
@@ -353,7 +370,7 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
                   disabled={saving}
                   className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {saving ? 'Сохранение...' : 'Сохранить'}
+                  {saving ? t('saving') : t('save')}
                 </button>
                 <button
                   onClick={() => {
@@ -362,7 +379,7 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
                   }}
                   className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Отмена
+                  {t('cancel')}
                 </button>
               </div>
             </div>
@@ -378,7 +395,7 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary-600 transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              {threadOpen ? 'Скрыть' : 'Ответить'}
+              {threadOpen ? t('hide') : t('reply')}
               {threadOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
 
@@ -388,14 +405,14 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
                   onClick={() => setEditing(true)}
                   className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
                 >
-                  <Edit2 className="w-3.5 h-3.5" /> Изменить
+                  <Edit2 className="w-3.5 h-3.5" /> {t('edit')}
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
                   className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Удалить
+                  <Trash2 className="w-3.5 h-3.5" /> {t('delete')}
                 </button>
               </>
             )}
@@ -415,15 +432,13 @@ function FeedCard({ item, orgId, childId, userRole, onEdited, onDeleted }: FeedC
   )
 }
 
-// ── Filter chip labels ─────────────────────────────────────────────────────────
-
-const FILTERS: { id: FilterType; label: string }[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'specialist_note', label: 'Заметки' },
-  { id: 'assignment', label: 'Задания' },
-  { id: 'progress_update', label: 'Прогресс' },
-  { id: 'parent_comment', label: 'Ответы родителей' },
-  { id: 'internal', label: 'Только внутренние' },
+const FILTERS: { id: FilterType; labelKey: string }[] = [
+  { id: 'all', labelKey: 'filterAll' },
+  { id: 'specialist_note', labelKey: 'filterNotes' },
+  { id: 'assignment', labelKey: 'filterAssignments' },
+  { id: 'progress_update', labelKey: 'filterProgress' },
+  { id: 'parent_comment', labelKey: 'filterParentReplies' },
+  { id: 'internal', labelKey: 'filterInternal' },
 ]
 
 function matchesFilter(item: ActivityFeedItem, filter: FilterType): boolean {
@@ -441,6 +456,7 @@ function matchesFilter(item: ActivityFeedItem, filter: FilterType): boolean {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
+  const t = useTranslations('b2b.activityFeed')
   const [items, setItems] = useState<ActivityFeedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
@@ -509,7 +525,7 @@ export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
                   : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:text-primary-600'
               }`}
             >
-              {f.label}
+              {t(f.labelKey)}
             </button>
           ))}
         </div>
@@ -517,18 +533,18 @@ export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
           onClick={() => setShowForm((o) => !o)}
           className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex-shrink-0"
         >
-          <Plus className="w-4 h-4" /> Добавить заметку
+          <Plus className="w-4 h-4" /> {t('addNote')}
         </button>
       </div>
 
       {/* Add note form */}
       {showForm && (
         <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Новая заметка</h3>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t('newNote')}</h3>
           <textarea
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
-            placeholder="Запишите наблюдение, итог сессии или важную информацию..."
+            placeholder={t('notePlaceholder')}
             rows={4}
             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-900 dark:text-gray-100"
           />
@@ -545,11 +561,11 @@ export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
             >
               {visibility === 'internal' ? (
                 <>
-                  <Lock className="w-3.5 h-3.5" /> Только для сотрудников
+                  <Lock className="w-3.5 h-3.5" /> {t('staffOnly')}
                 </>
               ) : (
                 <>
-                  <Globe className="w-3.5 h-3.5" /> Видно родителю
+                  <Globe className="w-3.5 h-3.5" /> {t('visibleToParent')}
                 </>
               )}
             </button>
@@ -561,7 +577,7 @@ export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
                 }}
                 className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                Отмена
+                {t('cancel')}
               </button>
               <button
                 onClick={handlePost}
@@ -569,7 +585,7 @@ export function ActivityFeed({ orgId, childId, userRole }: ActivityFeedProps) {
                 className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
               >
                 <Send className="w-3.5 h-3.5" />
-                {posting ? 'Публикация...' : 'Опубликовать'}
+                {posting ? t('posting') : t('publish')}
               </button>
             </div>
           </div>

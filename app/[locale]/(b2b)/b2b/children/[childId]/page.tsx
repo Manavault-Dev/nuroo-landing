@@ -452,7 +452,7 @@ export default function ChildDetailPage() {
             )}
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Лента активности</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('activityFeed')}</h2>
               <ActivityFeed orgId={orgId} childId={childId} userRole="specialist" />
             </div>
           </div>

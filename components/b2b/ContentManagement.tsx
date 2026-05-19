@@ -385,7 +385,7 @@ export function ContentManagement({
       setAssignDueDate('')
       setTimeout(() => setAssignSuccess(false), 2500)
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Ошибка при назначении', { type: 'error' })
+      alert(error instanceof Error ? error.message : t('assignError'), { type: 'error' })
     } finally {
       setAssigning(false)
     }
@@ -943,7 +943,7 @@ export function ContentManagement({
             <div className="bg-white rounded-xl border border-gray-100 overflow-hidden sticky top-4">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                 <Users2 className="w-4 h-4 text-primary-600" />
-                <span className="text-sm font-semibold text-gray-800">Назначить группам</span>
+                <span className="text-sm font-semibold text-gray-800">{t('assignToGroups')}</span>
               </div>
 
               {!selectedTask ? (
@@ -951,14 +951,14 @@ export function ContentManagement({
                   <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                     <CheckSquare className="w-5 h-5 text-gray-300" />
                   </div>
-                  <p className="text-sm text-gray-400">Выберите задание слева</p>
+                  <p className="text-sm text-gray-400">{t('selectTaskLeft')}</p>
                 </div>
               ) : (
                 <div className="p-4 space-y-4">
                   {/* Selected task preview */}
                   <div className="bg-primary-50 rounded-lg px-3 py-2">
                     <p className="text-[11px] font-semibold text-primary-600 uppercase tracking-wide mb-0.5">
-                      Задание
+                      {t('taskLabel')}
                     </p>
                     <p className="text-sm font-medium text-primary-900 line-clamp-2">
                       {selectedTask.title}
@@ -968,15 +968,15 @@ export function ContentManagement({
                   {/* Groups checklist */}
                   <div>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Группы
+                      {t('groupsLabel')}
                     </p>
                     {loadingGroups ? (
                       <div className="flex items-center gap-2 text-gray-400 text-sm">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Загрузка…</span>
+                        <span>{t('loadingGroups')}</span>
                       </div>
                     ) : orgGroups.length === 0 ? (
-                      <p className="text-sm text-gray-400">Нет групп</p>
+                      <p className="text-sm text-gray-400">{t('noGroupsForAssign')}</p>
                     ) : (
                       <div className="space-y-1.5">
                         {orgGroups.map((group) => {
@@ -1010,7 +1010,7 @@ export function ContentManagement({
                   <div>
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                       <Calendar className="w-3.5 h-3.5" />
-                      Срок выполнения
+                      {t('dueDateLabel')}
                     </label>
                     <input
                       type="date"
@@ -1030,17 +1030,17 @@ export function ContentManagement({
                     {assigning ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Назначаю…</span>
+                        <span>{t('assigning')}</span>
                       </>
                     ) : assignSuccess ? (
                       <>
                         <Check className="w-4 h-4" />
-                        <span>Назначено!</span>
+                        <span>{t('assigned')}</span>
                       </>
                     ) : (
                       <>
                         <Users2 className="w-4 h-4" />
-                        <span>Назначить ({selectedGroupIds.size})</span>
+                        <span>{t('assignSelected', { count: selectedGroupIds.size })}</span>
                       </>
                     )}
                   </button>
