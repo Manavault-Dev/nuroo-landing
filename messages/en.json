@@ -25,7 +25,7 @@
       "ctaPrimary": "Get started",
       "ctaSecondary": "Log in",
       "trustLine": "Used by centers, specialists, and families across Central Asia",
-      "statMain": "1,500+ families already use Nuroo in 30 countries",
+      "statMain": "1,500+ families already use neuroKids in 30 countries",
       "statFamilies": "families using",
       "statCountries": "countries",
       "statSatisfaction": "parent satisfaction",
@@ -61,21 +61,21 @@
     "solution": {
       "badge": "The Solution",
       "title": "Introducing",
-      "titleBrand": "Nuroo",
+      "titleBrand": "neuroKids",
       "intro": "AI-powered support for children with special needs — at home. Organizations and specialists assign content and track progress on one platform.",
       "platformIntro": "One ecosystem for families and specialists.",
       "welcomeSetup": "Welcome & Setup",
       "welcomeSetupDesc": "Quick, personalized onboarding",
       "progressTracking": "Progress Tracking",
       "progressTrackingDesc": "Real-time development insights",
-      "nurooAiChat": "Nuroo Chat",
+      "nurooAiChat": "neuroKids Chat",
       "nurooAiChatDesc": "AI-powered support 24/7",
       "allInOneTitle": "Everything Your Child Needs,",
       "allInOneHighlight": "All in One App",
       "allInOneDesc": "AI plus personalized support, on your schedule.",
       "personalizedLearning": "Personalized Learning",
       "personalizedLearningDesc": "AI adapts to your child's pace",
-      "nurooAiSupport": "Nuroo Support",
+      "nurooAiSupport": "neuroKids Support",
       "nurooAiSupportDesc": "24/7 guidance and support",
       "realtimeProgress": "Real-time Progress",
       "realtimeProgressDesc": "Track milestones, celebrate wins",
@@ -86,7 +86,7 @@
       "sectionBadge": "One ecosystem - three paths",
       "sectionTitle": "Built for everyone",
       "sectionTitleHighlight": "in child development",
-      "sectionIntro": "Whether you run a center, work as a specialist, or care for your child at home - Nuroo has a path designed for you."
+      "sectionIntro": "Whether you run a center, work as a specialist, or care for your child at home - neuroKids has a path designed for you."
     },
     "pricing": {
       "badge": "Pricing",
@@ -150,7 +150,7 @@
       "from": "Starting from"
     },
     "platform": {
-      "badge": "Nuroo Platform",
+      "badge": "neuroKids Platform",
       "title": "For Organizations & Specialists",
       "intro": "Groups, content, progress, and parent engagement — in one place.",
       "intro2": "Video lessons and reports.",
@@ -208,7 +208,7 @@
     "startAlone": {
       "badge": "Start Independently",
       "title": "Start at home - connect a specialist later",
-      "subtitle": "You don't need a center or specialist to begin. Independent parents and families can use Nuroo right now.",
+      "subtitle": "You don't need a center or specialist to begin. Independent parents and families can use neuroKids right now.",
       "step1Title": "Download the app",
       "step1Desc": "Free on App Store and Google Play",
       "step2Title": "AI assigns activities",
@@ -273,7 +273,7 @@
         "Personalized content",
         "Continuous improvement"
       ],
-      "nurooAiChat": "Nuroo Chat",
+      "nurooAiChat": "neuroKids Chat",
       "nurooAiChatDesc": "24/7 chat support for special needs care.",
       "nurooAiChatBenefits": ["Instant responses", "Personalized guidance", "Always available"],
       "progressAnalytics": "Progress Analytics",
@@ -300,13 +300,13 @@
       "achievementSystem": "Achievements",
       "achievementSystemDesc": "Celebrate milestones",
       "ctaTitle": "Ready to Support Your Child?",
-      "ctaSubtitle": "Download Nuroo and start today."
+      "ctaSubtitle": "Download neuroKids and start today."
     },
     "testimonials": {
       "badge": "Community",
       "title": "Join",
       "titleHighlight": "Early Access",
-      "intro": "Be among the first to experience Nuroo.",
+      "intro": "Be among the first to experience neuroKids.",
       "available": "Available",
       "appStore": "App Store",
       "aiPowered": "AI-Powered",
@@ -331,7 +331,7 @@
       "privacy": "Privacy",
       "downloadApp": "Download",
       "logInB2b": "Log in (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© 2026 neuroKids by Manavault Studio",
       "scrollToTop": "Scroll to top"
     }
   },
