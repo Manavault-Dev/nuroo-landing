@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Hero } from '@/components/Hero'
-import { Solution } from '@/components/Solution'
-import { IndependentPath } from '@/components/IndependentPath'
-import { Platform } from '@/components/Platform'
-import { Pricing } from '@/components/Pricing'
-import { Footer } from '@/components/Footer'
+import { Hero } from '@/components/landing/Hero'
+import { Solution } from '@/components/landing/Solution'
+import { IndependentPath } from '@/components/landing/IndependentPath'
+import { Platform } from '@/components/landing/Platform'
+import { Pricing } from '@/components/landing/Pricing'
+import { Footer } from '@/components/layout/Footer'
 import { setRequestLocale } from 'next-intl/server'
 
 type Props = { params: { locale: string } }

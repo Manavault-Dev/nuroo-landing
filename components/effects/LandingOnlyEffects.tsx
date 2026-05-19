@@ -1,8 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { ScrollProgress } from '@/components/ScrollProgress'
-import { ScrollInit } from '@/components/ScrollInit'
+import { ScrollProgress } from '@/components/effects/ScrollProgress'
+import { ScrollInit } from '@/components/effects/ScrollInit'
 
 export function LandingOnlyEffects() {
   const fullPathname = usePathname()

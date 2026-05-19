@@ -106,6 +106,42 @@ function computeBillingMeta(
   }
 }
 
+function isActiveOrgChild(data: FirebaseFirestore.DocumentData): boolean {
+  return data.assigned !== false && !data.removedAt && !data.disconnectedAt
+}
+
+async function isChildInSpecialistGroup(
+  db: FirebaseFirestore.Firestore,
+  orgId: string,
+  specialistId: string,
+  childId: string
+): Promise<boolean> {
+  const groupsSnap = await db
+    .collection(`specialists/${specialistId}/groups`)
+    .where('orgId', '==', orgId)
+    .get()
+
+  for (const groupDoc of groupsSnap.docs) {
+    const groupData = groupDoc.data()
+    const directChildIds: string[] = groupData.childIds || []
+    if (directChildIds.includes(childId)) {
+      return true
+    }
+
+    const parentsSnap = await db
+      .collection(`specialists/${specialistId}/groups/${groupDoc.id}/parents`)
+      .get()
+    for (const parentDoc of parentsSnap.docs) {
+      const childIds: string[] = parentDoc.data().childIds || []
+      if (childIds.includes(childId)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 export const financeRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { orgId: string }; Querystring: { date?: string } }>(
     '/orgs/:orgId/attendance',
@@ -122,7 +158,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         let childDocs: admin.firestore.QueryDocumentSnapshot[]
         if (member.role === 'org_admin') {
           const snap = await db.collection(ORG_CHILDREN(orgId)).get()
-          childDocs = snap.docs
+          childDocs = snap.docs.filter((doc) => isActiveOrgChild(doc.data()))
         } else {
           // Collect child IDs from two sources:
           // 1. Children directly assigned via assignedSpecialistId
@@ -133,7 +169,9 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
             .collection(ORG_CHILDREN(orgId))
             .where('assignedSpecialistId', '==', uid)
             .get()
-          directSnap.docs.forEach((d) => childIdSet.add(d.id))
+          directSnap.docs.forEach((d) => {
+            if (isActiveOrgChild(d.data())) childIdSet.add(d.id)
+          })
 
           // Groups are stored at specialists/{uid}/groups with orgId field
           const groupsSnap = await db
@@ -171,7 +209,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
                 .collection(ORG_CHILDREN(orgId))
                 .where(admin.firestore.FieldPath.documentId(), 'in', chunk)
                 .get()
-              batches.push(batchSnap.docs)
+              batches.push(batchSnap.docs.filter((doc) => isActiveOrgChild(doc.data())))
             }
             childDocs = batches.flat()
           }
@@ -237,12 +275,28 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       try {
         const { orgId } = request.params
-        await requireOrgMember(request, reply, orgId)
+        const member = await requireOrgMember(request, reply, orgId)
 
         const markedBy = request.user?.uid ?? 'unknown'
         const body = attendanceSchema.parse(request.body)
         const now = new Date()
         const db = getFirestore()
+
+        const orgChildSnap = await db.doc(`${ORG_CHILDREN(orgId)}/${body.childId}`).get()
+        if (!orgChildSnap.exists || !isActiveOrgChild(orgChildSnap.data()!)) {
+          return reply.code(404).send({ error: 'Child is not active in this organization' })
+        }
+
+        if (member.role !== 'org_admin') {
+          const childData = orgChildSnap.data()!
+          const hasAccess =
+            childData.assignedSpecialistId === markedBy ||
+            (await isChildInSpecialistGroup(db, orgId, markedBy, body.childId))
+
+          if (!hasAccess) {
+            return reply.code(403).send({ error: 'Child is not assigned to you' })
+          }
+        }
 
         const docId = `${body.date}_${body.childId}`
         const ref = db.doc(`${ORG_ATTENDANCE(orgId)}/${docId}`)
@@ -286,15 +340,17 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
         const children = await Promise.all(
-          childrenSnap.docs.map(async (doc) => {
-            const data = doc.data()
-            const rawName = data.childName || data.name
-            const name =
-              rawName && rawName !== 'Unknown'
-                ? rawName
-                : await resolveChildName(db, doc.id, data.parentUserId)
-            return { id: doc.id, name, assignedAt: data.assignedAt || null }
-          })
+          childrenSnap.docs
+            .filter((doc) => isActiveOrgChild(doc.data()))
+            .map(async (doc) => {
+              const data = doc.data()
+              const rawName = data.childName || data.name
+              const name =
+                rawName && rawName !== 'Unknown'
+                  ? rawName
+                  : await resolveChildName(db, doc.id, data.parentUserId)
+              return { id: doc.id, name, assignedAt: data.assignedAt || null }
+            })
         )
 
         const feesSnap = await db
