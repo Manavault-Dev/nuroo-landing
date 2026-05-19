@@ -153,10 +153,12 @@ export const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(404).send({ error: result.error })
         }
 
-        if (result.payment && (result as any).orgId) {
-          await requireOrgMember(request, reply, (result as any).orgId)
-          if (reply.sent) return
+        if (!result.orgId) {
+          return reply.code(403).send({ error: 'Payment record is missing organization context' })
         }
+        await requireOrgMember(request, reply, result.orgId)
+        if (reply.sent) return
+
         return result
       } catch (error: unknown) {
         fastify.log.error(error, 'Error verifying payment')

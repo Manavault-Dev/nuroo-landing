@@ -266,7 +266,10 @@ export const childrenRecordsRoute: import('fastify').FastifyPluginAsync = async 
     async (request, reply) => {
       try {
         const { orgId, childId } = request.params
-        await requireOrgMember(request, reply, orgId)
+        const member = await requireOrgMember(request, reply, orgId)
+        if (member.role !== 'org_admin') {
+          return reply.code(403).send({ error: 'Only organization admins can remove children' })
+        }
         const { uid } = request.user!
         const db = getFirestore()
 
