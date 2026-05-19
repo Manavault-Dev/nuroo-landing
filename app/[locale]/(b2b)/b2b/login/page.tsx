@@ -33,9 +33,7 @@ export default function LoginPage() {
       // Don't navigate here — the layout's auth effect detects the new user
       // and redirects to the correct page (with ?redirect= support).
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.'
-      )
+      setError(err instanceof Error ? err.message : t('signInError'))
       setLoading(false)
     }
   }
@@ -79,7 +77,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="tilek.dzenisev@gmail.com"
+                  placeholder="example@example.com"
                 />
               </div>
             </div>
