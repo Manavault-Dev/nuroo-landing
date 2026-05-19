@@ -119,19 +119,66 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        let childrenSnap: admin.firestore.QuerySnapshot
+        let childDocs: admin.firestore.QueryDocumentSnapshot[]
         if (member.role === 'org_admin') {
-          childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
+          const snap = await db.collection(ORG_CHILDREN(orgId)).get()
+          childDocs = snap.docs
         } else {
-          childrenSnap = await db
+          // Collect child IDs from two sources:
+          // 1. Children directly assigned via assignedSpecialistId
+          // 2. Children belonging to any group owned by this specialist in this org
+          const childIdSet = new Set<string>()
+
+          const directSnap = await db
             .collection(ORG_CHILDREN(orgId))
-            .where('assigned', '==', true)
             .where('assignedSpecialistId', '==', uid)
             .get()
+          directSnap.docs.forEach((d) => childIdSet.add(d.id))
+
+          // Groups are stored at specialists/{uid}/groups with orgId field
+          const groupsSnap = await db
+            .collection(`specialists/${uid}/groups`)
+            .where('orgId', '==', orgId)
+            .get()
+
+          for (const groupDoc of groupsSnap.docs) {
+            const gData = groupDoc.data()
+            // Groups may store childIds directly on the document
+            const directChildIds: string[] = gData.childIds || []
+            directChildIds.forEach((id) => childIdSet.add(id))
+
+            // Or children may be linked via parent docs in the group's parents subcollection
+            if (directChildIds.length === 0) {
+              const parentsSnap = await db
+                .collection(`specialists/${uid}/groups/${groupDoc.id}/parents`)
+                .get()
+              for (const parentDoc of parentsSnap.docs) {
+                const ids: string[] = parentDoc.data().childIds || []
+                ids.forEach((id) => childIdSet.add(id))
+              }
+            }
+          }
+
+          if (childIdSet.size === 0) {
+            childDocs = []
+          } else {
+            // Fetch org children for all collected IDs (in batches of 10 for Firestore `in` limit)
+            const allIds = Array.from(childIdSet)
+            const batches: admin.firestore.QueryDocumentSnapshot[][] = []
+            for (let i = 0; i < allIds.length; i += 10) {
+              const chunk = allIds.slice(i, i + 10)
+              const batchSnap = await db
+                .collection(ORG_CHILDREN(orgId))
+                .where(admin.firestore.FieldPath.documentId(), 'in', chunk)
+                .get()
+              batches.push(batchSnap.docs)
+            }
+            childDocs = batches.flat()
+          }
         }
 
         const children = await Promise.all(
-          childrenSnap.docs.map(async (doc) => {
+          childDocs.map(async (doc) => {
             const data = doc.data()
             const rawName = data.childName || data.name
             const name =
@@ -191,11 +238,6 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
       try {
         const { orgId } = request.params
         await requireOrgMember(request, reply, orgId)
-
-        const featureCheck = await checkOrgHasFeature(orgId, 'finance')
-        if (!featureCheck.ok) {
-          return reply.code(403).send({ error: featureCheck.error, upgradeRequired: true })
-        }
 
         const markedBy = request.user?.uid ?? 'unknown'
         const body = attendanceSchema.parse(request.body)
