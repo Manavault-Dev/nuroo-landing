@@ -107,7 +107,7 @@ export const assignmentsRoute: FastifyPluginAsync = async (fastify) => {
           type: 'child_assigned',
           category: 'organizationUpdates',
           title: '👶 New child assigned',
-          body: `${childName} has been assigned to you`,
+          body: 'A new child has been assigned to you.',
           metadata: { childId, orgId },
           dedupKey: `child_assigned:${childId}:${specialistId}`,
           channel: 'both',

@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  onIdTokenChanged,
   User,
   UserCredential,
 } from 'firebase/auth'
@@ -61,4 +62,15 @@ export function onAuthChange(callback: (user: User | null) => void) {
   }
   const authInstance = auth
   return onAuthStateChanged(authInstance, callback)
+}
+
+export function onTokenRefresh(callback: (token: string | null) => void): () => void {
+  if (!auth) {
+    callback(null)
+    return () => {}
+  }
+  return onIdTokenChanged(auth, async (user) => {
+    const token = user ? await user.getIdToken() : null
+    callback(token)
+  })
 }

@@ -14,7 +14,7 @@ export type ActivityFeedItemType =
 
 export type ActivityVisibility = 'internal' | 'parent_visible'
 
-export type ActivityAuthorRole = 'parent' | 'specialist' | 'admin' | 'system'
+export type ActivityAuthorRole = 'parent' | 'specialist' | 'org_admin' | 'system'
 
 export interface ActivityFeedItem {
   id: string
@@ -150,7 +150,7 @@ export async function getAuthorName(
   if (role === 'system') return 'System'
 
   try {
-    if (role === 'specialist' || role === 'admin') {
+    if (role === 'specialist' || role === 'org_admin') {
       const snap = await db.doc(`specialists/${uid}`).get()
       if (snap.exists) {
         const d = snap.data()!

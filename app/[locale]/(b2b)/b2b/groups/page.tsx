@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
 import type {
   Assignment,
@@ -64,12 +63,12 @@ export default function GroupsPage() {
   const t = useTranslations('b2b.pages.groups')
   const locale = useLocale()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const { profile, orgId: resolvedOrgId, isAdmin, isLoading: authLoading } = usePageAuth()
 
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState<Group[]>([])
   const [orgId, setOrgId] = useState<string | null>(null)
-  const [isOrgAdmin, setIsOrgAdmin] = useState(false)
+  const isOrgAdmin = isAdmin
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const { confirm } = useAlert()
 
@@ -135,52 +134,16 @@ export default function GroupsPage() {
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const init = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const orgIdParam = searchParams.get('orgId')
-        const resolvedOrgId = orgIdParam
-
-        try {
-          const profile = await apiClient.getMe()
-          if (!resolvedOrgId) {
-            const first = profile.organizations[0]
-            if (first) {
-              router.replace(`/b2b/groups?orgId=${first.orgId}`)
-              return
-            }
-          }
-          const currentOrg =
-            profile.organizations.find((o) => o.orgId === resolvedOrgId) || profile.organizations[0]
-          setIsOrgAdmin(currentOrg?.role === 'admin')
-        } catch {}
-
-        if (!resolvedOrgId) {
-          router.push('/b2b')
-          return
-        }
-        setOrgId(resolvedOrgId)
-        await loadGroups(resolvedOrgId)
-      } catch {
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
+    if (!authLoading && !profile) {
+      router.push('/b2b/login')
+      return
     }
-    init()
+    if (!authLoading && profile && resolvedOrgId) {
+      setOrgId(resolvedOrgId)
+      loadGroups(resolvedOrgId).finally(() => setLoading(false))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, searchParams])
+  }, [authLoading, profile, resolvedOrgId, router])
 
   const loadGroups = async (oid: string) => {
     try {

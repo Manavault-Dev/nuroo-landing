@@ -5,7 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
+import { useAuth } from '@/lib/b2b/AuthContext'
 import { apiClient, type ChildDetail, type TimelineResponse, type ChildTask } from '@/lib/b2b/api'
 import { ActivityFeed } from '@/components/b2b/ActivityFeed'
 import {
@@ -27,8 +27,9 @@ export default function ChildDetailPage() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
+  const { currentOrgId } = useAuth()
   const childId = params.childId as string
-  const orgId = searchParams.get('orgId') || 'default-org'
+  const orgId = searchParams.get('orgId') || currentOrgId || ''
 
   const [childDetail, setChildDetail] = useState<ChildDetail | null>(null)
   const [timeline, setTimeline] = useState<TimelineResponse | null>(null)
@@ -45,20 +46,12 @@ export default function ChildDetailPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
+      if (!orgId) {
+        router.push('/b2b/children')
         return
       }
 
       try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
         const [detailData, timelineData, tasksRes] = await Promise.all([
           apiClient.getChildDetail(orgId, childId),
           apiClient.getTimeline(orgId, childId, 30),
@@ -87,13 +80,6 @@ export default function ChildDetailPage() {
     setSubmittingTask(true)
 
     try {
-      const idToken = await getIdToken()
-      if (!idToken) {
-        router.push('/b2b/login')
-        return
-      }
-      apiClient.setToken(idToken)
-
       await apiClient.createChildTask(orgId, childId, {
         title: taskTitle.trim(),
         description: taskDescription.trim() || undefined,
