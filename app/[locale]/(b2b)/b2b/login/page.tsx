@@ -5,7 +5,12 @@ import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
+import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react'
+
+const DEMO_ACCOUNTS = [
+  { label: '👩‍⚕️ Специалист', email: 'demo.specialist@neurokids.app', password: 'Demo1234!' },
+  { label: '🏢 Администратор', email: 'demo.admin@neurokids.app', password: 'Demo1234!' },
+]
 
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
@@ -14,6 +19,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const fillDemo = (acc: typeof DEMO_ACCOUNTS[number]) => {
+    setEmail(acc.email)
+    setPassword(acc.password)
+    setError('')
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -51,6 +62,27 @@ export default function LoginPage() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
+        </div>
+
+        {/* Demo buttons */}
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 max-w-md mx-auto">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-800">Demo — быстрый вход</span>
+          </div>
+          <div className="flex gap-2">
+            {DEMO_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => fillDemo(acc)}
+                className="flex-1 text-sm py-2 px-3 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors"
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-amber-600 mt-2">Нажмите → поля заполнятся → «Войти»</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
