@@ -34,8 +34,8 @@ export function Header() {
             href="/"
             className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text flex-shrink-0 min-w-0"
           >
-            <img src="/Logo.svg" alt="neuroKids Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
-            <span>neuroKids</span>
+            <img src="/Logo.svg" alt="Nuroo Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
+            <span>Nuroo</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-3 lg:gap-5 flex-shrink-0">

@@ -5,13 +5,7 @@ import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react'
-
-// ── Demo credentials (visible during presentations only) ──────────────────────
-const DEMO_ACCOUNTS = [
-  { label: '👩‍⚕️ Specialist demo', email: 'demo.specialist@neurokids.app', password: 'Demo1234!' },
-  { label: '🏢 Admin demo', email: 'demo.admin@neurokids.app', password: 'Demo1234!' },
-]
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
@@ -20,12 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const fillDemo = (demo: typeof DEMO_ACCOUNTS[number]) => {
-    setEmail(demo.email)
-    setPassword(demo.password)
-    setError('')
-  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -65,27 +53,6 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
         </div>
 
-        {/* ── Demo accounts (presentation) ── */}
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 max-w-md mx-auto">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-amber-600" />
-            <span className="text-sm font-semibold text-amber-800">Demo — быстрый вход</span>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            {DEMO_ACCOUNTS.map((demo) => (
-              <button
-                key={demo.email}
-                type="button"
-                onClick={() => fillDemo(demo)}
-                className="flex-1 text-sm py-2 px-3 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors text-left"
-              >
-                {demo.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-amber-600 mt-2">Нажмите — поля заполнятся автоматически, затем «Войти»</p>
-        </div>
-
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
           <form className="max-w-md mx-auto space-y-6" onSubmit={handleSubmit}>
             {error && (
@@ -112,7 +79,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="you@example.com"
+                  placeholder="tilek.dzenisev@gmail.com"
                 />
               </div>
             </div>

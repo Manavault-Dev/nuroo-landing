@@ -61,10 +61,10 @@ export function Footer() {
                 <I18nLink href="/" className="flex items-center gap-2 w-fit flex-shrink-0">
                   <img
                     src="/Logo.svg"
-                    alt="neuroKids"
+                    alt="Nuroo"
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex-shrink-0"
                   />
-                  <span className="font-semibold text-lg text-white">neuroKids</span>
+                  <span className="font-semibold text-lg text-white">Nuroo</span>
                 </I18nLink>
                 <p className="text-white/80 text-sm max-w-xs break-words min-w-0">{t('tagline')}</p>
               </div>

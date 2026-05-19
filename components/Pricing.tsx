@@ -35,7 +35,7 @@ const PLAN_META = [
     priceFrom: true,
     popular: false,
     ctaKey: 'ctaContactUs' as const,
-    ctaHref: 'mailto:hello@usenuroo.com',
+    ctaHref: 'mailto:tilek.dzenisev@gmail.com',
   },
 ] as const
 
