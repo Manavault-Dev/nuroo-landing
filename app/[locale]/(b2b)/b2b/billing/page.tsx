@@ -439,7 +439,7 @@ export default function BillingPage() {
               >
                 {isEnterprise ? (
                   <a
-                    href="mailto:hello@usenuroo.com"
+                    href="mailto:tilek.dzenisev@gmail.com"
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-medium bg-gray-900 text-white hover:bg-gray-800 transition-colors"
                   >
                     {t('contactUs')}

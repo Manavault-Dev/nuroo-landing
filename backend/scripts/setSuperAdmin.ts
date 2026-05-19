@@ -8,7 +8,7 @@
  *   npx ts-node scripts/setSuperAdmin.ts <email>
  */
 
-import { initializeFirebaseAdmin, getAuth } from '../src/firebaseAdmin.js'
+import { initializeFirebaseAdmin, getAuth } from '../src/infrastructure/database/firebase.js'
 
 async function setSuperAdmin(email: string) {
   try {

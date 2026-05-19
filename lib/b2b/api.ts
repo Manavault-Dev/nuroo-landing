@@ -1,41 +1,9 @@
+import type { OrgBranding } from './types'
+
 const API_BASE_URL =
   typeof window !== 'undefined'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
     : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
-
-// ── Notification types ────────────────────────────────────────────────────────
-export interface NotificationItem {
-  id: string
-  type: string
-  category: string
-  title: string
-  body: string
-  read: boolean
-  createdAt: string | Date | null
-  readAt?: string | Date | null
-  metadata?: {
-    childId?: string
-    taskId?: string
-    orgId?: string
-    deepLink?: string
-    specialistId?: string
-    parentId?: string
-  }
-}
-
-export interface NotificationPreferences {
-  allEnabled: boolean
-  pushEnabled: boolean
-  inAppEnabled: boolean
-  categories: {
-    assignments: boolean
-    messages: boolean
-    reminders: boolean
-    progressUpdates: boolean
-    organizationUpdates: boolean
-    billingUpdates: boolean
-  }
-}
 
 // Types
 export interface SpecialistProfile {
@@ -65,18 +33,11 @@ export interface ParentInfo {
   displayName?: string
   email?: string
   linkedAt?: string
-  phone?: string
-  whatsapp?: string
-  address?: string
-  fullName?: string
 }
 
 export interface ChildDetail extends ChildSummary {
   organizationId: string
   parentInfo?: ParentInfo
-  status?: 'active' | 'paused' | 'completed' | 'archived'
-  assignedSpecialistName?: string
-  groupName?: string
   recentTasks: Array<{
     id: string
     title: string
@@ -126,70 +87,6 @@ export interface ActivityDay {
 
 export type TimelineResponse = { days: ActivityDay[] }
 
-export type GuardianRelationship = 'mother' | 'father' | 'guardian' | 'other'
-export type ContactMethod = 'phone' | 'whatsapp' | 'email'
-
-export interface Guardian {
-  id: string
-  fullName: string
-  relationship: GuardianRelationship
-  phone?: string | null
-  whatsapp?: string | null
-  email?: string | null
-  address?: string | null
-  preferredContactMethod?: ContactMethod | null
-  isPrimaryContact: boolean
-  isEmergencyContact: boolean
-  appUserId?: string | null
-  /** true when this entry was auto-synthesised from the parent's app profile */
-  fromApp?: boolean
-  createdAt: string | null
-  updatedAt: string | null
-}
-
-export interface ChildProfileData {
-  firstName?: string
-  lastName?: string
-  fullName: string
-  photoUrl?: string
-  dateOfBirth?: string
-  age?: number
-  gender?: 'male' | 'female' | 'other'
-  status: 'active' | 'paused' | 'completed' | 'archived'
-  startDate?: string
-  branchId?: string
-  primaryConcern?: string
-  diagnosis?: string
-  developmentalNotes?: string
-  communicationLevel?: string
-  therapyGoals?: string
-  contraindications?: string
-  importantNotes?: string
-  internalCode?: string
-}
-
-export type ActivityEventType =
-  | 'child_created'
-  | 'specialist_assigned'
-  | 'specialist_removed'
-  | 'group_assigned'
-  | 'group_removed'
-  | 'task_assigned'
-  | 'task_completed'
-  | 'note_added'
-  | 'profile_updated'
-  | 'guardian_added'
-  | 'guardian_removed'
-
-export interface ActivityEvent {
-  id: string
-  type: ActivityEventType | string
-  actorId?: string
-  actorName?: string
-  metadata?: Record<string, unknown>
-  createdAt: string
-}
-
 export interface Branch {
   id: string
   name: string
@@ -219,6 +116,105 @@ export interface FeeRecord {
   dueDate?: string
   daysUntilDue?: number
   billingStatus?: 'paid' | 'overdue' | 'due_soon' | 'upcoming'
+}
+
+export interface ActivityFeedItem {
+  id: string
+  type:
+    | 'specialist_note'
+    | 'parent_comment'
+    | 'assignment_created'
+    | 'assignment_completed'
+    | 'assignment_reviewed'
+    | 'progress_update'
+    | 'intake_form_completed'
+    | 'system_event'
+  visibility: 'internal' | 'parent_visible'
+  authorId: string
+  authorRole: 'parent' | 'specialist' | 'admin' | 'system'
+  authorName: string
+  title?: string
+  body: string
+  relatedEntityType?: string
+  relatedEntityId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ActivityComment {
+  id: string
+  feedItemId: string
+  authorId: string
+  authorRole: 'parent' | 'specialist' | 'admin'
+  authorName: string
+  body: string
+  visibility: 'internal' | 'parent_visible'
+  createdAt: string
+}
+
+export interface NotificationItem {
+  id: string
+  type: string
+  category: string
+  title: string
+  body: string
+  read: boolean
+  createdAt: string | Date | null
+  metadata?: {
+    childId?: string
+    taskId?: string
+    orgId?: string
+    deepLink?: string
+    specialistId?: string
+    parentId?: string
+  }
+}
+
+export interface NotificationPreferences {
+  allEnabled: boolean
+  pushEnabled: boolean
+  inAppEnabled: boolean
+  categories: {
+    assignments: boolean
+    messages: boolean
+    reminders: boolean
+    progressUpdates: boolean
+    organizationUpdates: boolean
+    billingUpdates: boolean
+  }
+}
+
+export interface BillingStatusResponse {
+  ok: boolean
+  active: boolean
+  planId: string | null
+  source: 'subscription' | 'free_trial' | null
+  billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+  badge: string | null
+  error: string | null
+  expiresAt: string | null
+  limits: { children: number; specialists: number | null } | null
+  usage: {
+    children: number
+    specialists: number
+    childrenLimit: number | null
+    specialistsLimit: number | null
+  } | null
+  features: Record<string, boolean> | null
+  trial: {
+    active: boolean
+    planId: string | null
+    startedAt: string | null
+    expiresAt: string | null
+  } | null
+}
+
+export interface ImprovedInstructionResult {
+  title: string
+  description: string
+  instructions: string[]
+  parentTip: string
+  expectedResult: string
 }
 
 // Cache entry type
@@ -308,25 +304,25 @@ export class ApiClient {
 
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('b2b_token')
+    }
   }
 
   setToken(token: string | null) {
-    if (this.token !== token) {
-      cache.invalidate() // clear stale data whenever auth changes (login OR logout)
-    }
     this.token = token
+    if (typeof window !== 'undefined') {
+      token ? localStorage.setItem('b2b_token', token) : localStorage.removeItem('b2b_token')
+    }
+    // Clear cache when token changes (user switch)
+    if (!token) {
+      cache.invalidate()
+    }
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers)
-    const hasBody = options.body !== undefined && options.body !== null
-    const isFormData =
-      typeof FormData !== 'undefined' && hasBody && options.body instanceof FormData
-    if (hasBody && !isFormData) {
-      headers.set('Content-Type', 'application/json')
-    } else {
-      headers.delete('Content-Type')
-    }
+    headers.set('Content-Type', 'application/json')
     if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
 
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
@@ -427,30 +423,7 @@ export class ApiClient {
   }
 
   async getBillingStatus(orgId: string) {
-    return this.request<{
-      ok: boolean
-      active: boolean
-      planId: string | null
-      source: 'subscription' | 'free_trial' | null
-      billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
-      badge: string | null
-      error: string | null
-      expiresAt: string | null
-      limits: { children: number; specialists: number | null } | null
-      usage: {
-        children: number
-        specialists: number
-        childrenLimit: number | null
-        specialistsLimit: number | null
-      } | null
-      features: Record<string, boolean> | null
-      trial: {
-        active: boolean
-        planId: string | null
-        startedAt: string | null
-        expiresAt: string | null
-      } | null
-    }>(`/orgs/${orgId}/billing/status`)
+    return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
   }
 
   async verifyPayment(paymentId: string) {
@@ -486,59 +459,20 @@ export class ApiClient {
     )
   }
 
+  async removeChild(orgId: string, childId: string) {
+    cache.invalidate(`children:${orgId}`)
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<{ ok: boolean; childId: string; groupsCleaned: number }>(
+      `/orgs/${orgId}/children/${childId}`,
+      { method: 'DELETE' }
+    )
+  }
+
   async getTimeline(orgId: string, childId: string, days = 30) {
     return this.cachedRequest<{ days: ActivityDay[] }>(
       `/orgs/${orgId}/children/${childId}/timeline?days=${days}`,
       `timeline:${orgId}:${childId}:${days}`,
       'default'
-    )
-  }
-
-  async getChildProfile(orgId: string, childId: string) {
-    return this.request<{ ok: boolean; profile: Partial<ChildProfileData> }>(
-      `/orgs/${orgId}/children/${childId}/profile`
-    )
-  }
-
-  async updateChildProfile(orgId: string, childId: string, data: Partial<ChildProfileData>) {
-    cache.invalidate(`child:${orgId}:${childId}`)
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}/profile`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async getGuardians(orgId: string, childId: string) {
-    return this.request<{ ok: boolean; guardians: Guardian[] }>(
-      `/orgs/${orgId}/children/${childId}/guardians`
-    )
-  }
-
-  async createGuardian(
-    orgId: string,
-    childId: string,
-    data: Omit<Guardian, 'id' | 'createdAt' | 'updatedAt'>
-  ) {
-    return this.request<{ ok: boolean; guardian: Guardian }>(
-      `/orgs/${orgId}/children/${childId}/guardians`,
-      { method: 'POST', body: JSON.stringify(data) }
-    )
-  }
-
-  async removeChild(orgId: string, childId: string) {
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/children/${childId}`, { method: 'DELETE' })
-  }
-
-  async deleteGuardian(orgId: string, childId: string, guardianId: string) {
-    return this.request<{ ok: boolean }>(
-      `/orgs/${orgId}/children/${childId}/guardians/${guardianId}`,
-      { method: 'DELETE' }
-    )
-  }
-
-  async getActivityEvents(orgId: string, childId: string) {
-    return this.request<{ ok: boolean; events: ActivityEvent[] }>(
-      `/orgs/${orgId}/children/${childId}/events`
     )
   }
 
@@ -661,6 +595,22 @@ export class ApiClient {
       }
     }>(`/orgs/${orgId}`, {
       method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async getOrgBranding(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; branding: OrgBranding | null }>(
+      `/orgs/${orgId}/branding`,
+      `branding:${orgId}`,
+      'default'
+    )
+  }
+
+  async updateOrgBranding(orgId: string, updates: OrgBranding) {
+    cache.invalidate(`branding:${orgId}`)
+    return this.request<{ ok: boolean; branding: OrgBranding | null }>(`/orgs/${orgId}/branding`, {
+      method: 'PUT',
       body: JSON.stringify(updates),
     })
   }
@@ -1348,123 +1298,44 @@ export class ApiClient {
     })
   }
 
-  // Public Branding (no auth required — for parent connect pages)
-  async getPublicOrgBranding(orgId: string) {
-    return this.cachedRequest<{
-      ok: boolean
-      orgName: string
-      branding: {
-        logo?: string | null
-        logoPositionX?: number | null
-        logoPositionY?: number | null
-        logoScale?: number | null
-        name?: string | null
-        description?: string | null
-        primaryColor?: string | null
-        welcomeMessage?: string | null
-        coverImage?: string | null
-        coverPositionX?: number | null
-        coverPositionY?: number | null
-        coverScale?: number | null
-      } | null
-    }>(`/public/orgs/${orgId}/branding`, `public-branding:${orgId}`, 'default')
-  }
-
-  // Branding
-  async getOrgBranding(orgId: string) {
-    return this.cachedRequest<{
-      ok: boolean
-      branding: {
-        logo?: string | null
-        logoPositionX?: number | null
-        logoPositionY?: number | null
-        logoScale?: number | null
-        name?: string | null
-        description?: string | null
-        primaryColor?: string | null
-        welcomeMessage?: string | null
-        coverImage?: string | null
-        coverPositionX?: number | null
-        coverPositionY?: number | null
-        coverScale?: number | null
-        phone?: string | null
-        address?: string | null
-        website?: string | null
-      } | null
-    }>(`/orgs/${orgId}/branding`, `branding:${orgId}`, 'default')
-  }
-
-  async updateOrgBranding(
+  async parseAssistantIntent(
     orgId: string,
-    branding: {
-      logo?: string | null
-      logoPositionX?: number | null
-      logoPositionY?: number | null
-      logoScale?: number | null
-      name?: string | null
-      description?: string | null
-      primaryColor?: string | null
-      welcomeMessage?: string | null
-      coverImage?: string | null
-      coverPositionX?: number | null
-      coverPositionY?: number | null
-      coverScale?: number | null
-      phone?: string | null
-      address?: string | null
-      website?: string | null
+    message: string,
+    context?: {
+      lastGroupName?: string
+      lastChildNames?: string[]
+      lastResultChildren?: string[]
     }
   ) {
-    cache.invalidate(`branding:${orgId}`)
-    cache.invalidate(`public-branding:${orgId}`)
-    return this.request<{
-      ok: boolean
-      branding: typeof branding
-    }>(`/orgs/${orgId}/branding`, {
-      method: 'PUT',
-      body: JSON.stringify(branding),
-    })
+    return this.request<{ type: string; params: Record<string, unknown>; raw: string }>(
+      `/orgs/${orgId}/assistant/intent`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message, context }),
+      }
+    )
   }
 
-  // Clear all cache (useful for logout)
-  clearCache() {
-    cache.invalidate()
-  }
-
-  // AI Assistant
-  async sendChatMessage(message: string, mode: 'chat' | 'voice' = 'chat') {
-    return this.request<{
-      response: string
-      speakText?: string
-      content?: string
-      success?: boolean
-    }>('/ai/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message, mode }),
-    })
-  }
-
-  async improveInstruction(payload: {
+  async improveInstruction(data: {
     roughText: string
-    language?: 'ru' | 'en' | 'ky'
-    context?: { title?: string; category?: string; ageMin?: number; ageMax?: number }
-  }): Promise<{
-    ok: boolean
-    result: {
-      title: string
-      description: string
-      instructions: string[]
-      parentTip: string
-      expectedResult: string
+    language: 'ru' | 'en' | 'ky'
+    context?: {
+      title?: string
+      category?: string
+      ageMin?: number
+      ageMax?: number
     }
-  }> {
-    return this.request('/api/specialist/ai/improve-instruction', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+  }) {
+    return this.request<{ ok: boolean; result: ImprovedInstructionResult }>(
+      '/api/specialist/ai/improve-instruction',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
   }
 
-  // ── Notifications ──────────────────────────────────────────────────────────
-
+  // ── Notifications ─────────────────────────────────────────────────────────
   async getNotifications(options: { limit?: number; unreadOnly?: boolean } = {}) {
     const qs = new URLSearchParams()
     if (options.limit) qs.set('limit', String(options.limit))
@@ -1497,29 +1368,74 @@ export class ApiClient {
     })
   }
 
-  async parseAssistantIntent(
+  // Activity Feed
+  async listActivityFeed(
     orgId: string,
-    message: string,
-    context?: { lastGroupName?: string; lastChildNames?: string[]; lastResultChildren?: string[] }
-  ) {
-    return this.request<{
-      type: string
-      params: {
-        name?: string
-        schedule?: string
-        groupName?: string
-        childNames?: string[]
-        newSchedule?: string
-        homeworkTitle?: string
-        homeworkDescription?: string
-        message?: string
-        period?: string
-      }
-      raw: string
-    }>(`/orgs/${orgId}/assistant/intent`, {
+    childId: string,
+    filters?: { type?: string; visibility?: string }
+  ): Promise<ActivityFeedItem[]> {
+    const qs = new URLSearchParams()
+    if (filters?.type) qs.set('type', filters.type)
+    if (filters?.visibility) qs.set('visibility', filters.visibility)
+    const query = qs.toString() ? `?${qs}` : ''
+    return this.request<ActivityFeedItem[]>(`/orgs/${orgId}/children/${childId}/feed${query}`)
+  }
+
+  async createActivityFeedItem(
+    orgId: string,
+    childId: string,
+    data: { type: string; body: string; title?: string; visibility: 'internal' | 'parent_visible' }
+  ): Promise<ActivityFeedItem> {
+    return this.request<ActivityFeedItem>(`/orgs/${orgId}/children/${childId}/feed`, {
       method: 'POST',
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify(data),
     })
+  }
+
+  async updateActivityFeedItem(
+    orgId: string,
+    childId: string,
+    feedItemId: string,
+    data: Partial<ActivityFeedItem>
+  ): Promise<ActivityFeedItem> {
+    return this.request<ActivityFeedItem>(`/orgs/${orgId}/children/${childId}/feed/${feedItemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteActivityFeedItem(orgId: string, childId: string, feedItemId: string): Promise<void> {
+    await this.request<void>(`/orgs/${orgId}/children/${childId}/feed/${feedItemId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async listFeedComments(
+    orgId: string,
+    childId: string,
+    feedItemId: string
+  ): Promise<ActivityComment[]> {
+    return this.request<ActivityComment[]>(
+      `/orgs/${orgId}/children/${childId}/feed/${feedItemId}/comments`
+    )
+  }
+
+  async addFeedComment(
+    orgId: string,
+    childId: string,
+    feedItemId: string,
+    body: string,
+    visibility: 'internal' | 'parent_visible'
+  ): Promise<ActivityComment> {
+    return this.request<ActivityComment>(
+      `/orgs/${orgId}/children/${childId}/feed/${feedItemId}/comments`,
+      { method: 'POST', body: JSON.stringify({ body, visibility }) }
+    )
+  }
+
+  // Clear all cache (useful for logout)
+  clearCache() {
+    cache.invalidate()
   }
 }
 
