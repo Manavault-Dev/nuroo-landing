@@ -25,7 +25,7 @@
       "ctaPrimary": "Баштоо",
       "ctaSecondary": "Кирүү",
       "trustLine": "Борбор Азиядагы борборлор, адистер жана үй-бүлөлөр колдонот",
-      "statMain": "1500+ үй-бүлө Nurooти 30 өлкөдө колдонууда",
+      "statMain": "1500+ үй-бүлө neuroKidsти 30 өлкөдө колдонууда",
       "statFamilies": "үй-бүлө колдонот",
       "statCountries": "өлкө",
       "statSatisfaction": "ата-энелер канаат",
@@ -61,21 +61,21 @@
     "solution": {
       "badge": "Чыгаруу",
       "title": "Тааныштырып жатабыз",
-      "titleBrand": "Nuroo",
+      "titleBrand": "neuroKids",
       "intro": "ИИ колдоосу атайын муктаждыктары бар балдар үчүн — үйдө. Уюмдар жана адистер контент тапшырышат, прогрессди бир платформада көзөмөлдөшөт.",
       "platformIntro": "Үй-бүлөлөр жана адистер үчүн бир экосистема.",
       "welcomeSetup": "Кош келиңиз жана орнотуу",
       "welcomeSetupDesc": "Тез жеке орнотуу",
       "progressTracking": "Прогрессди көзөмөлдөө",
       "progressTrackingDesc": "Реалдуу убакытта өнүгүү аналитикасы",
-      "nurooAiChat": "Nuroo чат",
+      "nurooAiChat": "neuroKids чат",
       "nurooAiChatDesc": "ИИ колдоосу 24/7",
       "allInOneTitle": "Балаңызга керектүү баары,",
       "allInOneHighlight": "бир тиркемеде",
       "allInOneDesc": "ИИ жана жеке колдоо, расписаниеңызга ылайык.",
       "personalizedLearning": "Жеке тарбиялоо",
       "personalizedLearningDesc": "ИИ балаңыздын темпине ылайыкташат",
-      "nurooAiSupport": "Nuroo колдоосу",
+      "nurooAiSupport": "neuroKids колдоосу",
       "nurooAiSupportDesc": "Кеңеш жана колдоо 24/7",
       "realtimeProgress": "Реалдуу убакытта прогресс",
       "realtimeProgressDesc": "Этаптарды көзөмөлдөңүз, жетишкендиктерди майрамдаңыз",
@@ -86,7 +86,7 @@
       "sectionBadge": "Бир экосистема — үч жол",
       "sectionTitle": "Баары үчүн түзүлгөн",
       "sectionTitleHighlight": "баланын өнүгүүсүндө",
-      "sectionIntro": "Борбор, адис же үй-бүлө болобу — Nuroo ар бирине түшүнүктүү иш жолун берет."
+      "sectionIntro": "Борбор, адис же үй-бүлө болобу — neuroKids ар бирине түшүнүктүү иш жолун берет."
     },
     "pricing": {
       "badge": "Баалоо",
@@ -150,7 +150,7 @@
       "from": "Баштап"
     },
     "platform": {
-      "badge": "Nuroo платформасы",
+      "badge": "neuroKids платформасы",
       "title": "Уюмдар жана адистер үчүн",
       "intro": "Топтор, контент, прогресс жана ата-энелер менен иш — бир жерде.",
       "intro2": "Видео сабактар жана отчёттор.",
@@ -208,7 +208,7 @@
     "startAlone": {
       "badge": "Өз алдынча баштоо",
       "title": "Үйдөн баштаңыз — адисти кийинчерээк кошуңуз",
-      "subtitle": "Баштоо үчүн борбор же адис керек эмес. Өз алдынча ата-энелер жана үй-бүлөлөр Nurooти азыр колдоно алат.",
+      "subtitle": "Баштоо үчүн борбор же адис керек эмес. Өз алдынча ата-энелер жана үй-бүлөлөр neuroKidsти азыр колдоно алат.",
       "step1Title": "Тиркемени жүктөңүз",
       "step1Desc": "App Store жана Google Play'де бекер",
       "step2Title": "ИИ активдүүлүктөрдү тапшырат",
@@ -269,7 +269,7 @@
       "aiLearning": "ИИ менен үйрөнүү",
       "aiLearningDesc": "Жеке көнүгүүлөр балаңыздын темпине ылайыкталат.",
       "aiLearningBenefits": ["Адаптивдүү татаалдык", "Жеке контент", "Өнүгүү"],
-      "nurooAiChat": "Nuroo чат",
+      "nurooAiChat": "neuroKids чат",
       "nurooAiChatDesc": "Атайын муктаждыктар үчүн колдоо 24/7.",
       "nurooAiChatBenefits": ["Тез жооптор", "Жеке кеңеш", "Ар дайым жеткиликтүү"],
       "progressAnalytics": "Прогресс аналитикасы",
@@ -296,13 +296,13 @@
       "achievementSystem": "Жетишкендиктер",
       "achievementSystemDesc": "Этаптарды майрамдаңыз",
       "ctaTitle": "Балаңызга колдоо көрсөтүүгө даярсызбы?",
-      "ctaSubtitle": "Nuroону жүктөп, бүгүн баштаңыз."
+      "ctaSubtitle": "neuroKidsти жүктөп, бүгүн баштаңыз."
     },
     "testimonials": {
       "badge": "Коомчулук",
       "title": "Эрте",
       "titleHighlight": "кирүү",
-      "intro": "Nurooти биринчилерден болуп сынап көрүңүз.",
+      "intro": "neuroKidsти биринчилерден болуп сынап көрүңүз.",
       "available": "Жеткиликтүү",
       "appStore": "App Store",
       "aiPowered": "ИИ менен",
@@ -327,7 +327,7 @@
       "privacy": "Купуялуулук",
       "downloadApp": "Жүктөө",
       "logInB2b": "Кирүү (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© 2026 neuroKids by Manavault Studio",
       "scrollToTop": "Жогору"
     }
   },

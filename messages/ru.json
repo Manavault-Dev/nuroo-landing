@@ -25,7 +25,7 @@
       "ctaPrimary": "Начать",
       "ctaSecondary": "Войти",
       "trustLine": "Используют центры, специалисты и семьи по всей Центральной Азии",
-      "statMain": "1500+ семей уже используют Nuroo в 30 странах",
+      "statMain": "1500+ семей уже используют neuroKids в 30 странах",
       "statFamilies": "семей используют",
       "statCountries": "стран",
       "statSatisfaction": "довольных родителей",
@@ -61,21 +61,21 @@
     "solution": {
       "badge": "Решение",
       "title": "Представляем",
-      "titleBrand": "Nuroo",
+      "titleBrand": "neuroKids",
       "intro": "ИИ-поддержка для детей с особыми потребностями — дома. Организации и специалисты назначают контент и отслеживают прогресс в одной платформе.",
       "platformIntro": "Одна экосистема для семей и специалистов.",
       "welcomeSetup": "Приветствие и настройка",
       "welcomeSetupDesc": "Быстрая персональная настройка",
       "progressTracking": "Отслеживание прогресса",
       "progressTrackingDesc": "Аналитика развития в реальном времени",
-      "nurooAiChat": "Чат Nuroo",
+      "nurooAiChat": "Чат neuroKids",
       "nurooAiChatDesc": "ИИ-поддержка 24/7",
       "allInOneTitle": "Всё, что нужно вашему ребёнку,",
       "allInOneHighlight": "в одном приложении",
       "allInOneDesc": "ИИ и персональная поддержка под ваше расписание.",
       "personalizedLearning": "Персональное обучение",
       "personalizedLearningDesc": "ИИ подстраивается под темп ребёнка",
-      "nurooAiSupport": "Поддержка Nuroo",
+      "nurooAiSupport": "Поддержка neuroKids",
       "nurooAiSupportDesc": "Советы и поддержка 24/7",
       "realtimeProgress": "Прогресс в реальном времени",
       "realtimeProgressDesc": "Этапы и победы — вместе",
@@ -86,7 +86,7 @@
       "sectionBadge": "Одна экосистема и три сценария",
       "sectionTitle": "Создано для всех",
       "sectionTitleHighlight": "в развитии ребёнка",
-      "sectionIntro": "Для центра, специалиста и семьи в Nuroo у каждого есть понятный путь работы."
+      "sectionIntro": "Для центра, специалиста и семьи в neuroKids у каждого есть понятный путь работы."
     },
     "pricing": {
       "badge": "Тарифы",
@@ -150,7 +150,7 @@
       "from": "От"
     },
     "platform": {
-      "badge": "Платформа Nuroo",
+      "badge": "Платформа neuroKids",
       "title": "Для организаций и специалистов",
       "intro": "Группы, контент, прогресс и работа с родителями — в одном месте.",
       "intro2": "Видеоуроки и отчёты.",
@@ -208,7 +208,7 @@
     "startAlone": {
       "badge": "Начните самостоятельно",
       "title": "Начните дома — подключите специалиста позже",
-      "subtitle": "Центр или специалист не нужны, чтобы начать. Родители и независимые семьи могут использовать Nuroo прямо сейчас.",
+      "subtitle": "Центр или специалист не нужны, чтобы начать. Родители и независимые семьи могут использовать neuroKids прямо сейчас.",
       "step1Title": "Скачайте приложение",
       "step1Desc": "Бесплатно в App Store и Google Play",
       "step2Title": "ИИ подбирает занятия",
@@ -269,7 +269,7 @@
       "aiLearning": "Обучение на базе ИИ",
       "aiLearningDesc": "Персональные упражнения под темп ребёнка.",
       "aiLearningBenefits": ["Адаптивная сложность", "Персональный контент", "Постоянное развитие"],
-      "nurooAiChat": "Чат Nuroo",
+      "nurooAiChat": "Чат neuroKids",
       "nurooAiChatDesc": "Поддержка 24/7 для особых потребностей.",
       "nurooAiChatBenefits": ["Мгновенные ответы", "Персональные советы", "Всегда доступен"],
       "progressAnalytics": "Аналитика прогресса",
@@ -300,13 +300,13 @@
       "achievementSystem": "Достижения",
       "achievementSystemDesc": "Отмечайте этапы",
       "ctaTitle": "Готовы поддержать ребёнка?",
-      "ctaSubtitle": "Скачайте Nuroo и начните сегодня."
+      "ctaSubtitle": "Скачайте neuroKids и начните сегодня."
     },
     "testimonials": {
       "badge": "Сообщество",
       "title": "Ранний",
       "titleHighlight": "доступ",
-      "intro": "Будьте среди первых, кто попробует Nuroo.",
+      "intro": "Будьте среди первых, кто попробует neuroKids.",
       "available": "Доступно",
       "appStore": "App Store",
       "aiPowered": "На базе ИИ",
@@ -331,7 +331,7 @@
       "privacy": "Приватность",
       "downloadApp": "Скачать приложение",
       "logInB2b": "Войти (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© 2026 neuroKids by Manavault Studio",
       "scrollToTop": "Наверх"
     }
   },

@@ -5,7 +5,20 @@ import { signIn, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
+import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react'
+
+const DEMO_ACCOUNTS = [
+  {
+    role: 'specialist',
+    email: 'akylai@gmail.com',
+    password: 'akylai',
+  },
+  {
+    role: 'organizer',
+    email: 'aijan@gmail.com',
+    password: 'aijan123',
+  },
+] as const
 
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
@@ -15,15 +28,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const signInWithCredentials = async (nextEmail: string, nextPassword: string) => {
     if (loading) return
 
     setError('')
     setLoading(true)
 
     try {
-      const userCredential = await signIn(email, password)
+      const userCredential = await signIn(nextEmail, nextPassword)
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
@@ -40,6 +52,17 @@ export default function LoginPage() {
     }
   }
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    await signInWithCredentials(email, password)
+  }
+
+  const handleDemoSignIn = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    setEmail(account.email)
+    setPassword(account.password)
+    await signInWithCredentials(account.email, account.password)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full space-y-8">
@@ -51,6 +74,27 @@ export default function LoginPage() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
+        </div>
+
+        <div className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-800">{t('demo.kicker')}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => handleDemoSignIn(account)}
+                disabled={loading}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t(`demo.${account.role}.cta`)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-amber-700">{t('demo.subtitle')}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
