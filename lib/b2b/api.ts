@@ -1,3 +1,5 @@
+import type { OrgBranding } from './types'
+
 const API_BASE_URL =
   typeof window !== 'undefined'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
@@ -180,6 +182,39 @@ export interface NotificationPreferences {
     organizationUpdates: boolean
     billingUpdates: boolean
   }
+}
+
+export interface BillingStatusResponse {
+  ok: boolean
+  active: boolean
+  planId: string | null
+  source: 'subscription' | 'free_trial' | null
+  billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+  badge: string | null
+  error: string | null
+  expiresAt: string | null
+  limits: { children: number; specialists: number | null } | null
+  usage: {
+    children: number
+    specialists: number
+    childrenLimit: number | null
+    specialistsLimit: number | null
+  } | null
+  features: Record<string, boolean> | null
+  trial: {
+    active: boolean
+    planId: string | null
+    startedAt: string | null
+    expiresAt: string | null
+  } | null
+}
+
+export interface ImprovedInstructionResult {
+  title: string
+  description: string
+  instructions: string[]
+  parentTip: string
+  expectedResult: string
 }
 
 // Cache entry type
@@ -388,21 +423,7 @@ export class ApiClient {
   }
 
   async getBillingStatus(orgId: string) {
-    return this.request<{
-      ok: boolean
-      active: boolean
-      planId: string | null
-      source: 'subscription' | 'free_trial' | null
-      error: string | null
-      expiresAt: string | null
-      limits: { children: number; specialists: number | null } | null
-      trial: {
-        active: boolean
-        planId: string | null
-        startedAt: string | null
-        expiresAt: string | null
-      } | null
-    }>(`/orgs/${orgId}/billing/status`)
+    return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
   }
 
   async verifyPayment(paymentId: string) {
@@ -435,6 +456,15 @@ export class ApiClient {
       `/orgs/${orgId}/children/${childId}`,
       `child:${orgId}:${childId}`,
       'childDetail'
+    )
+  }
+
+  async removeChild(orgId: string, childId: string) {
+    cache.invalidate(`children:${orgId}`)
+    cache.invalidate(`child:${orgId}:${childId}`)
+    return this.request<{ ok: boolean; childId: string; groupsCleaned: number }>(
+      `/orgs/${orgId}/children/${childId}`,
+      { method: 'DELETE' }
     )
   }
 
@@ -565,6 +595,22 @@ export class ApiClient {
       }
     }>(`/orgs/${orgId}`, {
       method: 'PATCH',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async getOrgBranding(orgId: string) {
+    return this.cachedRequest<{ ok: boolean; branding: OrgBranding | null }>(
+      `/orgs/${orgId}/branding`,
+      `branding:${orgId}`,
+      'default'
+    )
+  }
+
+  async updateOrgBranding(orgId: string, updates: OrgBranding) {
+    cache.invalidate(`branding:${orgId}`)
+    return this.request<{ ok: boolean; branding: OrgBranding | null }>(`/orgs/${orgId}/branding`, {
+      method: 'PUT',
       body: JSON.stringify(updates),
     })
   }
@@ -1250,6 +1296,43 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  }
+
+  async parseAssistantIntent(
+    orgId: string,
+    message: string,
+    context?: {
+      lastGroupName?: string
+      lastChildNames?: string[]
+      lastResultChildren?: string[]
+    }
+  ) {
+    return this.request<{ type: string; params: Record<string, unknown>; raw: string }>(
+      `/orgs/${orgId}/assistant/intent`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ message, context }),
+      }
+    )
+  }
+
+  async improveInstruction(data: {
+    roughText: string
+    language: 'ru' | 'en' | 'ky'
+    context?: {
+      title?: string
+      category?: string
+      ageMin?: number
+      ageMax?: number
+    }
+  }) {
+    return this.request<{ ok: boolean; result: ImprovedInstructionResult }>(
+      '/api/specialist/ai/improve-instruction',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────
