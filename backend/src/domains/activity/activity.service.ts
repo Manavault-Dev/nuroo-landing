@@ -1,5 +1,4 @@
 import admin from 'firebase-admin'
-import { getFirestore } from '../../infrastructure/database/firebase.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -396,8 +395,7 @@ export async function migrateSpecialistNotes(
     if (migratedSourceIds.has(noteDoc.id)) continue
 
     const note = noteDoc.data()
-    const createdAtTs: admin.firestore.Timestamp =
-      note.createdAt ?? admin.firestore.Timestamp.now()
+    const createdAtTs: admin.firestore.Timestamp = note.createdAt ?? admin.firestore.Timestamp.now()
 
     await feedRef.add({
       organizationId: orgId,

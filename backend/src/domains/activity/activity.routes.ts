@@ -42,9 +42,7 @@ const createFeedItemSchema = z.object({
   body: z.string().min(1).max(10000),
   title: z.string().max(500).optional(),
   visibility: z.enum(VISIBILITY_VALUES),
-  relatedEntityType: z
-    .enum(['assignment', 'progress', 'note', 'intake_form', 'child'])
-    .optional(),
+  relatedEntityType: z.enum(['assignment', 'progress', 'note', 'intake_form', 'child']).optional(),
   relatedEntityId: z.string().max(128).optional(),
   metadata: z.record(z.unknown()).optional(),
 })
@@ -75,25 +73,24 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
       const db = getFirestore()
-      const role = member.role === 'org_admin' ? 'admin' : ('specialist' as ActivityAuthorRole)
+      void member
 
       // Check if caller is actually a parent (parent members won't be in org members unless
       // we also allow parent access via child assignment lookup)
       const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
-      const memberRole: string = memberDoc.exists ? (memberDoc.data()?.role ?? 'specialist') : 'parent'
+      const memberRole: string = memberDoc.exists
+        ? (memberDoc.data()?.role ?? 'specialist')
+        : 'parent'
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin'
-          ? 'admin'
-          : memberRole === 'specialist'
-            ? 'specialist'
-            : 'parent'
+        memberRole === 'org_admin' ? 'admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
 
       const { type, visibility, limit: limitStr, cursor } = request.query
       const limit = limitStr ? parseInt(limitStr, 10) : 50
@@ -124,14 +121,17 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
       // Only specialists and admins can create feed items
       if (member.role !== 'org_admin' && member.role !== 'specialist') {
-        return reply.code(403).send({ error: 'Only specialists and admins can create feed items', code: 'FORBIDDEN' })
+        return reply
+          .code(403)
+          .send({ error: 'Only specialists and admins can create feed items', code: 'FORBIDDEN' })
       }
 
       let parsedBody: {
@@ -167,7 +167,9 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       // Notify parent when visibility is parent_visible
       if (parsedBody.visibility === 'parent_visible') {
-        const orgChildSnap = await db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get()
+        const orgChildSnap = await db
+          .doc(`organizations/${orgId}/children/${resolvedChildId}`)
+          .get()
         const parentUserId = orgChildSnap.data()?.parentUserId as string | undefined
         const childName: string = orgChildSnap.data()?.name ?? 'your child'
 
@@ -185,7 +187,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
             metadata: { childId: resolvedChildId, orgId, specialistId: uid },
             dedupKey: `feed_item_created:${item.id}`,
             channel: 'both',
-          }).catch(() => {})
+          }).catch(() => undefined)
         }
       }
 
@@ -203,7 +205,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId, feedItemId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -237,7 +240,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId, feedItemId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -256,7 +260,9 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       // Only the author can edit
       if (existing.authorId !== request.user.uid) {
-        return reply.code(403).send({ error: 'Only the author can edit this item', code: 'FORBIDDEN' })
+        return reply
+          .code(403)
+          .send({ error: 'Only the author can edit this item', code: 'FORBIDDEN' })
       }
 
       const updated = await updateFeedItem(db, resolvedChildId, feedItemId, body.data)
@@ -274,7 +280,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId, feedItemId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -291,7 +298,9 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       const isAuthor = existing.authorId === request.user.uid
 
       if (!isAdmin && !isAuthor) {
-        return reply.code(403).send({ error: 'Only the author or an admin can delete this item', code: 'FORBIDDEN' })
+        return reply
+          .code(403)
+          .send({ error: 'Only the author or an admin can delete this item', code: 'FORBIDDEN' })
       }
 
       await deleteFeedItem(db, resolvedChildId, feedItemId)
@@ -309,7 +318,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId, feedItemId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -321,14 +331,12 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
-      const memberRole: string = memberDoc.exists ? (memberDoc.data()?.role ?? 'specialist') : 'parent'
+      const memberRole: string = memberDoc.exists
+        ? (memberDoc.data()?.role ?? 'specialist')
+        : 'parent'
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin'
-          ? 'admin'
-          : memberRole === 'specialist'
-            ? 'specialist'
-            : 'parent'
+        memberRole === 'org_admin' ? 'admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
 
       // Suppress unused variable warning — member is used for RBAC check above
       void member
@@ -349,7 +357,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId, feedItemId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -405,7 +414,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
           metadata: { childId: resolvedChildId, orgId, specialistId: uid },
           dedupKey: `feed_comment_specialist:${comment.id}`,
           channel: 'both',
-        }).catch(() => {})
+        }).catch(() => undefined)
       }
 
       return reply.code(201).send(comment)
@@ -423,7 +432,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       await requireOrgMember(request, reply, orgId)
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
@@ -450,13 +460,16 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
     try {
       const { orgId, childId } = request.params
 
-      if (!request.user) return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!request.user)
+        return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const member = await requireOrgMember(request, reply, orgId)
 
       // Only admins can trigger migrations
       if (member.role !== 'org_admin') {
-        return reply.code(403).send({ error: 'Only admins can trigger note migration', code: 'FORBIDDEN' })
+        return reply
+          .code(403)
+          .send({ error: 'Only admins can trigger note migration', code: 'FORBIDDEN' })
       }
 
       const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
