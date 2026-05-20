@@ -131,6 +131,14 @@ export default function GroupsPage() {
   const showToast = (message: string, type: 'success' | 'error' = 'success') =>
     setToast({ message, type })
 
+  const canManageGroup = useCallback(
+    (group: Group | null | undefined) => {
+      if (!group) return false
+      return !group.ownerId || group.ownerId === profile?.uid
+    },
+    [profile?.uid]
+  )
+
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -604,6 +612,7 @@ export default function GroupsPage() {
               t={t}
               locale={locale}
               isSelected={selectedGroup?.id === group.id}
+              canManage={canManageGroup(group)}
               onClick={() => handleSelectGroup(group)}
               onEdit={(e) => openEditGroupModal(group, e)}
               onDelete={(e) => handleDeleteGroup(group.id, e)}
@@ -643,7 +652,7 @@ export default function GroupsPage() {
                 )}
               </div>
               <div className="flex items-center gap-1">
-                {!selectedGroup.ownerId && (
+                {canManageGroup(selectedGroup) && (
                   <>
                     <button
                       onClick={(e) => openEditGroupModal(selectedGroup, e)}
@@ -672,7 +681,7 @@ export default function GroupsPage() {
             </div>
 
             {/* Primary action */}
-            {!selectedGroup.ownerId && (
+            {canManageGroup(selectedGroup) && (
               <div className="px-5 py-3 bg-primary-50/80 border-b border-primary-100 shrink-0">
                 <button
                   onClick={() => openAssignFromLibraryModal()}
@@ -719,7 +728,7 @@ export default function GroupsPage() {
                   )}
                 </button>
               ))}
-              {groupPanelTab === 'members' && !selectedGroup.ownerId && (
+              {groupPanelTab === 'members' && canManageGroup(selectedGroup) && (
                 <button
                   onClick={handleOpenAddParent}
                   className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors my-2"
@@ -743,7 +752,7 @@ export default function GroupsPage() {
                   t={t}
                   locale={locale}
                   assignments={groupAssignments}
-                  isOwner={!selectedGroup.ownerId}
+                  isOwner={canManageGroup(selectedGroup)}
                   selectedId={assignmentDetail?.id}
                   onSelect={handleSelectAssignment}
                   onDelete={handleDeleteAssignment}
@@ -756,6 +765,7 @@ export default function GroupsPage() {
                   parents={groupParents}
                   selectedGroup={selectedGroup}
                   isOrgAdmin={isOrgAdmin}
+                  canManage={canManageGroup(selectedGroup)}
                   disconnecting={disconnecting}
                   onRemove={handleRemoveParent}
                   onDisconnect={handleDisconnect}
@@ -825,7 +835,7 @@ export default function GroupsPage() {
                   >
                     {assignmentDetail.status === 'active' ? t('statusActive') : t('statusClosed')}
                   </span>
-                  {!selectedGroup.ownerId && (
+                  {canManageGroup(selectedGroup) && (
                     <>
                       <button
                         onClick={() => handleToggleAssignmentStatus(assignmentDetail)}
@@ -1043,7 +1053,7 @@ export default function GroupsPage() {
                           locale={locale}
                           submission={sub}
                           groupColor={selectedGroup.color}
-                          isOwner={!selectedGroup.ownerId}
+                          isOwner={canManageGroup(selectedGroup)}
                           onGrade={() => {
                             setGradeTarget(sub)
                             setGradeValue(sub.grade || 'approved')
