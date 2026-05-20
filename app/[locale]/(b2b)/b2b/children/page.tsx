@@ -67,9 +67,12 @@ export default function ChildrenPage() {
     }
     if (!isLoading && profile && orgId) {
       setLoading(true)
-      apiClient.getChildren(orgId)
+      apiClient
+        .getChildren(orgId)
         .then((data) => setChildren(data))
-        .catch(() => {})
+        .catch(() => {
+          // Keep the page usable; the backend/API client surfaces details elsewhere.
+        })
         .finally(() => setLoading(false))
     }
   }, [isLoading, profile, orgId, router])

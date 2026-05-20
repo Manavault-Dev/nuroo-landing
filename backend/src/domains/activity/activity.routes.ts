@@ -76,21 +76,25 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user)
         return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const member = await requireOrgMember(request, reply, orgId)
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-
       const db = getFirestore()
-      void member
-
-      // Check if caller is actually a parent (parent members won't be in org members unless
-      // we also allow parent access via child assignment lookup)
       const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
       const memberRole: string = memberDoc.exists
         ? (memberDoc.data()?.role ?? 'specialist')
         : 'parent'
 
+      let resolvedChildId: string
+      if (memberDoc.exists) {
+        resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+      } else {
+        const childDoc = await db.doc(`organizations/${orgId}/children/${childId}`).get()
+        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+        resolvedChildId = childId
+      }
+
       const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin' ? 'admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
+        memberRole === 'org_admin' ? 'org_admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
 
       const { type, visibility, limit: limitStr, cursor } = request.query
       const limit = limitStr ? parseInt(limitStr, 10) : 50
@@ -152,7 +156,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       const db = getFirestore()
       const { uid, email } = request.user
-      const authorRole: ActivityAuthorRole = member.role === 'org_admin' ? 'admin' : 'specialist'
+      const authorRole: ActivityAuthorRole = member.role === 'org_admin' ? 'org_admin' : 'specialist'
       const authorName = await getAuthorName(db, uid, email, authorRole)
 
       const item = await createFeedItem(
@@ -208,10 +212,23 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user)
         return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const member = await requireOrgMember(request, reply, orgId)
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-
       const db = getFirestore()
+      const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
+      const memberRole: string = memberDoc.exists
+        ? (memberDoc.data()?.role ?? 'specialist')
+        : 'parent'
+
+      let resolvedChildId: string
+      if (memberDoc.exists) {
+        resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+      } else {
+        const childDoc = await db.doc(`organizations/${orgId}/children/${childId}`).get()
+        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+        resolvedChildId = childId
+      }
+
       const item = await getFeedItem(db, resolvedChildId, feedItemId)
 
       if (!item || item.organizationId !== orgId) {
@@ -219,7 +236,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       // Parents can only see parent_visible items
-      if (member.role !== 'org_admin' && member.role !== 'specialist') {
+      if (memberRole !== 'org_admin' && memberRole !== 'specialist') {
         if (item.visibility !== 'parent_visible') {
           return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
         }
@@ -321,25 +338,30 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user)
         return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const member = await requireOrgMember(request, reply, orgId)
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-
       const db = getFirestore()
-      const feedItem = await getFeedItem(db, resolvedChildId, feedItemId)
-      if (!feedItem || feedItem.organizationId !== orgId) {
-        return reply.code(404).send({ error: 'Feed item not found', code: 'NOT_FOUND' })
-      }
-
       const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
       const memberRole: string = memberDoc.exists
         ? (memberDoc.data()?.role ?? 'specialist')
         : 'parent'
 
-      const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin' ? 'admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
+      let resolvedChildId: string
+      if (memberDoc.exists) {
+        resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+      } else {
+        const childDoc = await db.doc(`organizations/${orgId}/children/${childId}`).get()
+        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+        resolvedChildId = childId
+      }
 
-      // Suppress unused variable warning — member is used for RBAC check above
-      void member
+      const feedItem = await getFeedItem(db, resolvedChildId, feedItemId)
+      if (!feedItem || feedItem.organizationId !== orgId) {
+        return reply.code(404).send({ error: 'Feed item not found', code: 'NOT_FOUND' })
+      }
+
+      const effectiveRole: ActivityAuthorRole | 'parent' =
+        memberRole === 'org_admin' ? 'org_admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
 
       const comments = await listComments(db, resolvedChildId, feedItemId, effectiveRole)
       return reply.send(comments)
@@ -375,8 +397,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const { uid, email } = request.user
-      const authorRole: 'parent' | 'specialist' | 'admin' =
-        member.role === 'org_admin' ? 'admin' : 'specialist'
+      const authorRole: 'parent' | 'specialist' | ActivityAuthorRole =
+        member.role === 'org_admin' ? 'org_admin' : 'specialist'
 
       const authorName = await getAuthorName(db, uid, email, authorRole)
 
@@ -398,7 +420,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       const childName: string = orgChildSnap.data()?.name ?? 'your child'
 
       if (
-        (authorRole === 'specialist' || authorRole === 'admin') &&
+        (authorRole === 'specialist' || authorRole === 'org_admin') &&
         body.data.visibility === 'parent_visible' &&
         parentUserId
       ) {
