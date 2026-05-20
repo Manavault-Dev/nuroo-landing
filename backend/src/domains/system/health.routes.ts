@@ -6,4 +6,5 @@ export const healthRoute: FastifyPluginAsync = async (fastify) => {
     timestamp: new Date().toISOString(),
     service: 'nuroo-backend',
   }))
+
 }

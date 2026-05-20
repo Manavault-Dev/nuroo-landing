@@ -321,7 +321,7 @@ export async function createComment(
   feedItemId: string,
   orgId: string,
   authorId: string,
-  authorRole: 'parent' | 'specialist' | 'admin',
+  authorRole: ActivityAuthorRole | 'parent',
   authorName: string,
   body: string,
   visibility: ActivityVisibility
