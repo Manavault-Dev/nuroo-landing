@@ -414,6 +414,7 @@ export async function createChildRecord(
 
   await globalRef.set(childData)
   await db.collection(`organizations/${orgId}/children`).doc(globalRef.id).set({
+    assigned: true,
     childId: globalRef.id,
     name: fullName,
     createdAt: now,
@@ -505,6 +506,15 @@ export async function removeChildFromOrg(
         .get()
 
       for (const groupDoc of groupsSnap.docs) {
+        const groupData = groupDoc.data()
+        const groupChildIds = (groupData.childIds as string[]) || []
+        if (groupChildIds.includes(childId)) {
+          await groupDoc.ref.update({
+            childIds: groupChildIds.filter((id: string) => id !== childId),
+          })
+          groupsCleaned++
+        }
+
         const parentsSnap = await db
           .collection(`specialists/${specialistId}/groups/${groupDoc.id}/parents`)
           .get()

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import { apiClient } from '@/lib/b2b/api'
 import { Key, Plus, Copy, Check, Loader2, ExternalLink, Smartphone } from 'lucide-react'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { useAlert } from '@/components/ui/AlertDialog'
@@ -25,53 +24,27 @@ function valueOrDefault(value: number | null | undefined, fallback: number) {
 
 export default function InvitesPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.invites')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const { profile, orgId: currentOrgId, isAdmin, isLoading } = usePageAuth()
   const [invites, setInvites] = useState<InviteCode[]>([])
   const [parentInvites, setParentInvites] = useState<InviteCode[]>([])
-  const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [creatingParentInvite, setCreatingParentInvite] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const { alert } = useAlert()
-
-  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
-    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin'
-  const isSpecialist = currentOrg?.role === 'specialist' || isAdmin
+    profile?.organizations.find((org) => org.orgId === currentOrgId) ?? profile?.organizations[0]
+
+  const isSpecialist =
+    isAdmin ||
+    profile?.organizations?.some((o) => o.orgId === currentOrgId && o.role === 'specialist')
 
   useEffect(() => {
-    const loadData = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-      } catch {
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
+    if (!isLoading && !profile) {
+      router.push('/b2b/login')
+      return
     }
-
-    loadData()
-  }, [router])
-
-  useEffect(() => {
-    if (!loading && profile) {
+    if (!isLoading && profile) {
       if (!profile.organizations?.length) {
         router.push('/b2b/onboarding')
         return
@@ -82,17 +55,13 @@ export default function InvitesPage() {
         )
       }
     }
-  }, [loading, profile, isSpecialist, router])
+  }, [isLoading, profile, isSpecialist, router])
 
   const handleCreateInvite = async (role: 'specialist' | 'org_admin' = 'specialist') => {
     if (!currentOrgId || !isAdmin) return
 
     setCreating(true)
     try {
-      const idToken = await getIdToken()
-      if (!idToken) return
-      apiClient.setToken(idToken)
-
       const newInvite = await apiClient.createInvite(currentOrgId, {
         role,
         expiresInDays: 30,
@@ -112,10 +81,6 @@ export default function InvitesPage() {
 
     setCreatingParentInvite(true)
     try {
-      const idToken = await getIdToken()
-      if (!idToken) return
-      apiClient.setToken(idToken)
-
       const newInvite = await apiClient.createParentInvite(currentOrgId)
 
       setParentInvites([...parentInvites, { ...newInvite, type: 'parent' }])
@@ -155,7 +120,7 @@ export default function InvitesPage() {
     return `${origin}/connect?${params.toString()}`
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">

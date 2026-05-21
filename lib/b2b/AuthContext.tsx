@@ -1,7 +1,8 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode, useRef } from 'react'
-import { User } from 'firebase/auth'
+import { onIdTokenChanged, User } from 'firebase/auth'
+import { auth } from '@/lib/firebase/config'
 import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
 
@@ -31,13 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await getIdToken()
       if (!idToken) return
 
+      if (requestVersion !== profileRequestVersion.current) return
+
       apiClient.setToken(idToken)
 
       const profileData = await apiClient.getMe().catch(() => null)
-
-      if (requestVersion !== profileRequestVersion.current) {
-        return
-      }
 
       if (requestVersion !== profileRequestVersion.current) {
         return
@@ -94,10 +93,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 5000)
 
+    const tokenUnsub = auth
+      ? onIdTokenChanged(auth, async (currentUser) => {
+          const token = currentUser ? await currentUser.getIdToken() : null
+          if (isMounted) apiClient.setToken(token)
+        })
+      : () => {
+          apiClient.setToken(null)
+        }
+
     return () => {
       isMounted = false
       clearTimeout(timeout)
       unsubscribe()
+      tokenUnsub()
     }
   }, [])
 

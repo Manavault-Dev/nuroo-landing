@@ -1,57 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { ContentManagement } from '@/components/b2b/ContentManagement'
 
 export default function AssignmentsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.assignments')
-  const [loading, setLoading] = useState(true)
-  const [orgId, setOrgId] = useState<string | null>(null)
+  const { profile, orgId, isLoading } = usePageAuth()
 
   useEffect(() => {
-    const init = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
+    if (!isLoading && !profile) router.push('/b2b/login')
+  }, [isLoading, profile, router])
 
-        const orgIdParam = searchParams.get('orgId')
-        if (!orgIdParam) {
-          const profile = await apiClient.getMe()
-          const firstOrg = profile.organizations[0]
-          if (firstOrg) {
-            setOrgId(firstOrg.orgId)
-            router.replace(`/b2b/assignments?orgId=${firstOrg.orgId}`)
-            return
-          }
-          router.push('/b2b')
-          return
-        }
-        setOrgId(orgIdParam)
-      } catch {
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
-    }
-    init()
-  }, [router, searchParams])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">

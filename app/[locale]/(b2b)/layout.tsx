@@ -4,6 +4,7 @@ import { useEffect, Suspense, useState } from 'react'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import * as Sentry from '@sentry/nextjs'
 import { AuthProvider, useAuth } from '@/lib/b2b/AuthContext'
 import { resolvePostLoginPath } from '@/src/config/routes'
 import { BrandingProvider } from '@/lib/b2b/brandingContext'
@@ -66,6 +67,9 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     setOverlayVisible(false)
   }, [pathname])
 
+  const currentOrgId =
+    searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || authOrgId || undefined
+
   useEffect(() => {
     if (isLoading) return
     if (!user && !isNoChromePage) {
@@ -80,9 +84,23 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       if (pathForMatch !== destPath) {
         router.replace(destination)
       }
-      return
     }
-  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams])
+  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams, router])
+
+  // Привязываем каждую ошибку к конкретному пользователю
+  useEffect(() => {
+    if (user && profile) {
+      Sentry.setUser({
+        id: user.uid,
+        email: user.email ?? undefined,
+        username: profile.name,
+      })
+      Sentry.setTag('orgId', currentOrgId ?? 'unknown')
+      Sentry.setTag('role', profile.organizations?.[0]?.role ?? 'unknown')
+    } else if (!user) {
+      Sentry.setUser(null)
+    }
+  }, [user, profile, currentOrgId])
 
   if (isLoading) {
     return <LoadingSpinner />
@@ -93,9 +111,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   if (!user) {
     return null
   }
-
-  const currentOrgId =
-    searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || authOrgId || undefined
 
   return (
     <BrandingProvider orgId={currentOrgId}>

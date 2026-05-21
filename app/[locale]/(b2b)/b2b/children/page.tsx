@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type ChildSummary, type SpecialistProfile } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import { apiClient, type ChildSummary } from '@/lib/b2b/api'
 import { Users, ChevronRight, CheckCircle2, Clock, Search, Trash2, Loader2 } from 'lucide-react'
 import { useAlert } from '@/components/ui/AlertDialog'
 
@@ -52,9 +51,8 @@ function StatusPill({ status, label }: { status: Status; label: string }) {
 
 export default function ChildrenPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.children')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const { profile, orgId, isLoading } = usePageAuth()
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -62,39 +60,22 @@ export default function ChildrenPage() {
 
   const { alert, confirm } = useAlert()
 
-  const orgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
-
   useEffect(() => {
-    const load = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-        const effectiveOrgId = searchParams.get('orgId') || profileData.organizations?.[0]?.orgId
-        if (!effectiveOrgId) {
-          router.push('/b2b/onboarding')
-          return
-        }
-        const childrenData = await apiClient.getChildren(effectiveOrgId)
-        setChildren(childrenData)
-      } catch {
-        // fail silently
-      } finally {
-        setLoading(false)
-      }
+    if (!isLoading && !profile) {
+      router.push('/b2b/login')
+      return
     }
-    load()
-  }, [router, searchParams])
+    if (!isLoading && profile && orgId) {
+      setLoading(true)
+      apiClient
+        .getChildren(orgId)
+        .then((data) => setChildren(data))
+        .catch(() => {
+          // Keep the page usable; the backend/API client surfaces details elsewhere.
+        })
+        .finally(() => setLoading(false))
+    }
+  }, [isLoading, profile, orgId, router])
 
   const handleRemove = async (childId: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -104,9 +85,6 @@ export default function ChildrenPage() {
     setRemovingChildId(childId)
     try {
       if (!orgId) return
-      const idToken = await getIdToken()
-      if (!idToken) return
-      apiClient.setToken(idToken)
       await apiClient.removeChild(orgId, childId)
       setChildren((prev) => prev.filter((c) => c.id !== childId))
     } catch (err) {

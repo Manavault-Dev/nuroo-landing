@@ -105,6 +105,7 @@ async function getOrgContentCompletions(
     .collection(COLLECTIONS.ALPHAKIDS_TASK_COMPLETIONS)
     .where('orgId', '==', orgId)
     .where('completed', '==', true)
+    .limit(5000)
     .get()
 
   let totalCompleted = 0

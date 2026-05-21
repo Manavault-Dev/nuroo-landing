@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
 import type {
   Assignment,
@@ -64,12 +63,12 @@ export default function GroupsPage() {
   const t = useTranslations('b2b.pages.groups')
   const locale = useLocale()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const { profile, orgId: resolvedOrgId, isAdmin, isLoading: authLoading } = usePageAuth()
 
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState<Group[]>([])
   const [orgId, setOrgId] = useState<string | null>(null)
-  const [isOrgAdmin, setIsOrgAdmin] = useState(false)
+  const isOrgAdmin = isAdmin
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const { confirm } = useAlert()
 
@@ -132,55 +131,27 @@ export default function GroupsPage() {
   const showToast = (message: string, type: 'success' | 'error' = 'success') =>
     setToast({ message, type })
 
+  const canManageGroup = useCallback(
+    (group: Group | null | undefined) => {
+      if (!group) return false
+      return !group.ownerId || group.ownerId === profile?.uid
+    },
+    [profile?.uid]
+  )
+
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const init = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const orgIdParam = searchParams.get('orgId')
-        const resolvedOrgId = orgIdParam
-
-        try {
-          const profile = await apiClient.getMe()
-          if (!resolvedOrgId) {
-            const first = profile.organizations[0]
-            if (first) {
-              router.replace(`/b2b/groups?orgId=${first.orgId}`)
-              return
-            }
-          }
-          const currentOrg =
-            profile.organizations.find((o) => o.orgId === resolvedOrgId) || profile.organizations[0]
-          setIsOrgAdmin(currentOrg?.role === 'admin')
-        } catch {}
-
-        if (!resolvedOrgId) {
-          router.push('/b2b')
-          return
-        }
-        setOrgId(resolvedOrgId)
-        await loadGroups(resolvedOrgId)
-      } catch {
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
+    if (!authLoading && !profile) {
+      router.push('/b2b/login')
+      return
     }
-    init()
+    if (!authLoading && profile && resolvedOrgId) {
+      setOrgId(resolvedOrgId)
+      loadGroups(resolvedOrgId).finally(() => setLoading(false))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, searchParams])
+  }, [authLoading, profile, resolvedOrgId, router])
 
   const loadGroups = async (oid: string) => {
     try {
@@ -641,6 +612,7 @@ export default function GroupsPage() {
               t={t}
               locale={locale}
               isSelected={selectedGroup?.id === group.id}
+              canManage={canManageGroup(group)}
               onClick={() => handleSelectGroup(group)}
               onEdit={(e) => openEditGroupModal(group, e)}
               onDelete={(e) => handleDeleteGroup(group.id, e)}
@@ -680,7 +652,7 @@ export default function GroupsPage() {
                 )}
               </div>
               <div className="flex items-center gap-1">
-                {!selectedGroup.ownerId && (
+                {canManageGroup(selectedGroup) && (
                   <>
                     <button
                       onClick={(e) => openEditGroupModal(selectedGroup, e)}
@@ -709,7 +681,7 @@ export default function GroupsPage() {
             </div>
 
             {/* Primary action */}
-            {!selectedGroup.ownerId && (
+            {canManageGroup(selectedGroup) && (
               <div className="px-5 py-3 bg-primary-50/80 border-b border-primary-100 shrink-0">
                 <button
                   onClick={() => openAssignFromLibraryModal()}
@@ -756,7 +728,7 @@ export default function GroupsPage() {
                   )}
                 </button>
               ))}
-              {groupPanelTab === 'members' && !selectedGroup.ownerId && (
+              {groupPanelTab === 'members' && canManageGroup(selectedGroup) && (
                 <button
                   onClick={handleOpenAddParent}
                   className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors my-2"
@@ -780,7 +752,7 @@ export default function GroupsPage() {
                   t={t}
                   locale={locale}
                   assignments={groupAssignments}
-                  isOwner={!selectedGroup.ownerId}
+                  isOwner={canManageGroup(selectedGroup)}
                   selectedId={assignmentDetail?.id}
                   onSelect={handleSelectAssignment}
                   onDelete={handleDeleteAssignment}
@@ -793,6 +765,7 @@ export default function GroupsPage() {
                   parents={groupParents}
                   selectedGroup={selectedGroup}
                   isOrgAdmin={isOrgAdmin}
+                  canManage={canManageGroup(selectedGroup)}
                   disconnecting={disconnecting}
                   onRemove={handleRemoveParent}
                   onDisconnect={handleDisconnect}
@@ -862,7 +835,7 @@ export default function GroupsPage() {
                   >
                     {assignmentDetail.status === 'active' ? t('statusActive') : t('statusClosed')}
                   </span>
-                  {!selectedGroup.ownerId && (
+                  {canManageGroup(selectedGroup) && (
                     <>
                       <button
                         onClick={() => handleToggleAssignmentStatus(assignmentDetail)}
@@ -1080,7 +1053,7 @@ export default function GroupsPage() {
                           locale={locale}
                           submission={sub}
                           groupColor={selectedGroup.color}
-                          isOwner={!selectedGroup.ownerId}
+                          isOwner={canManageGroup(selectedGroup)}
                           onGrade={() => {
                             setGradeTarget(sub)
                             setGradeValue(sub.grade || 'approved')

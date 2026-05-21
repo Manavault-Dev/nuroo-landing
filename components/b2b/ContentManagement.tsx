@@ -788,16 +788,16 @@ export function ContentManagement({
   const showSplitPanel = mode === 'org' && isTasksTab
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="min-w-0 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
-        <p className="text-gray-600">{subtitle}</p>
+        <h1 className="mb-2 text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">{title}</h1>
+        <p className="max-w-3xl text-base leading-7 text-gray-600 sm:text-lg">{subtitle}</p>
       </div>
 
       {/* Tabs */}
       <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex gap-6 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -809,7 +809,7 @@ export function ContentManagement({
                   setActiveTab(tab.id)
                   setSelectedTask(null)
                 }}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`flex shrink-0 items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{tab.label}</span>
@@ -825,11 +825,11 @@ export function ContentManagement({
       </div>
 
       {/* Create button */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-stretch sm:justify-end">
         <button
           type="button"
           onClick={handleCreate}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-primary-600 px-4 py-2.5 text-white transition-colors hover:bg-primary-700 sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
@@ -864,9 +864,9 @@ export function ContentManagement({
 
       {/* ── SPLIT PANEL: org mode tasks ── */}
       {showSplitPanel && currentItems.length > 0 && (
-        <div className="flex gap-4 min-h-[520px]">
+        <div className="flex min-h-[520px] min-w-0 flex-col gap-4 lg:flex-row">
           {/* Left: task cards */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+          <div className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
             {tasks.map((task) => {
               const isSelected = selectedTask?.id === task.id
               return (
@@ -878,11 +878,11 @@ export function ContentManagement({
                     setAssignDueDate('')
                     setAssignSuccess(false)
                   }}
-                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${isSelected ? 'border-primary-500 ring-2 ring-primary-100 shadow-sm' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+                  className={`cursor-pointer rounded-xl border bg-white p-4 transition-all ${isSelected ? 'border-primary-500 shadow-sm ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900 truncate">
+                      <h3 className="break-words text-sm font-semibold text-gray-900 sm:truncate">
                         {task.title || t('untitled')}
                       </h3>
                       {task.description && (
@@ -939,8 +939,8 @@ export function ContentManagement({
           </div>
 
           {/* Right: group assignment panel */}
-          <div className="w-72 flex-shrink-0">
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden sticky top-4">
+          <div className="min-w-0 lg:w-80 lg:flex-shrink-0">
+            <div className="overflow-hidden rounded-xl border border-gray-100 bg-white lg:sticky lg:top-4">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                 <Users2 className="w-4 h-4 text-primary-600" />
                 <span className="text-sm font-semibold text-gray-800">{t('assignToGroups')}</span>

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
+    "@sentry/nextjs": "^10.53.1",
     "@types/node": "^20.14.12",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

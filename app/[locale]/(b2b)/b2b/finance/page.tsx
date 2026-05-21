@@ -33,7 +33,7 @@ const currentMonth = () => {
 const resolveActiveTab = (tab: string | null, isAdmin: boolean): Tab => {
   if (tab === 'attendance') return 'attendance'
   if (tab === 'fees' && isAdmin) return 'fees'
-  return isAdmin ? 'fees' : 'attendance'
+  return 'attendance'
 }
 
 export default function FinancePage() {
@@ -43,7 +43,7 @@ export default function FinancePage() {
   const searchParams = useSearchParams()
   const { orgId, isAdmin, isLoading } = usePageAuth()
   const activeTab = resolveActiveTab(searchParams.get('tab'), isAdmin)
-  const visibleTabs = (isAdmin ? ['fees', 'attendance'] : ['attendance']) as Tab[]
+  const visibleTabs = (isAdmin ? ['attendance', 'fees'] : ['attendance']) as Tab[]
 
   const [attendanceDate, setAttendanceDate] = useState(todayDate)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -61,6 +61,7 @@ export default function FinancePage() {
     Map<string, { amount: number; status: FeeStatus; note: string }>
   >(new Map())
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const loadAttendance = useCallback(async (oid: string, date: string) => {
     setLoadingAttendance(true)
@@ -105,10 +106,11 @@ export default function FinancePage() {
   }, [orgId, activeTab, feesMonth, loadFees])
 
   const saveAttendance = async (record: AttendanceRecord) => {
-    if (!orgId || !isAdmin) return
+    if (!orgId) return
     const pending = pendingAttendance.get(record.childId)
     if (!pending?.status) return
     setSavingAttendance(record.childId)
+    setSaveError(null)
     try {
       await apiClient.saveAttendance(orgId, {
         childId: record.childId,
@@ -118,6 +120,9 @@ export default function FinancePage() {
         note: pending.note || undefined,
       })
       await loadAttendance(orgId, attendanceDate)
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to save attendance'
+      setSaveError(msg)
     } finally {
       setSavingAttendance(null)
     }
@@ -311,6 +316,18 @@ export default function FinancePage() {
 
       {activeTab === 'attendance' && (
         <div>
+          {saveError && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <span>{saveError}</span>
+              <button
+                onClick={() => setSaveError(null)}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-3 mb-6">
             <label className="text-sm font-medium text-gray-700">{t('date')}:</label>
             <input
@@ -345,7 +362,7 @@ export default function FinancePage() {
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
                         {t('note')}
                       </th>
-                      {isAdmin && <th className="px-4 py-3" />}
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -361,54 +378,44 @@ export default function FinancePage() {
                             {record.childName}
                           </td>
                           <td className="px-4 py-3">
-                            {isAdmin ? (
-                              <select
-                                value={pending.status ?? ''}
-                                onChange={(e) =>
-                                  setAttendancePending(record.childId, 'status', e.target.value)
-                                }
-                                className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-                              >
-                                <option value="">{t('notMarked')}</option>
-                                <option value="present">{t('present')}</option>
-                                <option value="absent">{t('absent')}</option>
-                                <option value="late">{t('late')}</option>
-                              </select>
-                            ) : (
-                              <AttendanceBadge status={record.status} />
-                            )}
+                            <select
+                              value={pending.status ?? ''}
+                              onChange={(e) =>
+                                setAttendancePending(record.childId, 'status', e.target.value)
+                              }
+                              className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                            >
+                              <option value="">{t('notMarked')}</option>
+                              <option value="present">{t('present')}</option>
+                              <option value="absent">{t('absent')}</option>
+                              <option value="late">{t('late')}</option>
+                            </select>
                           </td>
                           <td className="px-4 py-3">
-                            {isAdmin ? (
-                              <input
-                                type="text"
-                                value={pending.note}
-                                onChange={(e) =>
-                                  setAttendancePending(record.childId, 'note', e.target.value)
-                                }
-                                className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-                                placeholder={t('note')}
-                              />
-                            ) : (
-                              <span className="text-gray-500">{record.note ?? '—'}</span>
-                            )}
+                            <input
+                              type="text"
+                              value={pending.note}
+                              onChange={(e) =>
+                                setAttendancePending(record.childId, 'note', e.target.value)
+                              }
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                              placeholder={t('note')}
+                            />
                           </td>
-                          {isAdmin && (
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => saveAttendance(record)}
-                                disabled={isSaving || !pending.status}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {isSaving ? (
-                                  <Spinner size="sm" className="!text-white" />
-                                ) : (
-                                  <Save className="w-3 h-3" />
-                                )}
-                                {t('save')}
-                              </button>
-                            </td>
-                          )}
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => saveAttendance(record)}
+                              disabled={isSaving || !pending.status}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {isSaving ? (
+                                <Spinner size="sm" className="!text-white" />
+                              ) : (
+                                <Save className="w-3 h-3" />
+                              )}
+                              {t('save')}
+                            </button>
+                          </td>
                         </tr>
                       )
                     })}

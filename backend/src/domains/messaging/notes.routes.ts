@@ -146,7 +146,7 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
           type: 'note_added',
           category: 'progressUpdates',
           title: `📋 New note from ${specialistName}`,
-          body: `${specialistName} left a note about ${childName}`,
+          body: 'A new specialist note has been added.',
           metadata: { childId: resolvedChildId, orgId, specialistId: uid },
           dedupKey: `note_added:${noteRef.id}`,
           channel: 'both',

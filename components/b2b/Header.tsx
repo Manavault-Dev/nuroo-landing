@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { LogOut, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
-import { LocaleSwitcher } from '@/components/LocaleSwitcher'
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { NotificationBell } from './NotificationBell'
 
 interface HeaderProps {

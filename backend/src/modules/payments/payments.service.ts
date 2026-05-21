@@ -165,11 +165,12 @@ export async function handleWebhook(input: WebhookInput) {
 export async function verifyPayment(paymentId: string) {
   const payment = await getPayment(paymentId)
   if (!payment) {
-    return { ok: false, error: 'Payment not found' }
+    return { ok: false as const, error: 'Payment not found' }
   }
 
   return {
-    ok: true,
+    ok: true as const,
+    orgId: payment.orgId,
     payment: {
       id: payment.paymentId,
       status: payment.status,

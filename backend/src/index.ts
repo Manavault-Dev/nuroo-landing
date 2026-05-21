@@ -1,3 +1,7 @@
+// Sentry должен быть первым — до всех остальных импортов
+import './instrument.js'
+import * as Sentry from '@sentry/node'
+
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import compress from '@fastify/compress'
@@ -65,6 +69,9 @@ async function buildServer() {
     logger: { level: isProduction ? 'warn' : 'info' },
   })
 
+  // Sentry перехватывает все необработанные ошибки в роутах
+  Sentry.setupFastifyErrorHandler(fastify)
+
   try {
     initializeFirebaseAdmin()
   } catch {
@@ -128,6 +135,8 @@ async function buildServer() {
         email: decoded.email,
         claims: decoded,
       }
+      // Привязываем пользователя к Sentry — видим кто получил ошибку
+      Sentry.setUser({ id: decoded.uid, email: decoded.email })
     } catch {
       return reply.code(401).send({ error: 'Invalid token' })
     }

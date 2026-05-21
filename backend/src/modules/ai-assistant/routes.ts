@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { aiAssistant } from './service.js'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { requireOrgMember } from '../../plugins/rbac.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',
@@ -30,17 +31,16 @@ const aiAssistantRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { uid } = decoded
 
-      let orgId = ''
-      let role = 'specialist'
-
-      if (decoded.claims?.orgId) {
-        orgId = decoded.claims.orgId as string
-        role = ((decoded.claims as Record<string, unknown>).role as string) || 'specialist'
-      }
-
-      if (!orgId) {
+      // Resolve orgId from claims as a hint only — never trust it without Firestore verification
+      const claimedOrgId = decoded.claims?.orgId as string | undefined
+      if (!claimedOrgId) {
         return reply.code(400).send({ error: 'Organization not found' })
       }
+
+      // Verify the caller is an active member of the claimed org (source of truth: Firestore)
+      const member = await requireOrgMember(request, reply, claimedOrgId)
+      const orgId = claimedOrgId
+      const role = member.role // use Firestore role, not claims role
 
       const result = await aiAssistant.process({
         message,
@@ -52,6 +52,11 @@ const aiAssistantRoutes: FastifyPluginAsync = async (fastify) => {
 
       let executionResult: { content?: string; success?: boolean } | undefined
       if (result.action) {
+        // Gate destructive actions to org_admin only
+        const adminOnlyActions = ['create_group', 'delete_group']
+        if (adminOnlyActions.includes(result.action.type) && role !== 'org_admin') {
+          return reply.code(403).send({ error: 'Only organization admins can perform this action' })
+        }
         executionResult = await executeAction(result.action.type, result.action.params, orgId, uid)
       }
 

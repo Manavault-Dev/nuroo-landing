@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
@@ -34,20 +33,7 @@ export default function PaymentSuccessPage() {
         return
       }
 
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-
       try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
         const result = await apiClient.verifyPayment(paymentId)
 
         if (result.ok && result.payment.status === 'completed') {

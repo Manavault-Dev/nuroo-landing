@@ -88,3 +88,6 @@ ruvector.db
 # Custom AI agent configuration files (Claude Code, etc.)
 CLAUDE.md
 CLAUDE.md.bak
+
+# Sentry Config File
+.env.sentry-build-plugin

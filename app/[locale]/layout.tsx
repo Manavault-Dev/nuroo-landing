@@ -2,8 +2,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
-import { ConditionalHeader } from '@/components/ConditionalHeader'
-import { LandingOnlyEffects } from '@/components/LandingOnlyEffects'
+import { ConditionalHeader } from '@/components/layout/ConditionalHeader'
+import { LandingOnlyEffects } from '@/components/effects/LandingOnlyEffects'
 
 type Props = { children: React.ReactNode; params: { locale: string } }
 

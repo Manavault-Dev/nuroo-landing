@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development PORT=3101 tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --import ./dist/instrument.js dist/index.js",
     "postinstall": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ --ext .ts",
@@ -27,6 +27,7 @@
     "@fastify/multipart": "^8.0.0",
     "@fastify/rate-limit": "^9.1.0",
     "@mancho.devs/authorizer": "^2.12.8",
+    "@sentry/node": "^10.53.1",
     "dotenv": "^16.4.5",
     "fastify": "^4.24.3",
     "firebase-admin": "^12.7.0",

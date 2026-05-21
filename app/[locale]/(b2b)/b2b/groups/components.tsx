@@ -67,6 +67,7 @@ export function GroupCard({
   onEdit,
   onDelete,
   onAssign,
+  canManage,
 }: {
   group: Group
   t: TimeT
@@ -76,6 +77,7 @@ export function GroupCard({
   onEdit: (e: MouseEvent) => void
   onDelete: (e: MouseEvent) => void
   onAssign?: (e: MouseEvent) => void
+  canManage: boolean
 }) {
   return (
     <div
@@ -94,8 +96,8 @@ export function GroupCard({
               </div>
             )}
           </div>
-          {!group.ownerId && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {canManage && (
+            <div className="flex items-center gap-0.5 opacity-100 transition-opacity shrink-0 sm:opacity-0 sm:group-hover:opacity-100">
               <button
                 onClick={onEdit}
                 className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -145,10 +147,10 @@ export function GroupCard({
             <span>{t('parentCount', { count: group.parentCount })}</span>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1">
-            {!group.ownerId && onAssign && (
+            {canManage && onAssign && (
               <button
                 onClick={onAssign}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors opacity-0 group-hover:opacity-100"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
               >
                 <Plus className="w-3 h-3" />
                 {t('taskShort')}
@@ -590,6 +592,7 @@ export function MembersTab({
   parents,
   selectedGroup,
   isOrgAdmin,
+  canManage,
   disconnecting,
   onRemove,
   onDisconnect,
@@ -598,6 +601,7 @@ export function MembersTab({
   parents: Parent[]
   selectedGroup: Group
   isOrgAdmin: boolean
+  canManage: boolean
   disconnecting: string | null
   onRemove: (id: string) => void
   onDisconnect: (id: string) => void
@@ -642,7 +646,7 @@ export function MembersTab({
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              {!selectedGroup.ownerId && (
+              {canManage && (
                 <button
                   onClick={() => onRemove(parent.parentUserId)}
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

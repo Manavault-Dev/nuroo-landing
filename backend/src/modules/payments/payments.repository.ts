@@ -28,6 +28,10 @@ export interface BillingPlan {
   updatedAt: admin.firestore.Timestamp
 }
 
+function isBillingPlanId(value: unknown): value is BillingPlanId {
+  return value === 'starter' || value === 'growth' || value === 'enterprise'
+}
+
 export async function createPaymentRecord(payment: Omit<PaymentRecord, 'createdAt' | 'updatedAt'>) {
   const now = admin.firestore.Timestamp.now()
   const paymentRef = db.collection('payments').doc(payment.paymentId)
@@ -97,16 +101,39 @@ export async function getPaymentByFinikTransaction(finikTransactionId: string) {
 }
 
 export async function getBillingPlan(orgId: string) {
-  const billingRef = db.collection('organizations').doc(orgId).collection('billing').doc('current')
+  const orgRef = db.collection('organizations').doc(orgId)
+  const billingRef = orgRef.collection('billing').doc('current')
   const snapshot = await billingRef.get()
 
-  if (!snapshot.exists) {
-    return null
+  if (snapshot.exists) {
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    } as BillingPlan & { id: string }
   }
 
+  const orgSnap = await orgRef.get()
+  if (!orgSnap.exists) return null
+
+  const orgData = orgSnap.data() ?? {}
+  const planId = orgData.billingPlan
+  const billingStatus = orgData.billingStatus
+
+  if (!isBillingPlanId(planId)) return null
+
+  const now = admin.firestore.Timestamp.now()
+  const status: BillingPlan['status'] =
+    billingStatus === 'cancelled' || billingStatus === 'expired' ? billingStatus : 'active'
+
   return {
-    id: snapshot.id,
-    ...snapshot.data(),
+    id: 'organization-root',
+    planId,
+    orgId,
+    status,
+    currentPlan: planId,
+    expiresAt: orgData.billingExpiresAt ?? null,
+    createdAt: orgData.createdAt ?? now,
+    updatedAt: orgData.billingUpdatedAt ?? orgData.updatedAt ?? now,
   } as BillingPlan & { id: string }
 }
 

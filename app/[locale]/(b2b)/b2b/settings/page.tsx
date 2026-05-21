@@ -3,49 +3,26 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { useAuth } from '@/lib/b2b/AuthContext'
+import { apiClient } from '@/lib/b2b/api'
 import { Save, User, Mail, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
   const t = useTranslations('b2b.pages.settings')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(true)
+  const { profile, isLoading, refreshProfile } = useAuth()
+  const [name, setName] = useState(profile?.name ?? '')
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
+    if (profile?.name) setName(profile.name)
+  }, [profile?.name])
 
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-        setName(profileData.name)
-      } catch (error) {
-        console.error('Error loading profile:', error)
-        router.push('/b2b/login')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadProfile()
-  }, [router])
+  useEffect(() => {
+    if (!isLoading && !profile) router.push('/b2b/login')
+  }, [isLoading, profile, router])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -54,17 +31,8 @@ export default function SettingsPage() {
     setSuccess(false)
 
     try {
-      const idToken = await getIdToken()
-      if (!idToken) {
-        router.push('/b2b/login')
-        return
-      }
-      apiClient.setToken(idToken)
-
       await apiClient.createProfile(name)
-
-      const updatedProfile = await apiClient.getMe()
-      setProfile(updatedProfile)
+      await refreshProfile()
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (error: unknown) {
@@ -74,7 +42,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">

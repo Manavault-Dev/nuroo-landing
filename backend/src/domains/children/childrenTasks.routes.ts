@@ -69,7 +69,7 @@ export const childrenTasksRoute: import('fastify').FastifyPluginAsync = async (f
           type: 'task_assigned',
           category: 'assignments',
           title: 'New assignment',
-          body: `You have a new assignment for ${childName}.`,
+          body: 'You have a new assignment.',
           metadata: { childId: resolvedChildId, taskId, orgId },
           dedupKey: `task_assigned:${resolvedChildId}:${taskId}`,
         }).catch(() => {})

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import { apiClient } from '@/lib/b2b/api'
 import { Loader2, Building2, Star, TrendingUp, Users, ArrowRight } from 'lucide-react'
 import { BillingBadge, type BillingBadgeKey } from '@/components/ui/BillingBadge'
 import { PricingCard } from '@/components/ui/PricingCard'
@@ -36,54 +35,25 @@ interface BillingStatus {
 
 export default function BillingPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const t = useTranslations('b2b.pages.billing')
   const tPricing = useTranslations('landing.pricing')
   const locale = useLocale()
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const { profile, orgId: currentOrgId, isAdmin, isLoading } = usePageAuth()
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null)
   const [billingStatusLoading, setBillingStatusLoading] = useState(true)
   const [billingStatusOrgId, setBillingStatusOrgId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null)
   const [error, setError] = useState('')
-
-  const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
-    profile?.organizations?.find((org) => org.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin'
+    profile?.organizations.find((org) => org.orgId === currentOrgId) ?? profile?.organizations[0]
 
   const numberLocale =
     locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
   const formatPrice = (n: number) => n.toLocaleString(numberLocale)
 
   useEffect(() => {
-    const loadData = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
-
-      try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : t('loadError'))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [router, t])
+    if (!isLoading && !profile) router.push('/b2b/login')
+  }, [isLoading, profile, router])
 
   useEffect(() => {
     if (!currentOrgId) {
@@ -129,7 +99,7 @@ export default function BillingPage() {
   }, [currentOrgId])
 
   useEffect(() => {
-    if (!loading && profile) {
+    if (!isLoading && profile) {
       if (!profile.organizations?.length) {
         router.push('/b2b/onboarding')
         return
@@ -140,7 +110,7 @@ export default function BillingPage() {
         )
       }
     }
-  }, [loading, profile, isAdmin, router])
+  }, [isLoading, profile, isAdmin, router])
 
   const handleSubscribe = async (
     planId: 'starter' | 'growth' | 'enterprise',
@@ -156,13 +126,6 @@ export default function BillingPage() {
     setError('')
 
     try {
-      const idToken = await getIdToken()
-      if (!idToken) {
-        router.push('/b2b/login')
-        return
-      }
-      apiClient.setToken(idToken)
-
       const result = await apiClient.createPayment(currentOrgId, planId)
 
       if (result.paymentUrl) {
@@ -178,7 +141,7 @@ export default function BillingPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
