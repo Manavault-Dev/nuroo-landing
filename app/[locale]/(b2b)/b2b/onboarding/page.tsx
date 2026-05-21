@@ -8,6 +8,7 @@ import { AlertCircle, Building2, Key, Loader2 } from 'lucide-react'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { useAuth } from '@/lib/b2b/AuthContext'
+import { getWorkspacePath, type B2bOrgMembership } from '@/src/config/routes'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -46,8 +47,17 @@ export default function OnboardingPage() {
     try {
       const token = await ensureToken()
       if (!token) return
-      await apiClient.acceptInvite(code)
-      router.replace('/b2b')
+      const result = await apiClient.acceptInvite(code)
+      apiClient.clearCache()
+      const refreshedToken = await getIdToken(true)
+      if (refreshedToken) apiClient.setToken(refreshedToken)
+      await refreshProfile({ force: true })
+
+      const membership: B2bOrgMembership = {
+        orgId: result.orgId,
+        role: result.role === 'specialist' ? 'specialist' : 'admin',
+      }
+      router.replace(getWorkspacePath(membership))
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('failedJoin')
       setError(msg)
@@ -67,7 +77,10 @@ export default function OnboardingPage() {
       const token = await ensureToken()
       if (!token) return
       const res = await apiClient.createMyOrganization(name, orgCountry.trim() || undefined)
-      await refreshProfile()
+      apiClient.clearCache()
+      const refreshedToken = await getIdToken(true)
+      if (refreshedToken) apiClient.setToken(refreshedToken)
+      await refreshProfile({ force: true })
       router.replace(`/b2b?orgId=${res.orgId}`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('failedCreateOrg')

@@ -8,12 +8,15 @@ import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react'
+import { useAuth } from '@/lib/b2b/AuthContext'
+import { getWorkspacePath, type B2bOrgMembership } from '@/src/config/routes'
 
 function RegisterForm() {
   const t = useTranslations('b2b.register')
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('invite') || searchParams.get('code') || ''
+  const { refreshProfile } = useAuth()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -52,8 +55,17 @@ function RegisterForm() {
 
       if (inviteCode.trim()) {
         try {
-          await apiClient.acceptInvite(inviteCode.trim())
-          router.push('/b2b')
+          const result = await apiClient.acceptInvite(inviteCode.trim())
+          apiClient.clearCache()
+          const refreshedToken = await userCredential.user.getIdToken(true)
+          apiClient.setToken(refreshedToken)
+          await refreshProfile({ force: true })
+
+          const membership: B2bOrgMembership = {
+            orgId: result.orgId,
+            role: result.role === 'specialist' ? 'specialist' : 'admin',
+          }
+          router.push(getWorkspacePath(membership))
           return
         } catch (acceptError: unknown) {
           const errorMessage =
