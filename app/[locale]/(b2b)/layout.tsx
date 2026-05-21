@@ -67,6 +67,9 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     setOverlayVisible(false)
   }, [pathname])
 
+  const currentOrgId =
+    searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || authOrgId || undefined
+
   useEffect(() => {
     if (isLoading) return
     if (!user && !isNoChromePage) {
@@ -81,22 +84,8 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       if (pathForMatch !== destPath) {
         router.replace(destination)
       }
-      return
     }
-  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams])
-
-  if (isLoading) {
-    return <LoadingSpinner />
-  }
-  if (isNoChromePage) {
-    return <>{children}</>
-  }
-  if (!user) {
-    return null
-  }
-
-  const currentOrgId =
-    searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || authOrgId || undefined
+  }, [user, profile, isLoading, pathname, pathForMatch, isNoChromePage, searchParams, router])
 
   // Привязываем каждую ошибку к конкретному пользователю
   useEffect(() => {
@@ -112,6 +101,16 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       Sentry.setUser(null)
     }
   }, [user, profile, currentOrgId])
+
+  if (isLoading) {
+    return <LoadingSpinner />
+  }
+  if (isNoChromePage) {
+    return <>{children}</>
+  }
+  if (!user) {
+    return null
+  }
 
   return (
     <BrandingProvider orgId={currentOrgId}>

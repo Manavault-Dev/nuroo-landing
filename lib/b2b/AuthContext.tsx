@@ -1,8 +1,9 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode, useRef } from 'react'
-import { User } from 'firebase/auth'
-import { onAuthChange, onTokenRefresh, getIdToken, signOut as firebaseLogout } from './authClient'
+import { onIdTokenChanged, User } from 'firebase/auth'
+import { auth } from '@/lib/firebase/config'
+import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
 
 interface AuthState {
@@ -92,9 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 5000)
 
-    const tokenUnsub = onTokenRefresh((token) => {
-      if (isMounted) apiClient.setToken(token)
-    })
+    const tokenUnsub = auth
+      ? onIdTokenChanged(auth, async (currentUser) => {
+          const token = currentUser ? await currentUser.getIdToken() : null
+          if (isMounted) apiClient.setToken(token)
+        })
+      : () => {
+          apiClient.setToken(null)
+        }
 
     return () => {
       isMounted = false
