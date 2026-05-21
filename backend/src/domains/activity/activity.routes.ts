@@ -94,7 +94,11 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin' ? 'org_admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
+        memberRole === 'org_admin'
+          ? 'org_admin'
+          : memberRole === 'specialist'
+            ? 'specialist'
+            : 'parent'
 
       const { type, visibility, limit: limitStr, cursor } = request.query
       const limit = limitStr ? parseInt(limitStr, 10) : 50
@@ -156,7 +160,8 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       const db = getFirestore()
       const { uid, email } = request.user
-      const authorRole: ActivityAuthorRole = member.role === 'org_admin' ? 'org_admin' : 'specialist'
+      const authorRole: ActivityAuthorRole =
+        member.role === 'org_admin' ? 'org_admin' : 'specialist'
       const authorName = await getAuthorName(db, uid, email, authorRole)
 
       const item = await createFeedItem(
@@ -361,7 +366,11 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
-        memberRole === 'org_admin' ? 'org_admin' : memberRole === 'specialist' ? 'specialist' : 'parent'
+        memberRole === 'org_admin'
+          ? 'org_admin'
+          : memberRole === 'specialist'
+            ? 'specialist'
+            : 'parent'
 
       const comments = await listComments(db, resolvedChildId, feedItemId, effectiveRole)
       return reply.send(comments)
