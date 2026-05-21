@@ -24,6 +24,7 @@ env:
   NODE_VERSION: '20'
   GCP_REGION: 'us-central1'
   GCP_SERVICE_NAME: 'nuroo-backend'
+  PRODUCTION_CORS_ORIGIN: 'https://usenuroo.com,https://www.usenuroo.com'
 
 jobs:
   # ── Gate: fast typecheck before spending any GCP resources ──────────────────
@@ -151,6 +152,8 @@ jobs:
             --concurrency=80
           env_vars: |
             NODE_ENV=production
+            CORS_ORIGIN=${{ env.PRODUCTION_CORS_ORIGIN }}
+            GIT_SHA=${{ github.sha }}
           env_vars_update_strategy: merge
           secrets: |
             FIREBASE_PROJECT_ID=FIREBASE_PROJECT_ID:latest
