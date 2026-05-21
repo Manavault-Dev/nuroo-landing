@@ -12,7 +12,7 @@ interface AuthState {
   isLoading: boolean
   currentOrgId: string | null
   logout: () => Promise<void>
-  refreshProfile: () => Promise<void>
+  refreshProfile: (options?: { force?: boolean }) => Promise<void>
   updateProfile: (updater: (current: SpecialistProfile | null) => SpecialistProfile | null) => void
 }
 
@@ -25,11 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const profileRequestVersion = useRef(0)
 
-  const loadProfile = async () => {
+  const loadProfile = async (options?: { force?: boolean }) => {
     const requestVersion = ++profileRequestVersion.current
 
     try {
-      const idToken = await getIdToken()
+      if (options?.force) {
+        apiClient.clearCache()
+      }
+
+      const idToken = await getIdToken(options?.force)
       if (!idToken) return
 
       if (requestVersion !== profileRequestVersion.current) return
@@ -119,9 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apiClient.clearCache()
   }
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (options?: { force?: boolean }) => {
     if (user) {
-      await loadProfile()
+      await loadProfile(options)
     }
   }
 
