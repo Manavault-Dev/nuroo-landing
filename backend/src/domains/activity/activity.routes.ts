@@ -14,6 +14,7 @@ import {
   markItemsRead,
   migrateSpecialistNotes,
   getAuthorName,
+  getResolvedChildId,
   type ActivityAuthorRole,
   type ActivityVisibility,
   type ActivityFeedItemType,
@@ -86,11 +87,27 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (memberDoc.exists) {
         resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
       } else {
-        const childDoc = await db.doc(`organizations/${orgId}/children/${childId}`).get()
-        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
-          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        // Parent user — resolve childId by direct lookup first, then by parentUserId fallback
+        const resolved = await getResolvedChildId(db, orgId, childId)
+        if (!resolved) {
+          // Also try resolving by the parent's own UID (app sends user.uid as childId)
+          const byUid = await getResolvedChildId(db, orgId, request.user.uid)
+          if (!byUid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          // Verify the resolved child belongs to this parent
+          const childDoc = await db.doc(`organizations/${orgId}/children/${byUid}`).get()
+          if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          resolvedChildId = byUid
+        } else {
+          const childDoc = await db.doc(`organizations/${orgId}/children/${resolved}`).get()
+          if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          resolvedChildId = resolved
         }
-        resolvedChildId = childId
       }
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
