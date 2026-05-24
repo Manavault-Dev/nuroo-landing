@@ -84,6 +84,7 @@ function roleBadge(role: ActivityFeedItem['authorRole']): string {
     case 'parent':
       return 'bg-blue-50 text-blue-700'
     case 'admin':
+    case 'org_admin':
       return 'bg-purple-50 text-purple-700'
     case 'system':
     default:
@@ -102,6 +103,8 @@ function roleLabel(
       return t('roleParent')
     case 'admin':
       return t('roleAdmin')
+    case 'org_admin':
+      return t('roleOrgAdmin')
     case 'system':
       return t('roleSystem')
   }
