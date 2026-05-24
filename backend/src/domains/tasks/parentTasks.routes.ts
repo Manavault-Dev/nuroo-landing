@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { dispatch } from '../../modules/notifications/index.js'
+import { createFeedItem } from '../activity/activity.service.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',
@@ -15,6 +16,15 @@ const COLLECTIONS = {
 function currentMonthStr(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+async function getParentName(db: admin.firestore.Firestore, uid: string): Promise<string> {
+  const userSnap = await db.doc(`users/${uid}`).get()
+  if (userSnap.exists) {
+    const data = userSnap.data()
+    return data?.displayName || data?.fullName || data?.name || 'Parent'
+  }
+  return 'Parent'
 }
 
 const completeBodySchema = z.object({
@@ -134,6 +144,20 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       })
 
       if (completed) {
+        try {
+          await createFeedItem(db, orgId, childId, uid, 'parent', await getParentName(db, uid), {
+            type: 'assignment_completed',
+            title: taskTitle,
+            body: `${childName} completed: ${taskTitle}`,
+            visibility: 'parent_visible',
+            relatedEntityType: 'assignment',
+            relatedEntityId: taskId,
+            metadata: { taskId },
+          })
+        } catch (feedErr) {
+          console.error('[PARENT_TASKS] Failed to write completion to activity feed:', feedErr)
+        }
+
         const specialistId = orgChildSnap.data()?.assignedSpecialistId
         if (specialistId) {
           dispatch({
@@ -205,6 +229,25 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
         submittedAt: now,
         updatedAt: now,
       })
+
+      try {
+        const submissionBody =
+          body.submissionText?.trim() ||
+          (body.fileUrl
+            ? `${childName} submitted an attachment for: ${taskTitle}`
+            : `${childName} submitted: ${taskTitle}`)
+        await createFeedItem(db, orgId, childId, uid, 'parent', await getParentName(db, uid), {
+          type: 'parent_comment',
+          title: taskTitle,
+          body: submissionBody,
+          visibility: 'parent_visible',
+          relatedEntityType: 'assignment',
+          relatedEntityId: taskId,
+          metadata: { taskId, fileUrl: body.fileUrl ?? null },
+        })
+      } catch (feedErr) {
+        console.error('[PARENT_TASKS] Failed to write submission to activity feed:', feedErr)
+      }
 
       const specialistId = orgChildSnap.data()?.assignedSpecialistId
       if (specialistId) {

@@ -14,6 +14,7 @@ import {
   markItemsRead,
   migrateSpecialistNotes,
   getAuthorName,
+  getResolvedChildId,
   type ActivityAuthorRole,
   type ActivityVisibility,
   type ActivityFeedItemType,
@@ -86,11 +87,27 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (memberDoc.exists) {
         resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
       } else {
-        const childDoc = await db.doc(`organizations/${orgId}/children/${childId}`).get()
-        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
-          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        // Parent user — resolve childId by direct lookup first, then by parentUserId fallback
+        const resolved = await getResolvedChildId(db, orgId, childId)
+        if (!resolved) {
+          // Also try resolving by the parent's own UID (app sends user.uid as childId)
+          const byUid = await getResolvedChildId(db, orgId, request.user.uid)
+          if (!byUid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          // Verify the resolved child belongs to this parent
+          const childDoc = await db.doc(`organizations/${orgId}/children/${byUid}`).get()
+          if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          resolvedChildId = byUid
+        } else {
+          const childDoc = await db.doc(`organizations/${orgId}/children/${resolved}`).get()
+          if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+            return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+          }
+          resolvedChildId = resolved
         }
-        resolvedChildId = childId
       }
 
       const effectiveRole: ActivityAuthorRole | 'parent' =
@@ -391,25 +408,43 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user)
         return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const member = await requireOrgMember(request, reply, orgId)
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-
       const body = createCommentSchema.safeParse(request.body)
       if (!body.success) {
         return reply.code(400).send({ error: body.error.message, code: 'VALIDATION_ERROR' })
       }
 
       const db = getFirestore()
+      const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
+      const memberRole: string | undefined = memberDoc.exists ? memberDoc.data()?.role : undefined
+      let resolvedChildId: string
+      let authorRole: ActivityAuthorRole | 'parent'
+
+      if (memberDoc.exists) {
+        resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+        authorRole = memberRole === 'org_admin' ? 'org_admin' : 'specialist'
+      } else {
+        const resolved = await getResolvedChildId(db, orgId, childId)
+        if (!resolved) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+
+        const childDoc = await db.doc(`organizations/${orgId}/children/${resolved}`).get()
+        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+
+        resolvedChildId = resolved
+        authorRole = 'parent'
+      }
+
       const feedItem = await getFeedItem(db, resolvedChildId, feedItemId)
       if (!feedItem || feedItem.organizationId !== orgId) {
         return reply.code(404).send({ error: 'Feed item not found', code: 'NOT_FOUND' })
       }
 
       const { uid, email } = request.user
-      const authorRole: 'parent' | 'specialist' | ActivityAuthorRole =
-        member.role === 'org_admin' ? 'org_admin' : 'specialist'
-
       const authorName = await getAuthorName(db, uid, email, authorRole)
+      const visibility = authorRole === 'parent' ? 'parent_visible' : body.data.visibility
 
       const comment = await createComment(
         db,
@@ -420,7 +455,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         authorRole,
         authorName,
         body.data.body,
-        body.data.visibility
+        visibility
       )
 
       // Notify relevant parties
@@ -430,7 +465,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       if (
         (authorRole === 'specialist' || authorRole === 'org_admin') &&
-        body.data.visibility === 'parent_visible' &&
+        visibility === 'parent_visible' &&
         parentUserId
       ) {
         // Specialist/admin commented, visible to parent — notify parent
@@ -444,6 +479,30 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
           body: body.data.body.slice(0, 120),
           metadata: { childId: resolvedChildId, orgId, specialistId: uid },
           dedupKey: `feed_comment_specialist:${comment.id}`,
+          channel: 'both',
+        }).catch(() => undefined)
+      }
+
+      if (
+        authorRole === 'parent' &&
+        feedItem.authorRole !== 'parent' &&
+        feedItem.authorRole !== 'system'
+      ) {
+        dispatch({
+          userId: feedItem.authorId,
+          orgId,
+          role: 'specialist',
+          type: 'progress_update',
+          category: 'messages',
+          title: `New parent reply about ${childName}`,
+          body: body.data.body.slice(0, 120),
+          metadata: {
+            childId: resolvedChildId,
+            orgId,
+            specialistId: feedItem.authorId,
+            parentId: uid,
+          },
+          dedupKey: `feed_comment_parent:${comment.id}`,
           channel: 'both',
         }).catch(() => undefined)
       }

@@ -6,6 +6,7 @@ import { childrenTimelineRoute } from './childrenTimeline.routes.js'
 import { childrenTasksRoute } from './childrenTasks.routes.js'
 import { childrenProfilesRoute } from './childrenProfiles.routes.js'
 import { childrenGuardiansRoute } from './childrenGuardians.routes.js'
+import { childrenIntakeRoute } from './childrenIntake.routes.js'
 
 export const childrenRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(childrenConnectionsRoute)
@@ -14,4 +15,5 @@ export const childrenRoute: FastifyPluginAsync = async (fastify) => {
   await fastify.register(childrenTasksRoute)
   await fastify.register(childrenProfilesRoute)
   await fastify.register(childrenGuardiansRoute)
+  await fastify.register(childrenIntakeRoute)
 }

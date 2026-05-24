@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { dispatch } from '../../modules/notifications/index.js'
+import { createFeedItem } from '../activity/activity.service.js'
 
 const sendMessageSchema = z.object({
   text: z.string().min(1).max(4000),
@@ -296,6 +297,26 @@ export const messagesRoute: FastifyPluginAsync = async (fastify) => {
           sentAt: admin.firestore.FieldValue.serverTimestamp(),
           isNote: false,
         })
+
+        if (isParent) {
+          try {
+            await createFeedItem(db, orgId, childId, uid, 'parent', senderName, {
+              type: 'parent_comment',
+              title: 'Parent reply',
+              body: body.text,
+              visibility: 'parent_visible',
+              relatedEntityType: 'note',
+              relatedEntityId: msgRef.id,
+              metadata: {
+                conversationId: convId,
+                messageId: msgRef.id,
+                specialistId: convSpecialistId,
+              },
+            })
+          } catch (feedErr) {
+            console.error('[MESSAGES] Failed to write parent reply to activity feed:', feedErr)
+          }
+        }
 
         if (otherPartyUid) {
           const notifType = isParent ? 'homework_submitted' : 'task_reviewed'

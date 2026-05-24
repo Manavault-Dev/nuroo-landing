@@ -131,7 +131,7 @@ export interface ActivityFeedItem {
     | 'system_event'
   visibility: 'internal' | 'parent_visible'
   authorId: string
-  authorRole: 'parent' | 'specialist' | 'admin' | 'system'
+  authorRole: 'parent' | 'specialist' | 'admin' | 'org_admin' | 'system'
   authorName: string
   title?: string
   body: string
@@ -145,7 +145,7 @@ export interface ActivityComment {
   id: string
   feedItemId: string
   authorId: string
-  authorRole: 'parent' | 'specialist' | 'admin'
+  authorRole: 'parent' | 'specialist' | 'admin' | 'org_admin'
   authorName: string
   body: string
   visibility: 'internal' | 'parent_visible'
@@ -168,6 +168,11 @@ export interface NotificationItem {
     specialistId?: string
     parentId?: string
   }
+}
+
+export interface ActivityFeedResponse {
+  items: ActivityFeedItem[]
+  nextCursor?: string
 }
 
 export interface NotificationPreferences {
@@ -207,6 +212,126 @@ export interface BillingStatusResponse {
     startedAt: string | null
     expiresAt: string | null
   } | null
+}
+
+// ── Guardians ─────────────────────────────────────────────────────────────────
+
+export interface Guardian {
+  id: string
+  fullName: string
+  relationship: 'mother' | 'father' | 'guardian' | 'other'
+  phone?: string
+  whatsapp?: string
+  email?: string
+  preferredContactMethod?: 'phone' | 'whatsapp' | 'email'
+  isPrimaryContact?: boolean
+  isEmergencyContact?: boolean
+  appUserId?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface GuardianInput {
+  fullName: string
+  relationship: 'mother' | 'father' | 'guardian' | 'other'
+  phone?: string
+  whatsapp?: string
+  email?: string
+  preferredContactMethod?: 'phone' | 'whatsapp' | 'email'
+  isPrimaryContact?: boolean
+  isEmergencyContact?: boolean
+}
+
+// ── Child Intake Form ─────────────────────────────────────────────────────────
+
+export interface ChildIntakeForm {
+  // 1. General info
+  childFullName?: string
+  dateOfBirth?: string
+  ageText?: string
+  homeAddress?: string
+  contactPhone?: string
+  filledBy?: 'mother' | 'father' | 'guardian' | 'other'
+  filledByOther?: string
+  // 2. Complaints
+  mainConcerns?: string
+  firstNoticedAt?: string
+  previousSpecialists?: string[]
+  previousSpecialistsOther?: string
+  // 3. Pregnancy
+  motherAgeAtPregnancy?: number
+  pregnancyNumber?: string
+  pregnancyComplications?: boolean
+  pregnancyFactors?: string[]
+  pregnancyFactorsOther?: string
+  pregnancyHospitalizations?: string
+  gestationWeeks?: number
+  // 4. Birth
+  birthTypes?: string[]
+  birthComplications?: boolean
+  birthFactors?: string[]
+  birthFactorsOther?: string
+  weightAtBirth?: string
+  heightAtBirth?: string
+  apgarScore?: string
+  criedImmediately?: boolean
+  neededResuscitation?: boolean
+  inIncubator?: boolean
+  daysInHospital?: number
+  // 5a. Motor
+  heldHeadAt?: string
+  rolledOverAt?: string
+  satAt?: string
+  crawledAt?: string
+  stoodAt?: string
+  walkedAt?: string
+  toneIssues?: boolean
+  neurologistBefore3?: boolean
+  // 5b. Speech
+  cooingAt?: string
+  babblingAt?: string
+  firstWordsAt?: string
+  phraseSpeechAt?: string
+  speechRegression?: boolean
+  understandsSpeech?: 'well' | 'partially' | 'poorly'
+  usesGestures?: boolean
+  hasEcholalia?: boolean
+  speechFeatures?: string[]
+  // 5c. Social
+  eyeContact?: 'yes' | 'rarely' | 'no'
+  respondsToName?: 'yes' | 'sometimes' | 'no'
+  likedCommunication?: boolean
+  playedRoleGames?: boolean
+  behaviorFeatures?: string[]
+  behaviorFeaturesOther?: string
+  // 6. Health
+  healthConditions?: string[]
+  healthConditionsOther?: string
+  hospitalizations?: string
+  longTermMedications?: string
+  // 7. Nutrition & sleep
+  breastfed?: boolean
+  breastfedUntil?: string
+  feedingDifficulties?: boolean
+  selectiveEating?: boolean
+  sleepDisorders?: boolean
+  sleepDisordersDescription?: string
+  // 8. Family history
+  familyConditions?: string[]
+  familyConditionsOther?: string
+  familyConditionsWho?: string
+  // 9. Institutions
+  attendedInstitutions?: string[]
+  adaptationDescription?: string
+  groupDifficulties?: string
+  // 10. Self-care
+  selfCareSkills?: string[]
+  // 11. Additional
+  additionalInfo?: string
+  // Metadata
+  filledAt?: string | null
+  updatedAt?: string | null
+  filledByParentUid?: string
 }
 
 export interface ImprovedInstructionResult {
@@ -1373,7 +1498,11 @@ export class ApiClient {
     if (filters?.type) qs.set('type', filters.type)
     if (filters?.visibility) qs.set('visibility', filters.visibility)
     const query = qs.toString() ? `?${qs}` : ''
-    return this.request<ActivityFeedItem[]>(`/orgs/${orgId}/children/${childId}/feed${query}`)
+    const response = await this.request<ActivityFeedItem[] | ActivityFeedResponse>(
+      `/orgs/${orgId}/children/${childId}/feed${query}`
+    )
+
+    return Array.isArray(response) ? response : response.items
   }
 
   async createActivityFeedItem(
@@ -1426,6 +1555,62 @@ export class ApiClient {
       `/orgs/${orgId}/children/${childId}/feed/${feedItemId}/comments`,
       { method: 'POST', body: JSON.stringify({ body, visibility }) }
     )
+  }
+
+  // ── Guardians ──────────────────────────────────────────────────────────────
+
+  async getChildGuardians(orgId: string, childId: string): Promise<Guardian[]> {
+    const res = await this.request<{ ok: boolean; guardians: Guardian[] }>(
+      `/orgs/${orgId}/children/${childId}/guardians`
+    )
+    return res.guardians
+  }
+
+  async addChildGuardian(orgId: string, childId: string, data: GuardianInput): Promise<Guardian> {
+    const res = await this.request<{ ok: boolean; guardian: Guardian }>(
+      `/orgs/${orgId}/children/${childId}/guardians`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+    return res.guardian
+  }
+
+  async updateChildGuardian(
+    orgId: string,
+    childId: string,
+    guardianId: string,
+    data: Partial<GuardianInput>
+  ): Promise<Guardian> {
+    const res = await this.request<{ ok: boolean; guardian: Guardian }>(
+      `/orgs/${orgId}/children/${childId}/guardians/${guardianId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
+    )
+    return res.guardian
+  }
+
+  async deleteChildGuardian(orgId: string, childId: string, guardianId: string): Promise<void> {
+    await this.request<void>(`/orgs/${orgId}/children/${childId}/guardians/${guardianId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ── Intake form ────────────────────────────────────────────────────────────
+
+  async getChildIntake(orgId: string, childId: string): Promise<ChildIntakeForm | null> {
+    const res = await this.request<{ ok: boolean; intake: ChildIntakeForm | null }>(
+      `/orgs/${orgId}/children/${childId}/intake`
+    )
+    return res.intake
+  }
+
+  async saveChildIntake(
+    orgId: string,
+    childId: string,
+    data: Partial<ChildIntakeForm>
+  ): Promise<{ ok: boolean; updatedAt: string; isNew: boolean }> {
+    return this.request(`/orgs/${orgId}/children/${childId}/intake`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
   }
 
   // Clear all cache (useful for logout)
