@@ -1251,7 +1251,15 @@
         "noName": "Unnamed",
         "unnamed": "No name",
         "partTasks": "{n, plural, one {# task} other {# tasks}}",
-        "partPrograms": "{n, plural, one {# program} other {# programs}}"
+        "partPrograms": "{n, plural, one {# program} other {# programs}}",
+        "moreTasks": "more",
+        "removeAssignment": "Remove assignment from group",
+        "collapseTasks": "Collapse task list",
+        "expandTasks": "Show task list",
+        "tasksInAssignment": "{count, plural, one {# task} other {# tasks}} in this assignment",
+        "viewSubmissions": "View submissions",
+        "parentSearchPlaceholder": "Search by name or email",
+        "noParentsFound": "No parents found"
       },
       "billing": {
         "title": "Subscription plan",

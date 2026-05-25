@@ -182,7 +182,18 @@ export default function GroupsPage() {
         ])
         setGroupParents(detailData.group?.parents || [])
         const raw = historyData.assignments || []
-        setGroupAssignments(mapAssignmentsFromHistory(raw, t('assignmentDefaultTitle')))
+        const mapped = mapAssignmentsFromHistory(raw, t('assignmentDefaultTitle'))
+        setGroupAssignments(mapped)
+
+        // Sync the group card with live assignment data so it never shows
+        // stale titles. Use assignment-level titles (matching the panel list)
+        // rather than individual task titles from inside each assignment.
+        const liveSummary = {
+          lastAssignedAt: mapped[0]?.assignedAt ?? null,
+          lastAssignedTaskTitles: mapped.length > 0 ? mapped.slice(0, 3).map((a) => a.title) : null,
+        }
+        setGroups((prev) => prev.map((g) => (g.id === group.id ? { ...g, ...liveSummary } : g)))
+        setSelectedGroup((prev) => (prev ? { ...prev, ...liveSummary } : prev))
       } catch (e: unknown) {
         showToast(e instanceof Error ? e.message : t('errorLoadGroup'), 'error')
       } finally {
@@ -381,10 +392,28 @@ export default function GroupsPage() {
     if (!confirmedDeleteAssignment) return
     try {
       await apiClient.deleteGroupAssignment(orgId, selectedGroup.id, a.id)
-      setGroupAssignments((prev) => prev.filter((x) => x.id !== a.id))
+      const remainingAssignments = groupAssignments.filter((x) => x.id !== a.id)
+      // Use assignment titles (matching the panel) — not internal task titles.
+      // Do NOT call loadGroups() here: the backend doesn't update
+      // lastAssignedTaskTitles on delete, so re-fetching would overwrite the
+      // correct local state with stale data.
+      const nextGroupSummary = {
+        lastAssignedAt: remainingAssignments[0]?.assignedAt ?? null,
+        lastAssignedTaskTitles:
+          remainingAssignments.length > 0
+            ? remainingAssignments.slice(0, 3).map((x) => x.title)
+            : null,
+      }
+
+      setGroupAssignments(remainingAssignments)
+      setGroups((prev) =>
+        prev.map((group) =>
+          group.id === selectedGroup.id ? { ...group, ...nextGroupSummary } : group
+        )
+      )
+      setSelectedGroup((prev) => (prev ? { ...prev, ...nextGroupSummary } : prev))
       if (assignmentDetail?.id === a.id) setAssignmentDetail(null)
       showToast(t('toastAssignmentDeleted'))
-      if (orgId) await loadGroups(orgId)
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : t('errorGeneric'), 'error')
     }
@@ -537,7 +566,7 @@ export default function GroupsPage() {
           </div>
           <Skeleton className="h-10 w-40" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-52" />
           ))}
@@ -604,7 +633,7 @@ export default function GroupsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((group) => (
             <GroupCard
               key={group.id}
@@ -1414,7 +1443,7 @@ export default function GroupsPage() {
                         type="text"
                         value={parentSearchQuery}
                         onChange={(e) => setParentSearchQuery(e.target.value)}
-                        placeholder="Search by name or email"
+                        placeholder={t('parentSearchPlaceholder')}
                         className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                       />
                     </div>
@@ -1423,7 +1452,7 @@ export default function GroupsPage() {
                       <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
                         {filteredParents.length === 0 ? (
                           <div className="px-4 py-6 text-center text-sm text-gray-400">
-                            No parents found
+                            {t('noParentsFound')}
                           </div>
                         ) : (
                           filteredParents.map((p) => {

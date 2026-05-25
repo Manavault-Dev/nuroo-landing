@@ -1251,7 +1251,15 @@
         "noName": "Без названия",
         "unnamed": "Без имени",
         "partTasks": "{n, plural, one {# задание} few {# задания} other {# заданий}}",
-        "partPrograms": "{n, plural, one {# программа} few {# программы} other {# программ}}"
+        "partPrograms": "{n, plural, one {# программа} few {# программы} other {# программ}}",
+        "moreTasks": "ещё",
+        "removeAssignment": "Удалить задание из группы",
+        "collapseTasks": "Свернуть список заданий",
+        "expandTasks": "Показать список заданий",
+        "tasksInAssignment": "{count, plural, one {# задание} few {# задания} other {# заданий}} в назначении",
+        "viewSubmissions": "Смотреть ответы",
+        "parentSearchPlaceholder": "Поиск по имени или email",
+        "noParentsFound": "Родители не найдены"
       },
       "billing": {
         "title": "Подписка",

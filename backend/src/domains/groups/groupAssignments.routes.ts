@@ -48,16 +48,13 @@ export const groupAssignmentsRoute: import('fastify').FastifyPluginAsync = async
   }>('/orgs/:orgId/groups/:groupId/assignments', async (request, reply) => {
     try {
       const { orgId, groupId } = request.params
-      const member = await requireOrgMember(request, reply, orgId)
-      const { uid } = request.user!
-
-      const ownerId =
-        member.role === 'org_admin' && (request.query as { ownerId?: string })?.ownerId
-          ? (request.query as { ownerId: string }).ownerId
-          : uid
+      // Only verify org membership — any member can read all group assignments.
+      // ownerId filtering was removed: it caused specialists to see zero
+      // assignments when those assignments were created by an org admin.
+      await requireOrgMember(request, reply, orgId)
 
       const db = getFirestore()
-      const assignments = await fetchAssignmentHistory(db, orgId, groupId, ownerId)
+      const assignments = await fetchAssignmentHistory(db, orgId, groupId)
       return { ok: true, assignments, count: assignments.length }
     } catch (error: any) {
       fastify.log.error({ err: error }, 'Route handler failed')

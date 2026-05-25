@@ -15,6 +15,7 @@ import {
   fetchChildData,
   verifyGroupOwnership,
   buildGroupData,
+  fetchGroupAssignmentSummaries,
 } from './groups.service.js'
 
 const createGroupSchema = z.object({
@@ -38,13 +39,29 @@ export const groupCrudRoute: import('fastify').FastifyPluginAsync = async (fasti
       const { uid } = request.user!
       const db = getFirestore()
 
+      // Fetch live assignment summaries once for the whole org — single query,
+      // avoids N+1 and ensures group cards show accurate task titles without
+      // depending on the potentially-stale `lastAssignedTaskTitles` doc field.
+      const assignmentSummaries = await fetchGroupAssignmentSummaries(db, orgId)
+
+      const applyLiveSummary = (group: Record<string, any>) => {
+        if (!assignmentSummaries) return group
+
+        const summary = assignmentSummaries.get(group.id) ?? null
+        return {
+          ...group,
+          lastAssignedAt: summary?.lastAssignedAt ?? null,
+          lastAssignedTaskTitles: summary?.titles ?? null,
+        }
+      }
+
       if (member.role === 'org_admin') {
         const allGroupsWithOwner = await fetchAllOrgGroups(db, orgId)
         const groups = await Promise.all(
           allGroupsWithOwner.map(async ({ doc, ownerId }) => {
             const parentCount = await countGroupParents(db, ownerId, doc.id)
             const ownerName = await getSpecialistDisplayName(db, ownerId)
-            return transformGroup(doc, parentCount, { ownerId, ownerName })
+            return applyLiveSummary(transformGroup(doc, parentCount, { ownerId, ownerName }))
           })
         )
         return { ok: true, groups, count: groups.length }
@@ -54,7 +71,7 @@ export const groupCrudRoute: import('fastify').FastifyPluginAsync = async (fasti
       const groups = await Promise.all(
         groupsSnapshot.docs.map(async (doc) => {
           const parentCount = await countGroupParents(db, uid, doc.id)
-          return transformGroup(doc, parentCount)
+          return applyLiveSummary(transformGroup(doc, parentCount))
         })
       )
 

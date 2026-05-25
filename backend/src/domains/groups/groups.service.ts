@@ -220,23 +220,24 @@ export async function fetchAssignmentHistory(
   db: admin.firestore.Firestore,
   orgId: string,
   groupId: string,
-  ownerId: string
+  // ownerId is kept in the signature for compatibility but is NO LONGER used
+  // as a filter: any org member should see all assignments for a group.
+  // Ownership enforcement stays on write/delete endpoints.
+  _ownerId?: string
 ) {
   let snap: admin.firestore.QuerySnapshot
   try {
     snap = await db
       .collection(`organizations/${orgId}/groupAssignments`)
       .where('groupId', '==', groupId)
-      .where('ownerId', '==', ownerId)
       .orderBy('assignedAt', 'desc')
-      .limit(20)
+      .limit(50)
       .get()
   } catch (err: any) {
     if (err.code === 9 || err.message?.includes('index')) {
       const plain = await db
         .collection(`organizations/${orgId}/groupAssignments`)
         .where('groupId', '==', groupId)
-        .where('ownerId', '==', ownerId)
         .get()
       snap = {
         docs: plain.docs.sort((a, b) => {
@@ -476,6 +477,12 @@ export async function deleteAssignment(
   assignmentId: string,
   childIds: string[]
 ) {
+  const assignmentRef = db.doc(`organizations/${orgId}/groupAssignments/${assignmentId}`)
+  const assignmentSnap = await assignmentRef.get()
+  const assignmentData = assignmentSnap.data()
+  const groupId = assignmentData?.groupId as string | undefined
+  const ownerId = assignmentData?.ownerId as string | undefined
+
   const commentsSnap = await db
     .collection(`organizations/${orgId}/groupAssignments/${assignmentId}/comments`)
     .get()
@@ -511,8 +518,115 @@ export async function deleteAssignment(
     }
   }
 
-  const assignmentRef = db.doc(`organizations/${orgId}/groupAssignments/${assignmentId}`)
   await assignmentRef.delete()
+
+  if (groupId && ownerId) {
+    await refreshGroupLastAssignment(db, orgId, groupId, ownerId, assignmentId)
+  }
+}
+
+async function refreshGroupLastAssignment(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  groupId: string,
+  ownerId: string,
+  deletedAssignmentId: string
+) {
+  // Query ALL assignments for this group — no ownerId filter, so assignments
+  // created by any org member are correctly reflected after a delete.
+  const assignmentsSnap = await db
+    .collection(`organizations/${orgId}/groupAssignments`)
+    .where('groupId', '==', groupId)
+    .get()
+
+  const latest = assignmentsSnap.docs
+    .filter((doc) => doc.id !== deletedAssignmentId)
+    .sort((a, b) => {
+      const aTime = a.data().assignedAt?.toDate?.()?.getTime() ?? 0
+      const bTime = b.data().assignedAt?.toDate?.()?.getTime() ?? 0
+      return bTime - aTime
+    })[0]
+
+  const groupRef = db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`)
+  if (!latest) {
+    await groupRef.update({
+      lastAssignedAt: null,
+      lastAssignedTaskTitles: null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    return
+  }
+
+  const data = latest.data()
+  await groupRef.update({
+    lastAssignedAt: data.assignedAt ?? null,
+    lastAssignedTaskTitles: data.taskTitles ?? null,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  })
+}
+
+/**
+ * Fetch a map of groupId → live assignment summary for all groups in an org.
+ * Makes a SINGLE query for all org assignments — avoids N+1 per group.
+ * Used by GET /orgs/:orgId/groups to override stale `lastAssignedTaskTitles`
+ * on the group document with real-time data.
+ */
+export async function fetchGroupAssignmentSummaries(
+  db: admin.firestore.Firestore,
+  orgId: string
+): Promise<Map<string, { lastAssignedAt: string | null; titles: string[] | null }> | null> {
+  const map = new Map<string, { lastAssignedAt: string | null; titles: string[] | null }>()
+  try {
+    const snap = await db
+      .collection(`organizations/${orgId}/groupAssignments`)
+      .orderBy('assignedAt', 'desc')
+      .get()
+
+    for (const doc of snap.docs) {
+      const d = doc.data()
+      const gid: string = d.groupId
+      if (!gid) continue
+      // First doc per groupId wins (already ordered desc by assignedAt)
+      if (!map.has(gid)) {
+        const titles: string[] = d.taskTitles?.length ? d.taskTitles : d.title ? [d.title] : []
+        map.set(gid, {
+          lastAssignedAt: d.assignedAt?.toDate?.()?.toISOString() ?? null,
+          titles: titles.length > 0 ? titles : null,
+        })
+      }
+    }
+  } catch (err: any) {
+    // Index missing — fall back to unordered scan
+    if (err.code === 9 || err.message?.includes('index')) {
+      const snap = await db.collection(`organizations/${orgId}/groupAssignments`).get()
+
+      // Collect all docs per group, then pick latest
+      const perGroup = new Map<string, admin.firestore.QueryDocumentSnapshot[]>()
+      for (const doc of snap.docs) {
+        const gid: string = doc.data().groupId
+        if (!gid) continue
+        if (!perGroup.has(gid)) perGroup.set(gid, [])
+        perGroup.get(gid)!.push(doc)
+      }
+
+      for (const [gid, docs] of perGroup) {
+        const latest = docs.sort((a, b) => {
+          const aT = a.data().assignedAt?.toDate?.()?.getTime() ?? 0
+          const bT = b.data().assignedAt?.toDate?.()?.getTime() ?? 0
+          return bT - aT
+        })[0]
+        const d = latest.data()
+        const titles: string[] = d.taskTitles?.length ? d.taskTitles : d.title ? [d.title] : []
+        map.set(gid, {
+          lastAssignedAt: d.assignedAt?.toDate?.()?.toISOString() ?? null,
+          titles: titles.length > 0 ? titles : null,
+        })
+      }
+      return map
+    }
+    return null
+  }
+  return map
 }
 
 export async function getAssignmentComments(
