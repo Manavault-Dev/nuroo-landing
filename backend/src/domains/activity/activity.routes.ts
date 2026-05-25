@@ -5,6 +5,7 @@ import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
 import { dispatch } from '../../modules/notifications/index.js'
 import {
   listFeedItems,
+  listParentConversationMessages,
   createFeedItem,
   getFeedItem,
   updateFeedItem,
@@ -15,6 +16,7 @@ import {
   migrateSpecialistNotes,
   getAuthorName,
   getResolvedChildId,
+  bridgeSpecialistReplyToConversation,
   type ActivityAuthorRole,
   type ActivityVisibility,
   type ActivityFeedItemType,
@@ -131,7 +133,59 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         cursor,
       })
 
-      return reply.send(result)
+      // For specialists / admins: also pull parent messages from the legacy
+      // conversations collection and merge them into the feed response.
+      // This ensures parents' mobile-app messages are always visible on the platform,
+      // regardless of whether the bridge in messages.routes.ts succeeded.
+      let mergedItems = result.items
+
+      if (effectiveRole !== 'parent' && !type) {
+        // Only merge when no specific type filter is active (keep filtered views clean)
+        try {
+          const convMessages = await listParentConversationMessages(db, orgId, resolvedChildId)
+
+          if (convMessages.length > 0) {
+            // Deduplicate: skip conversation messages that are already represented
+            // in the feed collection (e.g. created by the bridge in messages.routes.ts).
+            // The bridge stores the conversation messageId in both metadata.messageId
+            // and relatedEntityId, so we check both.
+            const bridgedMsgIds = new Set<string>(
+              result.items.flatMap((i) => {
+                const ids: string[] = []
+                const mid = i.metadata?.messageId as string | undefined
+                if (mid) ids.push(mid)
+                if (i.relatedEntityId) ids.push(i.relatedEntityId)
+                return ids
+              })
+            )
+            // Also skip if the synthetic conv_ id is already present
+            const existingIds = new Set<string>(result.items.map((i) => i.id))
+
+            const deduped = convMessages.filter((m) => {
+              if (existingIds.has(m.id)) return false
+              const mid = m.metadata?.messageId as string | undefined
+              return !mid || !bridgedMsgIds.has(mid)
+            })
+
+            // Merge and sort by createdAt descending
+            mergedItems = [...result.items, ...deduped].sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+          }
+        } catch (convErr) {
+          fastify.log.warn(
+            { err: convErr },
+            '[FEED] Failed to merge conversation messages — returning feed-only items'
+          )
+        }
+      }
+
+      const itemsForUser = mergedItems.map((item) => ({
+        ...item,
+        unreadBy: item.unreadBy?.includes(request.user!.uid) ? [request.user!.uid] : [],
+      }))
+
+      return reply.send({ items: itemsForUser, nextCursor: result.nextCursor })
     } catch (err: unknown) {
       fastify.log.error({ err }, '[FEED] listFeedItems failed')
       return reply.code(500).send({ error: 'Failed to list feed items', code: 'INTERNAL_ERROR' })
@@ -408,25 +462,43 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user)
         return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const member = await requireOrgMember(request, reply, orgId)
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-
       const body = createCommentSchema.safeParse(request.body)
       if (!body.success) {
         return reply.code(400).send({ error: body.error.message, code: 'VALIDATION_ERROR' })
       }
 
       const db = getFirestore()
+      const memberDoc = await db.doc(`organizations/${orgId}/members/${request.user.uid}`).get()
+      const memberRole: string | undefined = memberDoc.exists ? memberDoc.data()?.role : undefined
+      let resolvedChildId: string
+      let authorRole: ActivityAuthorRole | 'parent'
+
+      if (memberDoc.exists) {
+        resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
+        authorRole = memberRole === 'org_admin' ? 'org_admin' : 'specialist'
+      } else {
+        const resolved = await getResolvedChildId(db, orgId, childId)
+        if (!resolved) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+
+        const childDoc = await db.doc(`organizations/${orgId}/children/${resolved}`).get()
+        if (!childDoc.exists || childDoc.data()?.parentUserId !== request.user.uid) {
+          return reply.code(403).send({ error: 'Access denied', code: 'FORBIDDEN' })
+        }
+
+        resolvedChildId = resolved
+        authorRole = 'parent'
+      }
+
       const feedItem = await getFeedItem(db, resolvedChildId, feedItemId)
       if (!feedItem || feedItem.organizationId !== orgId) {
         return reply.code(404).send({ error: 'Feed item not found', code: 'NOT_FOUND' })
       }
 
       const { uid, email } = request.user
-      const authorRole: 'parent' | 'specialist' | ActivityAuthorRole =
-        member.role === 'org_admin' ? 'org_admin' : 'specialist'
-
       const authorName = await getAuthorName(db, uid, email, authorRole)
+      const visibility = authorRole === 'parent' ? 'parent_visible' : body.data.visibility
 
       const comment = await createComment(
         db,
@@ -437,8 +509,20 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         authorRole,
         authorName,
         body.data.body,
-        body.data.visibility
+        visibility
       )
+
+      // Bridge: if specialist replies to a parent_comment, write reply back to the
+      // legacy conversation so the parent sees it in the mobile app.
+      if (
+        (authorRole === 'specialist' || authorRole === 'org_admin') &&
+        feedItem.type === 'parent_comment'
+      ) {
+        bridgeSpecialistReplyToConversation(db, feedItem, body.data.body, uid, authorName).catch(
+          (err) =>
+            fastify.log.warn({ err }, '[FEED] Failed to bridge specialist reply to conversation')
+        )
+      }
 
       // Notify relevant parties
       const orgChildSnap = await db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get()
@@ -447,7 +531,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
 
       if (
         (authorRole === 'specialist' || authorRole === 'org_admin') &&
-        body.data.visibility === 'parent_visible' &&
+        visibility === 'parent_visible' &&
         parentUserId
       ) {
         // Specialist/admin commented, visible to parent — notify parent
@@ -461,6 +545,30 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
           body: body.data.body.slice(0, 120),
           metadata: { childId: resolvedChildId, orgId, specialistId: uid },
           dedupKey: `feed_comment_specialist:${comment.id}`,
+          channel: 'both',
+        }).catch(() => undefined)
+      }
+
+      if (
+        authorRole === 'parent' &&
+        feedItem.authorRole !== 'parent' &&
+        feedItem.authorRole !== 'system'
+      ) {
+        dispatch({
+          userId: feedItem.authorId,
+          orgId,
+          role: 'specialist',
+          type: 'progress_update',
+          category: 'messages',
+          title: `New parent reply about ${childName}`,
+          body: body.data.body.slice(0, 120),
+          metadata: {
+            childId: resolvedChildId,
+            orgId,
+            specialistId: feedItem.authorId,
+            parentId: uid,
+          },
+          dedupKey: `feed_comment_parent:${comment.id}`,
           channel: 'both',
         }).catch(() => undefined)
       }

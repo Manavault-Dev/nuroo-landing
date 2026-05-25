@@ -137,6 +137,20 @@ export interface ActivityFeedItem {
   body: string
   relatedEntityType?: string
   relatedEntityId?: string
+  /** Number of comments/replies on this feed item */
+  commentCount?: number
+  /** True when at least one parent has replied to this item */
+  hasParentComment?: boolean
+  /** ISO string of the most recent parent comment */
+  lastParentCommentAt?: string
+  /** Contains current user id when this item is unread for the signed-in user */
+  unreadBy?: string[]
+  metadata?: {
+    conversationId?: string
+    messageId?: string
+    specialistId?: string
+    [key: string]: unknown
+  }
   createdAt: string
   updatedAt: string
 }
@@ -1555,6 +1569,25 @@ export class ApiClient {
       `/orgs/${orgId}/children/${childId}/feed/${feedItemId}/comments`,
       { method: 'POST', body: JSON.stringify({ body, visibility }) }
     )
+  }
+
+  async markActivityFeedRead(
+    orgId: string,
+    childId: string,
+    feedItemIds: string[]
+  ): Promise<{ marked: number }> {
+    return this.request<{ marked: number }>(`/orgs/${orgId}/children/${childId}/feed/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ feedItemIds }),
+    })
+  }
+
+  /** Reply to a parent message inside a legacy conversation (so parent sees it in mobile app) */
+  async sendConversationReply(conversationId: string, text: string): Promise<void> {
+    await this.request<{ ok: boolean }>(`/api/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    })
   }
 
   // ── Guardians ──────────────────────────────────────────────────────────────

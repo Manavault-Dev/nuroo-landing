@@ -31,6 +31,9 @@ export interface ActivityFeedItem {
   relatedEntityId?: string
   metadata?: Record<string, unknown>
   unreadBy?: string[]
+  commentCount: number
+  hasParentComment: boolean
+  lastParentCommentAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -86,6 +89,9 @@ function docToFeedItem(
     relatedEntityId: d.relatedEntityId ?? undefined,
     metadata: d.metadata ?? undefined,
     unreadBy: d.unreadBy ?? [],
+    commentCount: d.commentCount ?? 0,
+    hasParentComment: d.hasParentComment ?? false,
+    lastParentCommentAt: d.lastParentCommentAt?.toDate() ?? undefined,
     createdAt: d.createdAt?.toDate() ?? new Date(),
     updatedAt: d.updatedAt?.toDate() ?? new Date(),
   }
@@ -232,6 +238,7 @@ export async function createFeedItem(
     relatedEntityType?: ActivityFeedItem['relatedEntityType']
     relatedEntityId?: string
     metadata?: Record<string, unknown>
+    unreadBy?: string[]
   }
 ): Promise<ActivityFeedItem> {
   const now = admin.firestore.FieldValue.serverTimestamp()
@@ -248,7 +255,7 @@ export async function createFeedItem(
     relatedEntityType: data.relatedEntityType ?? null,
     relatedEntityId: data.relatedEntityId ?? null,
     metadata: data.metadata ?? {},
-    unreadBy: [] as string[],
+    unreadBy: data.unreadBy ?? [],
     createdAt: now,
     updatedAt: now,
   }
@@ -342,7 +349,152 @@ export async function createComment(
 
   const ref = await db.collection(commentsPath(childId, feedItemId)).add(docData)
   const snap = await ref.get()
+
+  // Update parent feed item with comment counters (best-effort)
+  try {
+    const feedItemRef = db.doc(`${feedPath(childId)}/${feedItemId}`)
+    const counterUpdates: Record<string, unknown> = {
+      commentCount: admin.firestore.FieldValue.increment(1),
+    }
+    if (authorRole === 'parent') {
+      counterUpdates.hasParentComment = true
+      counterUpdates.lastParentCommentAt = admin.firestore.FieldValue.serverTimestamp()
+      const feedItemSnap = await feedItemRef.get()
+      const feedItemAuthorId = feedItemSnap.data()?.authorId as string | undefined
+      const feedItemAuthorRole = feedItemSnap.data()?.authorRole as ActivityAuthorRole | undefined
+      if (feedItemAuthorId && feedItemAuthorRole !== 'parent' && feedItemAuthorRole !== 'system') {
+        counterUpdates.unreadBy = admin.firestore.FieldValue.arrayUnion(feedItemAuthorId)
+      }
+    }
+    await feedItemRef.update(counterUpdates)
+  } catch {
+    // best-effort — comment itself is already saved
+  }
+
   return docToComment(snap, childId, feedItemId)
+}
+
+// ── Parent conversation messages → feed shape ─────────────────────────────────
+
+/**
+ * Fetches ALL messages from the legacy conversations collection for a given
+ * child+org and converts them into ActivityFeedItem-shaped objects so they can
+ * be merged into the feed that specialists/admins see on the web platform.
+ *
+ * Both specialist messages (senderRole: 'specialist') and parent messages
+ * (senderRole: 'parent') are included, mirroring exactly what the mobile app
+ * shows in its activity/messages screen.
+ *
+ * Firestore path: conversations/{orgId}_{childId}_{specialistId}/messages
+ */
+export async function listParentConversationMessages(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  childId: string
+): Promise<ActivityFeedItem[]> {
+  // conversations are keyed as {orgId}_{childId}_{specialistId}
+  // Query by childId only (single-field index, always available)
+  const conversationsSnap = await db
+    .collection('conversations')
+    .where('childId', '==', childId)
+    .limit(10)
+    .get()
+
+  if (conversationsSnap.empty) return []
+
+  // Filter to this org in memory (avoids composite-index requirement)
+  const orgConvDocs = conversationsSnap.docs.filter((d) => d.data().orgId === orgId)
+  if (orgConvDocs.length === 0) return []
+
+  const nested = await Promise.all(
+    orgConvDocs.map(async (convDoc) => {
+      const convId = convDoc.id
+      const convData = convDoc.data()
+
+      try {
+        // Fetch ALL messages (both specialist and parent) — no senderRole filter
+        const messagesSnap = await db
+          .collection(`conversations/${convId}/messages`)
+          .orderBy('sentAt', 'asc')
+          .limit(100)
+          .get()
+
+        return messagesSnap.docs.map((msgDoc): ActivityFeedItem => {
+          const msg = msgDoc.data()
+          const sentAt: Date = msg.sentAt?.toDate?.() ?? new Date()
+          const isParent = msg.senderRole === 'parent'
+
+          return {
+            id: `conv_${convId}_${msgDoc.id}`,
+            organizationId: orgId,
+            childId,
+            // Specialist messages → specialist_note, parent messages → parent_comment
+            // This matches the mobile app's mapping in activityFeedApi.ts
+            type: isParent ? 'parent_comment' : 'specialist_note',
+            // Specialist notes are parent_visible (they wrote them for the parent to see)
+            visibility: 'parent_visible',
+            authorId: msg.senderId ?? '',
+            authorRole: isParent ? 'parent' : ('specialist' as ActivityAuthorRole),
+            authorName: isParent
+              ? msg.senderName || convData.parentName || 'Родитель'
+              : msg.senderName || convData.specialistName || 'Специалист',
+            body: msg.text ?? '',
+            title: undefined,
+            relatedEntityType: undefined,
+            relatedEntityId: undefined,
+            metadata: {
+              conversationId: convId,
+              messageId: msgDoc.id,
+              specialistId: convData.specialistId,
+            },
+            unreadBy: [],
+            commentCount: 0,
+            hasParentComment: false,
+            createdAt: sentAt,
+            updatedAt: sentAt,
+          }
+        })
+      } catch {
+        return []
+      }
+    })
+  )
+
+  return nested.flat()
+}
+
+// ── Specialist → conversation bridge ──────────────────────────────────────────
+
+/**
+ * When a specialist replies to a parent_comment feed item via the web platform,
+ * mirror the reply into the legacy conversations collection so the parent sees
+ * it in the mobile app's messaging screen.
+ */
+export async function bridgeSpecialistReplyToConversation(
+  db: admin.firestore.Firestore,
+  feedItem: ActivityFeedItem,
+  commentBody: string,
+  specialistUid: string,
+  specialistName: string
+): Promise<void> {
+  const conversationId = feedItem.metadata?.conversationId as string | undefined
+  if (!conversationId) return
+
+  const now = admin.firestore.FieldValue.serverTimestamp()
+  await db.collection(`conversations/${conversationId}/messages`).add({
+    senderId: specialistUid,
+    senderRole: 'specialist',
+    senderName: specialistName,
+    text: commentBody,
+    sentAt: now,
+    isNote: false,
+  })
+  await db.doc(`conversations/${conversationId}`).update({
+    lastMessageAt: now,
+    lastMessageText: commentBody.slice(0, 120),
+    lastMessageSenderId: specialistUid,
+    [`unread.${feedItem.authorId}`]: admin.firestore.FieldValue.increment(1),
+  })
 }
 
 // ── Read receipts ─────────────────────────────────────────────────────────────

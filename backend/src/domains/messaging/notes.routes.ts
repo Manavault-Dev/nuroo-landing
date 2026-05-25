@@ -6,6 +6,7 @@ import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
 import { dispatch } from '../../modules/notifications/index.js'
 import type { SpecialistNote } from '../../types.js'
+import { createFeedItem } from '../activity/activity.service.js'
 
 const COLLECTIONS = {
   CHILD_NOTES: (childId: string) => `children/${childId}/specialistNotes`,
@@ -17,6 +18,7 @@ const MAX_NOTE_LENGTH = 5000
 const createNoteSchema = z.object({
   text: z.string().min(1).max(MAX_NOTE_LENGTH),
   tags: z.array(z.string()).optional(),
+  visibleToParent: z.boolean().optional(),
 })
 
 function extractSpecialistName(
@@ -72,6 +74,7 @@ function buildNoteData(
     specialistName,
     text,
     tags: tags || [],
+    visibleToParent: true,
     createdAt: admin.firestore.Timestamp.fromDate(now),
     updatedAt: admin.firestore.Timestamp.fromDate(now),
   }
@@ -129,6 +132,7 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(resolvedChildId))
       const now = new Date()
       const noteData = buildNoteData(orgId, uid, specialistName, body.text, body.tags, now)
+      noteData.visibleToParent = body.visibleToParent !== false
 
       const [noteRef, orgChildSnap] = await Promise.all([
         notesRef.add(noteData),
@@ -195,6 +199,19 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
         })
       } catch (convErr) {
         console.error('[NOTES] Failed to write conversation message:', convErr)
+      }
+
+      try {
+        await createFeedItem(db, orgId, resolvedChildId, uid, 'specialist', specialistName, {
+          type: 'specialist_note',
+          body: body.text,
+          visibility: body.visibleToParent === false ? 'internal' : 'parent_visible',
+          relatedEntityType: 'note',
+          relatedEntityId: noteRef.id,
+          metadata: { noteId: noteRef.id, tags: body.tags || [] },
+        })
+      } catch (feedErr) {
+        console.error('[NOTES] Failed to write activity feed item:', feedErr)
       }
 
       const note: SpecialistNote = {

@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
+import { PageSpinner } from '@/components/ui/Spinner'
 import {
   apiClient,
   type ChildDetail,
@@ -1821,15 +1822,7 @@ export default function ChildDetailPage() {
 
   // ── Loading ──────────────────────────────────────────────────────────────────
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-sm text-gray-500">{t('loadingProfile')}</p>
-        </div>
-      </div>
-    )
+  if (loading) return <PageSpinner />
 
   if (!childDetail)
     return (

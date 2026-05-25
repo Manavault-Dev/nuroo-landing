@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { dispatch } from '../../modules/notifications/index.js'
+import { createFeedItem } from '../activity/activity.service.js'
 
 const sendMessageSchema = z.object({
   text: z.string().min(1).max(4000),
@@ -239,13 +240,20 @@ export const messagesRoute: FastifyPluginAsync = async (fastify) => {
         const isSpecialist = convSpecialistId === uid
         const isParent = parentUserId === uid
 
+        // Also allow any org admin / other specialist of this org to reply
+        let isOrgMember = false
         if (!isSpecialist && !isParent) {
+          const memberSnap = await db.doc(`organizations/${orgId}/members/${uid}`).get()
+          isOrgMember = memberSnap.exists
+        }
+
+        if (!isSpecialist && !isParent && !isOrgMember) {
           return reply
             .code(403)
             .send({ error: 'Access denied to this conversation', code: 'FORBIDDEN' })
         }
 
-        const senderRole: 'specialist' | 'parent' = isSpecialist ? 'specialist' : 'parent'
+        const senderRole: 'specialist' | 'parent' = isParent ? 'parent' : 'specialist'
         const senderName = await resolvePartyNames(db, uid, email)
         const childName: string = childData.name || childData.childName || 'Child'
 
@@ -296,6 +304,27 @@ export const messagesRoute: FastifyPluginAsync = async (fastify) => {
           sentAt: admin.firestore.FieldValue.serverTimestamp(),
           isNote: false,
         })
+
+        if (isParent) {
+          try {
+            await createFeedItem(db, orgId, childId, uid, 'parent', senderName, {
+              type: 'parent_comment',
+              title: 'Parent reply',
+              body: body.text,
+              visibility: 'parent_visible',
+              relatedEntityType: 'note',
+              relatedEntityId: msgRef.id,
+              unreadBy: convSpecialistId ? [convSpecialistId] : [],
+              metadata: {
+                conversationId: convId,
+                messageId: msgRef.id,
+                specialistId: convSpecialistId,
+              },
+            })
+          } catch (feedErr) {
+            console.error('[MESSAGES] Failed to write parent reply to activity feed:', feedErr)
+          }
+        }
 
         if (otherPartyUid) {
           const notifType = isParent ? 'homework_submitted' : 'task_reviewed'
