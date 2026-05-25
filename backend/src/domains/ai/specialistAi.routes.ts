@@ -2,7 +2,10 @@ import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 const improveBodySchema = z.object({
-  roughText: z.string().min(1).max(2000),
+  roughText: z
+    .string()
+    .min(10, 'Description too short')
+    .max(650, 'Description too long — max 600 characters'),
   language: z.enum(['ru', 'en', 'ky']).default('ru'),
   context: z
     .object({
@@ -85,7 +88,10 @@ export const specialistAiRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const parse = improveBodySchema.safeParse(request.body)
       if (!parse.success) {
-        return reply.code(400).send({ error: 'Invalid request', details: parse.error.issues })
+        const firstIssue = parse.error.issues[0]
+        const message =
+          firstIssue?.path?.[0] === 'roughText' ? firstIssue.message : 'Invalid request'
+        return reply.code(400).send({ error: message, details: parse.error.issues })
       }
 
       const { roughText, language, context } = parse.data

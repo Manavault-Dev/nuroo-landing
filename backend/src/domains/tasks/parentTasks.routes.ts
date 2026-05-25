@@ -144,6 +144,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       })
 
       if (completed) {
+        const specialistId = orgChildSnap.data()?.assignedSpecialistId
         try {
           await createFeedItem(db, orgId, childId, uid, 'parent', await getParentName(db, uid), {
             type: 'assignment_completed',
@@ -152,13 +153,13 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
             visibility: 'parent_visible',
             relatedEntityType: 'assignment',
             relatedEntityId: taskId,
+            unreadBy: specialistId ? [specialistId] : [],
             metadata: { taskId },
           })
         } catch (feedErr) {
           console.error('[PARENT_TASKS] Failed to write completion to activity feed:', feedErr)
         }
 
-        const specialistId = orgChildSnap.data()?.assignedSpecialistId
         if (specialistId) {
           dispatch({
             userId: specialistId,
@@ -230,6 +231,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
         updatedAt: now,
       })
 
+      const specialistId = orgChildSnap.data()?.assignedSpecialistId
       try {
         const submissionBody =
           body.submissionText?.trim() ||
@@ -243,13 +245,13 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
           visibility: 'parent_visible',
           relatedEntityType: 'assignment',
           relatedEntityId: taskId,
+          unreadBy: specialistId ? [specialistId] : [],
           metadata: { taskId, fileUrl: body.fileUrl ?? null },
         })
       } catch (feedErr) {
         console.error('[PARENT_TASKS] Failed to write submission to activity feed:', feedErr)
       }
 
-      const specialistId = orgChildSnap.data()?.assignedSpecialistId
       if (specialistId) {
         dispatch({
           userId: specialistId,

@@ -5,6 +5,7 @@ import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
 import { dispatch } from '../../modules/notifications/index.js'
 import {
   listFeedItems,
+  listParentConversationMessages,
   createFeedItem,
   getFeedItem,
   updateFeedItem,
@@ -15,6 +16,7 @@ import {
   migrateSpecialistNotes,
   getAuthorName,
   getResolvedChildId,
+  bridgeSpecialistReplyToConversation,
   type ActivityAuthorRole,
   type ActivityVisibility,
   type ActivityFeedItemType,
@@ -131,7 +133,59 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         cursor,
       })
 
-      return reply.send(result)
+      // For specialists / admins: also pull parent messages from the legacy
+      // conversations collection and merge them into the feed response.
+      // This ensures parents' mobile-app messages are always visible on the platform,
+      // regardless of whether the bridge in messages.routes.ts succeeded.
+      let mergedItems = result.items
+
+      if (effectiveRole !== 'parent' && !type) {
+        // Only merge when no specific type filter is active (keep filtered views clean)
+        try {
+          const convMessages = await listParentConversationMessages(db, orgId, resolvedChildId)
+
+          if (convMessages.length > 0) {
+            // Deduplicate: skip conversation messages that are already represented
+            // in the feed collection (e.g. created by the bridge in messages.routes.ts).
+            // The bridge stores the conversation messageId in both metadata.messageId
+            // and relatedEntityId, so we check both.
+            const bridgedMsgIds = new Set<string>(
+              result.items.flatMap((i) => {
+                const ids: string[] = []
+                const mid = i.metadata?.messageId as string | undefined
+                if (mid) ids.push(mid)
+                if (i.relatedEntityId) ids.push(i.relatedEntityId)
+                return ids
+              })
+            )
+            // Also skip if the synthetic conv_ id is already present
+            const existingIds = new Set<string>(result.items.map((i) => i.id))
+
+            const deduped = convMessages.filter((m) => {
+              if (existingIds.has(m.id)) return false
+              const mid = m.metadata?.messageId as string | undefined
+              return !mid || !bridgedMsgIds.has(mid)
+            })
+
+            // Merge and sort by createdAt descending
+            mergedItems = [...result.items, ...deduped].sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+          }
+        } catch (convErr) {
+          fastify.log.warn(
+            { err: convErr },
+            '[FEED] Failed to merge conversation messages — returning feed-only items'
+          )
+        }
+      }
+
+      const itemsForUser = mergedItems.map((item) => ({
+        ...item,
+        unreadBy: item.unreadBy?.includes(request.user!.uid) ? [request.user!.uid] : [],
+      }))
+
+      return reply.send({ items: itemsForUser, nextCursor: result.nextCursor })
     } catch (err: unknown) {
       fastify.log.error({ err }, '[FEED] listFeedItems failed')
       return reply.code(500).send({ error: 'Failed to list feed items', code: 'INTERNAL_ERROR' })
@@ -457,6 +511,18 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         body.data.body,
         visibility
       )
+
+      // Bridge: if specialist replies to a parent_comment, write reply back to the
+      // legacy conversation so the parent sees it in the mobile app.
+      if (
+        (authorRole === 'specialist' || authorRole === 'org_admin') &&
+        feedItem.type === 'parent_comment'
+      ) {
+        bridgeSpecialistReplyToConversation(db, feedItem, body.data.body, uid, authorName).catch(
+          (err) =>
+            fastify.log.warn({ err }, '[FEED] Failed to bridge specialist reply to conversation')
+        )
+      }
 
       // Notify relevant parties
       const orgChildSnap = await db.doc(`organizations/${orgId}/children/${resolvedChildId}`).get()

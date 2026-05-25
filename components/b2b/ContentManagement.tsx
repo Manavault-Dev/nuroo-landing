@@ -42,6 +42,8 @@ interface ContentItem {
   estimatedDuration?: number
   materials?: string[]
   instructions?: string[]
+  parentTip?: string
+  expectedResult?: string
   videoUrl?: string
   imageUrl?: string
   thumbnailUrl?: string
@@ -153,6 +155,10 @@ export function ContentManagement({
       editData.taskIds = item.steps.filter((s) => s.taskId).map((s) => s.taskId!)
     }
     if (!editData.taskIds) editData.taskIds = []
+    // Ensure AI-generated fields are preserved when editing
+    if (!editData.instructions) editData.instructions = []
+    if (!editData.parentTip) editData.parentTip = ''
+    if (!editData.expectedResult) editData.expectedResult = ''
     setIsModalOpen(true)
     setFormData(editData)
     setMediaFile(null)
@@ -203,6 +209,8 @@ export function ContentManagement({
               estimatedDuration: formData.estimatedDuration as number | undefined,
               ageRange: formData.ageRange as { min: number; max: number } | undefined,
               instructions: formData.instructions as string[] | undefined,
+              parentTip: (formData.parentTip as string) || undefined,
+              expectedResult: (formData.expectedResult as string) || undefined,
               videoUrl: (formData.videoUrl as string) || undefined,
               imageUrl: (formData.imageUrl as string) || undefined,
             })
@@ -236,6 +244,8 @@ export function ContentManagement({
                 estimatedDuration: formData.estimatedDuration as number | undefined,
                 ageRange: formData.ageRange as { min: number; max: number } | undefined,
                 instructions: formData.instructions as string[] | undefined,
+                parentTip: (formData.parentTip as string) || undefined,
+                expectedResult: (formData.expectedResult as string) || undefined,
                 videoUrl: (formData.videoUrl as string) || undefined,
                 imageUrl: (formData.imageUrl as string) || undefined,
               })
@@ -442,21 +452,23 @@ export function ContentManagement({
           </>
         )}
 
-        {/* Task title field — global mode only (org mode uses AI helper below) */}
-        {isTask && mode === 'global' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('taskTitle')} *
-            </label>
-            <input
-              type="text"
-              value={(formData.title as string) || ''}
-              onChange={(e) => updateFormField('title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder={t('enterTaskTitle')}
-              required
-            />
-            <div className="mt-3">
+        {/* Task title + description — shown for all task modes */}
+        {isTask && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('taskTitle')} *
+              </label>
+              <input
+                type="text"
+                value={(formData.title as string) || ''}
+                onChange={(e) => updateFormField('title', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder={t('enterTaskTitle')}
+                required
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('taskDescription')}
               </label>
@@ -471,31 +483,119 @@ export function ContentManagement({
           </div>
         )}
 
-        {/* AI Instruction Helper — org task mode: title + description are set here */}
+        {/* AI Instruction Helper — org task mode only, optional AI assist */}
         {isTask && mode === 'org' && (
-          <AIInstructionHelper
-            initialResult={
-              editingItem
-                ? {
-                    title: (formData.title as string) || '',
-                    description: (formData.description as string) || '',
-                    instructions: (formData.instructions as string[]) || [],
-                    parentTip: '',
-                    expectedResult: '',
-                  }
-                : undefined
-            }
-            context={{
-              category: (formData.category as string) || undefined,
-              ageMin: (formData.ageRange as { min: number; max: number } | undefined)?.min,
-              ageMax: (formData.ageRange as { min: number; max: number } | undefined)?.max,
-            }}
-            onApply={(result) => {
-              updateFormField('title', result.title)
-              updateFormField('description', result.description)
-              updateFormField('instructions', result.instructions)
-            }}
-          />
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500">{t('aiAssistOptional')}</p>
+            <AIInstructionHelper
+              context={{
+                title: (formData.title as string) || undefined,
+                category: (formData.category as string) || undefined,
+                ageMin: (formData.ageRange as { min: number; max: number } | undefined)?.min,
+                ageMax: (formData.ageRange as { min: number; max: number } | undefined)?.max,
+              }}
+              onApply={(result) => {
+                if (result.title) updateFormField('title', result.title)
+                if (result.description) updateFormField('description', result.description)
+                if (result.instructions?.length)
+                  updateFormField('instructions', result.instructions)
+                if (result.parentTip) updateFormField('parentTip', result.parentTip)
+                if (result.expectedResult) updateFormField('expectedResult', result.expectedResult)
+              }}
+            />
+          </div>
+        )}
+
+        {/* Instructions (steps) — org mode: editable list filled by AI or manually */}
+        {isTask && mode === 'org' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t('instructions')}
+              {((formData.instructions as string[]) || []).length > 0 && (
+                <span className="ml-2 text-xs font-normal text-gray-400">
+                  ({((formData.instructions as string[]) || []).length})
+                </span>
+              )}
+            </label>
+            <div className="space-y-2">
+              {(((formData.instructions as string[]) || []).length > 0
+                ? (formData.instructions as string[])
+                : ['']
+              ).map((step: string, i: number) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold flex items-center justify-center mt-2">
+                    {i + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={step}
+                    onChange={(e) => {
+                      const steps = [...((formData.instructions as string[]) || [])]
+                      if (steps.length === 0) steps.push('')
+                      steps[i] = e.target.value
+                      updateFormField('instructions', steps)
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder={t('instructionStepPlaceholder', { num: i + 1 })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const steps = ((formData.instructions as string[]) || []).filter(
+                        (_: string, idx: number) => idx !== i
+                      )
+                      updateFormField('instructions', steps)
+                    }}
+                    className="mt-2 p-1 text-gray-300 hover:text-red-400 transition-colors"
+                    title={t('remove')}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const steps = [...((formData.instructions as string[]) || []), '']
+                updateFormField('instructions', steps)
+              }}
+              className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t('addStep')}
+            </button>
+          </div>
+        )}
+
+        {/* Parent tip — org mode */}
+        {isTask && mode === 'org' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('parentTip')}</label>
+            <textarea
+              value={(formData.parentTip as string) || ''}
+              onChange={(e) => updateFormField('parentTip', e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-amber-200 bg-amber-50/40 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:border-transparent placeholder:text-gray-400"
+              placeholder={t('parentTipPlaceholder')}
+            />
+          </div>
+        )}
+
+        {/* Expected result — org mode */}
+        {isTask && mode === 'org' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('expectedResult')}
+            </label>
+            <textarea
+              value={(formData.expectedResult as string) || ''}
+              onChange={(e) => updateFormField('expectedResult', e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-green-200 bg-green-50/40 rounded-lg text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent placeholder:text-gray-400"
+              placeholder={t('expectedResultPlaceholder')}
+            />
+          </div>
         )}
 
         <div>
