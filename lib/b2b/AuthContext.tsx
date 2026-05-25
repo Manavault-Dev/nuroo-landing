@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode, useRef } from 'react'
 import { onIdTokenChanged, User } from 'firebase/auth'
+import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/firebase/config'
 import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
@@ -54,6 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return profileData.organizations[0]?.orgId || null
         })
+        // Enrich Sentry context with role and orgId after profile loads
+        const firstOrg = profileData.organizations[0]
+        if (firstOrg) {
+          Sentry.setTag('org_id', firstOrg.orgId)
+          Sentry.setTag('user_role', firstOrg.role ?? 'unknown')
+        }
       }
     } catch {
       if (requestVersion !== profileRequestVersion.current) {
@@ -73,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser)
 
       if (currentUser) {
+        Sentry.setUser({ id: currentUser.uid })
         try {
           await loadProfile()
         } catch (error) {
@@ -115,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = async () => {
+    Sentry.setUser(null)
     await firebaseLogout()
     setUser(null)
     setProfile(null)

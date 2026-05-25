@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
+import { LogEvent, logEvent } from '../../shared/observability/logger.js'
 
 const improveBodySchema = z.object({
   roughText: z
@@ -103,6 +104,8 @@ export const specialistAiRoute: FastifyPluginAsync = async (fastify) => {
         { role: 'user', content: buildUserPrompt(roughText, context) },
       ]
 
+      const startMs = Date.now()
+
       try {
         const res = await fetch(OPENAI_URL, {
           method: 'POST',
@@ -123,10 +126,23 @@ export const specialistAiRoute: FastifyPluginAsync = async (fastify) => {
           }
           const detail = errBody?.error?.message || `OpenAI status ${res.status}`
           fastify.log.error({ status: res.status, detail }, 'OpenAI error in specialistAi')
+          logEvent({
+            event: LogEvent.AI_GENERATION_FAILED,
+            feature: 'assignment_generation',
+            model: MODEL,
+            endpoint: '/api/specialist/ai/improve-instruction',
+            durationMs: Date.now() - startMs,
+            inputLength: roughText.length,
+            errorCode: res.status,
+            errorMessage: 'OpenAI returned non-2xx',
+          })
           return reply.code(502).send({ error: `AI service error: ${detail}` })
         }
 
-        const data = (await res.json()) as { choices: Array<{ message: { content: string } }> }
+        const data = (await res.json()) as {
+          choices: Array<{ message: { content: string } }>
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+        }
         const content = data.choices?.[0]?.message?.content
         if (!content) return reply.code(502).send({ error: 'Empty AI response' })
 
@@ -137,6 +153,22 @@ export const specialistAiRoute: FastifyPluginAsync = async (fastify) => {
           fastify.log.error({ content }, 'AI returned invalid JSON')
           return reply.code(502).send({ error: 'AI returned invalid JSON' })
         }
+
+        logEvent({
+          event: LogEvent.AI_GENERATION_SUCCESS,
+          feature: 'assignment_generation',
+          model: MODEL,
+          endpoint: '/api/specialist/ai/improve-instruction',
+          durationMs: Date.now() - startMs,
+          inputLength: roughText.length,
+          tokenUsage: data.usage
+            ? {
+                prompt: data.usage.prompt_tokens,
+                completion: data.usage.completion_tokens,
+                total: data.usage.total_tokens,
+              }
+            : undefined,
+        })
 
         return reply.send({
           ok: true,
@@ -152,6 +184,15 @@ export const specialistAiRoute: FastifyPluginAsync = async (fastify) => {
         })
       } catch (err) {
         fastify.log.error(err, 'specialistAi error')
+        logEvent({
+          event: LogEvent.AI_GENERATION_FAILED,
+          feature: 'assignment_generation',
+          model: MODEL,
+          endpoint: '/api/specialist/ai/improve-instruction',
+          durationMs: Date.now() - startMs,
+          inputLength: roughText.length,
+          errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        })
         return reply.code(500).send({ error: 'Internal error' })
       }
     }
