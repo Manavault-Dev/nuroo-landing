@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
+import { getAnalytics, Analytics, isSupported } from 'firebase/analytics'
 
 // Next.js automatically loads .env.local, .env.development, .env.production
 // based on NODE_ENV, so we just use the standard variable names
@@ -16,6 +17,7 @@ const firebaseConfig = {
 let app: FirebaseApp | undefined
 let auth: Auth | undefined
 let db: Firestore | undefined
+let analytics: Analytics | undefined
 
 if (typeof window !== 'undefined') {
   const env = process.env.NODE_ENV || 'development'
@@ -33,6 +35,15 @@ if (typeof window !== 'undefined') {
       }
       auth = getAuth(app)
       db = getFirestore(app)
+      try {
+        isSupported().then((supported) => {
+          if (supported && app) {
+            analytics = getAnalytics(app)
+          }
+        })
+      } catch {
+        // Analytics not supported in this environment
+      }
     } catch (error) {
       console.error('❌ Failed to initialize Firebase:', error)
     }
@@ -43,4 +54,4 @@ if (typeof window !== 'undefined') {
   }
 }
 
-export { auth, db }
+export { auth, db, analytics }

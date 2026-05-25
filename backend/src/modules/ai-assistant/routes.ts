@@ -3,6 +3,7 @@ import admin from 'firebase-admin'
 import { aiAssistant } from './service.js'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../plugins/rbac.js'
+import { LogEvent, logEvent } from '../../shared/observability/logger.js'
 
 const COLLECTIONS = {
   CHILDREN: 'children',
@@ -42,12 +43,24 @@ const aiAssistantRoutes: FastifyPluginAsync = async (fastify) => {
       const orgId = claimedOrgId
       const role = member.role // use Firestore role, not claims role
 
+      const aiStartMs = Date.now()
       const result = await aiAssistant.process({
         message,
         orgId,
         userId: uid,
         role,
         mode,
+      })
+      logEvent({
+        event: LogEvent.AI_GENERATION_SUCCESS,
+        feature: 'chatbot',
+        model: 'gpt-4o-mini',
+        endpoint: '/ai/chat',
+        durationMs: Date.now() - aiStartMs,
+        inputLength: message.length,
+        userId: uid,
+        orgId,
+        role,
       })
 
       let executionResult: { content?: string; success?: boolean } | undefined
@@ -67,6 +80,13 @@ const aiAssistantRoutes: FastifyPluginAsync = async (fastify) => {
       }
     } catch (error) {
       console.error('[AI] Chat error:', error)
+      logEvent({
+        event: LogEvent.AI_GENERATION_FAILED,
+        feature: 'chatbot',
+        model: 'gpt-4o-mini',
+        endpoint: '/ai/chat',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      })
       return reply.code(500).send({
         error: 'AI assistant error',
         details: error instanceof Error ? error.message : '',

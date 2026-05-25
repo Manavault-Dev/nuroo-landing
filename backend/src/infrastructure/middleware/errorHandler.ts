@@ -1,6 +1,8 @@
+import * as Sentry from '@sentry/node'
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify'
 import { ZodError } from 'zod'
 import { AppError } from '../../shared/errors/AppError.js'
+import { LogEvent, logEvent } from '../../shared/observability/logger.js'
 
 export function errorHandler(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
   request.log.error(error)
@@ -24,6 +26,11 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
 
   if (error.message?.includes('auth/')) {
     const code = error.message.match(/auth\/([a-z-]+)/)?.[1] || 'unknown'
+    logEvent({
+      event: LogEvent.AUTH_FAILED,
+      endpoint: request.url,
+      errorCode: `auth/${code}`,
+    })
     return reply.code(400).send({
       error: getFirebaseAuthErrorMessage(code),
       code: `auth/${code}`,
@@ -31,6 +38,14 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
   }
 
   const statusCode = error.statusCode || 500
+  if (statusCode >= 500) {
+    Sentry.captureException(error)
+    logEvent({
+      event: LogEvent.FIRESTORE_OPERATION_FAILED,
+      endpoint: request.url,
+      errorCode: statusCode,
+    })
+  }
   return reply.code(statusCode).send({
     error: statusCode >= 500 ? 'Internal server error' : error.message,
   })

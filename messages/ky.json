@@ -1247,7 +1247,15 @@
         "noName": "Аталышы жок",
         "unnamed": "Аты жок",
         "partTasks": "{n, plural, one {# тапшырма} other {# тапшырма}}",
-        "partPrograms": "{n, plural, one {# программа} other {# программа}}"
+        "partPrograms": "{n, plural, one {# программа} other {# программа}}",
+        "moreTasks": "дагы",
+        "removeAssignment": "Тапшырманы топтон алып салуу",
+        "collapseTasks": "Тапшырмалар тизмесин жашыруу",
+        "expandTasks": "Тапшырмалар тизмесин көрсөтүү",
+        "tasksInAssignment": "{count} тапшырма дайындалган",
+        "viewSubmissions": "Жоопторду көрүү",
+        "parentSearchPlaceholder": "Аты же email боюнча издөө",
+        "noParentsFound": "Ата-энелер табылган жок"
       },
       "billing": {
         "title": "Жазылуу планы",

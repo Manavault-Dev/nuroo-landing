@@ -79,10 +79,13 @@ export function GroupCard({
   onAssign?: (e: MouseEvent) => void
   canManage: boolean
 }) {
+  const recentAssignments = group.lastAssignedTaskTitles ?? []
+  const hasRecentAssignments = recentAssignments.length > 0
+
   return (
     <div
       onClick={onClick}
-      className={`group relative cursor-pointer bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${isSelected ? 'border-primary-300 shadow-md ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-md'}`}
+      className={`group relative self-start cursor-pointer bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${isSelected ? 'border-primary-300 shadow-md ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-md'}`}
     >
       <div className="h-1.5 w-full" style={{ backgroundColor: group.color }} />
       <div className="p-5">
@@ -115,48 +118,81 @@ export function GroupCard({
         </div>
 
         {group.description && (
-          <p className="text-xs text-gray-500 mb-3 line-clamp-2">{group.description}</p>
+          <p className="text-xs text-gray-400 mb-3 line-clamp-1">{group.description}</p>
         )}
 
-        {group.lastAssignedTaskTitles && group.lastAssignedTaskTitles.length > 0 ? (
-          <div className="mb-3 bg-primary-50 border border-primary-100 rounded-lg px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <BookOpen className="w-3 h-3 text-primary-500 shrink-0" />
-              <span className="text-[10px] font-semibold text-primary-600 uppercase tracking-wide">
+        {hasRecentAssignments ? (
+          <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50/70 overflow-hidden">
+            {/* Header row */}
+            <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
+              <BookOpen className="w-3 h-3 text-primary-400 shrink-0" />
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest flex-1">
                 {t('lastAssignment')}
               </span>
               {group.lastAssignedAt && (
-                <span className="ml-auto text-[10px] text-primary-400">
+                <span className="text-[10px] text-gray-400 tabular-nums">
                   {relativeTime(group.lastAssignedAt, t, locale)}
                 </span>
               )}
             </div>
-            <p className="text-xs text-primary-800 truncate">
-              {group.lastAssignedTaskTitles.slice(0, 2).join(', ')}
-              {group.lastAssignedTaskTitles.length > 2 &&
-                ` +${group.lastAssignedTaskTitles.length - 2}`}
-            </p>
+            {/* Task list */}
+            <ul className="px-3 pb-2.5 space-y-1">
+              {recentAssignments.slice(0, 2).map((title, i) => (
+                <li key={i} className="flex items-center gap-2 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0" />
+                  <span className="text-xs text-gray-700 font-medium truncate">{title}</span>
+                </li>
+              ))}
+              {recentAssignments.length > 2 && (
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                  <span className="text-[11px] text-gray-400">
+                    +{recentAssignments.length - 2} {t('moreTasks')}
+                  </span>
+                </li>
+              )}
+            </ul>
           </div>
         ) : (
-          <p className="mb-3 text-xs text-gray-400 italic">{t('noAssignmentsYet')}</p>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Users className="w-3.5 h-3.5" />
-            <span>{t('parentCount', { count: group.parentCount })}</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-1">
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/70 px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-100">
+                <ClipboardList className="h-4 w-4 text-gray-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-700">{t('noAssignmentsYet')}</p>
+                <p className="text-[11px] text-gray-400 truncate">{t('assignTask')}</p>
+              </div>
+            </div>
             {canManage && onAssign && (
               <button
                 onClick={onAssign}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-primary-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-primary-700 hover:bg-primary-50 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                {t('taskShort')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex items-center gap-1 text-xs text-gray-400">
+            <Users className="w-3.5 h-3.5" />
+            <span>{t('parentCount', { count: group.parentCount })}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {hasRecentAssignments && canManage && onAssign && (
+              <button
+                onClick={onAssign}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
               >
                 <Plus className="w-3 h-3" />
                 {t('taskShort')}
               </button>
             )}
-            <div className="flex items-center gap-0.5 text-xs text-gray-400 group-hover:text-primary-600 transition-colors">
+            <div className="flex items-center gap-0.5 text-xs text-gray-400 group-hover:text-primary-600 transition-colors font-medium">
               {t('open')}
               <ChevronRight className="w-3.5 h-3.5" />
             </div>
@@ -188,6 +224,18 @@ export function AssignmentsTab({
   onToggleStatus: (a: Assignment) => void
   onNew: () => void
 }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  const toggleExpand = (id: string, e: MouseEvent) => {
+    e.stopPropagation()
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   if (assignments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -211,82 +259,140 @@ export function AssignmentsTab({
 
   return (
     <div className="p-4 space-y-2">
-      {assignments.map((a) => (
-        <div
-          key={a.id}
-          onClick={() => onSelect(a)}
-          className={`group flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedId === a.id ? 'border-primary-200 bg-primary-50/60' : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'}`}
-        >
+      {assignments.map((a) => {
+        const isExpanded = expandedIds.has(a.id)
+        const hasTaskList = a.taskTitles.length > 0
+
+        return (
           <div
-            className={`w-2 h-2 rounded-full shrink-0 ${a.status === 'active' ? 'bg-green-400' : 'bg-gray-300'}`}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {a.contentRoadmapIds.length > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 shrink-0">
-                  <BookOpen className="w-3 h-3" />
-                  {t('program')}
-                </span>
-              )}
-              <p
-                className={`text-sm font-semibold truncate ${selectedId === a.id ? 'text-primary-800' : 'text-gray-800'}`}
-              >
-                {a.title}
-              </p>
-            </div>
-            {a.taskTitles.length > 0 && (
-              <p className="text-xs text-gray-400 mt-0.5 truncate">
-                {a.taskTitles.slice(0, 3).join(' · ')}
-                {a.taskTitles.length > 3 && ` +${a.taskTitles.length - 3}`}
-              </p>
-            )}
-            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-              {a.assignedAt && (
-                <span className="text-xs text-gray-400">
-                  {relativeTime(a.assignedAt, t, locale)}
-                </span>
-              )}
-              {a.dueDate && (
-                <span className="text-xs flex items-center gap-1 text-amber-600">
-                  <Clock className="w-3 h-3" />
-                  {t('dueDateUntil', { date: formatDate(a.dueDate, locale) })}
-                </span>
-              )}
-              <span className="text-xs text-gray-400">{pluralChildren(a.childCount, t)}</span>
-            </div>
-          </div>
-          {isOwner && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleStatus(a)
-                }}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title={a.status === 'active' ? t('closeAccept') : t('openAccept')}
-              >
-                {a.status === 'active' ? (
-                  <Lock className="w-3.5 h-3.5" />
-                ) : (
-                  <Unlock className="w-3.5 h-3.5" />
+            key={a.id}
+            className={`rounded-xl border transition-all overflow-hidden ${selectedId === a.id ? 'border-primary-200 bg-primary-50/60' : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'}`}
+          >
+            {/* Main row */}
+            <div onClick={() => onSelect(a)} className="flex items-center gap-3 p-4 cursor-pointer">
+              {/* Status dot */}
+              <div
+                className={`w-2 h-2 rounded-full shrink-0 ${a.status === 'active' ? 'bg-green-400' : 'bg-gray-300'}`}
+              />
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {a.contentRoadmapIds.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 shrink-0">
+                      <BookOpen className="w-3 h-3" />
+                      {t('program')}
+                    </span>
+                  )}
+                  <p
+                    className={`text-sm font-semibold truncate ${selectedId === a.id ? 'text-primary-800' : 'text-gray-800'}`}
+                  >
+                    {a.title}
+                  </p>
+                </div>
+
+                {/* Truncated task preview when collapsed */}
+                {hasTaskList && !isExpanded && (
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    {a.taskTitles.slice(0, 3).join(' · ')}
+                    {a.taskTitles.length > 3 && ` +${a.taskTitles.length - 3}`}
+                  </p>
                 )}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(a)
-                }}
-                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  {a.assignedAt && (
+                    <span className="text-xs text-gray-400">
+                      {relativeTime(a.assignedAt, t, locale)}
+                    </span>
+                  )}
+                  {a.dueDate && (
+                    <span className="text-xs flex items-center gap-1 text-amber-600">
+                      <Clock className="w-3 h-3" />
+                      {t('dueDateUntil', { date: formatDate(a.dueDate, locale) })}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-400">{pluralChildren(a.childCount, t)}</span>
+                </div>
+              </div>
+
+              {/* Action buttons — always visible for isOwner */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                {isOwner && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleStatus(a)
+                      }}
+                      className="p-1.5 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title={a.status === 'active' ? t('closeAccept') : t('openAccept')}
+                    >
+                      {a.status === 'active' ? (
+                        <Lock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Unlock className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(a)
+                      }}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title={t('removeAssignment')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                {/* Expand/collapse task list */}
+                {hasTaskList && (
+                  <button
+                    onClick={(e) => toggleExpand(a.id, e)}
+                    className="p-1.5 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title={isExpanded ? t('collapseTasks') : t('expandTasks')}
+                  >
+                    {isExpanded ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+                {!hasTaskList && (
+                  <ChevronRight
+                    className={`w-4 h-4 transition-colors ${selectedId === a.id ? 'text-primary-400' : 'text-gray-300'}`}
+                  />
+                )}
+              </div>
             </div>
-          )}
-          <ChevronRight
-            className={`w-4 h-4 shrink-0 transition-colors ${selectedId === a.id ? 'text-primary-400' : 'text-gray-300 group-hover:text-gray-400'}`}
-          />
-        </div>
-      ))}
+
+            {/* Expanded task list */}
+            {isExpanded && hasTaskList && (
+              <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-3 space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  {t('tasksInAssignment', { count: a.taskTitles.length })}
+                </p>
+                {a.taskTitles.map((title, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs text-gray-700 leading-5">{title}</span>
+                  </div>
+                ))}
+                <button
+                  onClick={() => onSelect(a)}
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                  {t('viewSubmissions')}
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
