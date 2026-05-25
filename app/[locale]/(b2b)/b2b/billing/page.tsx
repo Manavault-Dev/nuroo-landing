@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
+import { Analytics } from '@/lib/analytics'
 import { Loader2, Building2, Star, TrendingUp, Users, ArrowRight } from 'lucide-react'
 import { BillingBadge, type BillingBadgeKey } from '@/components/ui/BillingBadge'
 import { PricingCard } from '@/components/ui/PricingCard'
@@ -112,6 +113,10 @@ export default function BillingPage() {
     }
   }, [isLoading, profile, isAdmin, router])
 
+  useEffect(() => {
+    Analytics.billingPageOpened()
+  }, [])
+
   const handleSubscribe = async (
     planId: 'starter' | 'growth' | 'enterprise',
     displayId?: string
@@ -124,6 +129,7 @@ export default function BillingPage() {
 
     setCreatingPayment(planId)
     setError('')
+    Analytics.paymentStarted({ planId })
 
     try {
       const result = await apiClient.createPayment(currentOrgId, planId)
