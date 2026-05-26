@@ -378,7 +378,10 @@
       },
       "jury": {
         "cta": "Перейти к демо-входу ↓"
-      }
+      },
+      "googleSignIn": "Войти через Google",
+      "orContinueWith": "или",
+      "googleError": "Не удалось войти через Google. Попробуйте снова."
     },
     "register": {
       "title": "Создать аккаунт",
@@ -405,7 +408,10 @@
       "errorEmailInUse": "Этот email уже зарегистрирован. Войдите в аккаунт.",
       "errorInvalidEmail": "Некорректный email. Проверьте формат адреса.",
       "errorWeakPassword": "Пароль слишком слабый. Используйте более надёжный пароль.",
-      "errorOperationNotAllowed": "Регистрация по email и паролю отключена. Свяжитесь с поддержкой."
+      "errorOperationNotAllowed": "Регистрация по email и паролю отключена. Свяжитесь с поддержкой.",
+      "googleSignUp": "Зарегистрироваться через Google",
+      "orContinueWith": "или",
+      "googleError": "Не удалось войти через Google. Попробуйте снова."
     },
     "sidebar": {
       "dashboard": "Главная",

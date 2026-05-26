@@ -4,6 +4,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   onIdTokenChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   User,
   UserCredential,
 } from 'firebase/auth'
@@ -28,6 +30,18 @@ export async function register(
   }
   const authInstance = auth
   return createUserWithEmailAndPassword(authInstance, email, password)
+}
+
+export async function signInWithGoogle(): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase Auth is not initialized. Please configure Firebase in .env.local')
+  }
+  const provider = new GoogleAuthProvider()
+  provider.addScope('email')
+  provider.addScope('profile')
+  // Force account selection so users can switch accounts
+  provider.setCustomParameters({ prompt: 'select_account' })
+  return signInWithPopup(auth, provider)
 }
 
 export async function signOut(): Promise<void> {

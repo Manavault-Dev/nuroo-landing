@@ -378,7 +378,10 @@
       },
       "jury": {
         "cta": "Go to demo sign-in ↓"
-      }
+      },
+      "googleSignIn": "Continue with Google",
+      "orContinueWith": "or",
+      "googleError": "Failed to sign in with Google. Please try again."
     },
     "register": {
       "title": "Create Account",
@@ -405,7 +408,10 @@
       "errorEmailInUse": "This email is already registered. Please sign in instead.",
       "errorInvalidEmail": "Invalid email address. Please check your email format.",
       "errorWeakPassword": "Password is too weak. Please use a stronger password.",
-      "errorOperationNotAllowed": "Email/password sign-up is not enabled. Please contact support."
+      "errorOperationNotAllowed": "Email/password sign-up is not enabled. Please contact support.",
+      "googleSignUp": "Continue with Google",
+      "orContinueWith": "or",
+      "googleError": "Failed to sign in with Google. Please try again."
     },
     "sidebar": {
       "dashboard": "Dashboard",

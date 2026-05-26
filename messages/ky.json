@@ -374,7 +374,10 @@
       },
       "jury": {
         "cta": "Демо кирүүгө өтүү ↓"
-      }
+      },
+      "googleSignIn": "Google менен кирүү",
+      "orContinueWith": "же",
+      "googleError": "Google аркылуу кирүү мүмкүн болгон жок. Кайра аракет кылыңыз."
     },
     "register": {
       "title": "Аккаунт түзүү",
@@ -401,7 +404,10 @@
       "errorEmailInUse": "Бул email мурун катталган. Аккаунтка кириңиз.",
       "errorInvalidEmail": "Email форматы туура эмес. Даректи текшериңиз.",
       "errorWeakPassword": "Сыр сөз өтө алсыз. Күчтүүрөөк сыр сөз колдонуңуз.",
-      "errorOperationNotAllowed": "Email жана сыр сөз менен катталуу өчүрүлгөн. Колдоо кызматына кайрылыңыз."
+      "errorOperationNotAllowed": "Email жана сыр сөз менен катталуу өчүрүлгөн. Колдоо кызматына кайрылыңыз.",
+      "googleSignUp": "Google аркылуу катталуу",
+      "orContinueWith": "же",
+      "googleError": "Google аркылуу кирүү мүмкүн болгон жок. Кайра аракет кылыңыз."
     },
     "sidebar": {
       "dashboard": "Башкы бет",
