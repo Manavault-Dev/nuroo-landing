@@ -59,13 +59,14 @@ import {
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'activity' | 'assignments' | 'guardians'
+type Tab = 'overview' | 'activity' | 'assignments' | 'guardians' | 'intake'
 
 const TABS: { id: Tab; labelKey: string; icon: React.ReactNode }[] = [
   { id: 'overview', labelKey: 'tabOverview', icon: <ClipboardList className="w-4 h-4" /> },
   { id: 'activity', labelKey: 'tabActivity', icon: <Activity className="w-4 h-4" /> },
   { id: 'assignments', labelKey: 'tabAssignments', icon: <BookOpen className="w-4 h-4" /> },
   { id: 'guardians', labelKey: 'tabGuardians', icon: <Users className="w-4 h-4" /> },
+  { id: 'intake', labelKey: 'tabIntake', icon: <FileText className="w-4 h-4" /> },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,13 +121,139 @@ function StatChip({
 
 // ── Tab: Overview ─────────────────────────────────────────────────────────────
 
+/**
+ * The complete set of option keys that the mobile app stores in Firestore.
+ * ONLY these short lowercase keys should be translated via the options lookup.
+ * Any other string (free text: names, addresses, dates, notes) must pass through unchanged.
+ */
+const INTAKE_OPTION_KEYS = new Set([
+  // Specialists
+  'neurologist',
+  'psychiatrist',
+  'speech',
+  'defectologist',
+  'psychologist',
+  'aba',
+  // Pregnancy order
+  'first',
+  'second',
+  'third',
+  'multiple',
+  // Pregnancy / birth factors
+  'toxicosis',
+  'miscarriage',
+  'stress',
+  'infections',
+  'covid',
+  'anemia',
+  'pressure',
+  'edema',
+  'diabetes',
+  'hypoxia',
+  'antibiotics',
+  'hormones',
+  'smoking',
+  'alcohol',
+  // Birth types
+  'natural',
+  'cesarean',
+  'induced',
+  // Birth factors
+  'cord',
+  'asphyxia',
+  'weakness',
+  'rapid',
+  'prolonged',
+  'forceps',
+  'trauma',
+  // Speech understanding
+  'well',
+  'partially',
+  'poorly',
+  // Speech features
+  'stutter',
+  'blurred',
+  'nasal',
+  'absent',
+  'syllables',
+  'unclear',
+  // Yes/No/Rarely/Sometimes (enum values for eyeContact, respondsToName)
+  'yes',
+  'no',
+  'rarely',
+  'sometimes',
+  // Behaviour features
+  'tantrums',
+  'aggression',
+  'selfharm',
+  'fears',
+  'hyperactive',
+  'no_danger',
+  'stereotypes',
+  'avoidance',
+  'sensitivity',
+  // Health conditions
+  'seizures',
+  'tbi',
+  'surgeries',
+  'high_fever',
+  'arvi',
+  'otitis',
+  'allergy',
+  'vision',
+  'hearing',
+  'adenoids',
+  // Family conditions
+  'speech_delay',
+  'autism',
+  'mental',
+  'adhd',
+  'learning',
+  'genetic',
+  // Institutions
+  'kindergarten',
+  'development',
+  'correction',
+  // Self-care
+  'eat_alone',
+  'spoon',
+  'cup',
+  'toilet',
+  'dress',
+  'undress',
+  'teeth',
+  // filledBy (also handled by relationshipLabel, but included for completeness)
+  'mother',
+  'father',
+  'guardian',
+  // Generic "other"
+  'other',
+])
+
+/**
+ * Translate a known option key. Free-text values (names, dates, notes, etc.)
+ * are returned unchanged because they won't be in INTAKE_OPTION_KEYS.
+ */
+function translateOptionKey(key: string, t: ReturnType<typeof useTranslations>): string {
+  if (!INTAKE_OPTION_KEYS.has(key)) return key
+  return t(`intake.options.${key}` as any)
+}
+
 function formatValue(
   value: string | number | boolean | string[] | null | undefined,
   t: ReturnType<typeof useTranslations>
 ): string | null {
   if (value === undefined || value === null || value === '') return null
   if (typeof value === 'boolean') return value ? t('yes') : t('no')
-  return Array.isArray(value) ? value.join(', ') : String(value)
+  if (Array.isArray(value)) {
+    return value.map((item) => translateOptionKey(item, t)).join(', ')
+  }
+  // Single enum strings (eyeContact, understandsSpeech, respondsToName, pregnancyNumber…)
+  // are stored as known option keys — translate them; free text passes through unchanged.
+  if (typeof value === 'string') {
+    return translateOptionKey(value, t)
+  }
+  return String(value)
 }
 
 function relationshipLabel(
@@ -143,17 +270,23 @@ function InfoRow({
   label,
   value,
   t,
+  compact = false,
 }: {
   label: string
   value?: string | number | boolean | string[] | null
   t: ReturnType<typeof useTranslations>
+  compact?: boolean
 }) {
   const display = formatValue(value, t)
   if (!display) return null
   return (
-    <div className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-400 min-w-[160px] flex-shrink-0 pt-0.5">{label}</span>
-      <span className="text-sm text-gray-800 font-medium break-words">{display}</span>
+    <div
+      className={`grid gap-1 border-b border-gray-100 last:border-0 sm:grid-cols-[minmax(140px,220px),1fr] sm:gap-5 ${
+        compact ? 'py-2' : 'py-3'
+      }`}
+    >
+      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</span>
+      <span className="text-sm font-medium leading-6 text-gray-800 break-words">{display}</span>
     </div>
   )
 }
@@ -169,23 +302,27 @@ function OverviewCard({
   children: React.ReactNode
   accent?: string
 }) {
-  const border: Record<string, string> = {
-    teal: 'border-l-teal-400',
-    blue: 'border-l-blue-400',
-    violet: 'border-l-violet-400',
-    amber: 'border-l-amber-400',
-    rose: 'border-l-rose-400',
+  const iconTone: Record<string, string> = {
+    teal: 'bg-teal-50 text-teal-700 ring-teal-100',
+    blue: 'bg-blue-50 text-blue-700 ring-blue-100',
+    violet: 'bg-violet-50 text-violet-700 ring-violet-100',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+    rose: 'bg-rose-50 text-rose-700 ring-rose-100',
   }
   return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden border-l-4 ${border[accent] ?? border.teal}`}
-    >
-      <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
-        <span className="text-gray-500">{icon}</span>
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50/60 px-4 py-3">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ${
+            iconTone[accent] ?? iconTone.teal
+          }`}
+        >
+          {icon}
+        </span>
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
       </div>
-      <div className="px-5 py-3">{children}</div>
-    </div>
+      <div className="px-4 py-2">{children}</div>
+    </section>
   )
 }
 
@@ -241,24 +378,24 @@ function OverviewTab({
       <div className="xl:col-span-2 space-y-5">
         {/* ── Progress stats ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
             <p className="text-2xl font-bold text-teal-600">{childDetail.completedTasksCount}</p>
             <p className="text-xs text-gray-400 mt-1">{t('tasksCompleted')}</p>
           </div>
           {childDetail.speechStepNumber && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
               <p className="text-2xl font-bold text-violet-600">{childDetail.speechStepNumber}</p>
               <p className="text-xs text-gray-400 mt-1">{t('roadmapStep')}</p>
             </div>
           )}
           {completionRate > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
               <p className="text-2xl font-bold text-green-600">{completionRate}%</p>
               <p className="text-xs text-gray-400 mt-1">{t('completion')}</p>
             </div>
           )}
           {childDetail.lastActiveDate && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
               <p className="text-sm font-bold text-blue-600 mt-1">
                 {formatShortDate(childDetail.lastActiveDate)}
               </p>
@@ -553,7 +690,7 @@ function OverviewTab({
       {/* ── Right column: timeline + tasks ── */}
       <div className="space-y-5">
         {/* Progress timeline */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center gap-2 mb-4">
             <Calendar className="w-4 h-4 text-gray-400" />
             <h3 className="text-sm font-semibold text-gray-900">{t('progressTimeline')}</h3>
@@ -608,7 +745,7 @@ function OverviewTab({
 
         {/* Recent tasks */}
         {childDetail.recentTasks?.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-gray-400" />
               <h3 className="text-sm font-semibold text-gray-900">{t('recentTasks')}</h3>
@@ -1958,6 +2095,8 @@ export default function ChildDetailPage() {
             formatShortDate={formatShortDate}
           />
         )}
+
+        {activeTab === 'intake' && <IntakeTab orgId={orgId} childId={childId} />}
       </div>
     </div>
   )
