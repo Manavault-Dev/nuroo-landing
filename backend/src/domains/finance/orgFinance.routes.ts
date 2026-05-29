@@ -262,10 +262,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, date, records }
       } catch (error: any) {
         console.error('[FINANCE] Error getting attendance:', error)
-        return reply.code(500).send({
-          error: 'Failed to get attendance',
-          details: config.NODE_ENV === 'production' ? undefined : error.message,
-        })
+        return reply.code(500).send({ error: 'Failed to get attendance', code: 'INTERNAL_ERROR' })
       }
     }
   )
@@ -287,6 +284,11 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(404).send({ error: 'Child is not active in this organization' })
         }
 
+        if (!['org_admin', 'specialist'].includes(member.role)) {
+          return reply
+            .code(403)
+            .send({ error: 'Only admins and specialists can mark attendance', code: 'FORBIDDEN' })
+        }
         if (member.role !== 'org_admin') {
           const childData = orgChildSnap.data()!
           const hasAccess =
@@ -294,7 +296,9 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
             (await isChildInSpecialistGroup(db, orgId, markedBy, body.childId))
 
           if (!hasAccess) {
-            return reply.code(403).send({ error: 'Child is not assigned to you' })
+            return reply
+              .code(403)
+              .send({ error: 'Child is not assigned to you', code: 'FORBIDDEN' })
           }
         }
 
@@ -317,10 +321,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, message: 'Attendance recorded' }
       } catch (error: any) {
         console.error('[FINANCE] Error saving attendance:', error)
-        return reply.code(500).send({
-          error: 'Failed to save attendance',
-          details: config.NODE_ENV === 'production' ? undefined : error.message,
-        })
+        return reply.code(500).send({ error: 'Failed to save attendance', code: 'INTERNAL_ERROR' })
       }
     }
   )
@@ -330,7 +331,17 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       try {
         const { orgId } = request.params
-        await requireOrgMember(request, reply, orgId)
+        const member = await requireOrgMember(request, reply, orgId)
+        // Only org admins may view finance records; parents/specialists have no access here
+        if (member.role !== 'org_admin') {
+          return reply
+            .code(403)
+            .send({ error: 'Only org admins can view finance records', code: 'FORBIDDEN' })
+        }
+        const featureCheck = await checkOrgHasFeature(orgId, 'finance')
+        if (!featureCheck.ok) {
+          return reply.code(403).send({ error: featureCheck.error, code: 'PLAN_UPGRADE_REQUIRED' })
+        }
 
         const now = new Date()
         const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -338,66 +349,100 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
 
         const db = getFirestore()
 
-        const childrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
-        const children = await Promise.all(
-          childrenSnap.docs
-            .filter((doc) => isActiveOrgChild(doc.data()))
-            .map(async (doc) => {
-              const data = doc.data()
-              const rawName = data.childName || data.name
-              const name =
-                rawName && rawName !== 'Unknown'
-                  ? rawName
-                  : await resolveChildName(db, doc.id, data.parentUserId)
-              return { id: doc.id, name, assignedAt: data.assignedAt || null }
-            })
-        )
-
-        const feesSnap = await db
-          .collection(ORG_MONTHLY_FEES(orgId))
-          .where('month', '==', month)
-          .get()
-
-        const feeMap = new Map<string, any>()
-        for (const doc of feesSnap.docs) {
-          const data = doc.data()
-          feeMap.set(data.childId, {
-            amount: data.amount,
-            currency: data.currency || 'KGS',
-            status: data.status,
-            paidAt: data.paidAt?.toDate?.()?.toISOString() || null,
-            note: data.note || null,
-          })
+        // ── Fetch invoices from the billing system ──────────────────────────
+        // Fetch all org invoices (newest first), then filter by month in-memory.
+        // "This month" = invoice whose dueDate OR periodStart starts with YYYY-MM.
+        let allInvoices: Record<string, any>[] = []
+        try {
+          const invoicesSnap = await db
+            .collection(`organizations/${orgId}/invoices`)
+            .orderBy('createdAt', 'desc')
+            .limit(200)
+            .get()
+          allInvoices = invoicesSnap.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() }) as Record<string, any>
+          )
+        } catch (invErr) {
+          fastify.log.warn({ event: 'finance_invoice_query_failed', orgId, err: String(invErr) })
         }
 
-        const records = children.map((child) => {
-          const fee = feeMap.get(child.id)
-          const status = fee?.status || 'pending'
-          const billing = computeBillingMeta(child.assignedAt, month, status)
-          return {
-            childId: child.id,
-            childName: child.name,
-            amount: fee?.amount ?? 0,
-            currency: fee?.currency || 'KGS',
-            status,
-            paidAt: fee?.paidAt || null,
-            note: fee?.note || null,
-            billingDay: billing.billingDay,
-            dueDate: billing.dueDate,
-            daysUntilDue: billing.daysUntilDue,
-            billingStatus: billing.billingStatus,
-          }
+        const monthInvoices = allInvoices.filter((inv) => {
+          const inDue = (inv.dueDate as string | undefined)?.startsWith(month)
+          const inPeriod = (inv.periodStart as string | undefined)?.startsWith(month)
+          return inDue || inPeriod
         })
+
+        // Also resolve child names for invoices that are for children no longer
+        // active in the org (orphan invoices — child left but invoice remains).
+        const orgChildrenSnap = await db.collection(ORG_CHILDREN(orgId)).get()
+        const childNameMap = new Map<string, string>()
+        for (const doc of orgChildrenSnap.docs) {
+          const d = doc.data()
+          const name = d.childName || d.name
+          if (name && name !== 'Unknown') childNameMap.set(doc.id, name)
+        }
+
+        // Per-child: keep only the best non-canceled invoice for this month.
+        const invoiceByChild = new Map<string, Record<string, any>>()
+        for (const inv of monthInvoices) {
+          const cid: string = inv.childId
+          if (!cid) continue
+          const existing = invoiceByChild.get(cid)
+          if (!existing) {
+            invoiceByChild.set(cid, inv)
+          } else if (existing.status === 'canceled' && inv.status !== 'canceled') {
+            invoiceByChild.set(cid, inv)
+          }
+        }
+
+        // Build records from invoices only.
+        const records: any[] = []
+        for (const [childId, inv] of invoiceByChild.entries()) {
+          const childName =
+            childNameMap.get(childId) ||
+            (inv.childName as string | undefined) ||
+            childId.slice(0, 8)
+
+          const dueDate: string = inv.dueDate || `${month}-01`
+          const dueMs = new Date(dueDate + 'T00:00:00').getTime()
+          const todayStart = (() => {
+            const d = new Date()
+            d.setHours(0, 0, 0, 0)
+            return d.getTime()
+          })()
+          const daysUntilDue = Math.ceil((dueMs - todayStart) / (1000 * 60 * 60 * 24))
+
+          const status: string = inv.status || 'pending'
+          let billingStatus: string
+          if (status === 'paid') billingStatus = 'paid'
+          else if (daysUntilDue < 0) billingStatus = 'overdue'
+          else if (daysUntilDue <= 3) billingStatus = 'due_soon'
+          else billingStatus = 'upcoming'
+
+          records.push({
+            childId,
+            childName,
+            amount: (inv.amount as number) ?? 0,
+            currency: (inv.currency as string) || 'KGS',
+            status,
+            paidAt: inv.paidAt?.toDate?.()?.toISOString() || null,
+            note: (inv.description as string) || null,
+            billingDay: new Date(dueDate + 'T00:00:00').getDate(),
+            dueDate,
+            daysUntilDue,
+            billingStatus,
+            invoiceId: inv.id,
+            paymentUrl: (inv.paymentUrl as string) || null,
+            source: 'invoice' as const,
+          })
+        }
 
         records.sort((a, b) => a.childName.localeCompare(b.childName))
 
         return { ok: true, month, records }
       } catch (error: any) {
         console.error('[FINANCE] Error getting fees:', error)
-        return reply.code(500).send({
-          error: 'Failed to get fees',
-          details: config.NODE_ENV === 'production' ? undefined : error.message,
-        })
+        return reply.code(500).send({ error: 'Failed to get fees', code: 'INTERNAL_ERROR' })
       }
     }
   )
@@ -446,10 +491,7 @@ export const financeRoute: FastifyPluginAsync = async (fastify) => {
         return { ok: true, message: 'Fee recorded' }
       } catch (error: any) {
         console.error('[FINANCE] Error saving fee:', error)
-        return reply.code(500).send({
-          error: 'Failed to save fee',
-          details: config.NODE_ENV === 'production' ? undefined : error.message,
-        })
+        return reply.code(500).send({ error: 'Failed to save fee', code: 'INTERNAL_ERROR' })
       }
     }
   )

@@ -278,7 +278,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { childId: string }
     Querystring: { orgId?: string; month?: string }
-  }>('/api/parent/children/:childId/billing', async (request, reply) => {
+  }>('/parent/children/:childId/billing', async (request, reply) => {
     try {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const uid = request.user.uid
@@ -297,9 +297,27 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       }
       if (!orgId) return reply.code(400).send({ error: 'orgId is required' })
 
-      const orgChildRef = db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`)
-      const orgChildSnap = await orgChildRef.get()
-      if (!orgChildSnap.exists || orgChildSnap.data()?.parentUserId !== uid) {
+      // Resolve the actual child document — parent passes their own uid as childId,
+      // so we look up by parentUserId if direct lookup fails or doesn't belong to uid.
+      let orgChildSnap: FirebaseFirestore.DocumentSnapshot | null = null
+      let resolvedChildId = childId
+
+      const directSnap = await db.doc(`${COLLECTIONS.ORG_CHILDREN(orgId)}/${childId}`).get()
+      if (directSnap.exists && directSnap.data()?.parentUserId === uid) {
+        orgChildSnap = directSnap
+      } else {
+        const byParent = await db
+          .collection(COLLECTIONS.ORG_CHILDREN(orgId))
+          .where('parentUserId', '==', uid)
+          .limit(1)
+          .get()
+        if (!byParent.empty) {
+          orgChildSnap = byParent.docs[0]
+          resolvedChildId = byParent.docs[0].id
+        }
+      }
+
+      if (!orgChildSnap) {
         return reply.code(403).send({ error: 'Access denied' })
       }
 
@@ -312,7 +330,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
       const today = new Date()
       const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-      const feeDocId = `${month}_${childId}`
+      const feeDocId = `${month}_${resolvedChildId}`
       const feeSnap = await db.doc(`${COLLECTIONS.ORG_MONTHLY_FEES(orgId)}/${feeDocId}`).get()
       const feeData = feeSnap.exists ? feeSnap.data()! : null
       const feeStatus = feeData?.status || 'pending'
@@ -330,7 +348,7 @@ export const parentTasksRoute: FastifyPluginAsync = async (fastify) => {
 
       return {
         ok: true,
-        childId,
+        childId: resolvedChildId,
         orgId,
         month,
         billingDay,

@@ -1,7 +1,26 @@
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
+import { requireParentOrgAccess } from '../content/orgContentParent.service.js'
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Accepts a number from JSON. Treats null, undefined, NaN as "not provided"
+ * (returns undefined). This way the field stays optional and doesn't fail
+ * validation when the mobile app sends NaN→null for an empty numeric input.
+ */
+const safeOptionalInt = z.preprocess(
+  (v) =>
+    v === null || v === undefined || (typeof v === 'number' && isNaN(v))
+      ? undefined
+      : typeof v === 'string'
+        ? v.trim() === ''
+          ? undefined
+          : parseInt(v, 10)
+        : v,
+  z.number().int().optional()
+)
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
 
@@ -22,13 +41,13 @@ const intakeSchema = z.object({
   previousSpecialistsOther: z.string().max(200).optional(),
 
   // 3. Pregnancy
-  motherAgeAtPregnancy: z.number().int().min(0).max(80).optional(),
+  motherAgeAtPregnancy: safeOptionalInt,
   pregnancyNumber: z.string().max(50).optional(),
   pregnancyComplications: z.boolean().optional(),
   pregnancyFactors: z.array(z.string()).optional(),
   pregnancyFactorsOther: z.string().max(200).optional(),
   pregnancyHospitalizations: z.string().max(500).optional(),
-  gestationWeeks: z.number().int().min(20).max(45).optional(),
+  gestationWeeks: safeOptionalInt,
 
   // 4. Birth
   birthTypes: z.array(z.string()).optional(),
@@ -41,7 +60,7 @@ const intakeSchema = z.object({
   criedImmediately: z.boolean().optional(),
   neededResuscitation: z.boolean().optional(),
   inIncubator: z.boolean().optional(),
-  daysInHospital: z.number().int().min(0).optional(),
+  daysInHospital: safeOptionalInt,
 
   // 5a. Motor development
   heldHeadAt: z.string().max(20).optional(),
@@ -103,23 +122,95 @@ const intakeSchema = z.object({
   additionalInfo: z.string().max(2000).optional(),
 })
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve which child document to use for intake.
+ *
+ * Parents pass their own UID as childId. The backend resolves this to the
+ * actual child document ID via `parentUserId` field in the org children
+ * collection.  Org members (specialists / admins) pass the real childId.
+ *
+ * Returns null if the caller has no access to this org/child.
+ */
+async function resolveIntakeAccess(
+  db: FirebaseFirestore.Firestore,
+  uid: string,
+  orgId: string,
+  childId: string
+): Promise<{ resolvedChildId: string; isParent: boolean } | null> {
+  // ── Try org member first (specialist / admin) ──────────────────────────────
+  const memberSnap = await db.doc(`organizations/${orgId}/members/${uid}`).get()
+  if (memberSnap.exists && memberSnap.data()?.status === 'active') {
+    // Org member: resolve childId directly or via parentUserId fallback
+    const directSnap = await db.doc(`organizations/${orgId}/children/${childId}`).get()
+    if (directSnap.exists) {
+      return { resolvedChildId: childId, isParent: false }
+    }
+    // Fallback: childId is actually a parentUserId
+    const byParent = await db
+      .collection(`organizations/${orgId}/children`)
+      .where('parentUserId', '==', childId)
+      .limit(1)
+      .get()
+    if (!byParent.empty) {
+      return { resolvedChildId: byParent.docs[0].id, isParent: false }
+    }
+    return null
+  }
+
+  // ── Try parent access ──────────────────────────────────────────────────────
+  const parentAccess = await requireParentOrgAccess(db, uid, orgId)
+  if (!parentAccess) return null
+
+  // Parent's childId is either their own uid or the actual child doc id
+  // First try the direct lookup
+  const directSnap = await db.doc(`organizations/${orgId}/children/${childId}`).get()
+  if (directSnap.exists && directSnap.data()?.parentUserId === uid) {
+    return { resolvedChildId: childId, isParent: true }
+  }
+
+  // childId is the parent's uid — resolve via parentUserId
+  const byParent = await db
+    .collection(`organizations/${orgId}/children`)
+    .where('parentUserId', '==', uid)
+    .limit(1)
+    .get()
+  if (!byParent.empty) {
+    return { resolvedChildId: byParent.docs[0].id, isParent: true }
+  }
+
+  // No child doc yet — parent is linked to org but child not assigned yet
+  // Allow access using uid as a virtual child ID so parent can still fill form
+  if (parentAccess) {
+    return { resolvedChildId: uid, isParent: true }
+  }
+
+  return null
+}
+
 // ── Route ──────────────────────────────────────────────────────────────────────
 
 export const childrenIntakeRoute: import('fastify').FastifyPluginAsync = async (fastify) => {
-  /** GET intake form — readable by any org member (specialist, admin) */
+  /**
+   * GET /orgs/:orgId/children/:childId/intake
+   * Readable by: org members (specialist/admin) + parent linked to this org
+   */
   fastify.get<{ Params: { orgId: string; childId: string } }>(
     '/orgs/:orgId/children/:childId/intake',
     async (request, reply) => {
       try {
+        if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
         const { orgId, childId } = request.params
-        await requireOrgMember(request, reply, orgId)
-        if (reply.sent) return
-        const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-        if (reply.sent) return
-
         const db = getFirestore()
+
+        const access = await resolveIntakeAccess(db, request.user.uid, orgId, childId)
+        if (!access) {
+          return reply.code(403).send({ error: 'No access to this child intake' })
+        }
+
         const snap = await db
-          .doc(`organizations/${orgId}/children/${resolvedChildId}/intake/main`)
+          .doc(`organizations/${orgId}/children/${access.resolvedChildId}/intake/main`)
           .get()
 
         if (!snap.exists) return { ok: true, intake: null }
@@ -140,26 +231,35 @@ export const childrenIntakeRoute: import('fastify').FastifyPluginAsync = async (
     }
   )
 
-  /** PUT intake form — parents and org members can write */
+  /**
+   * PUT /orgs/:orgId/children/:childId/intake
+   * Writable by: parent linked to this org + org members (specialist/admin)
+   */
   fastify.put<{
     Params: { orgId: string; childId: string }
     Body: z.infer<typeof intakeSchema>
   }>('/orgs/:orgId/children/:childId/intake', async (request, reply) => {
     try {
+      if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const { orgId, childId } = request.params
-      await requireOrgMember(request, reply, orgId)
-      if (reply.sent) return
-      const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
-      if (reply.sent) return
+      const db = getFirestore()
+
+      const access = await resolveIntakeAccess(db, request.user.uid, orgId, childId)
+      if (!access) {
+        return reply.code(403).send({ error: 'No access to this child intake' })
+      }
 
       const parse = intakeSchema.safeParse(request.body)
       if (!parse.success) {
+        fastify.log.warn(
+          { orgId, childId, issues: parse.error.errors },
+          '[intake] validation failed'
+        )
         return reply.code(400).send({ error: 'Invalid intake data', details: parse.error.errors })
       }
 
-      const db = getFirestore()
       const now = new Date()
-      const ref = db.doc(`organizations/${orgId}/children/${resolvedChildId}/intake/main`)
+      const ref = db.doc(`organizations/${orgId}/children/${access.resolvedChildId}/intake/main`)
       const snap = await ref.get()
       const isNew = !snap.exists
 
@@ -167,9 +267,14 @@ export const childrenIntakeRoute: import('fastify').FastifyPluginAsync = async (
         {
           ...parse.data,
           updatedAt: now,
-          ...(isNew ? { filledAt: now, filledByParentUid: request.user!.uid } : {}),
+          ...(isNew ? { filledAt: now, filledByParentUid: request.user.uid } : {}),
         },
         { merge: true }
+      )
+
+      fastify.log.info(
+        { orgId, resolvedChildId: access.resolvedChildId, isParent: access.isParent, isNew },
+        '[intake] form saved'
       )
 
       return { ok: true, updatedAt: now.toISOString(), isNew }

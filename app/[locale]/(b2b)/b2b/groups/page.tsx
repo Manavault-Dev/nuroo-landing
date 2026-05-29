@@ -201,7 +201,7 @@ export default function GroupsPage() {
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [orgId]
+    [orgId, t]
   )
 
   // ─── Assignment detail ──────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ export default function GroupsPage() {
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [orgId, selectedGroup]
+    [orgId, selectedGroup, t]
   )
 
   // ─── Group CRUD ─────────────────────────────────────────────────────────────

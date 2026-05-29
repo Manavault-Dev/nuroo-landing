@@ -28,6 +28,14 @@ const nextConfig = {
       ...config.resolve.fallback,
       fs: false,
     }
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      {
+        module:
+          /node_modules\/(@prisma\/instrumentation|@fastify\/otel|@opentelemetry\/instrumentation|require-in-the-middle)/,
+        message: /Critical dependency/,
+      },
+    ]
 
     return config
   },
@@ -52,20 +60,12 @@ const nextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
         ],
       },
       {
         source: '/:all*(svg|jpg|png|webp|avif)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        source: '/_next/static/:path*',
         headers: [
           {
             key: 'Cache-Control',
@@ -106,6 +106,7 @@ module.exports = withSentryConfig(module.exports, {
   tunnelRoute: '/monitoring',
 
   webpack: {
+    disableSentryConfig: process.env.NODE_ENV === 'development',
     // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
     // See the following for more information:
     // https://docs.sentry.io/product/crons/
