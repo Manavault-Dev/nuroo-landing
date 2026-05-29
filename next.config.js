@@ -31,7 +31,8 @@ const nextConfig = {
     config.ignoreWarnings = [
       ...(config.ignoreWarnings ?? []),
       {
-        module: /node_modules\/(@prisma\/instrumentation|@fastify\/otel|@opentelemetry\/instrumentation|require-in-the-middle)/,
+        module:
+          /node_modules\/(@prisma\/instrumentation|@fastify\/otel|@opentelemetry\/instrumentation|require-in-the-middle)/,
         message: /Critical dependency/,
       },
     ]
