@@ -161,9 +161,7 @@ export default function InvoiceDetailPage() {
         <div className={`rounded-2xl border ${theme.bg} ${theme.border} p-8 text-center shadow-sm`}>
           <div className="flex justify-center mb-4">{theme.icon}</div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">{theme.title}</h1>
-          {theme.message && (
-            <p className={`text-sm ${theme.textColor} mb-6`}>{theme.message}</p>
-          )}
+          {theme.message && <p className={`text-sm ${theme.textColor} mb-6`}>{theme.message}</p>}
 
           {invoice && (
             <div className="bg-white rounded-xl border border-gray-100 p-4 text-left mb-4 space-y-2">
@@ -180,8 +178,8 @@ export default function InvoiceDetailPage() {
                     invoice.status === 'paid'
                       ? 'text-emerald-600'
                       : invoice.status === 'overdue' || invoice.status === 'failed'
-                      ? 'text-red-600'
-                      : 'text-gray-600'
+                        ? 'text-red-600'
+                        : 'text-gray-600'
                   }`}
                 >
                   {statusLabels[invoice.status] ?? invoice.status}
@@ -221,9 +219,7 @@ export default function InvoiceDetailPage() {
             </div>
           )}
 
-          {error && (
-            <p className="text-sm text-red-500 mb-4">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
           {/* Polling indicator for pending after payment return */}
           {returnStatus === 'paid' && invoice?.status !== 'paid' && refreshCount < 3 && (

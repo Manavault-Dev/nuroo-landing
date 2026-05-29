@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
@@ -12,7 +12,6 @@ import {
   type ChildDetail,
   type TimelineResponse,
   type ChildTask,
-  type SpecialistNote,
   type ChildIntakeForm,
   type Guardian,
   type GuardianInput,
@@ -20,7 +19,6 @@ import {
 import { ActivityFeed } from '@/components/b2b/ActivityFeed'
 import {
   ArrowLeft,
-  Send,
   Calendar,
   CheckCircle,
   Clock,
@@ -30,12 +28,10 @@ import {
   Frown,
   User,
   Mail,
-  Link2,
   Activity,
   FileText,
   BookOpen,
   Users,
-  LayoutGrid,
   Tag,
   Phone,
   ExternalLink,
@@ -334,7 +330,6 @@ function OverviewTab({
   formatDate,
   formatShortDate,
   getFeedbackIcon,
-  getFeedbackLabel,
   t,
 }: {
   orgId: string
@@ -344,7 +339,6 @@ function OverviewTab({
   formatDate: (d: string) => string
   formatShortDate: (d: string) => string
   getFeedbackIcon: (m: 'good' | 'ok' | 'hard') => React.ReactNode
-  getFeedbackLabel: (m: 'good' | 'ok' | 'hard') => string
   t: ReturnType<typeof useTranslations>
 }) {
   const [intake, setIntake] = useState<ChildIntakeForm | null>(null)
@@ -354,7 +348,9 @@ function OverviewTab({
     apiClient
       .getChildIntake(orgId, childId)
       .then(setIntake)
-      .catch(() => {})
+      .catch(() => {
+        /* ignore */
+      })
       .finally(() => setIntakeLoading(false))
   }, [orgId, childId])
 
@@ -1404,7 +1400,9 @@ function GuardiansTab({
     apiClient
       .getChildGuardians(orgId, childId)
       .then(setGuardians)
-      .catch(() => {})
+      .catch(() => {
+        /* ignore */
+      })
       .finally(() => setLoading(false))
   }, [orgId, childId])
 
@@ -1594,7 +1592,9 @@ function IntakeTab({ orgId, childId }: { orgId: string; childId: string }) {
     apiClient
       .getChildIntake(orgId, childId)
       .then((data) => setIntake(data))
-      .catch(() => {})
+      .catch(() => {
+        /* ignore */
+      })
       .finally(() => setLoading(false))
   }, [orgId, childId])
 

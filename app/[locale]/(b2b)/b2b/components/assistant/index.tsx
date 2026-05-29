@@ -29,7 +29,9 @@ export default function Assistant({ orgId, locale, onCommandExecuted }: Assistan
   const [voiceError, setVoiceError] = useState<string | null>(null)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const handleInputRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const handleInputRef = useRef<(text: string) => Promise<void>>(async () => {
+    /* noop */
+  })
   /** One auto `show_reports` per panel open when the thread is empty (avoids duplicate if `handleChipAction` identity changes mid-bootstrap). */
   const didBootstrapReportsRef = useRef(false)
 

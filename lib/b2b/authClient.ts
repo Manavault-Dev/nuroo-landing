@@ -81,7 +81,9 @@ export function onAuthChange(callback: (user: User | null) => void) {
 export function onTokenRefresh(callback: (token: string | null) => void): () => void {
   if (!auth) {
     callback(null)
-    return () => {}
+    return () => {
+      /* noop */
+    }
   }
   return onIdTokenChanged(auth, async (user) => {
     const token = user ? await user.getIdToken() : null
