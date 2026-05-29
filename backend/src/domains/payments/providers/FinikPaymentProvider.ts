@@ -121,8 +121,8 @@ export class FinikPaymentProvider implements PaymentProvider {
     const paymentUrl =
       response.status === 302
         ? (response.headers.get('location') ?? this.apiUrl)
-        : ((await response.json().catch(() => ({}))) as { paymentUrl?: string }).paymentUrl ??
-          this.apiUrl
+        : (((await response.json().catch(() => ({}))) as { paymentUrl?: string }).paymentUrl ??
+          this.apiUrl)
 
     return {
       providerPaymentId: input.invoiceId,
@@ -208,9 +208,7 @@ export class FinikPaymentProvider implements PaymentProvider {
 
     const rawRef = (data.reference as string | undefined) || ''
     const rawPaymentId =
-      (data.PaymentId as string | undefined) ||
-      (data.paymentId as string | undefined) ||
-      ''
+      (data.PaymentId as string | undefined) || (data.paymentId as string | undefined) || ''
 
     // Reference may be composite `${orgId}__${invoiceId}` — extract the invoice part
     let invoiceId: string
@@ -221,9 +219,7 @@ export class FinikPaymentProvider implements PaymentProvider {
     }
 
     const providerPaymentId =
-      (data.transactionId as string | undefined) ||
-      rawPaymentId ||
-      invoiceId
+      (data.transactionId as string | undefined) || rawPaymentId || invoiceId
 
     const rawStatus = (data.status as string | undefined) || (data.Status as string | undefined)
     const status = mapFinikStatus(rawStatus)

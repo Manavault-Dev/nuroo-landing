@@ -15,7 +15,12 @@ export type BillingStatusValue =
 export interface SubscriptionAccess {
   allowed: boolean
   reason?: string
-  code?: 'TRIAL_EXPIRED' | 'MANUAL_ACTIVE_EXPIRED' | 'CANCELED' | 'NO_SUBSCRIPTION' | 'PAST_DUE_GRACE_EXPIRED'
+  code?:
+    | 'TRIAL_EXPIRED'
+    | 'MANUAL_ACTIVE_EXPIRED'
+    | 'CANCELED'
+    | 'NO_SUBSCRIPTION'
+    | 'PAST_DUE_GRACE_EXPIRED'
 }
 
 type BillingDoc = {
@@ -27,7 +32,7 @@ type BillingDoc = {
 
 export async function requireActiveSubscription(
   orgId: string,
-  db: Firestore,
+  db: Firestore
 ): Promise<SubscriptionAccess> {
   const orgSnap = await db.collection('organizations').doc(orgId).get()
   if (!orgSnap.exists) {
@@ -56,7 +61,11 @@ export async function requireActiveSubscription(
 
     case 'active': {
       if (billing.currentPeriodEnd && now > billing.currentPeriodEnd.toDate()) {
-        return { allowed: false, reason: 'Subscription period has ended', code: 'MANUAL_ACTIVE_EXPIRED' }
+        return {
+          allowed: false,
+          reason: 'Subscription period has ended',
+          code: 'MANUAL_ACTIVE_EXPIRED',
+        }
       }
       return { allowed: true }
     }
@@ -75,7 +84,9 @@ export async function requireActiveSubscription(
 
     case 'past_due': {
       if (billing.updatedAt) {
-        const gracePeriodEnd = new Date(billing.updatedAt.toDate().getTime() + PAST_DUE_GRACE_PERIOD_MS)
+        const gracePeriodEnd = new Date(
+          billing.updatedAt.toDate().getTime() + PAST_DUE_GRACE_PERIOD_MS
+        )
         if (now <= gracePeriodEnd) return { allowed: true }
       }
       return { allowed: false, reason: 'Payment is past due', code: 'PAST_DUE_GRACE_EXPIRED' }

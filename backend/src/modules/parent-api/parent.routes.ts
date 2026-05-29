@@ -115,7 +115,10 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (userSnap.exists) {
           const userData = userSnap.data()!
-          const byId = (userData.linkedOrganizationsById || {}) as Record<string, { orgId?: string }>
+          const byId = (userData.linkedOrganizationsById || {}) as Record<
+            string,
+            { orgId?: string }
+          >
           for (const [key, val] of Object.entries(byId)) {
             addOrg(val.orgId || key)
           }

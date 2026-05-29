@@ -3,7 +3,7 @@ import { config } from '../../config/index.js'
 
 export async function requirePlatformAdmin(
   request: FastifyRequest,
-  reply: FastifyReply,
+  reply: FastifyReply
 ): Promise<void> {
   const headerKey = request.headers['x-platform-admin-key']
   if (config.PLATFORM_ADMIN_SECRET && headerKey === config.PLATFORM_ADMIN_SECRET) {

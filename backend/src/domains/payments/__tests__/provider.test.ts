@@ -71,9 +71,9 @@ describe('FinikPaymentProvider HMAC verification', () => {
     const provider = new FinikPaymentProvider({ webhookSecret: 'test-secret' })
     const payload = '{"reference":"inv_1","status":"completed"}'
 
-    await expect(
-      provider.handleWebhook(payload, { 'x-signature': 'badsig' })
-    ).rejects.toThrow('Invalid webhook signature')
+    await expect(provider.handleWebhook(payload, { 'x-signature': 'badsig' })).rejects.toThrow(
+      'Invalid webhook signature'
+    )
   })
 
   it('provider name is finik', () => {

@@ -302,15 +302,15 @@ describe('Finik → Firestore status propagation contract', () => {
     expectPaidAt: boolean
   }> = [
     { finikStatus: 'completed', expectedDbStatus: 'paid', expectPaidAt: true },
-    { finikStatus: 'success',   expectedDbStatus: 'paid', expectPaidAt: true },
-    { finikStatus: 'paid',      expectedDbStatus: 'paid', expectPaidAt: true },
-    { finikStatus: 'failed',    expectedDbStatus: 'failed', expectPaidAt: false },
-    { finikStatus: 'error',     expectedDbStatus: 'failed', expectPaidAt: false },
-    { finikStatus: 'declined',  expectedDbStatus: 'failed', expectPaidAt: false },
-    { finikStatus: 'expired',   expectedDbStatus: 'expired', expectPaidAt: false },
-    { finikStatus: 'canceled',  expectedDbStatus: 'canceled', expectPaidAt: false },
+    { finikStatus: 'success', expectedDbStatus: 'paid', expectPaidAt: true },
+    { finikStatus: 'paid', expectedDbStatus: 'paid', expectPaidAt: true },
+    { finikStatus: 'failed', expectedDbStatus: 'failed', expectPaidAt: false },
+    { finikStatus: 'error', expectedDbStatus: 'failed', expectPaidAt: false },
+    { finikStatus: 'declined', expectedDbStatus: 'failed', expectPaidAt: false },
+    { finikStatus: 'expired', expectedDbStatus: 'expired', expectPaidAt: false },
+    { finikStatus: 'canceled', expectedDbStatus: 'canceled', expectPaidAt: false },
     { finikStatus: 'cancelled', expectedDbStatus: 'canceled', expectPaidAt: false },
-    { finikStatus: 'pending',   expectedDbStatus: 'pending', expectPaidAt: false },
+    { finikStatus: 'pending', expectedDbStatus: 'pending', expectPaidAt: false },
   ]
 
   it.each(cases)(

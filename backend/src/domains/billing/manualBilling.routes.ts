@@ -41,7 +41,9 @@ export const manualBillingRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'Invalid activeUntil date', code: 'INVALID_DATE' })
       }
       if (activeUntilDate <= new Date()) {
-        return reply.code(400).send({ error: 'activeUntil must be a future date', code: 'PAST_DATE' })
+        return reply
+          .code(400)
+          .send({ error: 'activeUntil must be a future date', code: 'PAST_DATE' })
       }
 
       const db = getFirestore()
@@ -53,25 +55,45 @@ export const manualBillingRoutes: FastifyPluginAsync = async (fastify) => {
       const now = admin.firestore.Timestamp.now()
       const currentPeriodEnd = admin.firestore.Timestamp.fromDate(activeUntilDate)
 
-      await db.collection('organizations').doc(orgId).set(
-        { billing: { status: 'manual_active', provider: 'manual', plan, currentPeriodEnd, updatedAt: now } },
-        { merge: true },
-      )
+      await db
+        .collection('organizations')
+        .doc(orgId)
+        .set(
+          {
+            billing: {
+              status: 'manual_active',
+              provider: 'manual',
+              plan,
+              currentPeriodEnd,
+              updatedAt: now,
+            },
+          },
+          { merge: true }
+        )
 
-      await db.collection('organizations').doc(orgId).collection('billingAuditLog').add({
-        event: 'billing_manual_activated',
-        plan,
-        activeUntil: currentPeriodEnd,
-        note: note ?? null,
-        activatedBy: request.user?.uid ?? 'platform_admin',
-        createdAt: now,
-      })
+      await db
+        .collection('organizations')
+        .doc(orgId)
+        .collection('billingAuditLog')
+        .add({
+          event: 'billing_manual_activated',
+          plan,
+          activeUntil: currentPeriodEnd,
+          note: note ?? null,
+          activatedBy: request.user?.uid ?? 'platform_admin',
+          createdAt: now,
+        })
 
       fastify.log.info({ event: 'billing_manual_activated', orgId, plan, activeUntil })
-      Sentry.addBreadcrumb({ category: 'billing', message: 'billing_manual_activated', level: 'info', data: { orgId, plan, activeUntil } })
+      Sentry.addBreadcrumb({
+        category: 'billing',
+        message: 'billing_manual_activated',
+        level: 'info',
+        data: { orgId, plan, activeUntil },
+      })
 
       return reply.code(200).send({ ok: true, status: 'manual_active', plan, currentPeriodEnd })
-    },
+    }
   )
 
   fastify.post<{
@@ -102,7 +124,9 @@ export const manualBillingRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'Invalid activeUntil date', code: 'INVALID_DATE' })
       }
       if (activeUntilDate <= new Date()) {
-        return reply.code(400).send({ error: 'activeUntil must be a future date', code: 'PAST_DATE' })
+        return reply
+          .code(400)
+          .send({ error: 'activeUntil must be a future date', code: 'PAST_DATE' })
       }
 
       const db = getFirestore()
@@ -114,23 +138,35 @@ export const manualBillingRoutes: FastifyPluginAsync = async (fastify) => {
       const now = admin.firestore.Timestamp.now()
       const currentPeriodEnd = admin.firestore.Timestamp.fromDate(activeUntilDate)
 
-      await db.collection('organizations').doc(orgId).set(
-        { billing: { status: 'manual_active', currentPeriodEnd, updatedAt: now } },
-        { merge: true },
-      )
+      await db
+        .collection('organizations')
+        .doc(orgId)
+        .set(
+          { billing: { status: 'manual_active', currentPeriodEnd, updatedAt: now } },
+          { merge: true }
+        )
 
-      await db.collection('organizations').doc(orgId).collection('billingAuditLog').add({
-        event: 'billing_manual_extended',
-        activeUntil: currentPeriodEnd,
-        note: note ?? null,
-        extendedBy: request.user?.uid ?? 'platform_admin',
-        createdAt: now,
-      })
+      await db
+        .collection('organizations')
+        .doc(orgId)
+        .collection('billingAuditLog')
+        .add({
+          event: 'billing_manual_extended',
+          activeUntil: currentPeriodEnd,
+          note: note ?? null,
+          extendedBy: request.user?.uid ?? 'platform_admin',
+          createdAt: now,
+        })
 
       fastify.log.info({ event: 'billing_manual_extended', orgId, activeUntil })
-      Sentry.addBreadcrumb({ category: 'billing', message: 'billing_manual_extended', level: 'info', data: { orgId, activeUntil } })
+      Sentry.addBreadcrumb({
+        category: 'billing',
+        message: 'billing_manual_extended',
+        level: 'info',
+        data: { orgId, activeUntil },
+      })
 
       return reply.code(200).send({ ok: true, status: 'manual_active', currentPeriodEnd })
-    },
+    }
   )
 }

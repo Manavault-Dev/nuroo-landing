@@ -313,9 +313,7 @@ describe('generateMonthlyInvoicesForOrg', () => {
       const result = await generateMonthlyInvoicesForOrg(db, 'org1')
 
       expect(result.created).toBe(1)
-      expect(newInvoiceSet).toHaveBeenCalledWith(
-        expect.objectContaining({ paymentUrl: null })
-      )
+      expect(newInvoiceSet).toHaveBeenCalledWith(expect.objectContaining({ paymentUrl: null }))
     })
   })
 
@@ -373,9 +371,7 @@ describe('markOverdueInvoicesForOrg', () => {
   describe('GIVEN pending invoices with dueDate in the past', () => {
     it('THEN result.marked > 0', async () => {
       const { db } = makeGenerationMockDb({
-        pendingInvoices: [
-          makeInvoiceDoc({ status: 'pending', dueDate: '2024-01-01' }),
-        ],
+        pendingInvoices: [makeInvoiceDoc({ status: 'pending', dueDate: '2024-01-01' })],
       })
 
       const result = await markOverdueInvoicesForOrg(db, 'org1', new Date('2025-01-01'))
@@ -385,9 +381,7 @@ describe('markOverdueInvoicesForOrg', () => {
 
     it('THEN db.batch().commit() is called', async () => {
       const { db, mockBatch } = makeGenerationMockDb({
-        pendingInvoices: [
-          makeInvoiceDoc({ status: 'pending', dueDate: '2024-01-01' }),
-        ],
+        pendingInvoices: [makeInvoiceDoc({ status: 'pending', dueDate: '2024-01-01' })],
       })
 
       await markOverdueInvoicesForOrg(db, 'org1', new Date('2025-01-01'))
@@ -413,9 +407,7 @@ describe('markOverdueInvoicesForOrg', () => {
   describe('GIVEN pending invoice with dueDate far in the future', () => {
     it('THEN result.marked === 0 (not yet overdue)', async () => {
       const { db } = makeGenerationMockDb({
-        pendingInvoices: [
-          makeInvoiceDoc({ status: 'pending', dueDate: '2099-12-31' }),
-        ],
+        pendingInvoices: [makeInvoiceDoc({ status: 'pending', dueDate: '2099-12-31' })],
       })
 
       // now is today — 2099 is not overdue

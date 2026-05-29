@@ -52,7 +52,11 @@ describe('webhook — signature verification', () => {
 
   it('accepts a valid HMAC signature', async () => {
     const provider = new FinikPaymentProvider({ webhookSecret: WEBHOOK_SECRET })
-    const payload = JSON.stringify({ reference: 'inv_abc', PaymentId: 'txn_001', status: 'completed' })
+    const payload = JSON.stringify({
+      reference: 'inv_abc',
+      PaymentId: 'txn_001',
+      status: 'completed',
+    })
 
     const result = await provider.handleWebhook(payload, { 'x-signature': sign(payload) })
 
@@ -64,9 +68,7 @@ describe('webhook — signature verification', () => {
     const provider = new FinikPaymentProvider({ webhookSecret: WEBHOOK_SECRET })
     const payload = JSON.stringify({ reference: 'inv_1', status: 'completed' })
 
-    await expect(
-      provider.handleWebhook(payload, {})
-    ).rejects.toThrow('Invalid webhook signature')
+    await expect(provider.handleWebhook(payload, {})).rejects.toThrow('Invalid webhook signature')
   })
 
   it('rejects when signature was signed with a different secret', async () => {
@@ -76,9 +78,9 @@ describe('webhook — signature verification', () => {
     const payload = JSON.stringify({ reference: 'inv_1', status: 'completed' })
     const wrongSig = sign(payload, 'completely-wrong-key')
 
-    await expect(
-      provider.handleWebhook(payload, { 'x-signature': wrongSig })
-    ).rejects.toThrow('Invalid webhook signature')
+    await expect(provider.handleWebhook(payload, { 'x-signature': wrongSig })).rejects.toThrow(
+      'Invalid webhook signature'
+    )
   })
 })
 
@@ -111,7 +113,9 @@ describe('webhook — status mapping', () => {
     const provider = new FinikPaymentProvider({ webhookSecret: WEBHOOK_SECRET })
 
     const paidPayload = JSON.stringify({ reference: 'inv_p', status: 'completed' })
-    const paidResult = await provider.handleWebhook(paidPayload, { 'x-signature': sign(paidPayload) })
+    const paidResult = await provider.handleWebhook(paidPayload, {
+      'x-signature': sign(paidPayload),
+    })
     expect(paidResult.paidAt).toBeInstanceOf(Date)
 
     const pendingPayload = JSON.stringify({ reference: 'inv_q', status: 'pending' })

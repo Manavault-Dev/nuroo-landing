@@ -195,9 +195,7 @@ describe('createBillingProfile', () => {
 
     await createBillingProfile(db, 'org1', BASE_INPUT, 'admin1')
 
-    expect(mockDocRef.set).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'finik' })
-    )
+    expect(mockDocRef.set).toHaveBeenCalledWith(expect.objectContaining({ provider: 'finik' }))
   })
 })
 
@@ -306,9 +304,7 @@ describe('listBillingProfiles', () => {
   })
 
   it('returns empty array when no profiles match', async () => {
-    const { db } = makeListMockDb([
-      { id: 'p1', data: makeProfileData({ childId: 'child2' }) },
-    ])
+    const { db } = makeListMockDb([{ id: 'p1', data: makeProfileData({ childId: 'child2' }) }])
 
     const result = await listBillingProfiles(db, 'org1', { childId: 'child1' })
 
@@ -339,9 +335,9 @@ describe('updateBillingProfile', () => {
       }),
     } as unknown as Firestore
 
-    await expect(
-      updateBillingProfile(db, 'org1', 'nonexistent', { amount: 5000 })
-    ).rejects.toThrow('Billing profile not found')
+    await expect(updateBillingProfile(db, 'org1', 'nonexistent', { amount: 5000 })).rejects.toThrow(
+      'Billing profile not found'
+    )
   })
 
   it('updates amount when provided', async () => {
@@ -357,9 +353,7 @@ describe('updateBillingProfile', () => {
 
     const result = await updateBillingProfile(db, 'org1', 'profile_abc', { amount: 5000 })
 
-    expect(mockDocRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 5000 })
-    )
+    expect(mockDocRef.update).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }))
     expect(result.amount).toBe(5000)
   })
 
@@ -375,9 +369,7 @@ describe('updateBillingProfile', () => {
 
     const result = await updateBillingProfile(db, 'org1', 'profile_abc', { status: 'paused' })
 
-    expect(mockDocRef.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'paused' })
-    )
+    expect(mockDocRef.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'paused' }))
     expect(result.status).toBe('paused')
   })
 

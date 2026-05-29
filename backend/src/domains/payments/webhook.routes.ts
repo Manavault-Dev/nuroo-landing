@@ -55,18 +55,17 @@ export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       let payload: Record<string, unknown>
       try {
-        payload = typeof request.body === 'object' && request.body !== null
-          ? (request.body as Record<string, unknown>)
-          : JSON.parse(bodyStr)
+        payload =
+          typeof request.body === 'object' && request.body !== null
+            ? (request.body as Record<string, unknown>)
+            : JSON.parse(bodyStr)
       } catch {
         return reply.code(400).send({ error: 'Invalid JSON payload', code: 'INVALID_PAYLOAD' })
       }
 
       const rawRef = (payload.reference as string | undefined) || ''
       const rawPaymentId =
-        (payload.PaymentId as string | undefined) ||
-        (payload.paymentId as string | undefined) ||
-        ''
+        (payload.PaymentId as string | undefined) || (payload.paymentId as string | undefined) || ''
 
       // Reference is encoded as `${orgId}__${invoiceId}` by FinikPaymentProvider
       let invoiceId = rawPaymentId
@@ -81,7 +80,8 @@ export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       const transactionId =
         (payload.transactionId as string | undefined) || rawPaymentId || invoiceId
-      const rawStatus = (payload.status as string | undefined) || (payload.Status as string | undefined) || ''
+      const rawStatus =
+        (payload.status as string | undefined) || (payload.Status as string | undefined) || ''
 
       fastify.log.info({ event: 'finik_webhook_received', invoiceId, orgId })
 

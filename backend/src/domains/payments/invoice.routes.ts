@@ -1,12 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../shared/guards/index.js'
-import {
-  createInvoice,
-  listInvoices,
-  getInvoice,
-  cancelInvoice,
-} from './invoice.service.js'
+import { createInvoice, listInvoices, getInvoice, cancelInvoice } from './invoice.service.js'
 import type { PaymentStatus } from './providers/PaymentProvider.interface.js'
 
 export const invoiceRoutes: FastifyPluginAsync = async (fastify) => {
@@ -92,70 +87,61 @@ export const invoiceRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { orgId: string }
     Querystring: { parentId?: string; status?: string; limit?: string; month?: string }
-  }>(
-    '/orgs/:orgId/invoices',
-    async (request, reply) => {
-      const { orgId } = request.params
-      await requireOrgMember(request, reply, orgId)
+  }>('/orgs/:orgId/invoices', async (request, reply) => {
+    const { orgId } = request.params
+    await requireOrgMember(request, reply, orgId)
 
-      const { parentId, status, limit, month } = request.query
-      const db = getFirestore()
+    const { parentId, status, limit, month } = request.query
+    const db = getFirestore()
 
-      const invoices = await listInvoices(db, orgId, {
-        parentId,
-        status: status as PaymentStatus | undefined,
-        limit: limit ? parseInt(limit, 10) : 50,
-        month,
-      })
+    const invoices = await listInvoices(db, orgId, {
+      parentId,
+      status: status as PaymentStatus | undefined,
+      limit: limit ? parseInt(limit, 10) : 50,
+      month,
+    })
 
-      return { ok: true, invoices }
-    }
-  )
+    return { ok: true, invoices }
+  })
 
   // GET /orgs/:orgId/invoices/:invoiceId
   fastify.get<{
     Params: { orgId: string; invoiceId: string }
-  }>(
-    '/orgs/:orgId/invoices/:invoiceId',
-    async (request, reply) => {
-      const { orgId, invoiceId } = request.params
-      await requireOrgMember(request, reply, orgId)
+  }>('/orgs/:orgId/invoices/:invoiceId', async (request, reply) => {
+    const { orgId, invoiceId } = request.params
+    await requireOrgMember(request, reply, orgId)
 
-      const db = getFirestore()
-      const invoice = await getInvoice(db, orgId, invoiceId)
+    const db = getFirestore()
+    const invoice = await getInvoice(db, orgId, invoiceId)
 
-      if (!invoice) {
-        return reply.code(404).send({ error: 'Invoice not found', code: 'INVOICE_NOT_FOUND' })
-      }
-
-      return { ok: true, invoice }
+    if (!invoice) {
+      return reply.code(404).send({ error: 'Invoice not found', code: 'INVOICE_NOT_FOUND' })
     }
-  )
+
+    return { ok: true, invoice }
+  })
 
   // PATCH /orgs/:orgId/invoices/:invoiceId/cancel
   fastify.patch<{
     Params: { orgId: string; invoiceId: string }
-  }>(
-    '/orgs/:orgId/invoices/:invoiceId/cancel',
-    async (request, reply) => {
-      const { orgId, invoiceId } = request.params
-      await requireOrgMember(request, reply, orgId)
+  }>('/orgs/:orgId/invoices/:invoiceId/cancel', async (request, reply) => {
+    const { orgId, invoiceId } = request.params
+    await requireOrgMember(request, reply, orgId)
 
-      const db = getFirestore()
+    const db = getFirestore()
 
-      try {
-        const invoice = await cancelInvoice(db, orgId, invoiceId)
-        return { ok: true, invoice }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to cancel invoice'
-        if (message.includes('Invoice not found')) {
-          return reply.code(404).send({ error: message, code: 'INVOICE_NOT_FOUND' })
-        }
-        if (message.includes('Cannot cancel')) {
-          return reply.code(409).send({ error: message, code: 'INVALID_STATUS' })
-        }
-        return reply.code(500).send({ error: message, code: 'CANCEL_FAILED' })
+    try {
+      const invoice = await cancelInvoice(db, orgId, invoiceId)
+      return { ok: true, invoice }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to cancel invoice'
+      if (message.includes('Invoice not found')) {
+        return reply.code(404).send({ error: message, code: 'INVOICE_NOT_FOUND' })
       }
+      if (message.includes('Cannot cancel')) {
+        return reply.code(409).send({ error: message, code: 'INVALID_STATUS' })
+      }
+      return reply.code(500).send({ error: message, code: 'CANCEL_FAILED' })
     }
-  )
+  })
 }

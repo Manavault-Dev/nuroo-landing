@@ -5,7 +5,14 @@ import { getBillingPlan, type BillingPlan } from './payments.repository.js'
 export const PLAN_IDS = ['starter', 'growth', 'enterprise'] as const
 export type PlanId = (typeof PLAN_IDS)[number]
 export type SubscriptionAccessSource = 'subscription' | 'free_trial'
-export type BillingStatus = 'trialing' | 'active' | 'manual_active' | 'past_due' | 'expired' | 'cancelled' | 'canceled'
+export type BillingStatus =
+  | 'trialing'
+  | 'active'
+  | 'manual_active'
+  | 'past_due'
+  | 'expired'
+  | 'cancelled'
+  | 'canceled'
 
 export const FREE_TRIAL_DAYS = 30
 // Trial gives professional (growth) level access

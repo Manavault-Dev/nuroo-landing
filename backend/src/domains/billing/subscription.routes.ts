@@ -33,24 +33,42 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(200).send({ ok: true, alreadyTrialing: true, trialEndsAt })
       }
       if (existingStatus === 'active' || existingStatus === 'manual_active') {
-        return reply.code(409).send({ error: 'Subscription is already active', code: 'ALREADY_ACTIVE' })
+        return reply
+          .code(409)
+          .send({ error: 'Subscription is already active', code: 'ALREADY_ACTIVE' })
       }
 
       const now = admin.firestore.Timestamp.now()
       const trialEndsAt = admin.firestore.Timestamp.fromMillis(
-        Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+        Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000
       )
 
-      await db.collection('organizations').doc(orgId).set(
-        { billing: { status: 'trialing', provider: 'nuroo', plan: 'growth', trialEndsAt, updatedAt: now } },
-        { merge: true },
-      )
+      await db
+        .collection('organizations')
+        .doc(orgId)
+        .set(
+          {
+            billing: {
+              status: 'trialing',
+              provider: 'nuroo',
+              plan: 'growth',
+              trialEndsAt,
+              updatedAt: now,
+            },
+          },
+          { merge: true }
+        )
 
       fastify.log.info({ event: 'trial_started', orgId })
-      Sentry.addBreadcrumb({ category: 'billing', message: 'trial_started', level: 'info', data: { orgId } })
+      Sentry.addBreadcrumb({
+        category: 'billing',
+        message: 'trial_started',
+        level: 'info',
+        data: { orgId },
+      })
 
       return reply.code(200).send({ ok: true, trialEndsAt })
-    },
+    }
   )
 
   fastify.post<{
@@ -79,7 +97,8 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (config.BILLING_MODE === 'manual') {
         return reply.code(403).send({
-          error: 'Stripe checkout is not available. Contact the Nuroo team to activate your subscription.',
+          error:
+            'Stripe checkout is not available. Contact the Nuroo team to activate your subscription.',
           code: 'BILLING_MODE_MANUAL',
         })
       }
@@ -98,14 +117,24 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const session = await createCheckoutSession(
-        orgId, planId, request.user!.email ?? '', successUrl, cancelUrl, stripeCustomerId,
+        orgId,
+        planId,
+        request.user!.email ?? '',
+        successUrl,
+        cancelUrl,
+        stripeCustomerId
       )
 
       fastify.log.info({ event: 'stripe_checkout_created', orgId, planId })
-      Sentry.addBreadcrumb({ category: 'stripe', message: 'stripe_checkout_created', level: 'info', data: { orgId, planId } })
+      Sentry.addBreadcrumb({
+        category: 'stripe',
+        message: 'stripe_checkout_created',
+        level: 'info',
+        data: { orgId, planId },
+      })
 
       return reply.code(200).send({ ok: true, url: session.url })
-    },
+    }
   )
 
   fastify.get<{ Params: { orgId: string } }>(
@@ -140,7 +169,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         },
         billingMode: config.BILLING_MODE,
       })
-    },
+    }
   )
 
   fastify.post<{
@@ -185,6 +214,6 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
       const portalSession = await createCustomerPortalSession(stripeCustomerId, returnUrl)
       return reply.code(200).send({ ok: true, url: portalSession.url })
-    },
+    }
   )
 }
