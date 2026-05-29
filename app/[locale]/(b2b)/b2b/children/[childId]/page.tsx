@@ -1954,9 +1954,6 @@ export default function ChildDetailPage() {
       hard: <Frown className="w-4 h-4 text-red-500" />,
     })[mood]
 
-  const getFeedbackLabel = (mood: 'good' | 'ok' | 'hard') =>
-    ({ good: t('moodGood'), ok: t('moodOk'), hard: t('moodHard') })[mood]
-
   // ── Loading ──────────────────────────────────────────────────────────────────
 
   if (loading) return <PageSpinner />
@@ -2071,7 +2068,6 @@ export default function ChildDetailPage() {
             formatDate={formatDate}
             formatShortDate={formatShortDate}
             getFeedbackIcon={getFeedbackIcon}
-            getFeedbackLabel={getFeedbackLabel}
             t={t}
           />
         )}
