@@ -311,6 +311,14 @@ export default function GroupsPage() {
     const taskIds = Array.from(selectedContentIds)
     const roadmapIds = Array.from(selectedRoadmapIds)
     if (!orgId || !selectedGroup || (taskIds.length === 0 && roadmapIds.length === 0)) return
+    if (totalChildren === 0) {
+      showToast(t('errorNoChildrenInGroup'), 'error')
+      return
+    }
+    if (totalTasksToAssign === 0) {
+      showToast(t('errorNoValidTasks'), 'error')
+      return
+    }
     setCreatingAssignment(true)
     try {
       await apiClient.assignGroupTasks(
@@ -362,6 +370,8 @@ export default function GroupsPage() {
     })
   }
 
+  const totalChildren = groupParents.reduce((acc, p) => acc + p.children.length, 0)
+
   const totalTasksToAssign = (() => {
     let n = selectedContentIds.size
     for (const roadmapId of selectedRoadmapIds) {
@@ -372,6 +382,8 @@ export default function GroupsPage() {
   })()
   const hasSelection = selectedContentIds.size > 0 || selectedRoadmapIds.size > 0
   const libraryEmpty = contentTaskLibrary.length === 0 && contentRoadmapLibrary.length === 0
+  const canSubmitAssignment =
+    !creatingAssignment && hasSelection && totalChildren > 0 && totalTasksToAssign > 0
 
   const handleDeleteAssignment = async (a: Assignment) => {
     if (!orgId || !selectedGroup) return
@@ -522,8 +534,6 @@ export default function GroupsPage() {
       setGeneratingInvite(false)
     }
   }
-
-  const totalChildren = groupParents.reduce((acc, p) => acc + p.children.length, 0)
 
   // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
@@ -1273,15 +1283,23 @@ export default function GroupsPage() {
                       {contentRoadmapLibrary.map((roadmap) => {
                         const selected = selectedRoadmapIds.has(roadmap.id)
                         const taskCount = roadmap.taskIds?.length ?? 0
+                        const disabled = taskCount === 0
                         return (
                           <label
                             key={roadmap.id}
-                            className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${selected ? 'bg-primary-50' : ''}`}
+                            className={`flex items-start gap-3 px-4 py-3 transition-colors ${
+                              disabled
+                                ? 'cursor-not-allowed opacity-60'
+                                : `cursor-pointer hover:bg-gray-50 ${selected ? 'bg-primary-50' : ''}`
+                            }`}
                           >
                             <input
                               type="checkbox"
                               checked={selected}
-                              onChange={() => toggleRoadmapId(roadmap.id)}
+                              disabled={disabled}
+                              onChange={() => {
+                                if (!disabled) toggleRoadmapId(roadmap.id)
+                              }}
                               className="mt-0.5 w-4 h-4 rounded text-primary-600 border-gray-300 focus:ring-primary-500 shrink-0"
                             />
                             <div className="min-w-0 flex-1">
@@ -1293,11 +1311,11 @@ export default function GroupsPage() {
                                   {roadmap.description}
                                 </p>
                               )}
-                              {taskCount > 0 && (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {t('tasksInProgram', { count: taskCount })}
-                                </p>
-                              )}
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {taskCount > 0
+                                  ? t('tasksInProgram', { count: taskCount })
+                                  : t('programEmpty')}
+                              </p>
                             </div>
                             {selected && (
                               <Check className="w-4 h-4 text-primary-500 shrink-0 mt-0.5" />
@@ -1345,7 +1363,7 @@ export default function GroupsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={creatingAssignment || !hasSelection}
+                    disabled={!canSubmitAssignment}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
                     {creatingAssignment ? (
