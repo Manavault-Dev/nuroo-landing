@@ -6,6 +6,7 @@ import { requireOrgMember } from '../../plugins/rbac.js'
 import {
   COLLECTIONS,
   verifyGroupOwnership,
+  fetchAllOrgGroups,
   fetchAssignmentHistory,
   assignTasksToGroup,
   getAssignmentDetail,
@@ -39,6 +40,25 @@ const assignGroupTasksSchema = z.object({
 
 function adminTimestamp(date: Date) {
   return admin.firestore.Timestamp.fromDate(date)
+}
+
+async function resolveGroupForAssignment(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  groupId: string,
+  ownerId: string,
+  canSearchOrgGroups: boolean
+) {
+  const directSnap = await db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`).get()
+  if (directSnap.exists) return { ownerId, groupSnap: directSnap }
+
+  if (!canSearchOrgGroups) return null
+
+  const groups = await fetchAllOrgGroups(db, orgId)
+  const match = groups.find(({ doc }) => doc.id === groupId)
+  if (!match) return null
+
+  return { ownerId: match.ownerId, groupSnap: match.doc }
 }
 
 export const groupAssignmentsRoute: import('fastify').FastifyPluginAsync = async (fastify) => {
@@ -84,8 +104,16 @@ export const groupAssignmentsRoute: import('fastify').FastifyPluginAsync = async
 
       const db = getFirestore()
 
-      const groupSnap = await db.doc(`${COLLECTIONS.SPECIALIST_GROUPS(ownerId)}/${groupId}`).get()
-      if (!groupSnap.exists) return reply.code(404).send({ error: 'Group not found' })
+      const resolvedGroup = await resolveGroupForAssignment(
+        db,
+        orgId,
+        groupId,
+        ownerId,
+        member.role === 'org_admin'
+      )
+      if (!resolvedGroup) return reply.code(404).send({ error: 'Group not found' })
+
+      const { ownerId: resolvedOwnerId, groupSnap } = resolvedGroup
       if (!verifyGroupOwnership(groupSnap.data()!, orgId)) {
         return reply.code(403).send({ error: 'Group does not belong to this organization' })
       }
@@ -95,7 +123,7 @@ export const groupAssignmentsRoute: import('fastify').FastifyPluginAsync = async
       }
 
       try {
-        const result = await assignTasksToGroup(db, orgId, groupId, ownerId, uid, {
+        const result = await assignTasksToGroup(db, orgId, groupId, resolvedOwnerId, uid, {
           contentTaskIds: body.contentTaskIds,
           contentRoadmapIds: body.contentRoadmapIds,
           dueDate: body.dueDate,
