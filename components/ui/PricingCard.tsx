@@ -10,6 +10,8 @@ export interface PricingCardFeature {
 export interface PricingCardProps {
   /** Card variant: default (neutral), popular (accent border + badge), enterprise (subtle dark accent) */
   variant?: 'default' | 'popular' | 'enterprise'
+  /** Compact density for dashboard surfaces. */
+  density?: 'default' | 'compact'
   /** Optional badge above title (e.g. "Популярный", "Текущий") */
   badge?: React.ReactNode
   title: React.ReactNode
@@ -32,6 +34,7 @@ export interface PricingCardProps {
  */
 export function PricingCard({
   variant = 'default',
+  density = 'default',
   badge,
   title,
   subtitle,
@@ -44,9 +47,11 @@ export function PricingCard({
 }: PricingCardProps) {
   const isPopular = variant === 'popular'
   const isEnterprise = variant === 'enterprise'
+  const isCompact = density === 'compact'
 
   const cardClasses = [
-    'relative flex flex-col rounded-2xl border-2 p-6 sm:p-8 min-w-0 transition-shadow',
+    'relative flex flex-col rounded-2xl border-2 min-w-0 transition-shadow',
+    isCompact ? 'p-5 sm:p-6' : 'p-6 sm:p-8',
     isPopular && 'border-primary-500 bg-white dark:bg-gray-800/80 shadow-lg shadow-primary-500/10',
     isEnterprise && 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/90 shadow-lg',
     !isPopular &&
@@ -57,17 +62,17 @@ export function PricingCard({
     .filter(Boolean)
     .join(' ')
 
-  const titleClasses = `text-lg sm:text-xl font-bold mb-1 ${
+  const titleClasses = `${isCompact ? 'text-lg' : 'text-lg sm:text-xl'} font-bold mb-1 ${
     isEnterprise ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'
   }`
   const subtitleClasses = 'text-sm text-gray-500 dark:text-gray-400 mb-3'
-  const priceClasses = `text-3xl sm:text-4xl font-bold ${
+  const priceClasses = `${isCompact ? 'text-3xl' : 'text-3xl sm:text-4xl'} font-bold ${
     isEnterprise ? 'text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'
   }`
   const priceSuffixClasses = `text-sm ${
     isEnterprise ? 'text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'
   }`
-  const featureTextClasses = `text-sm ${
+  const featureTextClasses = `${isCompact ? 'text-[13px]' : 'text-sm'} ${
     isEnterprise ? 'text-gray-600 dark:text-gray-300' : 'text-gray-600 dark:text-gray-300'
   }`
   const checkClasses = `w-4 h-4 flex-shrink-0 mt-0.5 ${
@@ -91,12 +96,12 @@ export function PricingCard({
       <h3 className={titleClasses}>{title}</h3>
       {subtitle && <p className={subtitleClasses}>{subtitle}</p>}
 
-      <div className="flex items-baseline gap-1 mb-6 mt-1 flex-wrap">
+      <div className={`flex items-baseline gap-1 mt-1 flex-wrap ${isCompact ? 'mb-5' : 'mb-6'}`}>
         <span className={priceClasses}>{price}</span>
         {priceSuffix != null && <span className={priceSuffixClasses}>{priceSuffix}</span>}
       </div>
 
-      <ul className="space-y-3 flex-1 mb-8">
+      <ul className={`${isCompact ? 'space-y-2.5 mb-6' : 'space-y-3 mb-8'} flex-1`}>
         {features.map((feature, idx) => (
           <li key={idx} className="flex items-start gap-2">
             <Check className={checkClasses} />

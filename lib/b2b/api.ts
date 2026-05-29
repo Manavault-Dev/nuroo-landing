@@ -21,6 +21,7 @@ export interface SpecialistProfile {
 export interface ChildSummary {
   id: string
   name: string
+  parentId?: string | null
   age?: number
   speechStepId?: string
   speechStepNumber?: number
@@ -203,12 +204,22 @@ export interface NotificationPreferences {
   }
 }
 
+export type BillingMode = 'manual' | 'stripe_test' | 'stripe_live'
+
 export interface BillingStatusResponse {
   ok: boolean
   active: boolean
   planId: string | null
   source: 'subscription' | 'free_trial' | null
-  billingStatus: 'trialing' | 'active' | 'past_due' | 'expired' | 'cancelled' | null
+  billingStatus:
+    | 'trialing'
+    | 'active'
+    | 'manual_active'
+    | 'past_due'
+    | 'expired'
+    | 'cancelled'
+    | 'canceled'
+    | null
   badge: string | null
   error: string | null
   expiresAt: string | null
@@ -226,6 +237,76 @@ export interface BillingStatusResponse {
     startedAt: string | null
     expiresAt: string | null
   } | null
+  // Stripe-specific fields
+  provider?: 'stripe' | 'manual' | 'nuroo' | null
+  stripeStatus?: 'trialing' | 'active' | 'past_due' | 'canceled' | null
+  plan?: string | null
+  trialEndsAt?: string | null
+  currentPeriodEnd?: string | null
+  stripeCustomerId?: string
+  /** Billing mode returned by backend — drives UI branching */
+  billingMode?: BillingMode
+  billing?: {
+    status?: string | null
+    plan?: string | null
+    provider?: string | null
+    trialEndsAt?: string | null
+    currentPeriodEnd?: string | null
+  }
+}
+
+export interface Invoice {
+  id: string
+  parentId: string
+  childId: string
+  childName?: string
+  amount: number
+  currency: 'KGS'
+  status: 'upcoming' | 'pending' | 'paid' | 'overdue' | 'failed' | 'expired' | 'canceled'
+  paymentUrl?: string
+  dueDate: string
+  createdAt: string
+  paidAt?: string
+  description: string
+  billingProfileId?: string
+  periodStart?: string
+  periodEnd?: string
+}
+
+export interface CreateInvoiceInput {
+  parentId: string
+  childId: string
+  amount: number
+  currency: 'KGS'
+  description: string
+  dueDate: string
+}
+
+export interface ChildBillingProfile {
+  id: string
+  childId: string
+  childName?: string
+  parentId: string
+  amount: number
+  currency: 'KGS'
+  billingCycle: 'monthly'
+  dueDayOfMonth: number
+  status: 'active' | 'paused' | 'canceled'
+  provider: 'finik'
+  nextInvoiceDate: string
+  note?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateBillingProfileInput {
+  childId: string
+  parentId: string
+  amount: number
+  currency: 'KGS'
+  billingCycle: 'monthly'
+  dueDayOfMonth: number
+  note?: string
 }
 
 // ── Guardians ─────────────────────────────────────────────────────────────────
@@ -558,6 +639,142 @@ export class ApiClient {
 
   async getBillingStatus(orgId: string) {
     return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
+  }
+
+  async startTrial(
+    orgId: string
+  ): Promise<{ ok: boolean; trialEndsAt?: string; alreadyTrialing?: boolean }> {
+    cache.invalidate()
+    return this.request<{ ok: boolean; trialEndsAt?: string; alreadyTrialing?: boolean }>(
+      `/orgs/${orgId}/billing/start-trial`,
+      { method: 'POST', body: JSON.stringify({}) }
+    )
+  }
+
+  async createStripeCheckout(orgId: string, planId: string): Promise<{ ok: boolean; url: string }> {
+    cache.invalidate()
+    const successUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/b2b/billing?stripe=success`
+    const cancelUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/b2b/billing?stripe=cancel`
+    return this.request<{ ok: boolean; url: string }>(`/orgs/${orgId}/billing/checkout`, {
+      method: 'POST',
+      body: JSON.stringify({ planId, successUrl, cancelUrl }),
+    })
+  }
+
+  async createBillingPortalSession(orgId: string): Promise<{ ok: boolean; url: string }> {
+    return this.request<{ ok: boolean; url: string }>(`/orgs/${orgId}/billing/portal`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async getInvoices(
+    orgId: string,
+    params?: { parentId?: string; status?: string }
+  ): Promise<{ ok: boolean; invoices: Invoice[] }> {
+    const qs = new URLSearchParams()
+    if (params?.parentId) qs.set('parentId', params.parentId)
+    if (params?.status) qs.set('status', params.status)
+    const query = qs.toString() ? `?${qs}` : ''
+    return this.request<{ ok: boolean; invoices: Invoice[] }>(`/orgs/${orgId}/invoices${query}`)
+  }
+
+  async createInvoice(
+    orgId: string,
+    data: CreateInvoiceInput
+  ): Promise<{ ok: boolean; invoice: Invoice }> {
+    cache.invalidate(`invoices:${orgId}`)
+    return this.request<{ ok: boolean; invoice: Invoice }>(`/orgs/${orgId}/invoices`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async cancelInvoice(
+    orgId: string,
+    invoiceId: string
+  ): Promise<{ ok: boolean; invoice: Invoice }> {
+    cache.invalidate(`invoices:${orgId}`)
+    return this.request<{ ok: boolean; invoice: Invoice }>(
+      `/orgs/${orgId}/invoices/${invoiceId}/cancel`,
+      { method: 'PATCH' }
+    )
+  }
+
+  async getBillingProfiles(
+    orgId: string,
+    params?: { childId?: string }
+  ): Promise<{ ok: boolean; profiles: ChildBillingProfile[] }> {
+    const qs = new URLSearchParams()
+    if (params?.childId) qs.set('childId', params.childId)
+    const query = qs.toString() ? `?${qs}` : ''
+    return this.request<{ ok: boolean; profiles: ChildBillingProfile[] }>(
+      `/orgs/${orgId}/billing/profiles${query}`
+    )
+  }
+
+  async createBillingProfile(
+    orgId: string,
+    data: CreateBillingProfileInput
+  ): Promise<{ ok: boolean; profile: ChildBillingProfile }> {
+    return this.request<{ ok: boolean; profile: ChildBillingProfile }>(
+      `/orgs/${orgId}/billing/profiles`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async updateBillingProfile(
+    orgId: string,
+    profileId: string,
+    updates: Partial<
+      Pick<CreateBillingProfileInput, 'amount' | 'dueDayOfMonth' | 'note'> & {
+        status: 'active' | 'paused' | 'canceled'
+      }
+    >
+  ): Promise<{ ok: boolean; profile: ChildBillingProfile }> {
+    return this.request<{ ok: boolean; profile: ChildBillingProfile }>(
+      `/orgs/${orgId}/billing/profiles/${profileId}`,
+      { method: 'PATCH', body: JSON.stringify(updates) }
+    )
+  }
+
+  async generateMonthlyInvoices(
+    orgId: string
+  ): Promise<{ ok: boolean; result: { created: number; skipped: number; failed: number } }> {
+    return this.request<{
+      ok: boolean
+      result: { created: number; skipped: number; failed: number }
+    }>(`/orgs/${orgId}/billing/generate-monthly-invoices`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async markOverdueInvoices(orgId: string): Promise<{ ok: boolean; result: { marked: number } }> {
+    return this.request<{ ok: boolean; result: { marked: number } }>(
+      `/orgs/${orgId}/billing/mark-overdue`,
+      { method: 'POST', body: JSON.stringify({}) }
+    )
+  }
+
+  async getPaymentProviders(orgId: string): Promise<{
+    providers?: {
+      finik?: {
+        enabled: boolean
+        merchantId?: string
+        secretKeySet?: boolean
+        configuredAt?: string
+      }
+    }
+  }> {
+    return this.request(`/orgs/${orgId}/payment-providers`)
+  }
+
+  async configureFinik(orgId: string, data: { merchantId: string }): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/payment-providers/finik`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 
   async verifyPayment(paymentId: string) {

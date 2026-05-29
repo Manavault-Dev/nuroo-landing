@@ -147,7 +147,11 @@ export function Sidebar({
         : []),
       ...(isOrgAdmin
         ? [
-            { href: withOrg('/b2b/finance'), labelKey: t('finance'), icon: Wallet },
+            {
+              href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=invoices' : '?tab=invoices'}`,
+              labelKey: t('finance'),
+              icon: Wallet,
+            },
             { href: withOrg('/b2b/branches'), labelKey: t('branches'), icon: GitBranch },
           ]
         : []),
