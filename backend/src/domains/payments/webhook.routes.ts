@@ -4,8 +4,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import * as Sentry from '@sentry/node'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { config } from '../../config/index.js'
-import { getOrgPaymentProvider } from './providers/registry.js'
-import { updateInvoiceStatus, getInvoice } from './invoice.service.js'
+import { updateInvoiceStatus } from './invoice.service.js'
 import type { PaymentStatus } from './providers/PaymentProvider.interface.js'
 
 export const webhookRoutes: FastifyPluginAsync = async (fastify) => {

@@ -135,7 +135,7 @@ describe('createInvoice — happy path', () => {
   it('encodes orgId__invoiceId in the reference passed to provider', async () => {
     const provider = makeMockProvider()
     vi.mocked(getOrgPaymentProvider).mockResolvedValue(provider)
-    const { db, mockDocRef } = makeMockDb('inv_xyz')
+    const { db } = makeMockDb('inv_xyz')
 
     await createInvoice(db, 'org1', BASE_INPUT, 'admin1')
 

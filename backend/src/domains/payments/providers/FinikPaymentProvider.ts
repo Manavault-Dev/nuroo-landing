@@ -115,7 +115,7 @@ export class FinikPaymentProvider implements PaymentProvider {
 
     if (response.status !== 302 && !response.ok) {
       const errText = await response.text()
-      throw new Error(`Finik API error: ${response.status}`)
+      throw new Error(`Finik API error: ${response.status}${errText ? ` - ${errText}` : ''}`)
     }
 
     const paymentUrl =
