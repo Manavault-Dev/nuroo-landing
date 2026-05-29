@@ -34,6 +34,17 @@ export const envSchema = z.object({
   FINIK_WEBHOOK_SECRET: z.string().optional(),
   FINIK_WEBHOOK_URL: z.string().optional(),
   FINIK_DEBUG_SIGNATURE: z.string().optional(),
+
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_GROWTH: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE: z.string().optional(),
+
+  BILLING_MODE: z.enum(['manual', 'stripe_test', 'stripe_live']).default('manual'),
+  PLATFORM_ADMIN_SECRET: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
+export type BillingMode = 'manual' | 'stripe_test' | 'stripe_live'

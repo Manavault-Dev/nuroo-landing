@@ -116,6 +116,7 @@ export const childrenRecordsRoute: import('fastify').FastifyPluginAsync = async 
           return {
             id: childId,
             name: childName,
+            parentId: parentUserId ?? null,
             age: childData?.age || childData?.childAge || userData?.age || userData?.childAge,
             speechStepId: progressData?.currentStepId,
             speechStepNumber: progressData?.currentStepNumber,
