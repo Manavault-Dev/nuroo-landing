@@ -1,4 +1,5 @@
 // Sentry должен быть первым — до всех остальных импортов
+import { avatarUploadRoute } from './domains/upload/avatar.routes.js'
 import './instrument.js'
 import * as Sentry from '@sentry/node'
 
@@ -167,6 +168,7 @@ async function buildServer() {
     parentApiRoutes,
     aiAssistantRoutes,
     intentRoutes,
+    avatarUploadRoute,
   ]
 
   for (const route of routes) {
