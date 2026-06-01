@@ -32,7 +32,10 @@ const resetRequestSchema = z.object({
 
 const verifyOtpSchema = z.object({
   email: z.string().email(),
-  code: z.string().length(6).regex(/^\d{6}$/),
+  code: z
+    .string()
+    .length(6)
+    .regex(/^\d{6}$/),
 })
 
 const updatePasswordSchema = z.object({
@@ -122,9 +125,7 @@ async function handleResetRequest(
   const code = generateOtpCode()
   const otpHash = hashOtp(code, email)
   const now = admin.firestore.Timestamp.now()
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
-    Date.now() + OTP_TTL_MINUTES * 60 * 1000
-  )
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + OTP_TTL_MINUTES * 60 * 1000)
 
   const otpDoc: OtpDocument = {
     uid,
@@ -150,7 +151,10 @@ async function handleResetRequest(
     // Roll back the OTP doc to preserve rate limiting only if doc was newly created
     // but allow retry so we delete to re-enable re-send
     await docRef.delete()
-    request.log.error({ err: err instanceof Error ? err.message : err }, '[PasswordReset] Email send failed')
+    request.log.error(
+      { err: err instanceof Error ? err.message : err },
+      '[PasswordReset] Email send failed'
+    )
     return reply.code(502).send({ error: 'Failed to send email. Please try again later.' })
   }
 
@@ -182,7 +186,9 @@ async function handleVerifyOtp(
   const snap = await docRef.get()
 
   if (!snap.exists) {
-    return reply.code(400).send({ error: 'No active reset request found. Please request a new code.' })
+    return reply
+      .code(400)
+      .send({ error: 'No active reset request found. Please request a new code.' })
   }
 
   const data = snap.data() as OtpDocument
@@ -270,7 +276,10 @@ async function handleUpdatePassword(
   try {
     await getAuth().updateUser(uid, { password: newPassword })
   } catch (err: unknown) {
-    request.log.error({ err: err instanceof Error ? err.message : err }, '[PasswordReset] updateUser failed')
+    request.log.error(
+      { err: err instanceof Error ? err.message : err },
+      '[PasswordReset] updateUser failed'
+    )
     return reply.code(500).send({ error: 'Failed to update password. Please try again.' })
   }
 
@@ -285,7 +294,9 @@ async function requirePasswordResetClaim(
 ): Promise<void> {
   const authHeader = request.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
-    return reply.code(401).send({ error: 'Missing or invalid Authorization header' }) as unknown as void
+    return reply
+      .code(401)
+      .send({ error: 'Missing or invalid Authorization header' }) as unknown as void
   }
 
   try {
@@ -325,9 +336,5 @@ export const passwordResetRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/auth/verify-otp', handleVerifyOtp)
 
   // Protected: update password (requires passwordReset claim)
-  fastify.patch(
-    '/me/password',
-    { preHandler: [requirePasswordResetClaim] },
-    handleUpdatePassword
-  )
+  fastify.patch('/me/password', { preHandler: [requirePasswordResetClaim] }, handleUpdatePassword)
 }
