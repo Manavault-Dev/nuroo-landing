@@ -67,6 +67,9 @@ Thumbs.db
 .claude/
 .claude-flow/
 
+# gstack security audit reports and artifacts (stay local)
+.gstack/
+
 # Claude swarm state and coordination
 .swarm/
 
