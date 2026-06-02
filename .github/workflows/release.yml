@@ -113,7 +113,7 @@ jobs:
           echo "- [Production Frontend](https://usenuroo.com)" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify Slack
-        uses: slackapi/slack-github-action@v1.26.0
+        uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e
         with:
           payload: |
             {
