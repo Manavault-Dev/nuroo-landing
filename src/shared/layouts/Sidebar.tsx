@@ -95,7 +95,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
         <Link href="/b2b" className="flex items-center space-x-3 mb-4">
           <img src="/Logo.svg" alt="Nuroo Logo" className="w-8 h-8 rounded-lg" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">NeuroKids</h1>
+            <h1 className="text-xl font-bold text-gray-900">Nuroo</h1>
             <p className="text-xs text-gray-500">B2B Platform</p>
           </div>
         </Link>
