@@ -236,7 +236,7 @@ export function Sidebar({
             )}
             <div className="flex-1 min-w-0">
               <span className="text-xl font-bold text-gray-900 block leading-tight truncate">
-                {branding?.name || currentOrg?.orgName || 'Nuroo'}
+                {branding?.name || currentOrg?.orgName || 'NeuroKids'}
               </span>
               <span className="text-sm text-primary-500 font-semibold leading-tight mt-1 block">
                 {isOrgAdmin ? t('admin') : t('b2bPlatform')}
@@ -314,7 +314,7 @@ export function Sidebar({
               unoptimized
             />
             <span>
-              {t('poweredBy')} <span className="font-semibold text-primary-600">Nuroo</span>
+              {t('poweredBy')} <span className="font-semibold text-primary-600">NeuroKids</span>
             </span>
           </div>
         </div>

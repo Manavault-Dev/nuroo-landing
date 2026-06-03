@@ -31,6 +31,11 @@ function GoogleLogo() {
   )
 }
 
+const DEMO_ACCOUNTS = {
+  organizer: { email: 'aijan@gmail.com', password: 'aijan123', label: 'Организатор' },
+  specialist: { email: 'akylai@gmail.com', password: 'akylai', label: 'Специалист' },
+} as const
+
 export default function LoginPage() {
   const t = useTranslations('b2b.login')
   const tCommon = useTranslations('b2b.common')
@@ -39,6 +44,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState<'organizer' | 'specialist' | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -60,6 +66,25 @@ export default function LoginPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('signInError'))
       setLoading(false)
+    }
+  }
+
+  const handleDemoLogin = async (role: 'organizer' | 'specialist') => {
+    if (isAnyLoading) return
+    const account = DEMO_ACCOUNTS[role]
+    setError('')
+    setDemoLoading(role)
+    setEmail(account.email)
+    setPassword(account.password)
+    try {
+      const userCredential = await signIn(account.email, account.password)
+      const idToken = await userCredential.user.getIdToken()
+      apiClient.setToken(idToken)
+      const refreshedToken = await getIdToken(true)
+      if (refreshedToken) apiClient.setToken(refreshedToken)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('signInError'))
+      setDemoLoading(null)
     }
   }
 
@@ -87,11 +112,83 @@ export default function LoginPage() {
     }
   }
 
-  const isAnyLoading = loading || googleLoading
+  const isAnyLoading = loading || googleLoading || demoLoading !== null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-8">
+      <div className="max-w-2xl w-full space-y-6">
+        {/* ── Демо-доступ для жюри — первый экран ──────────────────────────── */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 to-secondary-600 p-6 shadow-2xl">
+          {/* декоративные круги */}
+          <div className="pointer-events-none absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10" />
+          <div className="pointer-events-none absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-white/10" />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">🎓</span>
+              <p className="text-base font-bold text-white">Демо-доступ для жюри</p>
+              <span className="ml-auto text-[10px] font-semibold uppercase tracking-widest bg-white/20 text-white px-2.5 py-1 rounded-full">
+                Demo
+              </span>
+            </div>
+            <p className="text-sm text-white/75 mb-5"></p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={isAnyLoading}
+                onClick={() => handleDemoLogin('organizer')}
+                className="flex items-center gap-3 px-5 py-4 rounded-xl bg-white hover:bg-primary-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-[0.98] text-left"
+              >
+                <span className="text-2xl shrink-0">
+                  {demoLoading === 'organizer' ? (
+                    <span className="inline-block w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    '🏢'
+                  )}
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-primary-700">Войти как Организатор</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {DEMO_ACCOUNTS.organizer.email}
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                disabled={isAnyLoading}
+                onClick={() => handleDemoLogin('specialist')}
+                className="flex items-center gap-3 px-5 py-4 rounded-xl bg-white hover:bg-secondary-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-[0.98] text-left"
+              >
+                <span className="text-2xl shrink-0">
+                  {demoLoading === 'specialist' ? (
+                    <span className="inline-block w-6 h-6 border-2 border-secondary-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    '👩‍⚕️'
+                  )}
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-secondary-700">Войти как Специалист</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {DEMO_ACCOUNTS.specialist.email}
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Разделитель ──────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-200" />
+          <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+            или войти вручную
+          </span>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
+
+        {/* ── Заголовок ────────────────────────────────────────────────────── */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-primary-100 p-3 rounded-full">
@@ -102,6 +199,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
         </div>
 
+        {/* ── Основная карточка логина ─────────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
