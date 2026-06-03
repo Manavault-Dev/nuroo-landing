@@ -62,6 +62,7 @@ Thumbs.db
 
 # Codex logs
 .codex-logs/
+.gstack/
 
 # Claude Code configuration and data
 .claude/
