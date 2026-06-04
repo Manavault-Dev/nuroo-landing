@@ -35,7 +35,9 @@ export function ScrollInit() {
 
     // ── Glow card mouse tracking ────────────────────
     const onMouseMove = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest('.glow-card') as HTMLElement | null
+      if (!(e.target instanceof Element)) return
+
+      const target = e.target.closest<HTMLElement>('.glow-card')
       if (!target) return
       const rect = target.getBoundingClientRect()
       target.style.setProperty('--mx', `${e.clientX - rect.left}px`)
