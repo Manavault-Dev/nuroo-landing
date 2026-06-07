@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import { useAlert } from '@/components/ui/AlertDialog'
@@ -64,6 +64,75 @@ interface OrgGroup {
   color: string
 }
 
+const TASKS_PER_PAGE = 10
+
+function getPaginationPages(current: number, total: number): (number | 'ellipsis')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i)
+  const pages: (number | 'ellipsis')[] = [0]
+  if (current > 2) pages.push('ellipsis')
+  for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) {
+    pages.push(i)
+  }
+  if (current < total - 3) pages.push('ellipsis')
+  pages.push(total - 1)
+  return pages
+}
+
+function TaskPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  if (totalPages <= 1) return null
+  const pages = getPaginationPages(currentPage, totalPages)
+  return (
+    <div className="flex items-center justify-center gap-1 mt-6 py-2">
+      <button
+        type="button"
+        disabled={currentPage === 0}
+        onClick={() => onPageChange(currentPage - 1)}
+        className="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        ← Назад
+      </button>
+
+      {pages.map((page, i) =>
+        page === 'ellipsis' ? (
+          <span key={`e-${i}`} className="w-9 text-center text-gray-400 text-sm select-none">
+            …
+          </span>
+        ) : (
+          <button
+            key={page}
+            type="button"
+            onClick={() => onPageChange(page as number)}
+            className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+              page === currentPage
+                ? 'bg-primary-500 text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {(page as number) + 1}
+          </button>
+        )
+      )}
+
+      <button
+        type="button"
+        disabled={currentPage === totalPages - 1}
+        onClick={() => onPageChange(currentPage + 1)}
+        className="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        Вперёд →
+      </button>
+    </div>
+  )
+}
+
 export function ContentManagement({
   mode,
   orgId,
@@ -93,6 +162,8 @@ export function ContentManagement({
   const [assigning, setAssigning] = useState(false)
   const [assignSuccess, setAssignSuccess] = useState(false)
   const [loadingGroups, setLoadingGroups] = useState(false)
+  const [taskPage, setTaskPage] = useState(0)
+  const tasksListRef = useRef<HTMLDivElement>(null)
   const { alert, confirm } = useAlert()
 
   const loadContent = async () => {
@@ -887,6 +958,25 @@ export function ContentManagement({
   // ── Split-panel layout for org mode tasks ────────────────────────────────
   const showSplitPanel = mode === 'org' && isTasksTab
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const totalTaskPages = Math.ceil(tasks.length / TASKS_PER_PAGE)
+  const pagedTasks = tasks.slice(taskPage * TASKS_PER_PAGE, (taskPage + 1) * TASKS_PER_PAGE)
+  // For grid layout: paginate tasks, show all roadmaps without pagination
+  const pagedGridItems = isTasksTab
+    ? tasks.slice(taskPage * TASKS_PER_PAGE, (taskPage + 1) * TASKS_PER_PAGE)
+    : roadmaps
+
+  const handleTaskPageChange = (page: number) => {
+    setTaskPage(page)
+    setTimeout(() => {
+      if (showSplitPanel) {
+        tasksListRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        tasksListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 0)
+  }
+
   return (
     <div className="min-w-0 p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -908,6 +998,7 @@ export function ContentManagement({
                 onClick={() => {
                   setActiveTab(tab.id)
                   setSelectedTask(null)
+                  setTaskPage(0)
                 }}
                 className={`flex shrink-0 items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
               >
@@ -966,8 +1057,11 @@ export function ContentManagement({
       {showSplitPanel && currentItems.length > 0 && (
         <div className="flex min-h-[520px] min-w-0 flex-col gap-4 lg:flex-row">
           {/* Left: task cards */}
-          <div className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
-            {tasks.map((task) => {
+          <div
+            ref={tasksListRef}
+            className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1"
+          >
+            {pagedTasks.map((task) => {
               const isSelected = selectedTask?.id === task.id
               return (
                 <div
@@ -1036,6 +1130,11 @@ export function ContentManagement({
                 </div>
               )
             })}
+            <TaskPagination
+              currentPage={taskPage}
+              totalPages={totalTaskPages}
+              onPageChange={handleTaskPageChange}
+            />
           </div>
 
           {/* Right: group assignment panel */}
@@ -1153,89 +1252,98 @@ export function ContentManagement({
 
       {/* ── GRID layout: global mode or roadmaps tab ── */}
       {!showSplitPanel && currentItems.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
-            >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className="text-lg font-semibold text-gray-900 mb-1 truncate"
-                    title={item.title || item.name || undefined}
-                  >
-                    {item.title || item.name || t('untitled')}
-                  </h3>
-                  {item.description && (
-                    <p
-                      className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
-                      title={item.description}
+        <div ref={tasksListRef}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pagedGridItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      className="text-lg font-semibold text-gray-900 mb-1 truncate"
+                      title={item.title || item.name || undefined}
                     >
-                      {item.description}
-                    </p>
+                      {item.title || item.name || t('untitled')}
+                    </h3>
+                    {item.description && (
+                      <p
+                        className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
+                        title={item.description}
+                      >
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(item)}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      title={t('edit')}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(activeTab, item.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      title={t('delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs text-gray-500">
+                  {item.category && (
+                    <div>
+                      <span className="font-medium">{t('category')}:</span> {item.category}
+                    </div>
+                  )}
+                  {item.ageRange && (
+                    <div>
+                      <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
+                      {item.ageRange.max} {t('years')}
+                    </div>
+                  )}
+                  {item.difficulty && (
+                    <div>
+                      <span className="font-medium">{t('difficulty')}:</span>{' '}
+                      <span className="capitalize">
+                        {t(
+                          item.difficulty === 'easy'
+                            ? 'difficultyEasy'
+                            : item.difficulty === 'medium'
+                              ? 'difficultyMedium'
+                              : 'difficultyHard'
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {item.taskIds && item.taskIds.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">{t('tasks')}:</span>{' '}
+                      {t('tasksCount', { count: item.taskIds.length })}
+                    </div>
+                  )}
+                  {item.createdAt && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <span className="font-medium">{t('createdLabel')}:</span>{' '}
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                    title={t('edit')}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(activeTab, item.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    title={t('delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-              <div className="space-y-2 text-xs text-gray-500">
-                {item.category && (
-                  <div>
-                    <span className="font-medium">{t('category')}:</span> {item.category}
-                  </div>
-                )}
-                {item.ageRange && (
-                  <div>
-                    <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
-                    {item.ageRange.max} {t('years')}
-                  </div>
-                )}
-                {item.difficulty && (
-                  <div>
-                    <span className="font-medium">{t('difficulty')}:</span>{' '}
-                    <span className="capitalize">
-                      {t(
-                        item.difficulty === 'easy'
-                          ? 'difficultyEasy'
-                          : item.difficulty === 'medium'
-                            ? 'difficultyMedium'
-                            : 'difficultyHard'
-                      )}
-                    </span>
-                  </div>
-                )}
-                {item.taskIds && item.taskIds.length > 0 && (
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">{t('tasks')}:</span>{' '}
-                    {t('tasksCount', { count: item.taskIds.length })}
-                  </div>
-                )}
-                {item.createdAt && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <span className="font-medium">{t('createdLabel')}:</span>{' '}
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          {isTasksTab && (
+            <TaskPagination
+              currentPage={taskPage}
+              totalPages={totalTaskPages}
+              onPageChange={handleTaskPageChange}
+            />
+          )}
         </div>
       )}
 
