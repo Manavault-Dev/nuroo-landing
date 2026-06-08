@@ -47,6 +47,10 @@ function writeCache(orgId: string, branding: OrgBranding) {
 }
 
 function buildThemeVariables(branding: OrgBranding | null): CSSProperties {
+  // Generated theme (from logo color extraction) takes priority over preset
+  if (branding?.generatedThemeTokens && Object.keys(branding.generatedThemeTokens).length > 0) {
+    return branding.generatedThemeTokens as CSSProperties
+  }
   const preset = resolvePreset(branding?.presetId)
   return presetToCssVariables(preset) as CSSProperties
 }

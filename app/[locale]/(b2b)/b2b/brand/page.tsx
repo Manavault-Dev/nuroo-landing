@@ -7,8 +7,17 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
 import { getCurrentUser } from '@/lib/b2b/authClient'
-import { THEME_PRESETS, DEFAULT_PRESET_ID, resolvePreset } from '@/lib/b2b/themePresets'
+import {
+  THEME_PRESETS,
+  DEFAULT_PRESET_ID,
+  resolvePreset,
+  tokensToCssVariables,
+} from '@/lib/b2b/themePresets'
+import { type FullThemeTokens } from '@/lib/b2b/themePresets'
 import { type PresetId } from '@/lib/b2b/types'
+import { extractDominantColor, fileToDataUrl } from '@/lib/b2b/colorExtraction'
+import { buildThemeFromColor, findClosestPreset } from '@/lib/b2b/themeGenerator'
+import { isColorSuitable } from '@/lib/b2b/colorUtils'
 import {
   Palette,
   Save,
@@ -19,6 +28,9 @@ import {
   CheckCircle2,
   RotateCcw,
   Check,
+  Upload,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react'
 
 const DEFAULT_IMAGE_POSITION = 50
@@ -97,6 +109,13 @@ export default function BrandSettingsPage() {
   const [previewMode, setPreviewMode] = useState(false)
   const initialized = useRef(false)
 
+  // Auto-theme state
+  const [generatedTokens, setGeneratedTokens] = useState<FullThemeTokens | null>(null)
+  const [extractedColor, setExtractedColor] = useState<string | null>(null)
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!isLoading && !getCurrentUser()) {
       router.push('/b2b/login')
@@ -124,7 +143,11 @@ export default function BrandSettingsPage() {
       setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const setPresetId = (presetId: PresetId) => {
-    setForm((f) => ({ ...f, presetId }))
+    // Selecting a preset clears the generated theme
+    setGeneratedTokens(null)
+    setExtractedColor(null)
+    setExtractError(null)
+    setForm((f) => ({ ...f, presetId, generatedThemeTokens: null }))
   }
 
   const setNumber = (key: keyof OrgBranding) => (value: number) => {
@@ -149,13 +172,71 @@ export default function BrandSettingsPage() {
     }))
   }
 
+  // ── File upload handler ───────────────────────────────────────────────────
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      setForm((f) => ({ ...f, logo: dataUrl }))
+      setExtractError(null)
+    } catch {
+      // ignore
+    }
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // ── Auto-generate theme from logo ────────────────────────────────────────
+
+  const handleGenerateTheme = async () => {
+    const logoSrc = form.logo?.trim()
+    if (!logoSrc) {
+      setExtractError(t('noLogoError'))
+      return
+    }
+    setExtracting(true)
+    setExtractError(null)
+    try {
+      const color = await extractDominantColor(logoSrc)
+
+      if (!color || !isColorSuitable(color)) {
+        // Fall back to the closest preset instead of failing silently
+        const closest = color ? findClosestPreset(color) : DEFAULT_PRESET_ID
+        setPresetId(closest)
+        setExtractError(t('extractFallback'))
+        return
+      }
+
+      const tokens = buildThemeFromColor(color)
+      if (!tokens) {
+        setExtractError(t('extractFallback'))
+        const closest = findClosestPreset(color)
+        setPresetId(closest)
+        return
+      }
+
+      setExtractedColor(color)
+      setGeneratedTokens(tokens)
+      const cssVars = tokensToCssVariables(tokens)
+      setForm((f) => ({ ...f, presetId: null, generatedThemeTokens: cssVars }))
+      setPreviewMode(true)
+    } catch {
+      setExtractError(t('extractError'))
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setSaved(false)
     setSaveError(null)
     try {
-      const selectedPresetId: PresetId = form.presetId ?? DEFAULT_PRESET_ID
       await updateBranding({
         name: form.name?.trim() || null,
         description: form.description?.trim() || null,
@@ -177,7 +258,9 @@ export default function BrandSettingsPage() {
         coverScale: form.coverImage?.trim()
           ? valueOrDefault(form.coverScale, DEFAULT_IMAGE_SCALE)
           : null,
-        presetId: selectedPresetId,
+        // If we have a generated theme, save it; otherwise save the chosen preset
+        presetId: generatedTokens ? null : (form.presetId ?? DEFAULT_PRESET_ID),
+        generatedThemeTokens: generatedTokens ? tokensToCssVariables(generatedTokens) : null,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -202,8 +285,12 @@ export default function BrandSettingsPage() {
   if (!isAdmin || !currentOrg) return null
 
   const previewName = form.name || currentOrg.orgName
-  const activePreset = resolvePreset(form.presetId)
-  const previewColor = activePreset.tokens[500]
+
+  // Active tokens for preview: generated > preset
+  const activeTokens: FullThemeTokens = generatedTokens ?? resolvePreset(form.presetId).tokens
+  const activePresetId = generatedTokens ? null : (form.presetId ?? DEFAULT_PRESET_ID)
+  const previewColor = activeTokens[500]
+
   const coverCropStyle = imageCropStyle(form.coverPositionX, form.coverPositionY, form.coverScale)
   const logoCropStyle = imageCropStyle(form.logoPositionX, form.logoPositionY, form.logoScale)
 
@@ -269,19 +356,45 @@ export default function BrandSettingsPage() {
               <h3 className="text-base font-semibold text-gray-900">{t('sectionVisual')}</h3>
             </div>
 
+            {/* Logo field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 <ImageIcon className="w-3.5 h-3.5 inline mr-1 text-gray-400" />
                 {t('fieldLogo')}
               </label>
-              <input
-                type="url"
-                value={form.logo ?? ''}
-                onChange={set('logo')}
-                placeholder={t('logoPlaceholder')}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">{t('logoHint')}</p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={form.logo?.startsWith('data:') ? '' : (form.logo ?? '')}
+                  onChange={set('logo')}
+                  placeholder={t('logoPlaceholder')}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                {/* File upload button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  title={t('logoFile')}
+                  className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap"
+                >
+                  <Upload className="w-4 h-4" />
+                  {t('uploadLogo')}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </div>
+              {form.logo?.startsWith('data:') && (
+                <p className="mt-1 text-xs text-gray-500">{t('logoFileLoaded')}</p>
+              )}
+              {!form.logo?.startsWith('data:') && (
+                <p className="mt-1 text-xs text-gray-500">{t('logoHint')}</p>
+              )}
+
               {form.logo && (
                 <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
@@ -335,6 +448,58 @@ export default function BrandSettingsPage() {
               )}
             </div>
 
+            {/* ── Auto-generate theme from logo ──────────────────────────────── */}
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-primary-500" />
+                    {t('generateThemeTitle')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{t('generateThemeHint')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateTheme}
+                  disabled={extracting || !form.logo}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-white border-gray-200 text-gray-700 hover:bg-gray-100"
+                >
+                  {extracting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t('generating')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      {t('generateThemeBtn')}
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Generated theme status */}
+              {generatedTokens && extractedColor && (
+                <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('generatedFrom')}</span>
+                  <span
+                    className="inline-block w-3.5 h-3.5 rounded-full border border-white shadow-sm shrink-0"
+                    style={{ background: extractedColor }}
+                  />
+                  <span className="font-mono">{extractedColor}</span>
+                </div>
+              )}
+
+              {extractError && (
+                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {extractError}
+                </div>
+              )}
+            </div>
+
+            {/* Cover image */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 <ImageIcon className="w-3.5 h-3.5 inline mr-1 text-gray-400" />
@@ -398,14 +563,17 @@ export default function BrandSettingsPage() {
               )}
             </div>
 
+            {/* Preset selector — manual override */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('sectionPreset')}
               </label>
-              <p className="mb-3 text-xs text-gray-500">{t('presetHint')}</p>
+              <p className="mb-3 text-xs text-gray-500">
+                {generatedTokens ? t('presetOverrideHint') : t('presetHint')}
+              </p>
               <div className="grid grid-cols-5 gap-2">
                 {Object.values(THEME_PRESETS).map((preset) => {
-                  const isSelected = (form.presetId ?? DEFAULT_PRESET_ID) === preset.id
+                  const isSelected = !generatedTokens && activePresetId === preset.id
                   return (
                     <button
                       key={preset.id}
@@ -417,6 +585,7 @@ export default function BrandSettingsPage() {
                         isSelected
                           ? 'border-gray-900 shadow-md'
                           : 'border-transparent hover:border-gray-300',
+                        generatedTokens ? 'opacity-50' : '',
                       ].join(' ')}
                     >
                       {/* Two-tone swatch: sidebar + primary */}
@@ -472,8 +641,8 @@ export default function BrandSettingsPage() {
               disabled={saving}
               className="flex items-center gap-2 px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               style={{
-                backgroundColor: activePreset.tokens.buttonBg,
-                color: activePreset.tokens.buttonText,
+                backgroundColor: activeTokens.buttonBg,
+                color: activeTokens.buttonText,
               }}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -487,41 +656,34 @@ export default function BrandSettingsPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-6 space-y-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                {t('preview')} — {t(`preset_${activePreset.id}` as Parameters<typeof t>[0])}
+                {t('preview')}
+                {generatedTokens
+                  ? ` — ${t('previewAutoGenerated')}`
+                  : ` — ${t(`preset_${activePresetId ?? DEFAULT_PRESET_ID}` as Parameters<typeof t>[0])}`}
               </p>
 
               {/* ── Workspace mockup ────────────────────────────── */}
               <div
                 className="rounded-xl overflow-hidden border shadow-lg"
-                style={{ borderColor: activePreset.tokens.cardBorder }}
+                style={{ borderColor: activeTokens.cardBorder }}
               >
                 {/* Mini topbar */}
                 <div
                   className="flex items-center justify-between px-3 py-2 border-b"
                   style={{
-                    backgroundColor: activePreset.tokens.topbarBg,
-                    borderColor: activePreset.tokens.topbarBorder,
+                    backgroundColor: activeTokens.topbarBg,
+                    borderColor: activeTokens.topbarBorder,
                   }}
                 >
-                  <span
-                    className="text-[11px] font-bold truncate"
-                    style={{
-                      color:
-                        activePreset.tokens.sidebarText === '#e0eaff'
-                          ? '#111827'
-                          : activePreset.tokens.sidebarText,
-                      filter: 'none',
-                    }}
-                  >
+                  <span className="text-[11px] font-bold truncate text-gray-900">
                     {previewName}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    {/* avatar circle */}
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
                       style={{
-                        backgroundColor: activePreset.tokens.badgeBg,
-                        color: activePreset.tokens.badgeText,
+                        backgroundColor: activeTokens.badgeBg,
+                        color: activeTokens.badgeText,
                       }}
                     >
                       A
@@ -534,22 +696,22 @@ export default function BrandSettingsPage() {
                   {/* Mini sidebar */}
                   <div
                     className="flex flex-col py-2 px-1.5 gap-0.5 shrink-0"
-                    style={{ width: 88, backgroundColor: activePreset.tokens.sidebarBg }}
+                    style={{ width: 88, backgroundColor: activeTokens.sidebarBg }}
                   >
                     {/* Org logo row */}
                     <div className="flex items-center gap-1.5 px-1 py-1.5 mb-1">
                       <div
                         className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
                         style={{
-                          backgroundColor: activePreset.tokens.primary,
-                          color: activePreset.tokens.primaryText,
+                          backgroundColor: activeTokens.primary,
+                          color: activeTokens.primaryText,
                         }}
                       >
                         {previewName.charAt(0).toUpperCase()}
                       </div>
                       <span
                         className="text-[9px] font-semibold truncate"
-                        style={{ color: activePreset.tokens.sidebarText }}
+                        style={{ color: activeTokens.sidebarText }}
                       >
                         {previewName.split(' ')[0]}
                       </span>
@@ -558,14 +720,14 @@ export default function BrandSettingsPage() {
                     <div
                       className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
                       style={{
-                        backgroundColor: activePreset.tokens.sidebarActiveBg,
-                        color: activePreset.tokens.sidebarActiveText,
+                        backgroundColor: activeTokens.sidebarActiveBg,
+                        color: activeTokens.sidebarActiveText,
                       }}
                     >
                       <div
                         className="w-2 h-2 rounded-sm"
                         style={{
-                          backgroundColor: activePreset.tokens.sidebarActiveText,
+                          backgroundColor: activeTokens.sidebarActiveText,
                           opacity: 0.8,
                         }}
                       />
@@ -577,7 +739,7 @@ export default function BrandSettingsPage() {
                         <div
                           key={label}
                           className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
-                          style={{ color: activePreset.tokens.sidebarMutedText }}
+                          style={{ color: activeTokens.sidebarMutedText }}
                         >
                           <div className="w-2 h-2 rounded-sm bg-current opacity-40" />
                           <span className="text-[9px] truncate">{label}</span>
@@ -588,8 +750,8 @@ export default function BrandSettingsPage() {
                     <div
                       className="mt-auto pt-1.5 border-t text-[8px] px-1"
                       style={{
-                        borderColor: activePreset.tokens.sidebarHoverBg,
-                        color: activePreset.tokens.sidebarMutedText,
+                        borderColor: activeTokens.sidebarHoverBg,
+                        color: activeTokens.sidebarMutedText,
                       }}
                     >
                       {t('poweredBy')}
@@ -599,16 +761,9 @@ export default function BrandSettingsPage() {
                   {/* Main content */}
                   <div
                     className="flex-1 p-2 flex flex-col gap-2"
-                    style={{ backgroundColor: activePreset.tokens.appBg }}
+                    style={{ backgroundColor: activeTokens.appBg }}
                   >
-                    {/* Page title */}
-                    <div
-                      className="text-[10px] font-bold"
-                      style={{
-                        color:
-                          activePreset.tokens.sidebarText === '#e0eaff' ? '#111827' : '#111827',
-                      }}
-                    >
+                    <div className="text-[10px] font-bold text-gray-900">
                       {t('previewDashboard')}
                     </div>
 
@@ -616,20 +771,19 @@ export default function BrandSettingsPage() {
                     <div
                       className="rounded-lg p-2 border"
                       style={{
-                        backgroundColor: activePreset.tokens.cardBg,
-                        borderColor: activePreset.tokens.cardBorder,
+                        backgroundColor: activeTokens.cardBg,
+                        borderColor: activeTokens.cardBorder,
                       }}
                     >
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[9px] font-semibold text-gray-700">
                           {t('previewChildren')}
                         </span>
-                        {/* Badge */}
                         <span
                           className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
-                            backgroundColor: activePreset.tokens.badgeBg,
-                            color: activePreset.tokens.badgeText,
+                            backgroundColor: activeTokens.badgeBg,
+                            color: activeTokens.badgeText,
                           }}
                         >
                           12
@@ -639,8 +793,8 @@ export default function BrandSettingsPage() {
                       <div
                         className="h-4 rounded border text-[8px] px-1.5 flex items-center text-gray-400"
                         style={{
-                          backgroundColor: activePreset.tokens.inputBg,
-                          borderColor: activePreset.tokens.inputBorder,
+                          backgroundColor: activeTokens.inputBg,
+                          borderColor: activeTokens.inputBorder,
                         }}
                       >
                         Search...
@@ -651,12 +805,12 @@ export default function BrandSettingsPage() {
                     <div
                       className="rounded-lg p-1.5 border text-[8px]"
                       style={{
-                        backgroundColor: activePreset.tokens.notificationBg,
-                        borderColor: activePreset.tokens.notificationBorder,
-                        color: activePreset.tokens.badgeText,
+                        backgroundColor: activeTokens.notificationBg,
+                        borderColor: activeTokens.notificationBorder,
+                        color: activeTokens.badgeText,
                       }}
                     >
-                      🔔 New task assigned
+                      🔔 {t('previewNotification')}
                     </div>
 
                     {/* Button */}
@@ -664,8 +818,8 @@ export default function BrandSettingsPage() {
                       type="button"
                       className="self-start text-[9px] font-semibold px-2 py-1 rounded-md"
                       style={{
-                        backgroundColor: activePreset.tokens.buttonBg,
-                        color: activePreset.tokens.buttonText,
+                        backgroundColor: activeTokens.buttonBg,
+                        color: activeTokens.buttonText,
                       }}
                     >
                       {t('save')}
@@ -682,25 +836,35 @@ export default function BrandSettingsPage() {
                     <div
                       key={shade}
                       className="flex-1 h-5 rounded-sm"
-                      style={{ background: activePreset.tokens[shade] }}
+                      style={{ background: activeTokens[shade] }}
                     />
                   ))}
                 </div>
-                {/* Sidebar swatch */}
                 <div className="flex items-center gap-2">
                   <div
                     className="w-5 h-5 rounded border border-gray-200"
-                    style={{ background: activePreset.tokens.sidebarBg }}
+                    style={{ background: activeTokens.sidebarBg }}
                   />
                   <span className="text-[10px] text-gray-400 font-mono">
-                    {activePreset.tokens.sidebarBg}
+                    {activeTokens.sidebarBg}
                   </span>
                   <div
                     className="ml-auto w-5 h-5 rounded border border-gray-200"
-                    style={{ background: activePreset.tokens.primary }}
+                    style={{ background: activeTokens.primary }}
                   />
                   <span className="text-[10px] text-gray-400 font-mono">{previewColor}</span>
                 </div>
+                {generatedTokens && extractedColor && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
+                    <Sparkles className="w-3 h-3 text-primary-400" />
+                    <span>{t('generatedFrom')}</span>
+                    <span
+                      className="inline-block w-3 h-3 rounded-full border border-gray-200"
+                      style={{ background: extractedColor }}
+                    />
+                    <span className="font-mono">{extractedColor}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

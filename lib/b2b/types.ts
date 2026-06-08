@@ -11,6 +11,12 @@ export interface OrgBranding {
   primaryColor?: string | null
   /** Color theme preset. Defaults to 'nuroo' if not set. */
   presetId?: PresetId | null
+  /**
+   * CSS variable map generated from the org's logo color.
+   * When present, overrides presetId for theme rendering.
+   * Keys are CSS variable names (e.g. '--brand-sidebar-bg').
+   */
+  generatedThemeTokens?: Record<string, string> | null
   welcomeMessage?: string | null
   coverImage?: string | null
   coverPositionX?: number | null

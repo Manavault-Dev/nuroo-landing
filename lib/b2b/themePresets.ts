@@ -304,6 +304,49 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
 
 export const DEFAULT_PRESET_ID: PresetId = 'nuroo'
 
+/**
+ * Convert a FullThemeTokens object directly to CSS variables.
+ * Use this when applying a generated (non-preset) theme.
+ */
+export function tokensToCssVariables(t: FullThemeTokens): Record<string, string> {
+  return {
+    '--brand-primary-50': t[50],
+    '--brand-primary-100': t[100],
+    '--brand-primary-200': t[200],
+    '--brand-primary-300': t[300],
+    '--brand-primary-400': t[400],
+    '--brand-primary-500': t[500],
+    '--brand-primary-600': t[600],
+    '--brand-primary-700': t[700],
+    '--brand-primary-800': t[800],
+    '--brand-primary-900': t[900],
+    '--brand-app-bg': t.appBg,
+    '--brand-page-bg': t.pageBg,
+    '--brand-surface': t.surface,
+    '--brand-card-bg': t.cardBg,
+    '--brand-card-border': t.cardBorder,
+    '--brand-sidebar-bg': t.sidebarBg,
+    '--brand-sidebar-text': t.sidebarText,
+    '--brand-sidebar-muted': t.sidebarMutedText,
+    '--brand-sidebar-active-bg': t.sidebarActiveBg,
+    '--brand-sidebar-active-text': t.sidebarActiveText,
+    '--brand-sidebar-hover-bg': t.sidebarHoverBg,
+    '--brand-topbar-bg': t.topbarBg,
+    '--brand-topbar-border': t.topbarBorder,
+    '--brand-button-bg': t.buttonBg,
+    '--brand-button-text': t.buttonText,
+    '--brand-badge-bg': t.badgeBg,
+    '--brand-badge-text': t.badgeText,
+    '--brand-input-bg': t.inputBg,
+    '--brand-input-border': t.inputBorder,
+    '--brand-input-focus-border': t.inputFocusBorder,
+    '--brand-notification-bg': t.notificationBg,
+    '--brand-notification-border': t.notificationBorder,
+    '--brand-gradient-from': t.gradientFrom,
+    '--brand-gradient-to': t.gradientTo,
+  }
+}
+
 export function resolvePreset(presetId?: PresetId | null): ThemePreset {
   if (presetId && presetId in THEME_PRESETS) {
     return THEME_PRESETS[presetId]
