@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
 import { getCurrentUser } from '@/lib/b2b/authClient'
+import { THEME_PRESETS, DEFAULT_PRESET_ID, resolvePreset } from '@/lib/b2b/themePresets'
+import { type PresetId } from '@/lib/b2b/types'
 import {
   Palette,
   Save,
@@ -16,9 +18,9 @@ import {
   Eye,
   CheckCircle2,
   RotateCcw,
+  Check,
 } from 'lucide-react'
 
-const DEFAULT_BRAND_PRIMARY = '#14b8a6'
 const DEFAULT_IMAGE_POSITION = 50
 const DEFAULT_IMAGE_SCALE = 1
 
@@ -121,8 +123,8 @@ export default function BrandSettingsPage() {
     (key: keyof OrgBranding) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }))
 
-  const setPrimaryColor = (value: string) => {
-    setForm((f) => ({ ...f, primaryColor: value }))
+  const setPresetId = (presetId: PresetId) => {
+    setForm((f) => ({ ...f, presetId }))
   }
 
   const setNumber = (key: keyof OrgBranding) => (value: number) => {
@@ -153,6 +155,7 @@ export default function BrandSettingsPage() {
     setSaved(false)
     setSaveError(null)
     try {
+      const selectedPresetId: PresetId = form.presetId ?? DEFAULT_PRESET_ID
       await updateBranding({
         name: form.name?.trim() || null,
         description: form.description?.trim() || null,
@@ -174,7 +177,7 @@ export default function BrandSettingsPage() {
         coverScale: form.coverImage?.trim()
           ? valueOrDefault(form.coverScale, DEFAULT_IMAGE_SCALE)
           : null,
-        primaryColor: form.primaryColor?.trim() || null,
+        presetId: selectedPresetId,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -199,7 +202,8 @@ export default function BrandSettingsPage() {
   if (!isAdmin || !currentOrg) return null
 
   const previewName = form.name || currentOrg.orgName
-  const previewColor = form.primaryColor || DEFAULT_BRAND_PRIMARY
+  const activePreset = resolvePreset(form.presetId)
+  const previewColor = activePreset.tokens[500]
   const previewCover = form.coverImage
   const coverCropStyle = imageCropStyle(form.coverPositionX, form.coverPositionY, form.coverScale)
   const logoCropStyle = imageCropStyle(form.logoPositionX, form.logoPositionY, form.logoScale)
@@ -396,32 +400,45 @@ export default function BrandSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t('fieldPrimaryColor')}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('sectionPreset')}
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={form.primaryColor || DEFAULT_BRAND_PRIMARY}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text"
-                  value={form.primaryColor || DEFAULT_BRAND_PRIMARY}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  maxLength={7}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPrimaryColor('')}
-                  className="shrink-0 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  {t('useDefault')}
-                </button>
+              <p className="mb-3 text-xs text-gray-500">{t('presetHint')}</p>
+              <div className="grid grid-cols-5 gap-2">
+                {Object.values(THEME_PRESETS).map((preset) => {
+                  const isSelected = (form.presetId ?? DEFAULT_PRESET_ID) === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setPresetId(preset.id as PresetId)}
+                      title={t(`preset_${preset.id}` as Parameters<typeof t>[0])}
+                      className={[
+                        'relative flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all',
+                        isSelected
+                          ? 'border-gray-900 shadow-md'
+                          : 'border-transparent hover:border-gray-300',
+                      ].join(' ')}
+                    >
+                      <div
+                        className="w-full h-8 rounded-lg"
+                        style={{ background: preset.tokens[500] }}
+                      />
+                      {isSelected && (
+                        <span
+                          className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                          style={{ background: preset.tokens[700] }}
+                        >
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </span>
+                      )}
+                      <span className="text-[10px] font-medium text-gray-600 text-center leading-tight">
+                        {t(`preset_${preset.id}` as Parameters<typeof t>[0])}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-              <p className="mt-1 text-xs text-gray-500">{t('primaryColorHint')}</p>
             </div>
           </div>
 
@@ -575,9 +592,20 @@ export default function BrandSettingsPage() {
 
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <p className="text-xs font-medium text-gray-500 mb-3">{t('colorPreview')}</p>
-                <div className="rounded-lg h-10" style={{ background: previewColor }} />
-                <div className="mt-2">
+                <div className="flex gap-1">
+                  {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade) => (
+                    <div
+                      key={shade}
+                      className="flex-1 h-6 rounded"
+                      style={{ background: activePreset.tokens[shade] }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-gray-400 font-mono">{previewColor}</span>
+                  <span className="text-xs text-gray-400">
+                    {t(`preset_${activePreset.id}` as Parameters<typeof t>[0])}
+                  </span>
                 </div>
               </div>
             </div>

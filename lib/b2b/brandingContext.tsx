@@ -11,6 +11,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { type OrgBranding } from './types'
+import { resolvePreset, presetToCssVariables } from './themePresets'
 import { apiClient } from './api'
 
 export type { OrgBranding }
@@ -45,64 +46,9 @@ function writeCache(orgId: string, branding: OrgBranding) {
   }
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function normalizeHexColor(color?: string | null) {
-  if (!color) return null
-  return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : null
-}
-
-function hexToRgb(hex: string) {
-  const normalized = hex.replace('#', '')
-  return {
-    r: parseInt(normalized.slice(0, 2), 16),
-    g: parseInt(normalized.slice(2, 4), 16),
-    b: parseInt(normalized.slice(4, 6), 16),
-  }
-}
-
-function rgbToHex(r: number, g: number, b: number) {
-  return `#${[r, g, b]
-    .map((channel) => clamp(Math.round(channel), 0, 255).toString(16).padStart(2, '0'))
-    .join('')}`
-}
-
-function mixColors(from: string, to: string, ratio: number) {
-  const start = hexToRgb(from)
-  const end = hexToRgb(to)
-  return rgbToHex(
-    start.r + (end.r - start.r) * ratio,
-    start.g + (end.g - start.g) * ratio,
-    start.b + (end.b - start.b) * ratio
-  )
-}
-
-function buildThemeVariables(branding: OrgBranding | null) {
-  const primary = normalizeHexColor(branding?.primaryColor) || '#14b8a6'
-  const primary50 = mixColors(primary, '#ffffff', 0.9)
-  const primary100 = mixColors(primary, '#ffffff', 0.8)
-  const primary200 = mixColors(primary, '#ffffff', 0.65)
-  const primary300 = mixColors(primary, '#ffffff', 0.45)
-  const primary400 = mixColors(primary, '#ffffff', 0.2)
-  const primary600 = mixColors(primary, '#000000', 0.12)
-  const primary700 = mixColors(primary, '#000000', 0.25)
-  const primary800 = mixColors(primary, '#000000', 0.38)
-  const primary900 = mixColors(primary, '#000000', 0.5)
-
-  return {
-    '--brand-primary-50': primary50,
-    '--brand-primary-100': primary100,
-    '--brand-primary-200': primary200,
-    '--brand-primary-300': primary300,
-    '--brand-primary-400': primary400,
-    '--brand-primary-500': primary,
-    '--brand-primary-600': primary600,
-    '--brand-primary-700': primary700,
-    '--brand-primary-800': primary800,
-    '--brand-primary-900': primary900,
-  } as CSSProperties
+function buildThemeVariables(branding: OrgBranding | null): CSSProperties {
+  const preset = resolvePreset(branding?.presetId)
+  return presetToCssVariables(preset) as CSSProperties
 }
 
 export function BrandingProvider({
