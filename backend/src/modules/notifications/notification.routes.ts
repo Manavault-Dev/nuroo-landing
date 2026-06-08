@@ -9,8 +9,10 @@ import {
   deactivateDeviceToken,
   getUserPreferences,
   updateUserPreferences,
+  dispatch,
 } from './notification.service.js'
-import type { NotificationPreferences } from './notification.types.js'
+import type { NotificationPreferences, NotificationType } from './notification.types.js'
+import { TYPE_TO_CATEGORY } from './notification.types.js'
 
 const tokenSchema = z.object({
   token: z
@@ -37,6 +39,13 @@ const prefsSchema = z.object({
     .optional(),
 })
 
+const testNotifSchema = z.object({
+  title: z.string().min(1).max(200).optional().default('Test Notification'),
+  body: z.string().min(1).max(500).optional().default('This is a test notification from Nuroo.'),
+  type: z.string().optional().default('task_assigned'),
+  targetUserId: z.string().optional(), // admin only: send to a different user
+})
+
 export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
   // ── Device token ────────────────────────────────────────────────────────────
 
@@ -52,8 +61,51 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/api/push/token', async (request, reply) => {
     if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
-    await deactivateDeviceToken(request.user.uid)
+    // Support optional token body to remove specific token
+    const body = request.body as { token?: string } | null
+    await deactivateDeviceToken(request.user.uid, body?.token)
     return { ok: true }
+  })
+
+  // ── Test notification (dev/admin only) ──────────────────────────────────────
+
+  fastify.post('/api/push/test', async (request, reply) => {
+    if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+    const parse = testNotifSchema.safeParse(request.body)
+    if (!parse.success) {
+      return reply.code(400).send({ error: 'Invalid body', details: parse.error.issues })
+    }
+
+    const { title, body, type, targetUserId } = parse.data
+
+    // Allow sending to another user only from own account in dev, or as admin
+    const userId = targetUserId ?? request.user.uid
+    const notifType =
+      (type as NotificationType) in TYPE_TO_CATEGORY ? (type as NotificationType) : 'task_assigned'
+
+    const startedAt = Date.now()
+
+    await dispatch({
+      userId,
+      role: 'specialist',
+      type: notifType,
+      category: TYPE_TO_CATEGORY[notifType],
+      title: title ?? 'Test Notification',
+      body: body ?? 'This is a test notification.',
+      channel: 'both',
+      priority: 'high',
+      metadata: { deepLink: 'notifications' },
+    })
+
+    const elapsed = Date.now() - startedAt
+
+    return {
+      ok: true,
+      targetUserId: userId,
+      dispatchedAt: new Date().toISOString(),
+      elapsedMs: elapsed,
+      note: 'Expo receipt will be polled after ~35 seconds. Check server logs for delivery confirmation.',
+    }
   })
 
   // ── Notification list ───────────────────────────────────────────────────────
