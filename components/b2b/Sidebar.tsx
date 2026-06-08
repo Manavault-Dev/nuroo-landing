@@ -75,19 +75,19 @@ function NavLink({
       onClick={onClick}
       className={clsx(
         'flex items-center gap-3.5 px-4 py-3 rounded-xl text-[16px] font-medium transition-colors min-h-[48px] group',
-        active
-          ? 'bg-primary-50 text-primary-700 font-bold shadow-sm shadow-primary-500/5'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        active ? 'b2b-nav-active font-bold' : 'b2b-nav-link'
       )}
     >
       <Icon
         className={clsx(
           'w-[21px] h-[21px] shrink-0 transition-colors',
-          active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
+          active ? 'b2b-nav-icon-active' : 'b2b-nav-icon-idle'
         )}
       />
       <span className="flex-1 truncate">{item.labelKey}</span>
-      {active && <ChevronRight className="w-[17px] h-[17px] text-primary-400 shrink-0" />}
+      {active && (
+        <ChevronRight className="w-[17px] h-[17px] b2b-nav-icon-active shrink-0 opacity-60" />
+      )}
     </Link>
   )
 }
@@ -192,7 +192,7 @@ export function Sidebar({
   return (
     <div
       className={clsx(
-        'fixed inset-y-0 left-0 w-[17rem] max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:top-0 md:bottom-0 md:w-[17rem] md:max-w-none md:h-screen flex flex-col overflow-hidden bg-white border-r border-gray-100',
+        'b2b-sidebar fixed inset-y-0 left-0 w-[17rem] max-w-[min(320px,calc(100vw-2rem))] h-[100dvh] md:top-0 md:bottom-0 md:w-[17rem] md:max-w-none md:h-screen flex flex-col overflow-hidden bg-white border-r border-gray-100',
         mobileOpen ? 'z-50' : 'z-[38] md:z-30',
         'transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:transition-none',
         mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0',
@@ -200,11 +200,11 @@ export function Sidebar({
       )}
     >
       {/* Mobile close */}
-      <div className="md:hidden flex items-center justify-end p-2 border-b border-gray-100 shrink-0">
+      <div className="b2b-sidebar-close-row md:hidden flex items-center justify-end p-2 border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={onMobileClose}
-          className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+          className="b2b-sidebar-close-btn flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
           aria-label={t('closeMenu')}
         >
           <X className="w-4 h-4" />
@@ -213,7 +213,7 @@ export function Sidebar({
 
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
         {/* Identity — one block, org name appears exactly once */}
-        <div className="px-4 py-5 border-b border-gray-100 shrink-0">
+        <div className="b2b-sidebar-divider px-4 py-5 border-b border-gray-100 shrink-0">
           <Link href="/b2b" className="flex items-center gap-3.5 min-w-0" onClick={onMobileClose}>
             {branding?.logo ? (
               <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">
@@ -235,10 +235,10 @@ export function Sidebar({
               />
             )}
             <div className="flex-1 min-w-0">
-              <span className="text-xl font-bold text-gray-900 block leading-tight truncate">
+              <span className="b2b-sidebar-org-name text-xl font-bold text-gray-900 block leading-tight truncate">
                 {branding?.name || currentOrg?.orgName || 'Nuroo'}
               </span>
-              <span className="text-sm text-primary-500 font-semibold leading-tight mt-1 block">
+              <span className="b2b-sidebar-role text-sm text-primary-500 font-semibold leading-tight mt-1 block">
                 {isOrgAdmin ? t('admin') : t('b2bPlatform')}
               </span>
             </div>
@@ -250,7 +250,9 @@ export function Sidebar({
           <div className="space-y-1">
             {groups.map((group, gi) => (
               <div key={group.labelKey}>
-                {gi > 0 && <div className="my-2.5 mx-3.5 border-t border-gray-100" />}
+                {gi > 0 && (
+                  <div className="b2b-sidebar-divider my-2.5 mx-3.5 border-t border-gray-100" />
+                )}
                 {group.items.map((item) => (
                   <NavLink
                     key={item.href}
@@ -264,7 +266,7 @@ export function Sidebar({
           </div>
 
           {/* Settings */}
-          <div className="mt-2.5 pt-2.5 border-t border-gray-100">
+          <div className="b2b-sidebar-divider mt-2.5 pt-2.5 border-t border-gray-100">
             <NavLink
               item={settingsItem}
               active={isActive(settingsItem.href)}
@@ -274,8 +276,8 @@ export function Sidebar({
 
           {/* Switch org — only shown when user belongs to multiple orgs */}
           {profile && profile.organizations.length > 1 && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <p className="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+            <div className="b2b-sidebar-divider mt-2 pt-2 border-t border-gray-100">
+              <p className="b2b-sidebar-muted-text px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
                 {t('switchCenter')}
               </p>
               <div className="space-y-0.5">
@@ -287,8 +289,8 @@ export function Sidebar({
                     className={clsx(
                       'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors',
                       org.orgId === currentOrgId
-                        ? 'bg-primary-50 text-primary-700 font-medium'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                        ? 'b2b-org-switch-active bg-primary-50 text-primary-700 font-medium'
+                        : 'b2b-org-switch-link text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                     )}
                   >
                     <Building2 className="w-3 h-3 shrink-0" />
@@ -303,7 +305,7 @@ export function Sidebar({
           )}
         </nav>
 
-        <div className="shrink-0 border-t border-gray-100 px-4 py-3">
+        <div className="b2b-sidebar-footer shrink-0 border-t border-gray-100 px-4 py-3">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Image
               src="/Logo.svg"
@@ -314,7 +316,8 @@ export function Sidebar({
               unoptimized
             />
             <span>
-              {t('poweredBy')} <span className="font-semibold text-primary-600">Nuroo</span>
+              {t('poweredBy')}{' '}
+              <span className="b2b-sidebar-role font-semibold text-primary-600">Nuroo</span>
             </span>
           </div>
         </div>

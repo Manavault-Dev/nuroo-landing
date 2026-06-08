@@ -204,7 +204,6 @@ export default function BrandSettingsPage() {
   const previewName = form.name || currentOrg.orgName
   const activePreset = resolvePreset(form.presetId)
   const previewColor = activePreset.tokens[500]
-  const previewCover = form.coverImage
   const coverCropStyle = imageCropStyle(form.coverPositionX, form.coverPositionY, form.coverScale)
   const logoCropStyle = imageCropStyle(form.logoPositionX, form.logoPositionY, form.logoScale)
 
@@ -420,10 +419,17 @@ export default function BrandSettingsPage() {
                           : 'border-transparent hover:border-gray-300',
                       ].join(' ')}
                     >
-                      <div
-                        className="w-full h-8 rounded-lg"
-                        style={{ background: preset.tokens[500] }}
-                      />
+                      {/* Two-tone swatch: sidebar + primary */}
+                      <div className="w-full h-8 rounded-lg overflow-hidden flex">
+                        <div
+                          className="w-1/3 h-full"
+                          style={{ background: preset.tokens.sidebarBg }}
+                        />
+                        <div
+                          className="flex-1 h-full"
+                          style={{ background: preset.tokens.primary }}
+                        />
+                      </div>
                       {isSelected && (
                         <span
                           className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
@@ -464,7 +470,11 @@ export default function BrandSettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              className="flex items-center gap-2 px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              style={{
+                backgroundColor: activePreset.tokens.buttonBg,
+                color: activePreset.tokens.buttonText,
+              }}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? t('saving') : t('save')}
@@ -472,140 +482,224 @@ export default function BrandSettingsPage() {
           </div>
         </form>
 
-        {/* Preview panel */}
+        {/* Preview panel — full workspace identity mockup */}
         {previewMode && (
           <div className="lg:col-span-1">
             <div className="sticky top-6 space-y-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                {t('preview')}
+                {t('preview')} — {t(`preset_${activePreset.id}` as Parameters<typeof t>[0])}
               </p>
 
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* ── Workspace mockup ────────────────────────────── */}
+              <div
+                className="rounded-xl overflow-hidden border shadow-lg"
+                style={{ borderColor: activePreset.tokens.cardBorder }}
+              >
+                {/* Mini topbar */}
                 <div
-                  className="relative overflow-hidden px-4 py-4 border-b border-gray-100"
+                  className="flex items-center justify-between px-3 py-2 border-b"
                   style={{
-                    backgroundColor: '#0f172a',
-                    backgroundImage: previewCover
-                      ? undefined
-                      : `linear-gradient(135deg, #0f172a 0%, #1e293b 55%, ${previewColor} 100%)`,
+                    backgroundColor: activePreset.tokens.topbarBg,
+                    borderColor: activePreset.tokens.topbarBorder,
                   }}
                 >
-                  {previewCover && (
-                    <>
-                      <img
-                        src={previewCover}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover"
-                        style={coverCropStyle}
-                      />
-                      <div className="absolute inset-0 bg-slate-950/70" />
-                    </>
-                  )}
-                  <p className="relative text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                    {t('dashboardHero')}
-                  </p>
-                  <div className="relative mt-3 flex items-center gap-2.5">
-                    {form.logo ? (
-                      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg">
-                        <img
-                          src={form.logo}
-                          alt="logo"
-                          className="h-full w-full object-cover"
-                          style={logoCropStyle}
-                        />
-                      </div>
-                    ) : (
+                  <span
+                    className="text-[11px] font-bold truncate"
+                    style={{
+                      color:
+                        activePreset.tokens.sidebarText === '#e0eaff'
+                          ? '#111827'
+                          : activePreset.tokens.sidebarText,
+                      filter: 'none',
+                    }}
+                  >
+                    {previewName}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {/* avatar circle */}
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
+                      style={{
+                        backgroundColor: activePreset.tokens.badgeBg,
+                        color: activePreset.tokens.badgeText,
+                      }}
+                    >
+                      A
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body: sidebar + content */}
+                <div className="flex" style={{ minHeight: 180 }}>
+                  {/* Mini sidebar */}
+                  <div
+                    className="flex flex-col py-2 px-1.5 gap-0.5 shrink-0"
+                    style={{ width: 88, backgroundColor: activePreset.tokens.sidebarBg }}
+                  >
+                    {/* Org logo row */}
+                    <div className="flex items-center gap-1.5 px-1 py-1.5 mb-1">
                       <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold"
-                        style={{ background: previewColor }}
+                        className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
+                        style={{
+                          backgroundColor: activePreset.tokens.primary,
+                          color: activePreset.tokens.primaryText,
+                        }}
                       >
                         {previewName.charAt(0).toUpperCase()}
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{previewName}</p>
-                      <p className="text-xs text-white/70 truncate">
-                        {form.description || t('workspacePreview')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className="px-4 py-3 flex items-center gap-2.5 border-b border-gray-100"
-                  style={{ background: `${previewColor}10` }}
-                >
-                  {form.logo ? (
-                    <div className="h-7 w-7 shrink-0 overflow-hidden rounded-lg">
-                      <img
-                        src={form.logo}
-                        alt="logo"
-                        className="h-full w-full object-cover"
-                        style={logoCropStyle}
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                      style={{ background: previewColor }}
-                    >
-                      {previewName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 leading-tight">{previewName}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <img
-                        src="/Logo.svg"
-                        alt="Nuroo"
-                        className="h-4 w-4 shrink-0 object-contain"
-                      />
-                      <p className="text-xs text-gray-400 leading-none">{t('poweredBy')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-4 py-3 space-y-1.5">
-                  {[t('previewDashboard'), t('previewChildren'), t('previewReports')].map(
-                    (item) => (
-                      <div
-                        key={item}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-gray-600"
+                      <span
+                        className="text-[9px] font-semibold truncate"
+                        style={{ color: activePreset.tokens.sidebarText }}
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                        {item}
-                      </div>
-                    )
-                  )}
-                  <div
-                    className="flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium"
-                    style={{ background: `${previewColor}15`, color: previewColor }}
-                  >
+                        {previewName.split(' ')[0]}
+                      </span>
+                    </div>
+                    {/* Active nav item */}
                     <div
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: previewColor }}
-                    />
-                    {t('previewBrandSettings')}
+                      className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
+                      style={{
+                        backgroundColor: activePreset.tokens.sidebarActiveBg,
+                        color: activePreset.tokens.sidebarActiveText,
+                      }}
+                    >
+                      <div
+                        className="w-2 h-2 rounded-sm"
+                        style={{
+                          backgroundColor: activePreset.tokens.sidebarActiveText,
+                          opacity: 0.8,
+                        }}
+                      />
+                      <span className="text-[9px] font-semibold">{t('previewDashboard')}</span>
+                    </div>
+                    {/* Idle nav items */}
+                    {[t('previewChildren'), t('previewReports'), t('previewBrandSettings')].map(
+                      (label) => (
+                        <div
+                          key={label}
+                          className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
+                          style={{ color: activePreset.tokens.sidebarMutedText }}
+                        >
+                          <div className="w-2 h-2 rounded-sm bg-current opacity-40" />
+                          <span className="text-[9px] truncate">{label}</span>
+                        </div>
+                      )
+                    )}
+                    {/* Footer */}
+                    <div
+                      className="mt-auto pt-1.5 border-t text-[8px] px-1"
+                      style={{
+                        borderColor: activePreset.tokens.sidebarHoverBg,
+                        color: activePreset.tokens.sidebarMutedText,
+                      }}
+                    >
+                      {t('poweredBy')}
+                    </div>
+                  </div>
+
+                  {/* Main content */}
+                  <div
+                    className="flex-1 p-2 flex flex-col gap-2"
+                    style={{ backgroundColor: activePreset.tokens.appBg }}
+                  >
+                    {/* Page title */}
+                    <div
+                      className="text-[10px] font-bold"
+                      style={{
+                        color:
+                          activePreset.tokens.sidebarText === '#e0eaff' ? '#111827' : '#111827',
+                      }}
+                    >
+                      {t('previewDashboard')}
+                    </div>
+
+                    {/* Card */}
+                    <div
+                      className="rounded-lg p-2 border"
+                      style={{
+                        backgroundColor: activePreset.tokens.cardBg,
+                        borderColor: activePreset.tokens.cardBorder,
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-semibold text-gray-700">
+                          {t('previewChildren')}
+                        </span>
+                        {/* Badge */}
+                        <span
+                          className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: activePreset.tokens.badgeBg,
+                            color: activePreset.tokens.badgeText,
+                          }}
+                        >
+                          12
+                        </span>
+                      </div>
+                      {/* Mini input */}
+                      <div
+                        className="h-4 rounded border text-[8px] px-1.5 flex items-center text-gray-400"
+                        style={{
+                          backgroundColor: activePreset.tokens.inputBg,
+                          borderColor: activePreset.tokens.inputBorder,
+                        }}
+                      >
+                        Search...
+                      </div>
+                    </div>
+
+                    {/* Notification card */}
+                    <div
+                      className="rounded-lg p-1.5 border text-[8px]"
+                      style={{
+                        backgroundColor: activePreset.tokens.notificationBg,
+                        borderColor: activePreset.tokens.notificationBorder,
+                        color: activePreset.tokens.badgeText,
+                      }}
+                    >
+                      🔔 New task assigned
+                    </div>
+
+                    {/* Button */}
+                    <button
+                      type="button"
+                      className="self-start text-[9px] font-semibold px-2 py-1 rounded-md"
+                      style={{
+                        backgroundColor: activePreset.tokens.buttonBg,
+                        color: activePreset.tokens.buttonText,
+                      }}
+                    >
+                      {t('save')}
+                    </button>
                   </div>
                 </div>
               </div>
 
+              {/* Color palette row */}
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs font-medium text-gray-500 mb-3">{t('colorPreview')}</p>
-                <div className="flex gap-1">
+                <p className="text-xs font-medium text-gray-500 mb-2">{t('colorPreview')}</p>
+                <div className="flex gap-0.5 mb-2">
                   {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade) => (
                     <div
                       key={shade}
-                      className="flex-1 h-6 rounded"
+                      className="flex-1 h-5 rounded-sm"
                       style={{ background: activePreset.tokens[shade] }}
                     />
                   ))}
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-400 font-mono">{previewColor}</span>
-                  <span className="text-xs text-gray-400">
-                    {t(`preset_${activePreset.id}` as Parameters<typeof t>[0])}
+                {/* Sidebar swatch */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded border border-gray-200"
+                    style={{ background: activePreset.tokens.sidebarBg }}
+                  />
+                  <span className="text-[10px] text-gray-400 font-mono">
+                    {activePreset.tokens.sidebarBg}
                   </span>
+                  <div
+                    className="ml-auto w-5 h-5 rounded border border-gray-200"
+                    style={{ background: activePreset.tokens.primary }}
+                  />
+                  <span className="text-[10px] text-gray-400 font-mono">{previewColor}</span>
                 </div>
               </div>
             </div>
