@@ -95,7 +95,7 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
       primaryHover: '#0d9488',
       primaryText: '#ffffff',
       secondary: '#f28232',
-      buttonBg: '#14b8a6',
+      buttonBg: '#0f766e',
       buttonText: '#ffffff',
       badgeBg: '#ccfbf1',
       badgeText: '#0f766e',
@@ -143,7 +143,7 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
       primaryHover: '#2563eb',
       primaryText: '#ffffff',
       secondary: '#f59e0b',
-      buttonBg: '#3b82f6',
+      buttonBg: '#2563eb',
       buttonText: '#ffffff',
       badgeBg: '#dbeafe',
       badgeText: '#1e40af',
@@ -191,7 +191,7 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
       primaryHover: '#16a34a',
       primaryText: '#ffffff',
       secondary: '#f59e0b',
-      buttonBg: '#22c55e',
+      buttonBg: '#15803d',
       buttonText: '#ffffff',
       badgeBg: '#dcfce7',
       badgeText: '#166534',
@@ -239,7 +239,7 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
       primaryHover: '#ea580c',
       primaryText: '#ffffff',
       secondary: '#14b8a6',
-      buttonBg: '#f97316',
+      buttonBg: '#c2410c',
       buttonText: '#ffffff',
       badgeBg: '#ffedd5',
       badgeText: '#c2410c',
@@ -287,7 +287,7 @@ export const THEME_PRESETS: Record<PresetId, ThemePreset> = {
       primaryHover: '#7c3aed',
       primaryText: '#ffffff',
       secondary: '#f59e0b',
-      buttonBg: '#8b5cf6',
+      buttonBg: '#7c3aed',
       buttonText: '#ffffff',
       badgeBg: '#ede9fe',
       badgeText: '#6d28d9',
@@ -347,11 +347,80 @@ export function tokensToCssVariables(t: FullThemeTokens): Record<string, string>
   }
 }
 
+export function cssVariablesToTokens(vars?: Record<string, string> | null): FullThemeTokens | null {
+  if (!vars || Object.keys(vars).length === 0) return null
+
+  const get = (key: string) => vars[key]
+  const primary = get('--brand-primary-500')
+  if (!primary) return null
+
+  return {
+    50: get('--brand-primary-50') ?? primary,
+    100: get('--brand-primary-100') ?? primary,
+    200: get('--brand-primary-200') ?? primary,
+    300: get('--brand-primary-300') ?? primary,
+    400: get('--brand-primary-400') ?? primary,
+    500: primary,
+    600: get('--brand-primary-600') ?? primary,
+    700: get('--brand-primary-700') ?? primary,
+    800: get('--brand-primary-800') ?? primary,
+    900: get('--brand-primary-900') ?? primary,
+    appBg: get('--brand-app-bg') ?? '#f8fafc',
+    pageBg: get('--brand-page-bg') ?? '#f1f5f9',
+    surface: get('--brand-surface') ?? '#ffffff',
+    cardBg: get('--brand-card-bg') ?? '#ffffff',
+    cardBorder: get('--brand-card-border') ?? '#e2e8f0',
+    sidebarBg: get('--brand-sidebar-bg') ?? '#ffffff',
+    sidebarText: get('--brand-sidebar-text') ?? '#111827',
+    sidebarMutedText: get('--brand-sidebar-muted') ?? '#6b7280',
+    sidebarActiveBg: get('--brand-sidebar-active-bg') ?? '#f0fdfa',
+    sidebarActiveText: get('--brand-sidebar-active-text') ?? '#0f766e',
+    sidebarHoverBg: get('--brand-sidebar-hover-bg') ?? '#f9fafb',
+    topbarBg: get('--brand-topbar-bg') ?? '#ffffff',
+    topbarBorder: get('--brand-topbar-border') ?? '#e5e7eb',
+    primary,
+    primaryHover: get('--brand-primary-600') ?? primary,
+    primaryText: get('--brand-button-text') ?? '#ffffff',
+    secondary: '#f28232',
+    buttonBg: get('--brand-button-bg') ?? primary,
+    buttonText: get('--brand-button-text') ?? '#ffffff',
+    badgeBg: get('--brand-badge-bg') ?? '#ccfbf1',
+    badgeText: get('--brand-badge-text') ?? '#0f766e',
+    inputBg: get('--brand-input-bg') ?? '#ffffff',
+    inputBorder: get('--brand-input-border') ?? '#d1d5db',
+    inputFocusBorder: get('--brand-input-focus-border') ?? primary,
+    notificationBg: get('--brand-notification-bg') ?? '#f0fdfa',
+    notificationBorder: get('--brand-notification-border') ?? '#99f6e4',
+    gradientFrom: get('--brand-gradient-from') ?? primary,
+    gradientTo: get('--brand-gradient-to') ?? get('--brand-primary-600') ?? primary,
+  }
+}
+
 export function resolvePreset(presetId?: PresetId | null): ThemePreset {
   if (presetId && presetId in THEME_PRESETS) {
     return THEME_PRESETS[presetId]
   }
   return THEME_PRESETS[DEFAULT_PRESET_ID]
+}
+
+export function resolveBrandingTokens(
+  branding?: {
+    presetId?: PresetId | null
+    generatedThemeTokens?: Record<string, string> | null
+  } | null
+): FullThemeTokens {
+  return (
+    cssVariablesToTokens(branding?.generatedThemeTokens) ?? resolvePreset(branding?.presetId).tokens
+  )
+}
+
+export function resolveBrandingAccent(
+  branding?: {
+    presetId?: PresetId | null
+    generatedThemeTokens?: Record<string, string> | null
+  } | null
+): string {
+  return resolveBrandingTokens(branding).buttonBg
 }
 
 export function presetToCssVariables(preset: ThemePreset): Record<string, string> {
