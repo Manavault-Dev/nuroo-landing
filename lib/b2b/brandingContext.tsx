@@ -46,6 +46,23 @@ function writeCache(orgId: string, branding: OrgBranding) {
   }
 }
 
+/**
+ * Normalize raw branding from API:
+ * - Strip undefined values (keep null — it means "explicitly cleared")
+ * - Preserve generatedThemeTokens as null so stale generated themes are cleared
+ */
+function normalizeBranding(raw: OrgBranding): OrgBranding {
+  const result: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (v !== undefined) result[k] = v
+  }
+  // Always carry generatedThemeTokens through (even when null)
+  if (!('generatedThemeTokens' in result)) {
+    result.generatedThemeTokens = null
+  }
+  return result as OrgBranding
+}
+
 function buildThemeVariables(branding: OrgBranding | null): CSSProperties {
   // Generated theme (from logo color extraction) takes priority over preset
   if (branding?.generatedThemeTokens && Object.keys(branding.generatedThemeTokens).length > 0) {
@@ -85,12 +102,8 @@ export function BrandingProvider({
       .getOrgBranding(orgId)
       .then(({ branding: remote }) => {
         if (remote) {
-          // Strip nulls — treat null as "not set"
-          const cleaned: OrgBranding = Object.fromEntries(
-            Object.entries(remote).filter(([, v]) => v !== null && v !== undefined)
-          )
-          setBranding(cleaned)
-          writeCache(orgId, cleaned)
+          setBranding(normalizeBranding(remote))
+          writeCache(orgId, normalizeBranding(remote))
         } else {
           // No branding configured yet — keep cached if available
           if (!cached) setBranding(null)
@@ -114,11 +127,8 @@ export function BrandingProvider({
 
       const { branding: saved } = await apiClient.updateOrgBranding(orgId, updates)
       if (saved) {
-        const cleaned: OrgBranding = Object.fromEntries(
-          Object.entries(saved).filter(([, v]) => v !== null && v !== undefined)
-        )
-        setBranding(cleaned)
-        writeCache(orgId, cleaned)
+        setBranding(normalizeBranding(saved))
+        writeCache(orgId, normalizeBranding(saved))
       }
     },
     [orgId, branding]
