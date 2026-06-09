@@ -36,10 +36,7 @@ const brandingSchema = z.object({
    * When present, overrides presetId for theme rendering.
    * Keys: CSS variable names (--brand-*), values: color strings.
    */
-  generatedThemeTokens: z
-    .record(z.string().max(60), z.string().max(120))
-    .optional()
-    .nullable(),
+  generatedThemeTokens: z.record(z.string().max(60), z.string().max(120)).optional().nullable(),
   welcomeMessage: z.string().max(400).optional().nullable(),
   coverImage: imageSourceSchema.optional().nullable(),
   coverPositionX: z.number().min(0).max(100).optional().nullable(),
