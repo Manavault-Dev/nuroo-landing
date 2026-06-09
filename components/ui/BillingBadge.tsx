@@ -11,8 +11,11 @@ interface Props {
   className?: string
 }
 
-function daysUntil(dateStr: string): number {
-  const diff = new Date(dateStr).getTime() - Date.now()
+function daysUntil(dateStr: string): number | null {
+  const time = new Date(dateStr).getTime()
+  if (Number.isNaN(time)) return null
+
+  const diff = time - Date.now()
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
 }
 
