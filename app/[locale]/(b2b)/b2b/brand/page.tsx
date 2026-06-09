@@ -10,6 +10,7 @@ import { getCurrentUser } from '@/lib/b2b/authClient'
 import {
   THEME_PRESETS,
   DEFAULT_PRESET_ID,
+  cssVariablesToTokens,
   resolvePreset,
   tokensToCssVariables,
 } from '@/lib/b2b/themePresets'
@@ -24,7 +25,6 @@ import {
   Loader2,
   Image as ImageIcon,
   Building2,
-  Eye,
   CheckCircle2,
   RotateCcw,
   Check,
@@ -45,12 +45,19 @@ function imageCropStyle(
   y: number | null | undefined,
   scale: number | null | undefined
 ): CSSProperties {
+  const cropX = valueOrDefault(x, DEFAULT_IMAGE_POSITION)
+  const cropY = valueOrDefault(y, DEFAULT_IMAGE_POSITION)
+  const cropScale = valueOrDefault(scale, DEFAULT_IMAGE_SCALE)
+
   return {
-    objectPosition: `${valueOrDefault(x, DEFAULT_IMAGE_POSITION)}% ${valueOrDefault(
-      y,
-      DEFAULT_IMAGE_POSITION
-    )}%`,
-    transform: `scale(${valueOrDefault(scale, DEFAULT_IMAGE_SCALE)})`,
+    height: `${cropScale * 100}%`,
+    left: `${cropX}%`,
+    maxWidth: 'none',
+    objectPosition: 'center',
+    position: 'absolute',
+    top: `${cropY}%`,
+    transform: `translate(-${cropX}%, -${cropY}%)`,
+    width: `${cropScale * 100}%`,
   }
 }
 
@@ -106,7 +113,6 @@ export default function BrandSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [previewMode, setPreviewMode] = useState(false)
   const initialized = useRef(false)
 
   // Auto-theme state
@@ -154,21 +160,28 @@ export default function BrandSettingsPage() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const resetCoverCrop = () => {
+  const resetCoverImage = () => {
     setForm((f) => ({
       ...f,
-      coverPositionX: DEFAULT_IMAGE_POSITION,
-      coverPositionY: DEFAULT_IMAGE_POSITION,
-      coverScale: DEFAULT_IMAGE_SCALE,
+      coverImage: null,
+      coverPositionX: null,
+      coverPositionY: null,
+      coverScale: null,
     }))
   }
 
-  const resetLogoCrop = () => {
+  const resetLogoImage = () => {
+    setGeneratedTokens(null)
+    setExtractedColor(null)
+    setExtractError(null)
     setForm((f) => ({
       ...f,
-      logoPositionX: DEFAULT_IMAGE_POSITION,
-      logoPositionY: DEFAULT_IMAGE_POSITION,
-      logoScale: DEFAULT_IMAGE_SCALE,
+      logo: null,
+      logoPositionX: null,
+      logoPositionY: null,
+      logoScale: null,
+      generatedThemeTokens: null,
+      presetId: f.presetId ?? DEFAULT_PRESET_ID,
     }))
   }
 
@@ -179,7 +192,13 @@ export default function BrandSettingsPage() {
     if (!file) return
     try {
       const dataUrl = await fileToDataUrl(file)
-      setForm((f) => ({ ...f, logo: dataUrl }))
+      setForm((f) => ({
+        ...f,
+        logo: dataUrl,
+        logoPositionX: DEFAULT_IMAGE_POSITION,
+        logoPositionY: DEFAULT_IMAGE_POSITION,
+        logoScale: DEFAULT_IMAGE_SCALE,
+      }))
       setExtractError(null)
     } catch {
       // ignore
@@ -221,7 +240,6 @@ export default function BrandSettingsPage() {
       setGeneratedTokens(tokens)
       const cssVars = tokensToCssVariables(tokens)
       setForm((f) => ({ ...f, presetId: null, generatedThemeTokens: cssVars }))
-      setPreviewMode(true)
     } catch {
       setExtractError(t('extractError'))
     } finally {
@@ -240,6 +258,7 @@ export default function BrandSettingsPage() {
       await updateBranding({
         name: form.name?.trim() || null,
         description: form.description?.trim() || null,
+        primaryColor: null,
         logo: form.logo?.trim() || null,
         logoPositionX: form.logo?.trim()
           ? valueOrDefault(form.logoPositionX, DEFAULT_IMAGE_POSITION)
@@ -258,9 +277,14 @@ export default function BrandSettingsPage() {
         coverScale: form.coverImage?.trim()
           ? valueOrDefault(form.coverScale, DEFAULT_IMAGE_SCALE)
           : null,
-        // If we have a generated theme, save it; otherwise save the chosen preset
-        presetId: generatedTokens ? null : (form.presetId ?? DEFAULT_PRESET_ID),
-        generatedThemeTokens: generatedTokens ? tokensToCssVariables(generatedTokens) : null,
+        // If we have a generated theme, save/preserve it; otherwise save the chosen preset.
+        presetId:
+          generatedTokens || form.generatedThemeTokens
+            ? null
+            : (form.presetId ?? DEFAULT_PRESET_ID),
+        generatedThemeTokens: generatedTokens
+          ? tokensToCssVariables(generatedTokens)
+          : (form.generatedThemeTokens ?? null),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -287,8 +311,10 @@ export default function BrandSettingsPage() {
   const previewName = form.name || currentOrg.orgName
 
   // Active tokens for preview: generated > preset
-  const activeTokens: FullThemeTokens = generatedTokens ?? resolvePreset(form.presetId).tokens
-  const activePresetId = generatedTokens ? null : (form.presetId ?? DEFAULT_PRESET_ID)
+  const savedGeneratedTokens = cssVariablesToTokens(form.generatedThemeTokens)
+  const activeGeneratedTokens = generatedTokens ?? savedGeneratedTokens
+  const activeTokens: FullThemeTokens = activeGeneratedTokens ?? resolvePreset(form.presetId).tokens
+  const activePresetId = activeGeneratedTokens ? null : (form.presetId ?? DEFAULT_PRESET_ID)
   const previewColor = activeTokens[500]
 
   const coverCropStyle = imageCropStyle(form.coverPositionX, form.coverPositionY, form.coverScale)
@@ -296,19 +322,11 @@ export default function BrandSettingsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
           <p className="text-gray-600 mt-1">{t('subtitle')}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setPreviewMode((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <Eye className="w-4 h-4" />
-          {previewMode ? t('hidePreview') : t('showPreview')}
-        </button>
       </div>
 
       <div className="max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -403,7 +421,7 @@ export default function BrandSettingsPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={resetLogoCrop}
+                      onClick={resetLogoImage}
                       className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -411,7 +429,7 @@ export default function BrandSettingsPage() {
                     </button>
                   </div>
                   <div className="mb-4 flex justify-center">
-                    <div className="h-20 w-20 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                    <div className="relative h-20 w-20 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                       <img
                         src={form.logo}
                         alt=""
@@ -520,14 +538,14 @@ export default function BrandSettingsPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={resetCoverCrop}
+                      onClick={resetCoverImage}
                       className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       {t('resetCrop')}
                     </button>
                   </div>
-                  <div className="mb-4 h-36 overflow-hidden rounded-2xl border border-gray-200 bg-slate-900 shadow-sm">
+                  <div className="relative mb-4 h-36 overflow-hidden rounded-2xl border border-gray-200 bg-slate-900 shadow-sm">
                     <img
                       src={form.coverImage}
                       alt=""
@@ -561,59 +579,6 @@ export default function BrandSettingsPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Preset selector — manual override */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('sectionPreset')}
-              </label>
-              <p className="mb-3 text-xs text-gray-500">
-                {generatedTokens ? t('presetOverrideHint') : t('presetHint')}
-              </p>
-              <div className="grid grid-cols-5 gap-2">
-                {Object.values(THEME_PRESETS).map((preset) => {
-                  const isSelected = !generatedTokens && activePresetId === preset.id
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setPresetId(preset.id as PresetId)}
-                      title={t(`preset_${preset.id}` as Parameters<typeof t>[0])}
-                      className={[
-                        'relative flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all',
-                        isSelected
-                          ? 'border-gray-900 shadow-md'
-                          : 'border-transparent hover:border-gray-300',
-                        generatedTokens ? 'opacity-50' : '',
-                      ].join(' ')}
-                    >
-                      {/* Two-tone swatch: sidebar + primary */}
-                      <div className="w-full h-8 rounded-lg overflow-hidden flex">
-                        <div
-                          className="w-1/3 h-full"
-                          style={{ background: preset.tokens.sidebarBg }}
-                        />
-                        <div
-                          className="flex-1 h-full"
-                          style={{ background: preset.tokens.primary }}
-                        />
-                      </div>
-                      {isSelected && (
-                        <span
-                          className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                          style={{ background: preset.tokens[700] }}
-                        >
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </span>
-                      )}
-                      <span className="text-[10px] font-medium text-gray-600 text-center leading-tight">
-                        {t(`preset_${preset.id}` as Parameters<typeof t>[0])}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
             </div>
           </div>
 
@@ -652,223 +617,267 @@ export default function BrandSettingsPage() {
         </form>
 
         {/* Preview panel — full workspace identity mockup */}
-        {previewMode && (
-          <div className="lg:col-span-1">
-            <div className="sticky top-6 space-y-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                {t('preview')}
-                {generatedTokens
-                  ? ` — ${t('previewAutoGenerated')}`
-                  : ` — ${t(`preset_${activePresetId ?? DEFAULT_PRESET_ID}` as Parameters<typeof t>[0])}`}
-              </p>
+        <div className="lg:col-span-1">
+          <div className="sticky top-6 space-y-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              {t('preview')}
+              {activeGeneratedTokens
+                ? ` — ${t('previewAutoGenerated')}`
+                : ` — ${t(`preset_${activePresetId ?? DEFAULT_PRESET_ID}` as Parameters<typeof t>[0])}`}
+            </p>
 
-              {/* ── Workspace mockup ────────────────────────────── */}
+            {/* ── Workspace mockup ────────────────────────────── */}
+            <div
+              className="rounded-xl overflow-hidden border shadow-lg"
+              style={{ borderColor: activeTokens.cardBorder }}
+            >
+              {/* Mini topbar */}
               <div
-                className="rounded-xl overflow-hidden border shadow-lg"
-                style={{ borderColor: activeTokens.cardBorder }}
+                className="flex items-center justify-between px-3 py-2 border-b"
+                style={{
+                  backgroundColor: activeTokens.topbarBg,
+                  borderColor: activeTokens.topbarBorder,
+                }}
               >
-                {/* Mini topbar */}
-                <div
-                  className="flex items-center justify-between px-3 py-2 border-b"
-                  style={{
-                    backgroundColor: activeTokens.topbarBg,
-                    borderColor: activeTokens.topbarBorder,
-                  }}
-                >
-                  <span className="text-[11px] font-bold truncate text-gray-900">
-                    {previewName}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
-                      style={{
-                        backgroundColor: activeTokens.badgeBg,
-                        color: activeTokens.badgeText,
-                      }}
-                    >
-                      A
-                    </div>
-                  </div>
-                </div>
-
-                {/* Body: sidebar + content */}
-                <div className="flex" style={{ minHeight: 180 }}>
-                  {/* Mini sidebar */}
+                <span className="text-[11px] font-bold truncate text-gray-900">{previewName}</span>
+                <div className="flex items-center gap-1.5">
                   <div
-                    className="flex flex-col py-2 px-1.5 gap-0.5 shrink-0"
-                    style={{ width: 88, backgroundColor: activeTokens.sidebarBg }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
+                    style={{
+                      backgroundColor: activeTokens.badgeBg,
+                      color: activeTokens.badgeText,
+                    }}
                   >
-                    {/* Org logo row */}
-                    <div className="flex items-center gap-1.5 px-1 py-1.5 mb-1">
-                      <div
-                        className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
-                        style={{
-                          backgroundColor: activeTokens.primary,
-                          color: activeTokens.primaryText,
-                        }}
-                      >
-                        {previewName.charAt(0).toUpperCase()}
-                      </div>
-                      <span
-                        className="text-[9px] font-semibold truncate"
-                        style={{ color: activeTokens.sidebarText }}
-                      >
-                        {previewName.split(' ')[0]}
-                      </span>
-                    </div>
-                    {/* Active nav item */}
-                    <div
-                      className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
-                      style={{
-                        backgroundColor: activeTokens.sidebarActiveBg,
-                        color: activeTokens.sidebarActiveText,
-                      }}
-                    >
-                      <div
-                        className="w-2 h-2 rounded-sm"
-                        style={{
-                          backgroundColor: activeTokens.sidebarActiveText,
-                          opacity: 0.8,
-                        }}
-                      />
-                      <span className="text-[9px] font-semibold">{t('previewDashboard')}</span>
-                    </div>
-                    {/* Idle nav items */}
-                    {[t('previewChildren'), t('previewReports'), t('previewBrandSettings')].map(
-                      (label) => (
-                        <div
-                          key={label}
-                          className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
-                          style={{ color: activeTokens.sidebarMutedText }}
-                        >
-                          <div className="w-2 h-2 rounded-sm bg-current opacity-40" />
-                          <span className="text-[9px] truncate">{label}</span>
-                        </div>
-                      )
-                    )}
-                    {/* Footer */}
-                    <div
-                      className="mt-auto pt-1.5 border-t text-[8px] px-1"
-                      style={{
-                        borderColor: activeTokens.sidebarHoverBg,
-                        color: activeTokens.sidebarMutedText,
-                      }}
-                    >
-                      {t('poweredBy')}
-                    </div>
-                  </div>
-
-                  {/* Main content */}
-                  <div
-                    className="flex-1 p-2 flex flex-col gap-2"
-                    style={{ backgroundColor: activeTokens.appBg }}
-                  >
-                    <div className="text-[10px] font-bold text-gray-900">
-                      {t('previewDashboard')}
-                    </div>
-
-                    {/* Card */}
-                    <div
-                      className="rounded-lg p-2 border"
-                      style={{
-                        backgroundColor: activeTokens.cardBg,
-                        borderColor: activeTokens.cardBorder,
-                      }}
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-semibold text-gray-700">
-                          {t('previewChildren')}
-                        </span>
-                        <span
-                          className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
-                          style={{
-                            backgroundColor: activeTokens.badgeBg,
-                            color: activeTokens.badgeText,
-                          }}
-                        >
-                          12
-                        </span>
-                      </div>
-                      {/* Mini input */}
-                      <div
-                        className="h-4 rounded border text-[8px] px-1.5 flex items-center text-gray-400"
-                        style={{
-                          backgroundColor: activeTokens.inputBg,
-                          borderColor: activeTokens.inputBorder,
-                        }}
-                      >
-                        Search...
-                      </div>
-                    </div>
-
-                    {/* Notification card */}
-                    <div
-                      className="rounded-lg p-1.5 border text-[8px]"
-                      style={{
-                        backgroundColor: activeTokens.notificationBg,
-                        borderColor: activeTokens.notificationBorder,
-                        color: activeTokens.badgeText,
-                      }}
-                    >
-                      🔔 {t('previewNotification')}
-                    </div>
-
-                    {/* Button */}
-                    <button
-                      type="button"
-                      className="self-start text-[9px] font-semibold px-2 py-1 rounded-md"
-                      style={{
-                        backgroundColor: activeTokens.buttonBg,
-                        color: activeTokens.buttonText,
-                      }}
-                    >
-                      {t('save')}
-                    </button>
+                    A
                   </div>
                 </div>
               </div>
 
-              {/* Color palette row */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs font-medium text-gray-500 mb-2">{t('colorPreview')}</p>
-                <div className="flex gap-0.5 mb-2">
-                  {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade) => (
+              {/* Body: sidebar + content */}
+              <div className="flex" style={{ minHeight: 180 }}>
+                {/* Mini sidebar */}
+                <div
+                  className="flex flex-col py-2 px-1.5 gap-0.5 shrink-0"
+                  style={{ width: 88, backgroundColor: activeTokens.sidebarBg }}
+                >
+                  {/* Org logo row */}
+                  <div className="flex items-center gap-1.5 px-1 py-1.5 mb-1">
                     <div
-                      key={shade}
-                      className="flex-1 h-5 rounded-sm"
-                      style={{ background: activeTokens[shade] }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-5 h-5 rounded border border-gray-200"
-                    style={{ background: activeTokens.sidebarBg }}
-                  />
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    {activeTokens.sidebarBg}
-                  </span>
-                  <div
-                    className="ml-auto w-5 h-5 rounded border border-gray-200"
-                    style={{ background: activeTokens.primary }}
-                  />
-                  <span className="text-[10px] text-gray-400 font-mono">{previewColor}</span>
-                </div>
-                {generatedTokens && extractedColor && (
-                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
-                    <Sparkles className="w-3 h-3 text-primary-400" />
-                    <span>{t('generatedFrom')}</span>
+                      className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
+                      style={{
+                        backgroundColor: activeTokens.primary,
+                        color: activeTokens.primaryText,
+                      }}
+                    >
+                      {previewName.charAt(0).toUpperCase()}
+                    </div>
                     <span
-                      className="inline-block w-3 h-3 rounded-full border border-gray-200"
-                      style={{ background: extractedColor }}
-                    />
-                    <span className="font-mono">{extractedColor}</span>
+                      className="text-[9px] font-semibold truncate"
+                      style={{ color: activeTokens.sidebarText }}
+                    >
+                      {previewName.split(' ')[0]}
+                    </span>
                   </div>
-                )}
+                  {/* Active nav item */}
+                  <div
+                    className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
+                    style={{
+                      backgroundColor: activeTokens.sidebarActiveBg,
+                      color: activeTokens.sidebarActiveText,
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-sm"
+                      style={{
+                        backgroundColor: activeTokens.sidebarActiveText,
+                        opacity: 0.8,
+                      }}
+                    />
+                    <span className="text-[9px] font-semibold">{t('previewDashboard')}</span>
+                  </div>
+                  {/* Idle nav items */}
+                  {[t('previewChildren'), t('previewReports'), t('previewBrandSettings')].map(
+                    (label) => (
+                      <div
+                        key={label}
+                        className="flex items-center gap-1.5 px-1.5 py-1 rounded-md"
+                        style={{ color: activeTokens.sidebarMutedText }}
+                      >
+                        <div className="w-2 h-2 rounded-sm bg-current opacity-40" />
+                        <span className="text-[9px] truncate">{label}</span>
+                      </div>
+                    )
+                  )}
+                  {/* Footer */}
+                  <div
+                    className="mt-auto pt-1.5 border-t text-[8px] px-1"
+                    style={{
+                      borderColor: activeTokens.sidebarHoverBg,
+                      color: activeTokens.sidebarMutedText,
+                    }}
+                  >
+                    {t('poweredBy')}
+                  </div>
+                </div>
+
+                {/* Main content */}
+                <div
+                  className="flex-1 p-2 flex flex-col gap-2"
+                  style={{ backgroundColor: activeTokens.appBg }}
+                >
+                  <div className="text-[10px] font-bold text-gray-900">{t('previewDashboard')}</div>
+
+                  {/* Card */}
+                  <div
+                    className="rounded-lg p-2 border"
+                    style={{
+                      backgroundColor: activeTokens.cardBg,
+                      borderColor: activeTokens.cardBorder,
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[9px] font-semibold text-gray-700">
+                        {t('previewChildren')}
+                      </span>
+                      <span
+                        className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: activeTokens.badgeBg,
+                          color: activeTokens.badgeText,
+                        }}
+                      >
+                        12
+                      </span>
+                    </div>
+                    {/* Mini input */}
+                    <div
+                      className="h-4 rounded border text-[8px] px-1.5 flex items-center text-gray-400"
+                      style={{
+                        backgroundColor: activeTokens.inputBg,
+                        borderColor: activeTokens.inputBorder,
+                      }}
+                    >
+                      Search...
+                    </div>
+                  </div>
+
+                  {/* Notification card */}
+                  <div
+                    className="rounded-lg p-1.5 border text-[8px]"
+                    style={{
+                      backgroundColor: activeTokens.notificationBg,
+                      borderColor: activeTokens.notificationBorder,
+                      color: activeTokens.badgeText,
+                    }}
+                  >
+                    🔔 {t('previewNotification')}
+                  </div>
+
+                  {/* Button */}
+                  <button
+                    type="button"
+                    className="self-start text-[9px] font-semibold px-2 py-1 rounded-md"
+                    style={{
+                      backgroundColor: activeTokens.buttonBg,
+                      color: activeTokens.buttonText,
+                    }}
+                  >
+                    {t('save')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Color palette row */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-xs font-medium text-gray-500 mb-2">{t('colorPreview')}</p>
+              <div className="flex gap-0.5 mb-2">
+                {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade) => (
+                  <div
+                    key={shade}
+                    className="flex-1 h-5 rounded-sm"
+                    style={{ background: activeTokens[shade] }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-5 h-5 rounded border border-gray-200"
+                  style={{ background: activeTokens.sidebarBg }}
+                />
+                <span className="text-[10px] text-gray-400 font-mono">
+                  {activeTokens.sidebarBg}
+                </span>
+                <div
+                  className="ml-auto w-5 h-5 rounded border border-gray-200"
+                  style={{ background: activeTokens.primary }}
+                />
+                <span className="text-[10px] text-gray-400 font-mono">{previewColor}</span>
+              </div>
+              {generatedTokens && extractedColor && (
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <Sparkles className="w-3 h-3 text-primary-400" />
+                  <span>{t('generatedFrom')}</span>
+                  <span
+                    className="inline-block w-3 h-3 rounded-full border border-gray-200"
+                    style={{ background: extractedColor }}
+                  />
+                  <span className="font-mono">{extractedColor}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Preset selector — manual override */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-sm font-semibold text-gray-800 mb-1">{t('sectionPreset')}</p>
+              <p className="mb-3 text-xs text-gray-500">
+                {activeGeneratedTokens ? t('presetOverrideHint') : t('presetHint')}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.values(THEME_PRESETS).map((preset) => {
+                  const isSelected = !activeGeneratedTokens && activePresetId === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setPresetId(preset.id as PresetId)}
+                      title={t(`preset_${preset.id}` as Parameters<typeof t>[0])}
+                      className={[
+                        'relative flex flex-col items-start gap-1.5 p-2 rounded-lg border transition-all',
+                        isSelected
+                          ? 'border-gray-900 shadow-sm'
+                          : 'border-gray-100 hover:border-gray-300',
+                        activeGeneratedTokens ? 'opacity-50' : '',
+                      ].join(' ')}
+                    >
+                      <div className="w-full h-7 rounded-md overflow-hidden flex">
+                        <div
+                          className="w-1/3 h-full"
+                          style={{ background: preset.tokens.sidebarBg }}
+                        />
+                        <div
+                          className="flex-1 h-full"
+                          style={{ background: preset.tokens.primary }}
+                        />
+                      </div>
+                      {isSelected && (
+                        <span
+                          className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                          style={{ background: preset.tokens[700] }}
+                        >
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </span>
+                      )}
+                      <span className="text-[10px] font-medium text-gray-600 leading-tight">
+                        {t(`preset_${preset.id}` as Parameters<typeof t>[0])}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
