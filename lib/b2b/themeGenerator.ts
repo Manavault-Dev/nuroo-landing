@@ -10,6 +10,7 @@ import {
   pickReadableText,
   isColorSuitable,
 } from './colorUtils'
+import { hueDistance } from './colorExtraction'
 import { type FullThemeTokens } from './themePresets'
 import { type PresetId } from './types'
 
@@ -20,14 +21,6 @@ const PRESET_PRIMARIES: Record<PresetId, string> = {
   forest: '#22c55e',
   sunset: '#f97316',
   violet: '#8b5cf6',
-}
-
-/** Hue distance 0–180 between two hex colors */
-function hueDistance(hex1: string, hex2: string): number {
-  const [h1] = hexToHsl(hex1)
-  const [h2] = hexToHsl(hex2)
-  const d = Math.abs(h1 - h2)
-  return d > 180 ? 360 - d : d
 }
 
 /**
@@ -72,6 +65,15 @@ function ensureContrast(bg: string, fg: string): string {
   return pickReadableText(bg) // fallback
 }
 
+/** Primary action backgrounds should keep brand hue but be dark enough for white text. */
+function buildButtonBg(h: number, s: number): string {
+  for (const lightness of [42, 38, 35, 32, 28, 24]) {
+    const candidate = hslToHex(h, s, lightness)
+    if (getContrastRatio(candidate, '#ffffff') >= 4.5) return candidate
+  }
+  return hslToHex(h, s, 28)
+}
+
 /**
  * Build a complete FullThemeTokens from a single extracted hex color.
  *
@@ -114,8 +116,8 @@ export function generateThemeFromColor(hex: string): FullThemeTokens {
   const cardBorder = hslToHex(h, 30, 87)
 
   // --- Buttons ---
-  const buttonBg = primary
-  const buttonText = primaryText
+  const buttonBg = buildButtonBg(h, s)
+  const buttonText = '#ffffff'
 
   // --- Badges ---
   const badgeBg = hslToHex(h, 40, 92)
