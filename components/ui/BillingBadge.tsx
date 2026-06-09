@@ -1,8 +1,14 @@
 'use client'
 
-import { Clock, CheckCircle, AlertTriangle, XCircle, CreditCard } from 'lucide-react'
+import { Clock, CheckCircle, AlertTriangle, XCircle, CreditCard, ShieldOff } from 'lucide-react'
 
-export type BillingBadgeKey = 'freeTrial' | 'active' | 'pastDue' | 'expired' | 'cancelled'
+export type BillingBadgeKey =
+  | 'freeTrial'
+  | 'active'
+  | 'pastDue'
+  | 'expired'
+  | 'cancelled'
+  | 'suspended'
 
 interface Props {
   badge: BillingBadgeKey
@@ -44,6 +50,11 @@ const CONFIG: Record<BillingBadgeKey, { label: string; icon: typeof Clock; color
     label: 'Cancelled',
     icon: AlertTriangle,
     colors: 'bg-gray-50 text-gray-600 border-gray-200',
+  },
+  suspended: {
+    label: 'Suspended',
+    icon: ShieldOff,
+    colors: 'bg-red-50 text-red-700 border-red-200',
   },
 }
 
