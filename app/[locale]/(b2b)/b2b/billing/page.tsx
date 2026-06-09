@@ -74,6 +74,37 @@ interface BillingStatus {
   }
 }
 
+type DateLike =
+  | string
+  | number
+  | Date
+  | { seconds?: number; _seconds?: number; toDate?: () => Date }
+  | null
+  | undefined
+
+function parseDateLike(value: DateLike): Date | null {
+  if (!value) return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  if (typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  if (typeof value.toDate === 'function') {
+    const date = value.toDate()
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  const seconds = value.seconds ?? value._seconds
+  if (typeof seconds === 'number') {
+    const date = new Date(seconds * 1000)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  return null
+}
+
 export default function BillingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -95,6 +126,8 @@ export default function BillingPage() {
   const numberLocale =
     locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
   const formatPrice = (n: number) => n.toLocaleString(numberLocale)
+  const formatDate = (value: DateLike, options?: Intl.DateTimeFormatOptions): string | null =>
+    parseDateLike(value)?.toLocaleDateString(numberLocale, options) ?? null
 
   const stripeReturn = searchParams?.get('stripe')
 
@@ -223,10 +256,34 @@ export default function BillingPage() {
         const statusRes = await apiClient.getBillingStatus(currentOrgId)
         if (statusRes?.ok !== false) {
           setBillingStatus((prev) => ({
-            ...prev!,
+            active: statusRes?.active ?? prev?.active ?? true,
+            planId: statusRes?.planId ?? statusRes?.billing?.plan ?? prev?.planId ?? 'growth',
+            source: statusRes?.source ?? prev?.source ?? 'free_trial',
+            badge: statusRes?.badge ?? prev?.badge ?? null,
+            expiresAt:
+              statusRes?.expiresAt ??
+              statusRes?.billing?.currentPeriodEnd ??
+              prev?.expiresAt ??
+              null,
+            usage: statusRes?.usage ?? prev?.usage ?? null,
+            features: statusRes?.features ?? prev?.features ?? null,
+            trial: statusRes?.trial ?? prev?.trial ?? null,
+            stripeStatus: statusRes?.stripeStatus ?? prev?.stripeStatus ?? null,
+            stripeCustomerId: statusRes?.stripeCustomerId ?? prev?.stripeCustomerId,
+            currentPeriodEnd:
+              statusRes?.currentPeriodEnd ??
+              statusRes?.billing?.currentPeriodEnd ??
+              prev?.currentPeriodEnd ??
+              null,
+            billingMode: statusRes?.billingMode ?? prev?.billingMode,
+            billing: statusRes?.billing ?? prev?.billing,
             billingStatus: 'trialing',
-            active: true,
-            trialEndsAt: statusRes?.billing?.trialEndsAt ?? null,
+            trialEndsAt:
+              statusRes?.trialEndsAt ??
+              statusRes?.billing?.trialEndsAt ??
+              result.trialEndsAt ??
+              prev?.trialEndsAt ??
+              null,
           }))
         }
       }
@@ -305,15 +362,22 @@ export default function BillingPage() {
     }
 
     if (billingStatus?.source === 'free_trial') {
-      const exp = billingStatus.expiresAt ? new Date(billingStatus.expiresAt) : null
+      const exp = parseDateLike(billingStatus.expiresAt)
       if (!billingStatus.active) return t('trialExpired')
       if (exp)
         return `${t('freeTrial')} - ${t('trialActive')} (${t('trialExpires')} ${exp.toLocaleDateString(numberLocale)})`
       return `${t('freeTrial')} - ${t('trialActive')}`
     }
 
+    if (billingStatus?.billingStatus === 'trialing') {
+      const date = formatDate(billingStatus.trialEndsAt ?? billingStatus.billing?.trialEndsAt)
+      if (!billingStatus.active) return t('trialExpired')
+      const label = `${t('freeTrial')} - ${t('trialActive')}`
+      return date ? `${label} (${t('trialExpires')} ${date})` : label
+    }
+
     if (!billingStatus?.active || !billingStatus.planId) return t('noPlan')
-    const exp = billingStatus.expiresAt ? new Date(billingStatus.expiresAt) : null
+    const exp = parseDateLike(billingStatus.expiresAt)
     if (exp && exp.getTime() < Date.now())
       return `${planLabel(billingStatus.planId)} — ${t('planExpired')}`
     if (exp)
@@ -359,9 +423,7 @@ export default function BillingPage() {
   ]
 
   const hasStripeCustomer = Boolean(billingStatus?.stripeCustomerId)
-  const trialEndDate = billingStatus?.trialEndsAt
-    ? new Date(billingStatus.trialEndsAt).toLocaleDateString(numberLocale)
-    : null
+  const trialEndDate = formatDate(billingStatus?.trialEndsAt)
   const manualStatus = billingStatus?.billingStatus
   const manualTrialUnavailable =
     manualStatus === 'expired' || manualStatus === 'canceled' || manualStatus === 'cancelled'
@@ -636,13 +698,15 @@ export default function BillingPage() {
                     {(billingStatus.trialEndsAt ?? billingStatus.billing?.trialEndsAt) && (
                       <p className="text-sm text-blue-700">
                         {t('trialEndsOn', {
-                          date: new Date(
-                            billingStatus.trialEndsAt ?? billingStatus.billing?.trialEndsAt ?? ''
-                          ).toLocaleDateString(numberLocale, {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          }),
+                          date:
+                            formatDate(
+                              billingStatus.trialEndsAt ?? billingStatus.billing?.trialEndsAt,
+                              {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              }
+                            ) ?? '',
                         })}
                       </p>
                     )}
@@ -663,15 +727,16 @@ export default function BillingPage() {
                       billingStatus.billing?.currentPeriodEnd) && (
                       <p className="text-sm text-teal-700">
                         {t('activeUntil', {
-                          date: new Date(
-                            billingStatus.currentPeriodEnd ??
-                              billingStatus.billing?.currentPeriodEnd ??
-                              ''
-                          ).toLocaleDateString(numberLocale, {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          }),
+                          date:
+                            formatDate(
+                              billingStatus.currentPeriodEnd ??
+                                billingStatus.billing?.currentPeriodEnd,
+                              {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              }
+                            ) ?? '',
                         })}
                       </p>
                     )}

@@ -1,3 +1,5 @@
+export type PresetId = 'nuroo' | 'ocean' | 'forest' | 'sunset' | 'violet'
+
 export interface OrgBranding {
   logo?: string | null
   logoPositionX?: number | null
@@ -5,7 +7,16 @@ export interface OrgBranding {
   logoScale?: number | null
   name?: string | null
   description?: string | null
+  /** @deprecated Use presetId instead. Kept for backward compatibility. */
   primaryColor?: string | null
+  /** Color theme preset. Defaults to 'nuroo' if not set. */
+  presetId?: PresetId | null
+  /**
+   * CSS variable map generated from the org's logo color.
+   * When present, overrides presetId for theme rendering.
+   * Keys are CSS variable names (e.g. '--brand-sidebar-bg').
+   */
+  generatedThemeTokens?: Record<string, string> | null
   welcomeMessage?: string | null
   coverImage?: string | null
   coverPositionX?: number | null

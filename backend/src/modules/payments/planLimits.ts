@@ -131,6 +131,15 @@ export function getPlanConfig(planId: string): PlanConfig | null {
   return PLAN_CONFIG[mapped]
 }
 
+function timestampToDate(value: unknown): Date | null {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate()
+  }
+  return null
+}
+
 export function isSubscriptionActive(billing: BillingPlan | null): boolean {
   if (!billing || billing.status !== 'active') return false
   const expiresAt = billing.expiresAt?.toDate?.()
@@ -219,6 +228,54 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
       source: 'subscription',
       billingStatus: 'active',
       expiresAt: billing.expiresAt ?? null,
+    }
+  }
+
+  const db = getFirestore()
+  const orgSnap = await db.collection('organizations').doc(orgId).get()
+  const orgBilling = orgSnap.exists ? orgSnap.data()?.billing : null
+  if (orgBilling) {
+    const planId =
+      normalizePlanId(String(orgBilling.plan ?? FREE_TRIAL_PLAN_ID)) ?? FREE_TRIAL_PLAN_ID
+    const trialEndsAt = timestampToDate(orgBilling.trialEndsAt)
+    const currentPeriodEnd = timestampToDate(orgBilling.currentPeriodEnd)
+
+    if (orgBilling.status === 'trialing') {
+      if (trialEndsAt && new Date() <= trialEndsAt) {
+        return {
+          active: true,
+          planId,
+          source: 'free_trial',
+          billingStatus: 'trialing',
+          expiresAt: orgBilling.trialEndsAt ?? null,
+        }
+      }
+      return {
+        active: false,
+        error: 'Free trial expired. Please choose a plan and pay in Billing.',
+        source: 'free_trial',
+        billingStatus: 'expired',
+        expiresAt: orgBilling.trialEndsAt ?? null,
+      }
+    }
+
+    if (orgBilling.status === 'manual_active' || orgBilling.status === 'active') {
+      if (!currentPeriodEnd || new Date() <= currentPeriodEnd) {
+        return {
+          active: true,
+          planId,
+          source: 'subscription',
+          billingStatus: orgBilling.status === 'manual_active' ? 'manual_active' : 'active',
+          expiresAt: orgBilling.currentPeriodEnd ?? null,
+        }
+      }
+      return {
+        active: false,
+        error: 'Subscription expired. Please renew in Billing.',
+        source: 'subscription',
+        billingStatus: 'expired',
+        expiresAt: orgBilling.currentPeriodEnd ?? null,
+      }
     }
   }
 

@@ -7,6 +7,7 @@ import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
 import { Key, Plus, Copy, Check, Loader2, ExternalLink, Smartphone } from 'lucide-react'
 import { useBranding } from '@/lib/b2b/brandingContext'
+import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { useAlert } from '@/components/ui/AlertDialog'
 
 interface InviteCode {
@@ -99,7 +100,7 @@ export default function InvitesPage() {
   }
 
   const { branding } = useBranding()
-  const brandPrimary = branding?.primaryColor || '#14b8a6'
+  const brandPrimary = resolveBrandingAccent(branding)
   const logoCropStyle = {
     objectPosition: `${valueOrDefault(branding?.logoPositionX, 50)}% ${valueOrDefault(
       branding?.logoPositionY,

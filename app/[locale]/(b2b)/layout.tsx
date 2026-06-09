@@ -115,7 +115,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <BrandingProvider orgId={currentOrgId}>
       <AlertProvider>
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="b2b-app-bg min-h-screen bg-gray-50 flex">
           <Sidebar
             profile={profile}
             currentOrgId={currentOrgId}

@@ -19,6 +19,7 @@ import {
   Download,
 } from 'lucide-react'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
+import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 type ReportsTranslator = ReturnType<typeof useTranslations>
@@ -206,7 +207,7 @@ function buildPdfMarkup(
     )
   }
 
-  const primary = branding?.primaryColor || '#14b8a6'
+  const primary = resolveBrandingAccent(branding)
   const displayName = branding?.name || orgName || ''
 
   const logoHtml = branding?.logo
