@@ -12,7 +12,12 @@ import {
   buildThemeFromColor,
   findClosestPreset,
 } from '../lib/b2b/themeGenerator'
-import { tokensToCssVariables, presetToCssVariables, THEME_PRESETS } from '../lib/b2b/themePresets'
+import {
+  cssVariablesToTokens,
+  tokensToCssVariables,
+  presetToCssVariables,
+  THEME_PRESETS,
+} from '../lib/b2b/themePresets'
 
 // ── colorUtils ───────────────────────────────────────────────────────────────
 
@@ -83,16 +88,33 @@ describe('generateThemeFromColor', () => {
   it('returns an object with all FullThemeTokens fields', () => {
     const tokens = generateThemeFromColor(teal)
     const required = [
-      'appBg', 'pageBg', 'surface', 'cardBg', 'cardBorder',
-      'sidebarBg', 'sidebarText', 'sidebarMutedText',
-      'sidebarActiveBg', 'sidebarActiveText', 'sidebarHoverBg',
-      'topbarBg', 'topbarBorder',
-      'primary', 'primaryHover', 'primaryText',
-      'buttonBg', 'buttonText',
-      'badgeBg', 'badgeText',
-      'inputBg', 'inputBorder', 'inputFocusBorder',
-      'notificationBg', 'notificationBorder',
-      'gradientFrom', 'gradientTo',
+      'appBg',
+      'pageBg',
+      'surface',
+      'cardBg',
+      'cardBorder',
+      'sidebarBg',
+      'sidebarText',
+      'sidebarMutedText',
+      'sidebarActiveBg',
+      'sidebarActiveText',
+      'sidebarHoverBg',
+      'topbarBg',
+      'topbarBorder',
+      'primary',
+      'primaryHover',
+      'primaryText',
+      'buttonBg',
+      'buttonText',
+      'badgeBg',
+      'badgeText',
+      'inputBg',
+      'inputBorder',
+      'inputFocusBorder',
+      'notificationBg',
+      'notificationBorder',
+      'gradientFrom',
+      'gradientTo',
     ] as const
     for (const key of required) {
       expect(tokens[key], key).toBeTruthy()
@@ -123,6 +145,13 @@ describe('generateThemeFromColor', () => {
       const ratio = getContrastRatio(tokens.buttonBg, tokens.buttonText)
       expect(ratio, `contrast for ${color}`).toBeGreaterThanOrEqual(4.5)
     }
+  })
+
+  it('keeps generated primary buttons on white text by darkening the button background', () => {
+    const tokens = validateAndAdjust(generateThemeFromColor(blue))
+    expect(tokens.buttonText).toBe('#ffffff')
+    expect(tokens.buttonBg).not.toBe(tokens.primary)
+    expect(getContrastRatio(tokens.buttonBg, '#ffffff')).toBeGreaterThanOrEqual(4.5)
   })
 
   it('sidebar text has sufficient contrast with sidebar background', () => {
@@ -197,5 +226,16 @@ describe('tokensToCssVariables', () => {
     expect(vars['--brand-primary-500']).toBeTruthy()
     // 10 scale + 24 semantic = 34
     expect(Object.keys(vars).length).toBe(34)
+  })
+
+  it('restores generated tokens from saved CSS variables after reload', () => {
+    const tokens = generateThemeFromColor('#3b82f6')
+    const restored = cssVariablesToTokens(tokensToCssVariables(tokens))
+
+    expect(restored).not.toBeNull()
+    expect(restored!.primary).toBe(tokens.primary)
+    expect(restored!.buttonBg).toBe(tokens.buttonBg)
+    expect(restored!.sidebarBg).toBe(tokens.sidebarBg)
+    expect(restored!.notificationBorder).toBe(tokens.notificationBorder)
   })
 })
