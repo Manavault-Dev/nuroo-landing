@@ -23,6 +23,7 @@ import {
 import { InviteModal } from '@/components/b2b/InviteModal'
 import Assistant from './components/assistant'
 import { useBranding } from '@/lib/b2b/brandingContext'
+import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAlert } from '@/components/ui/AlertDialog'
 
@@ -402,7 +403,7 @@ export default function DashboardPage() {
   const inactiveCount = children.filter((c) => (daysSince(c.lastActiveDate) ?? 99) > 14).length
   const neverActive = children.filter((c) => !c.lastActiveDate).length
   const totalTasks = children.reduce((s, c) => s + c.completedTasksCount, 0)
-  const brandPrimary = branding?.primaryColor || '#14b8a6'
+  const brandPrimary = resolveBrandingAccent(branding)
   const orgName = branding?.name || currentOrg?.orgName || t('yourCenter')
   const orgMission = branding?.description || t('orgMissionFallback')
   const coverImage = branding?.coverImage
@@ -593,14 +594,18 @@ export default function DashboardPage() {
                     accent: totalTasks > 0,
                   },
                 ].map((m) => (
-                  <div key={m.label} className="bg-slate-900 px-5 py-4 text-center">
+                  <div
+                    key={m.label}
+                    className="bg-slate-900 px-5 py-4 text-center"
+                    style={m.accent ? { boxShadow: `inset 0 3px 0 ${brandPrimary}` } : undefined}
+                  >
                     <p
                       className="text-2xl font-bold leading-none tabular-nums"
-                      style={{ color: m.warn ? '#fbbf24' : m.accent ? brandPrimary : '#f8fafc' }}
+                      style={{ color: m.warn ? '#fbbf24' : '#f8fafc' }}
                     >
                       {m.value}
                     </p>
-                    <p className="text-[10px] font-semibold text-slate-500 mt-2 uppercase tracking-wider">
+                    <p className="text-[10px] font-semibold text-slate-400 mt-2 uppercase tracking-wider">
                       {m.label}
                     </p>
                   </div>

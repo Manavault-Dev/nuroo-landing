@@ -4,6 +4,8 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Loader2, Building2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
+import { type PresetId } from '@/lib/b2b/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
 
@@ -15,6 +17,8 @@ interface OrgBranding {
   name?: string | null
   description?: string | null
   primaryColor?: string | null
+  presetId?: PresetId | null
+  generatedThemeTokens?: Record<string, string> | null
   welcomeMessage?: string | null
   coverImage?: string | null
   coverPositionX?: number | null
@@ -88,7 +92,7 @@ function ConnectPageInner() {
   }, [orgId])
 
   const displayName = org?.orgName || org?.branding?.name || t('yourCenter')
-  const color = usePrimaryColor(org?.branding?.primaryColor)
+  const color = usePrimaryColor(resolveBrandingAccent(org?.branding))
   const coverCropStyle = imageCropStyle(
     org?.branding?.coverPositionX,
     org?.branding?.coverPositionY,
