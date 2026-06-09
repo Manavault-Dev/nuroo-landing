@@ -417,9 +417,9 @@ export default function BillingPage() {
     price: number
     currency: string
   }> = [
-    { id: 'starter', name: tPricing('starterName'), price: 4900, currency: 'KGS' },
-    { id: 'growth', name: tPricing('professionalName'), price: 9900, currency: 'KGS' },
-    { id: 'enterprise', name: tPricing('enterpriseName'), price: 19900, currency: 'KGS' },
+    { id: 'starter', name: tPricing('starterName'), price: 59, currency: 'USD' },
+    { id: 'growth', name: tPricing('professionalName'), price: 99, currency: 'USD' },
+    { id: 'enterprise', name: tPricing('enterpriseName'), price: 199, currency: 'USD' },
   ]
 
   const hasStripeCustomer = Boolean(billingStatus?.stripeCustomerId)
@@ -790,8 +790,8 @@ export default function BillingPage() {
                       variant={isEnterprise ? 'enterprise' : isPopular ? 'popular' : 'default'}
                       badge={isPopular ? <span>{tPricing('popular')}</span> : undefined}
                       title={plan.name}
-                      price={formatPrice(plan.price)}
-                      priceSuffix={`${plan.currency} ${t('perMonth')}`}
+                      price={`$${formatPrice(plan.price)}`}
+                      priceSuffix={`/ ${t('perMonth')}`}
                       soonLabel={tPricing('soon')}
                       features={featureKeys.map((key) => ({
                         text: tPricing(key as Parameters<typeof tPricing>[0]),
@@ -850,8 +850,8 @@ export default function BillingPage() {
                       ) : undefined
                     }
                     title={plan.name}
-                    price={formatPrice(plan.price)}
-                    priceSuffix={`${plan.currency} ${t('perMonth')}`}
+                    price={`$${formatPrice(plan.price)}`}
+                    priceSuffix={`/ ${t('perMonth')}`}
                     soonLabel={tPricing('soon')}
                     features={featureKeys.map((key) => ({
                       text: tPricing(key as Parameters<typeof tPricing>[0]),

@@ -109,7 +109,7 @@
     "pricing": {
       "badge": "Баалоо",
       "title": "Уюмдар үчүн пландар",
-      "subtitle": "Айына сом менен төлөө. Төлөмдөн кийин толук кирүү.",
+      "subtitle": "USD менен айлык төлөм. Төлөгөндөн кийин толук мүмкүнчүлүк.",
       "perMonth": "ай",
       "popular": "Эң популярдуу",
       "starterName": "Starter",
@@ -145,7 +145,7 @@
       "soon": "жакында",
       "cta": "Баштоо",
       "afterRegister": "Катталуудан кийин планды тандап, кабинетте төлөңүз.",
-      "paymentMethodInfo": "Карта менен төлөм (сом) Finik аркылуу.",
+      "paymentMethodInfo": "Stripe аркылуу (USD) карта менен төлөм.",
       "professionalName": "Professional",
       "starterSubtitle": "Жеке адистер жана кичи борборлор үчүн",
       "professionalSubtitle": "Өнүгүп жаткан борборлор үчүн",

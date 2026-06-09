@@ -31,7 +31,7 @@ export interface PlanFeatures {
 }
 
 export interface PlanConfig {
-  priceKgs: number
+  priceUsd: number
   maxChildren: number | null
   maxSpecialists: number | null
   features: PlanFeatures
@@ -39,7 +39,7 @@ export interface PlanConfig {
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   starter: {
-    priceKgs: 4900,
+    priceUsd: 59,
     maxChildren: 20,
     maxSpecialists: 3,
     features: {
@@ -55,7 +55,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     },
   },
   growth: {
-    priceKgs: 9900,
+    priceUsd: 99,
     maxChildren: 100,
     maxSpecialists: 15,
     features: {
@@ -71,7 +71,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     },
   },
   enterprise: {
-    priceKgs: 19900,
+    priceUsd: 199,
     maxChildren: null,
     maxSpecialists: null,
     features: {

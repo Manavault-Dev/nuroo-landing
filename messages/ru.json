@@ -109,7 +109,7 @@
     "pricing": {
       "badge": "Тарифы",
       "title": "Планы для организаций",
-      "subtitle": "Оплата помесячно в сомах. Полный доступ после оплаты.",
+      "subtitle": "Оплата в долларах США. Полный доступ после оплаты.",
       "perMonth": "мес",
       "popular": "Популярный",
       "starterName": "Starter",
@@ -145,7 +145,7 @@
       "soon": "скоро",
       "cta": "Начать",
       "afterRegister": "После регистрации выберите план и оплатите в личном кабинете.",
-      "paymentMethodInfo": "Оплата картой (сомы) через Finik.",
+      "paymentMethodInfo": "Оплата картой (USD) через Stripe.",
       "professionalName": "Professional",
       "starterSubtitle": "Для частных специалистов и небольших центров",
       "professionalSubtitle": "Для развивающихся центров",

@@ -109,7 +109,7 @@
     "pricing": {
       "badge": "Pricing",
       "title": "Plans for Organizations",
-      "subtitle": "Pay monthly in KGS. Full access after payment.",
+      "subtitle": "Pay monthly in USD. Full access after payment.",
       "perMonth": "month",
       "popular": "Most popular",
       "starterName": "Starter",
@@ -145,7 +145,7 @@
       "soon": "soon",
       "cta": "Get started",
       "afterRegister": "After registration, choose a plan and pay in the dashboard.",
-      "paymentMethodInfo": "Card payment (KGS) via Finik.",
+      "paymentMethodInfo": "Card payment (USD) via Stripe.",
       "professionalName": "Professional",
       "starterSubtitle": "For private specialists and small centers",
       "professionalSubtitle": "For growing developmental centers",
