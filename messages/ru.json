@@ -177,7 +177,12 @@
       "trialNote": "1 месяц бесплатного доступа для каждой организации",
       "ctaStartTrial": "Начать бесплатно",
       "ctaContactUs": "Связаться с нами",
-      "from": "От"
+      "from": "От",
+      "perYear": "год",
+      "billingMonthly": "Ежемесячно",
+      "billingYearly": "Ежегодно",
+      "savePercent": "Скидка ~17%",
+      "annualBillingNote": "Сэкономьте при оплате на год. Один платёж в год без ежемесячных списаний."
     },
     "platform": {
       "badge": "Платформа Nuroo",

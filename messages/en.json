@@ -177,7 +177,12 @@
       "trialNote": "1 month free trial for every organization",
       "ctaStartTrial": "Start Free Trial",
       "ctaContactUs": "Contact Us",
-      "from": "Starting from"
+      "from": "Starting from",
+      "perYear": "year",
+      "billingMonthly": "Monthly",
+      "billingYearly": "Yearly",
+      "savePercent": "Save ~17%",
+      "annualBillingNote": "Save with annual billing. Pay once per year and avoid monthly renewals."
     },
     "platform": {
       "badge": "Nuroo Platform",

@@ -26,6 +26,7 @@ import {
 import { BillingBadge, type BillingBadgeKey } from '@/components/ui/BillingBadge'
 import { PricingCard } from '@/components/ui/PricingCard'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
+import { PLAN_PRICES, type BillingPeriod } from '@/lib/pricing/pricingConfig'
 import type { BillingMode } from '@/lib/b2b/api'
 
 interface BillingStatus {
@@ -119,6 +120,7 @@ export default function BillingPage() {
   const [startingTrial, setStartingTrial] = useState(false)
   const [trialStarted, setTrialStarted] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
   const [error, setError] = useState('')
   const currentOrg =
     profile?.organizations.find((org) => org.orgId === currentOrgId) ?? profile?.organizations[0]
@@ -411,15 +413,36 @@ export default function BillingPage() {
     )
   }
 
+  const getDisplayPrice = (id: 'starter' | 'growth' | 'enterprise') => {
+    const found = PLAN_PRICES.find((p) => p.id === id)
+    if (!found) return 0
+    return billingPeriod === 'yearly' ? found.yearlyPrice : found.monthlyPrice
+  }
+
   const billingPlans: Array<{
     id: 'starter' | 'growth' | 'enterprise'
     name: string
     price: number
     currency: string
   }> = [
-    { id: 'starter', name: tPricing('starterName'), price: 59, currency: 'USD' },
-    { id: 'growth', name: tPricing('professionalName'), price: 99, currency: 'USD' },
-    { id: 'enterprise', name: tPricing('enterpriseName'), price: 199, currency: 'USD' },
+    {
+      id: 'starter',
+      name: tPricing('starterName'),
+      price: getDisplayPrice('starter'),
+      currency: 'USD',
+    },
+    {
+      id: 'growth',
+      name: tPricing('professionalName'),
+      price: getDisplayPrice('growth'),
+      currency: 'USD',
+    },
+    {
+      id: 'enterprise',
+      name: tPricing('enterpriseName'),
+      price: getDisplayPrice('enterprise'),
+      currency: 'USD',
+    },
   ]
 
   const hasStripeCustomer = Boolean(billingStatus?.stripeCustomerId)
@@ -775,7 +798,41 @@ export default function BillingPage() {
 
             {/* Plans overview (informational only — no checkout button) */}
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-4">{t('plansOverviewTitle')}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h3 className="text-lg font-bold text-gray-900">{t('plansOverviewTitle')}</h3>
+                <div className="inline-flex items-center gap-0 rounded-full border border-gray-200 bg-white p-1 shadow-sm self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriod('monthly')}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      billingPeriod === 'monthly'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tPricing('billingMonthly')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriod('yearly')}
+                    className={`relative px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      billingPeriod === 'yearly'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tPricing('billingYearly')}
+                    <span className="absolute -top-2.5 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+                      {tPricing('savePercent')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {billingPeriod === 'yearly' && (
+                <p className="mb-4 text-xs text-green-600 font-medium">
+                  {tPricing('annualBillingNote')}
+                </p>
+              )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {billingPlans.map((plan) => {
                   const featureKey = plan.id === 'growth' ? 'professional' : plan.id
@@ -791,7 +848,7 @@ export default function BillingPage() {
                       badge={isPopular ? <span>{tPricing('popular')}</span> : undefined}
                       title={plan.name}
                       price={`$${formatPrice(plan.price)}`}
-                      priceSuffix={`/ ${t('perMonth')}`}
+                      priceSuffix={`/ ${billingPeriod === 'yearly' ? tPricing('perYear') : t('perMonth')}`}
                       soonLabel={tPricing('soon')}
                       features={featureKeys.map((key) => ({
                         text: tPricing(key as Parameters<typeof tPricing>[0]),
@@ -815,7 +872,41 @@ export default function BillingPage() {
         {isStripeMode && (
           <>
             <div className="mb-4">
-              <h3 className="text-base font-semibold text-gray-700">{t('upgradeplan')}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h3 className="text-base font-semibold text-gray-700">{t('upgradeplan')}</h3>
+                <div className="inline-flex items-center gap-0 rounded-full border border-gray-200 bg-white p-1 shadow-sm self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriod('monthly')}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      billingPeriod === 'monthly'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tPricing('billingMonthly')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriod('yearly')}
+                    className={`relative px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      billingPeriod === 'yearly'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tPricing('billingYearly')}
+                    <span className="absolute -top-2.5 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+                      {tPricing('savePercent')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {billingPeriod === 'yearly' && (
+                <p className="mt-2 text-xs text-green-600 font-medium">
+                  {tPricing('annualBillingNote')}
+                </p>
+              )}
               {billingMode === 'stripe_test' && (
                 <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5" />
@@ -851,7 +942,7 @@ export default function BillingPage() {
                     }
                     title={plan.name}
                     price={`$${formatPrice(plan.price)}`}
-                    priceSuffix={`/ ${t('perMonth')}`}
+                    priceSuffix={`/ ${billingPeriod === 'yearly' ? tPricing('perYear') : t('perMonth')}`}
                     soonLabel={tPricing('soon')}
                     features={featureKeys.map((key) => ({
                       text: tPricing(key as Parameters<typeof tPricing>[0]),

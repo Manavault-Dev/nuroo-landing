@@ -177,7 +177,12 @@
       "trialNote": "Ар бир уюм үчүн 1 айлык акысыз сынак мезгили",
       "ctaStartTrial": "Акысыз баштоо",
       "ctaContactUs": "Биз менен байланышуу",
-      "from": "Баштап"
+      "from": "Баштап",
+      "perYear": "жыл",
+      "billingMonthly": "Айлык",
+      "billingYearly": "Жылдык",
+      "savePercent": "~17% үнөмдөңүз",
+      "annualBillingNote": "Жылдык төлөм менен үнөмдөңүз. Жылына бир жолу төлөп, айлык чегерүүлөрдөн арылыңыз."
     },
     "platform": {
       "badge": "Nuroo платформасы",

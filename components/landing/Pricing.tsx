@@ -5,13 +5,13 @@ import { Link } from '@/i18n/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { Sparkles, ArrowRight, Check } from 'lucide-react'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
+import { PLAN_PRICES, type BillingPeriod } from '@/lib/pricing/pricingConfig'
 
 const PLAN_META = [
   {
     id: 'starter' as const,
     titleKey: 'starterName',
     subtitleKey: 'starterSubtitle',
-    price: 4900,
     priceFrom: false,
     popular: false,
     ctaKey: 'ctaStartTrial' as const,
@@ -19,9 +19,9 @@ const PLAN_META = [
   },
   {
     id: 'professional' as const,
+    planPriceId: 'growth' as const,
     titleKey: 'professionalName',
     subtitleKey: 'professionalSubtitle',
-    price: 9900,
     priceFrom: false,
     popular: true,
     ctaKey: 'ctaStartTrial' as const,
@@ -31,7 +31,6 @@ const PLAN_META = [
     id: 'enterprise' as const,
     titleKey: 'enterpriseName',
     subtitleKey: 'enterpriseSubtitle',
-    price: 19900,
     priceFrom: true,
     popular: false,
     ctaKey: 'ctaContactUs' as const,
@@ -43,9 +42,17 @@ export function Pricing() {
   const t = useTranslations('landing.pricing')
   const locale = useLocale()
   const [isVisible, setIsVisible] = useState(false)
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
 
   const numberLocale = locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'ky-KG'
   const formatPrice = (n: number) => n.toLocaleString(numberLocale)
+
+  const getPlanPriceForDisplay = (planId: 'starter' | 'professional' | 'enterprise') => {
+    const priceId = planId === 'professional' ? 'growth' : planId
+    const found = PLAN_PRICES.find((p) => p.id === priceId)
+    if (!found) return 0
+    return billingPeriod === 'yearly' ? found.yearlyPrice : found.monthlyPrice
+  }
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -81,6 +88,44 @@ export function Pricing() {
           >
             {t('subtitle')}
           </p>
+
+          {/* Billing period toggle */}
+          <div
+            className={`mt-6 flex flex-col items-center gap-2 transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          >
+            <div className="inline-flex items-center gap-0 rounded-full border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setBillingPeriod('monthly')}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                  billingPeriod === 'monthly'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {t('billingMonthly')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingPeriod('yearly')}
+                className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                  billingPeriod === 'yearly'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {t('billingYearly')}
+                <span className="absolute -top-2.5 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+                  {t('savePercent')}
+                </span>
+              </button>
+            </div>
+            {billingPeriod === 'yearly' && (
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                {t('annualBillingNote')}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* 3-column plan grid */}
@@ -139,16 +184,29 @@ export function Pricing() {
                         </span>
                       )}
                       <span
+                        className={`pb-1 text-sm font-medium ${isPro ? 'text-primary-100/80' : isEnt ? 'text-gray-400' : 'text-gray-400'}`}
+                      >
+                        $
+                      </span>
+                      <span
                         className={`text-4xl font-bold tracking-tight ${isPro ? 'text-white' : isEnt ? 'text-white' : 'text-gray-900 dark:text-white'}`}
                       >
-                        {formatPrice(plan.price)}
+                        {formatPrice(getPlanPriceForDisplay(plan.id))}
                       </span>
                       <span
                         className={`pb-1 text-sm font-medium ${isPro ? 'text-primary-100/80' : isEnt ? 'text-gray-400' : 'text-gray-400 dark:text-gray-400'}`}
                       >
-                        KGS / {t('perMonth')}
+                        / {billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}
                       </span>
                     </div>
+                    {billingPeriod === 'yearly' && (
+                      <p
+                        className={`mt-1 text-xs ${isPro ? 'text-primary-100/70' : isEnt ? 'text-gray-500' : 'text-gray-400'}`}
+                      >
+                        ${formatPrice(Math.round(getPlanPriceForDisplay(plan.id) / 12))} /{' '}
+                        {t('perMonth')}
+                      </p>
+                    )}
                   </div>
 
                   {/* Features */}
