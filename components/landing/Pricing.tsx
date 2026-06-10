@@ -5,7 +5,13 @@ import { Link } from '@/i18n/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { Sparkles, ArrowRight, Check } from 'lucide-react'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
-import { PLAN_PRICES, type BillingPeriod } from '@/lib/pricing/pricingConfig'
+import {
+  PLAN_PRICES,
+  getMonthlyAnnualTotal,
+  getYearlySavings,
+  getMonthlyEquivalent,
+  type BillingPeriod,
+} from '@/lib/pricing/pricingConfig'
 
 const PLAN_META = [
   {
@@ -18,10 +24,9 @@ const PLAN_META = [
     ctaHref: '/b2b/register',
   },
   {
-    id: 'professional' as const,
-    planPriceId: 'growth' as const,
-    titleKey: 'professionalName',
-    subtitleKey: 'professionalSubtitle',
+    id: 'growth' as const,
+    titleKey: 'growthName',
+    subtitleKey: 'growthSubtitle',
     priceFrom: false,
     popular: true,
     ctaKey: 'ctaStartTrial' as const,
@@ -47,8 +52,11 @@ export function Pricing() {
   const numberLocale = locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'ky-KG'
   const formatPrice = (n: number) => n.toLocaleString(numberLocale)
 
-  const getPlanPriceForDisplay = (planId: 'starter' | 'professional' | 'enterprise') => {
-    const priceId = planId === 'professional' ? 'growth' : planId
+  type DisplayId = 'starter' | 'growth' | 'enterprise'
+  const toPriceId = (planId: DisplayId): 'starter' | 'growth' | 'enterprise' => planId
+
+  const getPlanPriceForDisplay = (planId: DisplayId) => {
+    const priceId = toPriceId(planId)
     const found = PLAN_PRICES.find((p) => p.id === priceId)
     if (!found) return 0
     return billingPeriod === 'yearly' ? found.yearlyPrice : found.monthlyPrice
@@ -116,7 +124,7 @@ export function Pricing() {
               >
                 {t('billingYearly')}
                 <span className="absolute -top-2.5 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
-                  {t('savePercent')}
+                  🔥 {t('savePercent')}
                 </span>
               </button>
             </div>
@@ -175,6 +183,7 @@ export function Pricing() {
 
                   {/* Price */}
                   <div className="mb-6">
+                    {/* Main price row */}
                     <div className="flex items-end gap-1.5 flex-wrap">
                       {plan.priceFrom && (
                         <span
@@ -199,12 +208,45 @@ export function Pricing() {
                         / {billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}
                       </span>
                     </div>
+
+                    {/* Yearly: savings breakdown + monthly equivalent */}
                     {billingPeriod === 'yearly' && (
+                      <div className="mt-2 space-y-1">
+                        {/* Crossed-out monthly total + save badge */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-sm line-through ${isPro ? 'text-primary-200/60' : isEnt ? 'text-gray-600' : 'text-gray-400 dark:text-gray-500'}`}
+                          >
+                            ${formatPrice(getMonthlyAnnualTotal(toPriceId(plan.id)))}
+                          </span>
+                          <span
+                            className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                              isPro
+                                ? 'bg-white/15 text-white'
+                                : isEnt
+                                  ? 'bg-green-900/40 text-green-400'
+                                  : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            }`}
+                          >
+                            {t('saveLabel')} ${formatPrice(getYearlySavings(toPriceId(plan.id)))}
+                          </span>
+                        </div>
+                        {/* Monthly equivalent */}
+                        <p
+                          className={`text-xs ${isPro ? 'text-primary-100/70' : isEnt ? 'text-gray-500' : 'text-gray-400 dark:text-gray-500'}`}
+                        >
+                          ≈ ${formatPrice(getMonthlyEquivalent(toPriceId(plan.id)))} /{' '}
+                          {t('perMonth')} · {t('billedAnnually')}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Monthly: subtle note */}
+                    {billingPeriod === 'monthly' && (
                       <p
-                        className={`mt-1 text-xs ${isPro ? 'text-primary-100/70' : isEnt ? 'text-gray-500' : 'text-gray-400'}`}
+                        className={`mt-1 text-xs ${isPro ? 'text-primary-100/60' : isEnt ? 'text-gray-600' : 'text-gray-400 dark:text-gray-500'}`}
                       >
-                        ${formatPrice(Math.round(getPlanPriceForDisplay(plan.id) / 12))} /{' '}
-                        {t('perMonth')}
+                        {t('billedMonthlyNote')}
                       </p>
                     )}
                   </div>

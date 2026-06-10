@@ -26,7 +26,13 @@ import {
 import { BillingBadge, type BillingBadgeKey } from '@/components/ui/BillingBadge'
 import { PricingCard } from '@/components/ui/PricingCard'
 import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
-import { PLAN_PRICES, type BillingPeriod } from '@/lib/pricing/pricingConfig'
+import {
+  PLAN_PRICES,
+  getMonthlyAnnualTotal,
+  getMonthlyEquivalent,
+  getYearlySavings,
+  type BillingPeriod,
+} from '@/lib/pricing/pricingConfig'
 import type { BillingMode } from '@/lib/b2b/api'
 
 interface BillingStatus {
@@ -419,6 +425,27 @@ export default function BillingPage() {
     return billingPeriod === 'yearly' ? found.yearlyPrice : found.monthlyPrice
   }
 
+  const renderYearlySavings = (planId: 'starter' | 'growth' | 'enterprise') => {
+    if (billingPeriod !== 'yearly') return null
+
+    return (
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-400 line-through">
+            ${formatPrice(getMonthlyAnnualTotal(planId))}
+          </span>
+          <span className="rounded bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+            {tPricing('saveLabel')} ${formatPrice(getYearlySavings(planId))}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500">
+          ≈ ${formatPrice(getMonthlyEquivalent(planId))} / {t('perMonth')} ·{' '}
+          {tPricing('billedAnnually')}
+        </p>
+      </div>
+    )
+  }
+
   const billingPlans: Array<{
     id: 'starter' | 'growth' | 'enterprise'
     name: string
@@ -433,7 +460,7 @@ export default function BillingPage() {
     },
     {
       id: 'growth',
-      name: tPricing('professionalName'),
+      name: tPricing('growthName'),
       price: getDisplayPrice('growth'),
       currency: 'USD',
     },
@@ -835,9 +862,7 @@ export default function BillingPage() {
               )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {billingPlans.map((plan) => {
-                  const featureKey = plan.id === 'growth' ? 'professional' : plan.id
-                  const featureKeys =
-                    PLAN_FEATURE_KEYS[featureKey as keyof typeof PLAN_FEATURE_KEYS] ?? []
+                  const featureKeys = PLAN_FEATURE_KEYS[plan.id] ?? []
                   const isPopular = plan.id === 'growth'
                   const isEnterprise = plan.id === 'enterprise'
                   return (
@@ -849,6 +874,7 @@ export default function BillingPage() {
                       title={plan.name}
                       price={`$${formatPrice(plan.price)}`}
                       priceSuffix={`/ ${billingPeriod === 'yearly' ? tPricing('perYear') : t('perMonth')}`}
+                      priceDetails={renderYearlySavings(plan.id)}
                       soonLabel={tPricing('soon')}
                       features={featureKeys.map((key) => ({
                         text: tPricing(key as Parameters<typeof tPricing>[0]),
@@ -916,9 +942,7 @@ export default function BillingPage() {
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               {billingPlans.map((plan) => {
-                const featureKey = plan.id === 'growth' ? 'professional' : plan.id
-                const featureKeys =
-                  PLAN_FEATURE_KEYS[featureKey as keyof typeof PLAN_FEATURE_KEYS] ?? []
+                const featureKeys = PLAN_FEATURE_KEYS[plan.id] ?? []
                 const isCurrent =
                   billingStatus?.active === true &&
                   billingStatus?.planId === plan.id &&
@@ -943,6 +967,7 @@ export default function BillingPage() {
                     title={plan.name}
                     price={`$${formatPrice(plan.price)}`}
                     priceSuffix={`/ ${billingPeriod === 'yearly' ? tPricing('perYear') : t('perMonth')}`}
+                    priceDetails={renderYearlySavings(plan.id)}
                     soonLabel={tPricing('soon')}
                     features={featureKeys.map((key) => ({
                       text: tPricing(key as Parameters<typeof tPricing>[0]),

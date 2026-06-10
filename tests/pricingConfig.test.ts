@@ -3,6 +3,9 @@ import {
   PLAN_PRICES,
   YEARLY_DISCOUNT_LABEL,
   getPlanPrice,
+  getMonthlyAnnualTotal,
+  getYearlySavings,
+  getMonthlyEquivalent,
   type BillingPeriod,
 } from '../lib/pricing/pricingConfig'
 
@@ -80,5 +83,77 @@ describe('getPlanPrice', () => {
 describe('YEARLY_DISCOUNT_LABEL', () => {
   it('contains 17% label', () => {
     expect(YEARLY_DISCOUNT_LABEL).toBe('~17%')
+  })
+})
+
+describe('getMonthlyAnnualTotal', () => {
+  it('starter: 59 × 12 = 708', () => {
+    expect(getMonthlyAnnualTotal('starter')).toBe(708)
+  })
+
+  it('growth: 99 × 12 = 1188', () => {
+    expect(getMonthlyAnnualTotal('growth')).toBe(1188)
+  })
+
+  it('enterprise: 199 × 12 = 2388', () => {
+    expect(getMonthlyAnnualTotal('enterprise')).toBe(2388)
+  })
+
+  it('returns 0 for unknown plan id', () => {
+    // @ts-expect-error — intentional invalid id for guard test
+    expect(getMonthlyAnnualTotal('unknown')).toBe(0)
+  })
+})
+
+describe('getYearlySavings', () => {
+  it('starter saves $118 with yearly plan', () => {
+    expect(getYearlySavings('starter')).toBe(118)
+  })
+
+  it('growth saves $198 with yearly plan', () => {
+    expect(getYearlySavings('growth')).toBe(198)
+  })
+
+  it('enterprise saves $398 with yearly plan', () => {
+    expect(getYearlySavings('enterprise')).toBe(398)
+  })
+
+  it('savings = monthly annual total minus yearly price', () => {
+    PLAN_PRICES.forEach((p) => {
+      expect(getYearlySavings(p.id)).toBe(p.monthlyPrice * 12 - p.yearlyPrice)
+    })
+  })
+
+  it('returns 0 for unknown plan id', () => {
+    // @ts-expect-error — intentional invalid id for guard test
+    expect(getYearlySavings('unknown')).toBe(0)
+  })
+})
+
+describe('getMonthlyEquivalent', () => {
+  it('starter yearly ≈ $49/month', () => {
+    // floor(590 / 12) = floor(49.16) = 49
+    expect(getMonthlyEquivalent('starter')).toBe(49)
+  })
+
+  it('growth yearly ≈ $82/month', () => {
+    // floor(990 / 12) = floor(82.5) = 82
+    expect(getMonthlyEquivalent('growth')).toBe(82)
+  })
+
+  it('enterprise yearly ≈ $165/month', () => {
+    // floor(1990 / 12) = floor(165.83) = 165
+    expect(getMonthlyEquivalent('enterprise')).toBe(165)
+  })
+
+  it('monthly equivalent is always less than monthly price', () => {
+    PLAN_PRICES.forEach((p) => {
+      expect(getMonthlyEquivalent(p.id)).toBeLessThan(p.monthlyPrice)
+    })
+  })
+
+  it('returns 0 for unknown plan id', () => {
+    // @ts-expect-error — intentional invalid id for guard test
+    expect(getMonthlyEquivalent('unknown')).toBe(0)
   })
 })
