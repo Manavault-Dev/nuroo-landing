@@ -25,6 +25,8 @@ import {
 import { clsx } from 'clsx'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { useBranding } from '@/lib/b2b/brandingContext'
+import { usePlan } from '@/lib/b2b/planContext'
+import { type PlanId } from '@/lib/pricing/planFeatureConfig'
 
 interface SidebarProps {
   profile: SpecialistProfile | null
@@ -38,6 +40,8 @@ interface NavItem {
   href: string
   labelKey: string
   icon: React.ElementType
+  /** If set, show an "Upgrade" badge when the current plan is below this. */
+  requiredPlan?: PlanId
 }
 
 interface NavGroup {
@@ -63,10 +67,12 @@ function NavLink({
   item,
   active,
   onClick,
+  isLocked,
 }: {
   item: NavItem
   active: boolean
   onClick?: () => void
+  isLocked?: boolean
 }) {
   const Icon = item.icon
   return (
@@ -75,7 +81,8 @@ function NavLink({
       onClick={onClick}
       className={clsx(
         'flex items-center gap-3.5 px-4 py-3 rounded-xl text-[16px] font-medium transition-colors min-h-[48px] group',
-        active ? 'b2b-nav-active font-bold' : 'b2b-nav-link'
+        active ? 'b2b-nav-active font-bold' : 'b2b-nav-link',
+        isLocked && 'opacity-70'
       )}
     >
       <Icon
@@ -85,7 +92,12 @@ function NavLink({
         )}
       />
       <span className="flex-1 truncate">{item.labelKey}</span>
-      {active && (
+      {isLocked && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 leading-none whitespace-nowrap shrink-0">
+          ↑
+        </span>
+      )}
+      {!isLocked && active && (
         <ChevronRight className="w-[17px] h-[17px] b2b-nav-icon-active shrink-0 opacity-60" />
       )}
     </Link>
@@ -106,6 +118,7 @@ export function Sidebar({
   const isOrgAdmin = currentOrg?.role === 'admin'
 
   const { branding } = useBranding()
+  const { meetsPlan } = usePlan()
 
   const pathForMatch = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
   const isActive = (href: string) => {
@@ -142,6 +155,7 @@ export function Sidebar({
               href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=attendance' : '?tab=attendance'}`,
               labelKey: t('attendance'),
               icon: CalendarDays,
+              requiredPlan: 'enterprise' as PlanId,
             },
           ]
         : []),
@@ -151,8 +165,14 @@ export function Sidebar({
               href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=invoices' : '?tab=invoices'}`,
               labelKey: t('finance'),
               icon: Wallet,
+              requiredPlan: 'enterprise' as PlanId,
             },
-            { href: withOrg('/b2b/branches'), labelKey: t('branches'), icon: GitBranch },
+            {
+              href: withOrg('/b2b/branches'),
+              labelKey: t('branches'),
+              icon: GitBranch,
+              requiredPlan: 'enterprise' as PlanId,
+            },
           ]
         : []),
     ],
@@ -173,7 +193,12 @@ export function Sidebar({
         labelKey: 'adminSection',
         items: [
           { href: withOrg('/b2b/organization'), labelKey: t('organization'), icon: Building2 },
-          { href: withOrg('/b2b/brand'), labelKey: t('brandSettings'), icon: Palette },
+          {
+            href: withOrg('/b2b/brand'),
+            labelKey: t('brandSettings'),
+            icon: Palette,
+            requiredPlan: 'growth' as PlanId,
+          },
           { href: withOrg('/b2b/billing'), labelKey: t('billing'), icon: CreditCard },
         ],
       }
@@ -259,6 +284,7 @@ export function Sidebar({
                     item={item}
                     active={isActive(item.href)}
                     onClick={onMobileClose}
+                    isLocked={!!item.requiredPlan && !meetsPlan(item.requiredPlan)}
                   />
                 ))}
               </div>
