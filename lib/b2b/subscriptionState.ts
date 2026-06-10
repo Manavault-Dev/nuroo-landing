@@ -104,7 +104,7 @@ export function getSubscriptionState(
       message:
         'Your workspace has been suspended. Your data is safe. Contact support to restore access.',
       ctaLabel: 'Contact Support',
-      ctaHref: 'mailto:support@nuroo.io',
+      ctaHref: 'mailto:tilek.dzenisev@gmail.com',
     }
   }
 

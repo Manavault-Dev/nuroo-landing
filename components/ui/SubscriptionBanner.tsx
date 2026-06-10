@@ -2,6 +2,7 @@
 
 import { useRouter } from '@/i18n/navigation'
 import { AlertTriangle, Clock, CreditCard, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import type { SubscriptionBannerType } from '@/lib/b2b/subscriptionState'
 
@@ -49,6 +50,7 @@ const CONFIG: Record<
 
 export function SubscriptionBanner({ bannerType, message, ctaLabel, orgId, daysRemaining }: Props) {
   const router = useRouter()
+  const t = useTranslations('b2b.subscription')
   const [dismissed, setDismissed] = useState(false)
 
   if (bannerType === 'none' || dismissed) return null
@@ -63,6 +65,20 @@ export function SubscriptionBanner({ bannerType, message, ctaLabel, orgId, daysR
 
   // trial_active banners are dismissible; expiring/past_due are not
   const isDismissible = bannerType === 'trial_active'
+  const translatedMessage =
+    bannerType === 'trial_active'
+      ? daysRemaining !== null && daysRemaining !== undefined
+        ? t('trialActiveWithDays', { days: daysRemaining })
+        : t('trialActive')
+      : bannerType === 'trial_expiring'
+        ? daysRemaining !== null && daysRemaining !== undefined
+          ? t('trialExpiringWithDays', { days: daysRemaining })
+          : t('trialExpiring')
+        : bannerType === 'past_due'
+          ? t('pastDue')
+          : message
+  const translatedCta =
+    bannerType === 'past_due' ? t('updateBilling') : ctaLabel ? t('choosePlan') : ctaLabel
 
   return (
     <div
@@ -70,24 +86,22 @@ export function SubscriptionBanner({ bannerType, message, ctaLabel, orgId, daysR
       className={`relative flex items-center gap-3 px-4 py-2.5 border-b text-sm ${cfg.bg} ${cfg.border} ${cfg.text}`}
     >
       <Icon className="w-4 h-4 shrink-0" aria-hidden />
-      <span className="flex-1 min-w-0">{message}</span>
+      <span className="flex-1 min-w-0">{translatedMessage}</span>
       {daysRemaining !== null && daysRemaining !== undefined && bannerType === 'trial_expiring' && (
-        <span className="font-semibold shrink-0">
-          {daysRemaining} day{daysRemaining === 1 ? '' : 's'} left
-        </span>
+        <span className="font-semibold shrink-0">{t('daysLeft', { days: daysRemaining })}</span>
       )}
       <button
         type="button"
         onClick={handleCta}
         className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${cfg.ctaClass}`}
       >
-        {ctaLabel}
+        {translatedCta}
       </button>
       {isDismissible && (
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          aria-label="Dismiss"
+          aria-label={t('dismiss')}
           className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
         >
           <X className="w-4 h-4" />

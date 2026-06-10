@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import {
   ShieldOff,
   Database,
@@ -21,22 +22,24 @@ interface Props {
 }
 
 const VALUE_POINTS = [
-  { icon: Users, label: 'Parent management & family connections' },
-  { icon: Brain, label: 'AI-assisted activity planning' },
-  { icon: TrendingUp, label: 'Progress tracking & analytics' },
-  { icon: CreditCard, label: 'Billing & payment collection' },
-  { icon: Database, label: 'Your data is always safe' },
-]
+  { icon: Users, key: 'valueParents' },
+  { icon: Brain, key: 'valueAI' },
+  { icon: TrendingUp, key: 'valueAnalytics' },
+  { icon: CreditCard, key: 'valueBilling' },
+  { icon: Database, key: 'valueDataSafe' },
+] as const
+
+const SUPPORT_EMAIL = 'tilek.dzenisev@gmail.com'
 
 export function SubscriptionPaywall({ blockType, message, ctaLabel, orgId }: Props) {
   const router = useRouter()
+  const t = useTranslations('b2b.subscription')
 
-  const title = blockType === 'suspended' ? 'Workspace Suspended' : 'Subscription Required'
+  const title = blockType === 'suspended' ? t('suspendedTitle') : t('requiredTitle')
 
-  const subtitle =
-    blockType === 'suspended'
-      ? 'Your workspace has been suspended. Your data is safe and intact.'
-      : 'Your Nuroo access has ended, but your data is safe.'
+  const subtitle = blockType === 'suspended' ? t('suspendedSubtitle') : t('requiredSubtitle')
+  const translatedMessage = blockType === 'suspended' ? t('suspendedMessage') : t('expiredMessage')
+  const translatedCta = blockType === 'expired' ? t('choosePlan') : ctaLabel
 
   const handleChoosePlan = () => {
     const href = orgId ? `/b2b/billing?orgId=${orgId}` : '/b2b/billing'
@@ -44,7 +47,7 @@ export function SubscriptionPaywall({ blockType, message, ctaLabel, orgId }: Pro
   }
 
   const handleSupport = () => {
-    window.location.href = 'mailto:support@nuroo.io'
+    window.location.href = `mailto:${SUPPORT_EMAIL}`
   }
 
   return (
@@ -75,17 +78,19 @@ export function SubscriptionPaywall({ blockType, message, ctaLabel, orgId }: Pro
           </div>
 
           {/* Main message */}
-          <p className="text-gray-700 text-sm mb-6 leading-relaxed">{message}</p>
+          <p className="text-gray-700 text-sm mb-6 leading-relaxed">
+            {translatedMessage || message}
+          </p>
 
           {/* Value points — only shown for expired, not suspended */}
           {blockType === 'expired' && (
             <ul className="space-y-2.5 mb-8">
-              {VALUE_POINTS.map(({ icon: Icon, label }) => (
-                <li key={label} className="flex items-center gap-3 text-sm text-gray-600">
+              {VALUE_POINTS.map(({ icon: Icon, key }) => (
+                <li key={key} className="flex items-center gap-3 text-sm text-gray-600">
                   <div className="w-6 h-6 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
                     <Icon className="w-3.5 h-3.5 text-primary-600" />
                   </div>
-                  {label}
+                  {t(key)}
                 </li>
               ))}
             </ul>
@@ -100,7 +105,7 @@ export function SubscriptionPaywall({ blockType, message, ctaLabel, orgId }: Pro
                 className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-600 text-white font-semibold text-sm hover:bg-primary-700 transition-colors shadow-sm"
               >
                 <CreditCard className="w-4 h-4" />
-                {ctaLabel}
+                {translatedCta}
               </button>
             )}
             <button
@@ -109,21 +114,21 @@ export function SubscriptionPaywall({ blockType, message, ctaLabel, orgId }: Pro
               className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
             >
               <LifeBuoy className="w-4 h-4" />
-              Contact Support
+              {t('contactSupport')}
             </button>
           </div>
 
           {/* Billing link — always accessible */}
           <p className="text-center text-xs text-gray-400 mt-5">
-            You can always access{' '}
+            {t('billingAccessPrefix')}{' '}
             <button
               type="button"
               onClick={handleChoosePlan}
               className="underline hover:text-gray-600 transition-colors"
             >
-              Billing
+              {t('billing')}
             </button>{' '}
-            and Organization Settings
+            {t('billingAccessSuffix')}
           </p>
         </div>
       </div>
