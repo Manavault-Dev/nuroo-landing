@@ -15,7 +15,7 @@ export type BillingStatus =
   | 'canceled'
 
 export const FREE_TRIAL_DAYS = 30
-// Trial gives professional (growth) level access
+// Trial gives Growth level access
 export const FREE_TRIAL_PLAN_ID: PlanId = 'growth'
 
 export interface PlanFeatures {
@@ -31,7 +31,7 @@ export interface PlanFeatures {
 }
 
 export interface PlanConfig {
-  priceKgs: number
+  priceUsd: number
   maxChildren: number | null
   maxSpecialists: number | null
   features: PlanFeatures
@@ -39,8 +39,8 @@ export interface PlanConfig {
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   starter: {
-    priceKgs: 4900,
-    maxChildren: 20,
+    priceUsd: 59,
+    maxChildren: 30,
     maxSpecialists: 3,
     features: {
       branding: false,
@@ -55,9 +55,9 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     },
   },
   growth: {
-    priceKgs: 9900,
-    maxChildren: 100,
-    maxSpecialists: 15,
+    priceUsd: 99,
+    maxChildren: 80,
+    maxSpecialists: null, // unlimited, as advertised on pricing page
     features: {
       branding: true,
       advancedAnalytics: true,
@@ -71,7 +71,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     },
   },
   enterprise: {
-    priceKgs: 19900,
+    priceUsd: 199,
     maxChildren: null,
     maxSpecialists: null,
     features: {
@@ -96,7 +96,7 @@ export interface PlanLimit {
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimit> = {
   starter: {
-    children: PLAN_CONFIG.starter.maxChildren,
+    children: PLAN_CONFIG.starter.maxChildren, // 30 — matches landing/pricing copy
     specialists: PLAN_CONFIG.starter.maxSpecialists,
   },
   growth: {
@@ -381,11 +381,11 @@ export async function checkOrgHasFeature(
   const ok = await hasFeature(orgId, feature)
   if (!ok) {
     const featureLabels: Record<keyof PlanFeatures, string> = {
-      branding: 'White-label branding (Professional plan)',
-      advancedAnalytics: 'Advanced analytics (Professional plan)',
-      csvExport: 'CSV/PDF export (Professional plan)',
-      advancedRoles: 'Advanced roles (Professional plan)',
-      teamManagement: 'Team management (Professional plan)',
+      branding: 'White-label branding (Growth plan)',
+      advancedAnalytics: 'Advanced analytics (Growth plan)',
+      csvExport: 'CSV/PDF export (Growth plan)',
+      advancedRoles: 'Advanced roles (Growth plan)',
+      teamManagement: 'Team management (Growth plan)',
       branches: 'Multiple branches (Enterprise plan)',
       finance: 'Finance module (Enterprise plan)',
       dedicatedOnboarding: 'Dedicated onboarding (Enterprise plan)',

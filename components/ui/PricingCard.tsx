@@ -20,6 +20,8 @@ export interface PricingCardProps {
   price: React.ReactNode
   /** Optional suffix after price (e.g. "KGS / мес") */
   priceSuffix?: React.ReactNode
+  /** Optional helper content below price, e.g. yearly savings breakdown. */
+  priceDetails?: React.ReactNode
   features: PricingCardFeature[]
   /** "Soon" label for features that have soon: true */
   soonLabel?: string
@@ -40,6 +42,7 @@ export function PricingCard({
   subtitle,
   price,
   priceSuffix,
+  priceDetails,
   features,
   soonLabel = 'Soon',
   children,
@@ -96,9 +99,12 @@ export function PricingCard({
       <h3 className={titleClasses}>{title}</h3>
       {subtitle && <p className={subtitleClasses}>{subtitle}</p>}
 
-      <div className={`flex items-baseline gap-1 mt-1 flex-wrap ${isCompact ? 'mb-5' : 'mb-6'}`}>
-        <span className={priceClasses}>{price}</span>
-        {priceSuffix != null && <span className={priceSuffixClasses}>{priceSuffix}</span>}
+      <div className={isCompact ? 'mb-5' : 'mb-6'}>
+        <div className="flex items-baseline gap-1 mt-1 flex-wrap">
+          <span className={priceClasses}>{price}</span>
+          {priceSuffix != null && <span className={priceSuffixClasses}>{priceSuffix}</span>}
+        </div>
+        {priceDetails && <div className="mt-2">{priceDetails}</div>}
       </div>
 
       <ul className={`${isCompact ? 'space-y-2.5 mb-6' : 'space-y-3 mb-8'} flex-1`}>

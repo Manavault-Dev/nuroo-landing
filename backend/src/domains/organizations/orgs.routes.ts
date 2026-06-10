@@ -54,6 +54,14 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       createdBy: uid,
       isActive: true,
       billingPlan: null,
+      billing: {
+        provider: 'manual',
+        status: 'trialing',
+        plan: FREE_TRIAL_PLAN_ID,
+        trialEndsAt: admin.firestore.Timestamp.fromDate(trialExpiresAt),
+        currentPeriodEnd: null,
+        updatedAt: admin.firestore.Timestamp.fromDate(now),
+      },
       freeTrial: {
         planId: FREE_TRIAL_PLAN_ID,
         startedAt: admin.firestore.Timestamp.fromDate(now),

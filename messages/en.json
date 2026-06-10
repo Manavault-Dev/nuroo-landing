@@ -109,7 +109,7 @@
     "pricing": {
       "badge": "Pricing",
       "title": "Plans for Organizations",
-      "subtitle": "Pay monthly in KGS. Full access after payment.",
+      "subtitle": "Pay monthly in USD. Full access after payment.",
       "perMonth": "month",
       "popular": "Most popular",
       "starterName": "Starter",
@@ -145,8 +145,8 @@
       "soon": "soon",
       "cta": "Get started",
       "afterRegister": "After registration, choose a plan and pay in the dashboard.",
-      "paymentMethodInfo": "Card payment (KGS) via Finik.",
-      "professionalName": "Professional",
+      "paymentMethodInfo": "Card payment (USD) via Stripe.",
+      "professionalName": "Growth",
       "starterSubtitle": "For private specialists and small centers",
       "professionalSubtitle": "For growing developmental centers",
       "proF1": "Everything in Starter",
@@ -177,7 +177,16 @@
       "trialNote": "1 month free trial for every organization",
       "ctaStartTrial": "Start Free Trial",
       "ctaContactUs": "Contact Us",
-      "from": "Starting from"
+      "from": "Starting from",
+      "perYear": "year",
+      "billingMonthly": "Monthly",
+      "billingYearly": "Yearly",
+      "savePercent": "Save ~17%",
+      "annualBillingNote": "Save with annual billing. Pay once per year and avoid monthly renewals.",
+      "saveLabel": "Save",
+      "billedAnnually": "billed annually",
+      "billedMonthlyNote": "Billed every month, cancel anytime.",
+      "growthSubtitle": "For growing developmental centers"
     },
     "platform": {
       "badge": "Nuroo Platform",
@@ -471,6 +480,29 @@
       "brand": "Brand Settings",
       "openMenu": "Open menu",
       "closeMenu": "Close menu"
+    },
+    "planGate": {
+      "heading": "{plan} Plan Required",
+      "currentPlan": "You are currently on the {plan} plan",
+      "description": "This feature is included in the {required} plan and above. Upgrade to unlock it for your organization.",
+      "includedInPlan": "Included in {plan}",
+      "cta": "Upgrade to {plan}",
+      "noCancelRequired": "No long-term commitment required.",
+      "lockedBadge": "Upgrade",
+      "features_growth": [
+        "White-label branding — logo, colors, custom name",
+        "Advanced activity analytics",
+        "CSV and PDF report export",
+        "Advanced roles and team management",
+        "Up to 80 children · unlimited specialists"
+      ],
+      "features_enterprise": [
+        "Finance module — payment tracking, invoices, statuses",
+        "Multiple branches and locations",
+        "Unlimited children and specialists",
+        "Dedicated onboarding and launch support",
+        "Dedicated account manager"
+      ]
     },
     "pages": {
       "dashboard": {
@@ -1377,7 +1409,7 @@
         "starterPlan": "Starter",
         "growthPlan": "Growth",
         "basicPlan": "Basic Plan",
-        "professionalPlan": "Professional Plan",
+        "professionalPlan": "Growth Plan",
         "enterprisePlan": "Enterprise Plan",
         "perMonth": "per month",
         "starterFeature1": "Up to 30 children",
@@ -1782,6 +1814,32 @@
       "benefitTrackProgress": "Track your child's progress",
       "benefitReceiveHomework": "Receive homework from specialists",
       "poweredBy": "Powered by"
+    },
+    "subscription": {
+      "trialActiveWithDays": "You are on a free trial. {days} days remaining.",
+      "trialActive": "You are on a free trial.",
+      "trialExpiringWithDays": "Your free trial ends in {days} days. Choose a plan to keep your workspace.",
+      "trialExpiring": "Your free trial is ending soon. Choose a plan to keep your workspace.",
+      "daysLeft": "{days} days left",
+      "pastDue": "There is an issue with your payment. Please update your billing details to avoid interruption.",
+      "choosePlan": "Choose Plan",
+      "updateBilling": "Update Billing",
+      "dismiss": "Dismiss",
+      "suspendedTitle": "Workspace Suspended",
+      "requiredTitle": "Subscription Required",
+      "suspendedSubtitle": "Your workspace has been suspended. Your data is safe and intact.",
+      "requiredSubtitle": "Your Nuroo access has ended, but your data is safe.",
+      "suspendedMessage": "Your workspace has been suspended. Your data is safe. Contact support to restore access.",
+      "expiredMessage": "Your subscription has ended. Your data is safe — choose a plan to continue using Nuroo.",
+      "valueParents": "Parent management & family connections",
+      "valueAI": "AI-assisted activity planning",
+      "valueAnalytics": "Progress tracking & analytics",
+      "valueBilling": "Billing & payment collection",
+      "valueDataSafe": "Your data is always safe",
+      "contactSupport": "Contact Support",
+      "billingAccessPrefix": "You can always access",
+      "billing": "Billing",
+      "billingAccessSuffix": "and Organization Settings"
     }
   },
   "common": {
