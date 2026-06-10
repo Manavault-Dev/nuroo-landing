@@ -252,7 +252,7 @@ export function Sidebar({
             ) : (
               <Image
                 src="/Logo.svg"
-                alt="Nuroo"
+                alt="NeuroKids"
                 width={48}
                 height={48}
                 className="rounded-xl flex-shrink-0"
@@ -260,7 +260,7 @@ export function Sidebar({
               />
             )}
             <div className="flex-1 min-w-0">
-              <span className="b2b-sidebar-org-name text-xl font-bold text-gray-900 block leading-tight truncate">
+              <span className="text-xl font-bold text-gray-900 block leading-tight truncate">
                 {branding?.name || currentOrg?.orgName || 'Nuroo'}
               </span>
               <span className="b2b-sidebar-role text-sm text-primary-500 font-semibold leading-tight mt-1 block">
@@ -335,15 +335,14 @@ export function Sidebar({
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Image
               src="/Logo.svg"
-              alt="Nuroo"
+              alt="NeuroKids"
               width={20}
               height={20}
               className="shrink-0"
               unoptimized
             />
             <span>
-              {t('poweredBy')}{' '}
-              <span className="b2b-sidebar-role font-semibold text-primary-600">Nuroo</span>
+              {t('poweredBy')} <span className="font-semibold text-primary-600">Nuroo</span>
             </span>
           </div>
         </div>
