@@ -191,6 +191,135 @@
 }
 
 /* ═══════════════════════════════════════════
+   B2B FULL THEME TOKEN OVERRIDES
+   Applied via .b2b-theme wrapper div
+═══════════════════════════════════════════ */
+
+/* App shell background */
+.b2b-theme .b2b-app-bg {
+  background-color: var(--brand-app-bg);
+}
+
+/* ── Sidebar ─────────────────────────────── */
+.b2b-theme .b2b-sidebar {
+  background-color: var(--brand-sidebar-bg);
+  border-color: var(--brand-topbar-border);
+}
+
+/* Nav link base */
+.b2b-theme .b2b-nav-link {
+  color: var(--brand-sidebar-text);
+}
+.b2b-theme .b2b-nav-link:hover {
+  background-color: var(--brand-sidebar-hover-bg);
+  color: var(--brand-sidebar-text);
+}
+
+/* Nav link active */
+.b2b-theme .b2b-nav-active {
+  background-color: var(--brand-sidebar-active-bg);
+  color: var(--brand-sidebar-active-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Nav icons */
+.b2b-theme .b2b-nav-icon-idle {
+  color: var(--brand-sidebar-muted);
+}
+.b2b-theme .b2b-nav-link:hover .b2b-nav-icon-idle {
+  color: var(--brand-sidebar-text);
+}
+.b2b-theme .b2b-nav-icon-active {
+  color: var(--brand-sidebar-active-text);
+  opacity: 0.85;
+}
+
+/* Sidebar text tiers */
+.b2b-theme .b2b-sidebar-org-name {
+  color: var(--brand-sidebar-text);
+}
+.b2b-theme .b2b-sidebar-role {
+  color: var(--brand-sidebar-active-text);
+}
+.b2b-theme .b2b-sidebar-muted-text {
+  color: var(--brand-sidebar-muted);
+}
+
+/* Sidebar dividers */
+.b2b-theme .b2b-sidebar-divider {
+  border-color: var(--brand-sidebar-hover-bg);
+}
+
+/* Sidebar footer */
+.b2b-theme .b2b-sidebar-footer {
+  border-color: var(--brand-sidebar-hover-bg);
+  color: var(--brand-sidebar-muted);
+}
+
+/* Mobile close button inside sidebar */
+.b2b-theme .b2b-sidebar-close-row {
+  border-color: var(--brand-sidebar-hover-bg);
+}
+.b2b-theme .b2b-sidebar-close-btn {
+  color: var(--brand-sidebar-muted);
+}
+.b2b-theme .b2b-sidebar-close-btn:hover {
+  background-color: var(--brand-sidebar-hover-bg);
+  color: var(--brand-sidebar-text);
+}
+
+/* Switch-org links */
+.b2b-theme .b2b-org-switch-link {
+  color: var(--brand-sidebar-muted);
+}
+.b2b-theme .b2b-org-switch-link:hover {
+  background-color: var(--brand-sidebar-hover-bg);
+  color: var(--brand-sidebar-text);
+}
+.b2b-theme .b2b-org-switch-active {
+  background-color: var(--brand-sidebar-active-bg);
+  color: var(--brand-sidebar-active-text);
+}
+
+/* ── Topbar ──────────────────────────────── */
+.b2b-theme .b2b-topbar {
+  background-color: var(--brand-topbar-bg);
+  border-color: var(--brand-topbar-border);
+}
+
+/* ── Buttons ─────────────────────────────── */
+.b2b-theme .b2b-btn-primary {
+  background-color: var(--brand-button-bg);
+  color: var(--brand-button-text);
+}
+.b2b-theme .b2b-btn-primary:hover {
+  filter: brightness(0.92);
+}
+
+/* ── Badges ──────────────────────────────── */
+.b2b-theme .b2b-badge {
+  background-color: var(--brand-badge-bg);
+  color: var(--brand-badge-text);
+}
+
+/* ── Inputs ──────────────────────────────── */
+.b2b-theme .b2b-input {
+  background-color: var(--brand-input-bg);
+  border-color: var(--brand-input-border);
+}
+.b2b-theme .b2b-input:focus {
+  border-color: var(--brand-input-focus-border);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-input-focus-border) 15%, transparent);
+}
+
+/* ── Notification cards ──────────────────── */
+.b2b-theme .b2b-notification-card {
+  background-color: var(--brand-notification-bg);
+  border-color: var(--brand-notification-border);
+}
+
+/* ═══════════════════════════════════════════
    SCROLL ANIMATION SYSTEM
 ═══════════════════════════════════════════ */
 

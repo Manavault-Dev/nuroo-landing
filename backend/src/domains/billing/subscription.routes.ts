@@ -14,6 +14,32 @@ import {
 
 const TRIAL_DAYS = 30
 
+function timestampToIso(value: unknown): string | null {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate().toISOString()
+  }
+  return null
+}
+
+function isBillingActive(
+  status: unknown,
+  trialEndsAt: string | null,
+  currentPeriodEnd: string | null
+): boolean {
+  if (status === 'manual_active' || status === 'active') {
+    if (!currentPeriodEnd) return true
+    return new Date(currentPeriodEnd).getTime() > Date.now()
+  }
+  if (status === 'trialing') {
+    if (!trialEndsAt) return false
+    return new Date(trialEndsAt).getTime() > Date.now()
+  }
+  return false
+}
+
 export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { orgId: string } }>(
     '/orgs/:orgId/billing/start-trial',
@@ -29,7 +55,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
       const existingStatus = orgSnap.data()?.billing?.status
       if (existingStatus === 'trialing') {
-        const trialEndsAt = orgSnap.data()?.billing?.trialEndsAt
+        const trialEndsAt = timestampToIso(orgSnap.data()?.billing?.trialEndsAt)
         return reply.code(200).send({ ok: true, alreadyTrialing: true, trialEndsAt })
       }
       if (existingStatus === 'active' || existingStatus === 'manual_active') {
@@ -67,7 +93,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         data: { orgId },
       })
 
-      return reply.code(200).send({ ok: true, trialEndsAt })
+      return reply.code(200).send({ ok: true, trialEndsAt: timestampToIso(trialEndsAt) })
     }
   )
 
@@ -151,17 +177,35 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
       const billingField = orgSnap.data()?.billing ?? {}
       const subscriptionStatus = await getSubscriptionStatus(orgId)
+      const trialEndsAt = timestampToIso(billingField.trialEndsAt)
+      const currentPeriodEnd = timestampToIso(billingField.currentPeriodEnd)
+      const updatedAt = timestampToIso(billingField.updatedAt)
+      const billingActive = isBillingActive(billingField.status, trialEndsAt, currentPeriodEnd)
+      const billingPlan = typeof billingField.plan === 'string' ? billingField.plan : null
 
       return reply.code(200).send({
         ok: true,
+        active: subscriptionStatus.active || billingActive,
+        planId: subscriptionStatus.planId ?? (billingActive ? billingPlan : undefined),
+        source:
+          subscriptionStatus.source ??
+          (billingActive
+            ? billingField.status === 'trialing'
+              ? 'free_trial'
+              : 'subscription'
+            : undefined),
+        billingStatus: billingField.status ?? subscriptionStatus.billingStatus,
+        expiresAt: subscriptionStatus.expiresAt
+          ? timestampToIso(subscriptionStatus.expiresAt)
+          : currentPeriodEnd,
         billing: {
           provider: billingField.provider ?? null,
           status: billingField.status ?? null,
-          plan: billingField.plan ?? null,
-          trialEndsAt: billingField.trialEndsAt ?? null,
-          currentPeriodEnd: billingField.currentPeriodEnd ?? null,
-          updatedAt: billingField.updatedAt ?? null,
-          subscriptionActive: subscriptionStatus.active,
+          plan: billingPlan,
+          trialEndsAt,
+          currentPeriodEnd,
+          updatedAt,
+          subscriptionActive: subscriptionStatus.active || billingActive,
           subscriptionSource: subscriptionStatus.source ?? null,
           subscriptionError: subscriptionStatus.error ?? null,
           stripeCustomerId: billingField.stripeCustomerId ?? null,

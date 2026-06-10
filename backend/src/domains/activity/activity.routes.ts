@@ -254,11 +254,13 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
         const childName: string = orgChildSnap.data()?.name ?? 'your child'
 
         if (parentUserId) {
+          // Use note_added for specialist notes; progress_update for actual progress reports
+          const notifType = parsedBody.type === 'progress_update' ? 'progress_update' : 'note_added'
           dispatch({
             userId: parentUserId,
             orgId,
             role: 'parent',
-            type: 'progress_update',
+            type: notifType,
             category: 'progressUpdates',
             title: `New update for ${childName}`,
             body: parsedBody.title
@@ -539,7 +541,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
           userId: parentUserId,
           orgId,
           role: 'parent',
-          type: 'progress_update',
+          type: 'note_added',
           category: 'progressUpdates',
           title: `New comment about ${childName}`,
           body: body.data.body.slice(0, 120),
@@ -558,7 +560,7 @@ export const activityRoute: FastifyPluginAsync = async (fastify) => {
           userId: feedItem.authorId,
           orgId,
           role: 'specialist',
-          type: 'progress_update',
+          type: 'new_message',
           category: 'messages',
           title: `New parent reply about ${childName}`,
           body: body.data.body.slice(0, 120),

@@ -57,7 +57,7 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
   }
 
   return (
-    <header className="sticky top-0 relative z-[45] isolate bg-white border-b border-gray-200 min-h-14 lg:h-16 flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+    <header className="b2b-topbar sticky top-0 relative z-[45] isolate bg-white border-b border-gray-200 min-h-14 lg:h-16 flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
       <div className="flex items-center gap-2 min-w-0 flex-1 overflow-visible">
         {onMenuClick && (
           <button

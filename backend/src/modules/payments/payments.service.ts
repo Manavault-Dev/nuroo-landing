@@ -40,7 +40,7 @@ const B2B_URL = config.NEXT_PUBLIC_B2B_URL || 'http://localhost:3000'
 
 const PLANS: Record<string, { price: number; name: string }> = {
   starter: { price: 4900, name: 'Starter' },
-  growth: { price: 9900, name: 'Professional' },
+  growth: { price: 9900, name: 'Growth' },
   enterprise: { price: 19900, name: 'Enterprise' },
 }
 

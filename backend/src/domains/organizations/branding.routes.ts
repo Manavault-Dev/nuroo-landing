@@ -6,20 +6,39 @@ import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../plugins/rbac.js'
 import { checkOrgHasFeature } from '../../modules/payments/planLimits.js'
 
+const imageSourceSchema = z
+  .string()
+  .max(900_000)
+  .refine((value) => value.startsWith('data:image/') || z.string().url().safeParse(value).success, {
+    message: 'Expected an image URL or data:image payload',
+  })
+
+/** Valid preset IDs — must stay in sync with frontend PresetId type */
+const PRESET_IDS = ['nuroo', 'ocean', 'forest', 'sunset', 'violet'] as const
+
 const brandingSchema = z.object({
-  logo: z.string().url().max(2000).optional().nullable(),
+  logo: imageSourceSchema.optional().nullable(),
   logoPositionX: z.number().min(0).max(100).optional().nullable(),
   logoPositionY: z.number().min(0).max(100).optional().nullable(),
   logoScale: z.number().min(1).max(2).optional().nullable(),
   name: z.string().max(120).optional().nullable(),
   description: z.string().max(300).optional().nullable(),
+  /** @deprecated kept for backward compat */
   primaryColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional()
     .nullable(),
+  /** Active color theme preset (e.g. 'nuroo', 'ocean') */
+  presetId: z.enum(PRESET_IDS).optional().nullable(),
+  /**
+   * Auto-generated CSS variable map from logo color extraction.
+   * When present, overrides presetId for theme rendering.
+   * Keys: CSS variable names (--brand-*), values: color strings.
+   */
+  generatedThemeTokens: z.record(z.string().max(60), z.string().max(120)).optional().nullable(),
   welcomeMessage: z.string().max(400).optional().nullable(),
-  coverImage: z.string().url().max(2000).optional().nullable(),
+  coverImage: imageSourceSchema.optional().nullable(),
   coverPositionX: z.number().min(0).max(100).optional().nullable(),
   coverPositionY: z.number().min(0).max(100).optional().nullable(),
   coverScale: z.number().min(1).max(2).optional().nullable(),
@@ -67,6 +86,8 @@ export const brandingRoute: FastifyPluginAsync = async (fastify) => {
                 name: branding.name ?? null,
                 description: branding.description ?? null,
                 primaryColor: branding.primaryColor ?? null,
+                presetId: branding.presetId ?? null,
+                generatedThemeTokens: branding.generatedThemeTokens ?? null,
                 welcomeMessage: branding.welcomeMessage ?? null,
                 coverImage: branding.coverImage ?? null,
                 coverPositionX: branding.coverPositionX ?? null,
