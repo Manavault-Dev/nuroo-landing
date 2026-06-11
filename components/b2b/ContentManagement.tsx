@@ -19,6 +19,7 @@ import {
   Check,
 } from 'lucide-react'
 import { AIInstructionHelper } from './AIInstructionHelper'
+import { Pagination } from './Pagination'
 
 export type ContentManagementMode = 'global' | 'org'
 
@@ -66,73 +67,6 @@ interface OrgGroup {
 
 const TASKS_PER_PAGE = 10
 
-function getPaginationPages(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i)
-  const pages: (number | 'ellipsis')[] = [0]
-  if (current > 2) pages.push('ellipsis')
-  for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) {
-    pages.push(i)
-  }
-  if (current < total - 3) pages.push('ellipsis')
-  pages.push(total - 1)
-  return pages
-}
-
-function TaskPagination({
-  currentPage,
-  totalPages,
-  onPageChange,
-}: {
-  currentPage: number
-  totalPages: number
-  onPageChange: (page: number) => void
-}) {
-  if (totalPages <= 1) return null
-  const pages = getPaginationPages(currentPage, totalPages)
-  return (
-    <div className="flex items-center justify-center gap-1 mt-6 py-2">
-      <button
-        type="button"
-        disabled={currentPage === 0}
-        onClick={() => onPageChange(currentPage - 1)}
-        className="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        ← Назад
-      </button>
-
-      {pages.map((page, i) =>
-        page === 'ellipsis' ? (
-          <span key={`e-${i}`} className="w-9 text-center text-gray-400 text-sm select-none">
-            …
-          </span>
-        ) : (
-          <button
-            key={page}
-            type="button"
-            onClick={() => onPageChange(page as number)}
-            className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-              page === currentPage
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {(page as number) + 1}
-          </button>
-        )
-      )}
-
-      <button
-        type="button"
-        disabled={currentPage === totalPages - 1}
-        onClick={() => onPageChange(currentPage + 1)}
-        className="px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        Вперёд →
-      </button>
-    </div>
-  )
-}
-
 export function ContentManagement({
   mode,
   orgId,
@@ -162,9 +96,36 @@ export function ContentManagement({
   const [assigning, setAssigning] = useState(false)
   const [assignSuccess, setAssignSuccess] = useState(false)
   const [loadingGroups, setLoadingGroups] = useState(false)
-  const [taskPage, setTaskPage] = useState(0)
+  const [taskPage, setTaskPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
   const tasksListRef = useRef<HTMLDivElement>(null)
   const { alert, confirm } = useAlert()
+
+  const normalizeCategory = (cat: string | undefined) => {
+    if (!cat) return ''
+    let cleaned = cat.trim()
+    if (cleaned.endsWith('.')) cleaned = cleaned.slice(0, -1).trim()
+    return cleaned.toLowerCase()
+  }
+
+  // Валидация страниц пагинации (перенесено наверх во избежание ошибок React Hooks)
+  useEffect(() => {
+    const filtered = tasks.filter((task) => {
+      const title = task.title || task.name || ''
+      const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory =
+        !selectedCategory ||
+        selectedCategory === 'all' ||
+        normalizeCategory(task.category) === selectedCategory
+      return matchesSearch && matchesCategory
+    })
+    const total = Math.ceil(filtered.length / TASKS_PER_PAGE) || 1
+
+    if (taskPage > total) {
+      setTaskPage(total)
+    }
+  }, [taskPage, tasks, searchQuery, selectedCategory])
 
   const loadContent = async () => {
     try {
@@ -198,7 +159,6 @@ export function ContentManagement({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, orgId])
-
   // Load org groups once for the assignment panel
   useEffect(() => {
     if (mode !== 'org' || !orgId) return
@@ -950,21 +910,38 @@ export function ContentManagement({
     { id: 'roadmaps' as ContentType, label: t('roadmaps'), icon: BookOpen, count: roadmaps.length },
   ]
 
-  const currentItems = activeTab === 'tasks' ? tasks : roadmaps
   const isTasksTab = activeTab === 'tasks'
   const title = pageTitle ?? (mode === 'org' ? t('title') : t('contentManagement'))
   const subtitle = pageSubtitle ?? (mode === 'org' ? t('subtitle') : t('contentManagementSubtitle'))
 
-  // ── Split-panel layout for org mode tasks ────────────────────────────────
+  const taskCategories = Array.from(
+    tasks.reduce<Map<string, string>>((map, task) => {
+      const normalized = normalizeCategory(task.category)
+      if (!normalized) return map
+      if (!map.has(normalized)) {
+        map.set(normalized, normalized.charAt(0).toUpperCase() + normalized.slice(1))
+      }
+      return map
+    }, new Map())
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([value, label]) => ({ value, label }))
+
+  const filteredTasks = tasks.filter((task) => {
+    const query = searchQuery.trim().toLowerCase()
+    const title = (task.title || task.name || '').toLowerCase()
+    const matchesSearch = !query || title.includes(query)
+    const matchesCategory =
+      !selectedCategory || normalizeCategory(task.category) === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const currentItems = isTasksTab ? filteredTasks : roadmaps
   const showSplitPanel = mode === 'org' && isTasksTab
 
-  // ── Pagination ────────────────────────────────────────────────────────────
-  const totalTaskPages = Math.ceil(tasks.length / TASKS_PER_PAGE)
-  const pagedTasks = tasks.slice(taskPage * TASKS_PER_PAGE, (taskPage + 1) * TASKS_PER_PAGE)
-  // For grid layout: paginate tasks, show all roadmaps without pagination
-  const pagedGridItems = isTasksTab
-    ? tasks.slice(taskPage * TASKS_PER_PAGE, (taskPage + 1) * TASKS_PER_PAGE)
-    : roadmaps
+  const totalTaskPages = Math.max(1, Math.ceil(filteredTasks.length / TASKS_PER_PAGE))
+  const pagedTasks = filteredTasks.slice((taskPage - 1) * TASKS_PER_PAGE, taskPage * TASKS_PER_PAGE)
+  const pagedGridItems = isTasksTab ? pagedTasks : roadmaps
 
   const handleTaskPageChange = (page: number) => {
     setTaskPage(page)
@@ -998,7 +975,7 @@ export function ContentManagement({
                 onClick={() => {
                   setActiveTab(tab.id)
                   setSelectedTask(null)
-                  setTaskPage(0)
+                  setTaskPage(1)
                 }}
                 className={`flex shrink-0 items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
               >
@@ -1016,7 +993,7 @@ export function ContentManagement({
       </div>
 
       {/* Create button */}
-      <div className="mb-4 flex justify-stretch sm:justify-end">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={handleCreate}
@@ -1025,6 +1002,41 @@ export function ContentManagement({
           <Plus className="w-4 h-4" />
           <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
         </button>
+        {isTasksTab && (
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-[minmax(0,1fr)_220px]">
+            <label className="block">
+              <span className="sr-only">Поиск по названию таски</span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setTaskPage(1)
+                }}
+                placeholder="Поиск по названию таски"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+            <label className="block">
+              <span className="sr-only">Фильтр по категории</span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  setTaskPage(1)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Все категории</option>
+                {taskCategories.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Empty state */}
@@ -1130,7 +1142,7 @@ export function ContentManagement({
                 </div>
               )
             })}
-            <TaskPagination
+            <Pagination
               currentPage={taskPage}
               totalPages={totalTaskPages}
               onPageChange={handleTaskPageChange}
@@ -1338,7 +1350,7 @@ export function ContentManagement({
             ))}
           </div>
           {isTasksTab && (
-            <TaskPagination
+            <Pagination
               currentPage={taskPage}
               totalPages={totalTaskPages}
               onPageChange={handleTaskPageChange}
