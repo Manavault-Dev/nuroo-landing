@@ -13,22 +13,30 @@ const sendMessageSchema = z.object({
 async function resolvePartyNames(
   db: admin.firestore.Firestore,
   uid: string,
-  email: string | undefined
+  email: string | undefined,
+  conversationFallback?: string
 ): Promise<string> {
-  const specialistSnap = await db.doc(`specialists/${uid}`).get()
+  const [specialistSnap, userSnap] = await Promise.all([
+    db.doc(`specialists/${uid}`).get(),
+    db.doc(`users/${uid}`).get(),
+  ])
+
   if (specialistSnap.exists) {
     const d = specialistSnap.data()!
     if (d.name) return d.name
     if (d.fullName) return d.fullName
+    if (d.displayName) return d.displayName
   }
-  const userSnap = await db.doc(`users/${uid}`).get()
   if (userSnap.exists) {
     const d = userSnap.data()!
-    if (d.name) return d.name
-    if (d.displayName) return d.displayName
     if (d.fullName) return d.fullName
+    if (d.displayName) return d.displayName
+    if (d.name) return d.name
   }
-  return email?.split('@')[0] || 'User'
+  // Use the name already stored on the conversation document
+  if (conversationFallback && conversationFallback.trim()) return conversationFallback.trim()
+  // Last resort: email prefix or generic label
+  return email?.split('@')[0] || 'Someone'
 }
 
 export const messagesRoute: FastifyPluginAsync = async (fastify) => {
@@ -254,24 +262,58 @@ export const messagesRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         const senderRole: 'specialist' | 'parent' = isParent ? 'parent' : 'specialist'
-        const senderName = await resolvePartyNames(db, uid, email)
         const childName: string = childData.name || childData.childName || 'Child'
 
+        // Read the conversation doc once so we can use its stored names as fallbacks
+        const existingConvSnap = await db.doc(`conversations/${convId}`).get()
+        const existingConv = existingConvSnap.data() ?? {}
+
+        const senderName = await resolvePartyNames(db, uid, email)
         let specialistName = ''
         let parentName = ''
 
         if (isSpecialist) {
           specialistName = senderName
           if (parentUserId) {
-            parentName = await resolvePartyNames(db, parentUserId, undefined)
+            parentName = await resolvePartyNames(
+              db,
+              parentUserId,
+              undefined,
+              existingConv.parentName as string | undefined
+            )
           }
-        } else {
+        } else if (isParent) {
           parentName = senderName
-          specialistName = await resolvePartyNames(db, convSpecialistId, undefined)
+          specialistName = await resolvePartyNames(
+            db,
+            convSpecialistId,
+            undefined,
+            existingConv.specialistName as string | undefined
+          )
+        } else {
+          // isOrgMember (admin/staff) — resolve both real parties independently,
+          // don't overwrite parentName with the admin's name
+          specialistName = await resolvePartyNames(
+            db,
+            convSpecialistId,
+            undefined,
+            existingConv.specialistName as string | undefined
+          )
+          if (parentUserId) {
+            parentName = await resolvePartyNames(
+              db,
+              parentUserId,
+              undefined,
+              existingConv.parentName as string | undefined
+            )
+          }
         }
 
         const convRef = db.doc(`conversations/${convId}`)
-        const otherPartyUid = isSpecialist ? parentUserId : convSpecialistId
+        // Notification target: parent replies → notify specialist; everyone else → notify parent
+        const otherPartyUid: string | undefined = isParent
+          ? convSpecialistId
+          : (parentUserId ?? undefined)
 
         const convBase: Record<string, unknown> = {
           orgId,
@@ -327,20 +369,31 @@ export const messagesRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         if (otherPartyUid) {
-          const notifType = isParent ? 'homework_submitted' : 'task_reviewed'
-          const notifRole = isParent ? 'specialist' : 'parent'
+          // If sender is parent → specialist receives; otherwise parent receives
+          const notifRole: 'specialist' | 'parent' = isParent ? 'specialist' : 'parent'
           const truncatedText = body.text.length > 100 ? body.text.slice(0, 100) + '…' : body.text
+
+          // Build a title that clearly identifies who sent the message and their role.
+          // Parent receives: "💬 Dr. Sarah (Specialist)"
+          // Specialist receives: "💬 Anna K. (Parent)"
+          // Org admin replies: "💬 John (Staff)"
+          const senderLabel = isParent
+            ? `${senderName} (Parent)`
+            : isSpecialist
+              ? `${senderName} (Specialist)`
+              : `${senderName} (Staff)`
 
           dispatch({
             userId: otherPartyUid,
             orgId,
             role: notifRole,
-            type: notifType,
+            type: 'new_message',
             category: 'messages',
-            title: `💬 ${senderName}`,
+            title: `💬 ${senderLabel}`,
             body: truncatedText,
-            metadata: { childId, orgId, specialistId: convSpecialistId },
+            metadata: { childId, orgId, specialistId: convSpecialistId, conversationId: convId },
             channel: 'both',
+            dedupKey: `new_message:${convId}:${uid}:${Date.now().toString().slice(0, -3)}`, // dedup per sender per second
           }).catch(() => {})
         }
 

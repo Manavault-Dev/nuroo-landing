@@ -11,6 +11,7 @@ import {
 } from './notification.types.js'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+const EXPO_RECEIPT_URL = 'https://exp.host/--/api/v2/push/getReceipts'
 
 // ── Preferences ───────────────────────────────────────────────────────────────
 
@@ -74,22 +75,65 @@ async function isDuplicate(userId: string, dedupKey: string): Promise<boolean> {
   }
 }
 
-// ── Push token ────────────────────────────────────────────────────────────────
+// ── Push token management ─────────────────────────────────────────────────────
 
-async function getUserPushToken(userId: string): Promise<string | null> {
+/**
+ * Returns ALL push tokens for a user.
+ * We store tokens as a map { [token]: { registeredAt, platform } }
+ * plus a legacy top-level `pushToken` field for backward compat.
+ */
+async function getUserPushTokens(userId: string): Promise<string[]> {
   try {
     const db = getFirestore()
     const snap = await db.doc(`users/${userId}`).get()
-    if (!snap.exists) return null
-    const token = snap.data()?.pushToken
-    if (typeof token !== 'string' || !token.startsWith('ExponentPushToken')) return null
-    return token
+    if (!snap.exists) return []
+    const data = snap.data() ?? {}
+
+    const tokens = new Set<string>()
+
+    // New format: pushTokens map
+    const tokensMap = data.pushTokens as Record<string, unknown> | undefined
+    if (tokensMap && typeof tokensMap === 'object') {
+      for (const token of Object.keys(tokensMap)) {
+        if (token.startsWith('ExponentPushToken')) {
+          tokens.add(token)
+        }
+      }
+    }
+
+    // Legacy format: single pushToken field
+    const legacy = data.pushToken as string | undefined
+    if (legacy && legacy.startsWith('ExponentPushToken')) {
+      tokens.add(legacy)
+    }
+
+    return Array.from(tokens)
   } catch {
-    return null
+    return []
   }
 }
 
-// ── Expo send ─────────────────────────────────────────────────────────────────
+/** Remove a specific stale token from Firestore (called when Expo says DeviceNotRegistered). */
+async function removeStaleToken(userId: string, token: string): Promise<void> {
+  try {
+    const db = getFirestore()
+    const encodedToken = token.replace(/[[\]]/g, '_')
+    await db.doc(`users/${userId}`).set(
+      {
+        [`pushTokens.${encodedToken}`]: admin.firestore.FieldValue.delete(),
+        ...(token === (await db.doc(`users/${userId}`).get()).data()?.pushToken
+          ? { pushToken: admin.firestore.FieldValue.delete() }
+          : {}),
+      },
+      { merge: true }
+    )
+    console.log(`[Notifications] Removed stale token for user ${userId}`)
+  } catch (err) {
+    console.error('[Notifications] Failed to remove stale token:', err)
+  }
+}
+
+// ── Expo send with retry + receipt tracking ───────────────────────────────────
 
 interface ExpoMessage {
   to: string
@@ -98,10 +142,32 @@ interface ExpoMessage {
   data?: Record<string, unknown>
   sound?: 'default'
   badge?: number
+  /** FIX B1: priority 'high' wakes Android from Doze mode */
+  priority?: 'default' | 'normal' | 'high'
+  /** FIX B2: explicit Android channel ensures IMPORTANCE_HIGH */
+  channelId?: string
+  /** TTL in seconds — how long FCM/APNs should retry delivery */
+  ttl?: number
+  /** Expiration epoch seconds */
+  expiration?: number
 }
 
-async function sendExpo(messages: ExpoMessage[]): Promise<void> {
-  if (messages.length === 0) return
+interface ExpoTicket {
+  status: 'ok' | 'error'
+  id?: string
+  message?: string
+  details?: { error?: string }
+}
+
+interface ExpoReceipt {
+  status: 'ok' | 'error'
+  message?: string
+  details?: { error?: string }
+}
+
+async function sendExpoWithRetry(messages: ExpoMessage[], retryCount = 0): Promise<ExpoTicket[]> {
+  if (messages.length === 0) return []
+
   try {
     const res = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
@@ -111,22 +177,76 @@ async function sendExpo(messages: ExpoMessage[]): Promise<void> {
         'accept-encoding': 'gzip, deflate',
       },
       body: JSON.stringify(messages),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(12_000),
     })
+
     if (!res.ok) {
-      console.error('[Notifications] Expo API error:', res.status, await res.text())
+      const body = await res.text()
+      console.error('[Notifications] Expo API HTTP error:', res.status, body)
+
+      // FIX B9: retry once on 5xx or rate limit
+      if ((res.status >= 500 || res.status === 429) && retryCount === 0) {
+        await new Promise((r) => setTimeout(r, 2000))
+        return sendExpoWithRetry(messages, 1)
+      }
+      return []
+    }
+
+    const result = (await res.json()) as { data: ExpoTicket[] }
+    return result.data ?? []
+  } catch (err) {
+    console.error('[Notifications] Expo send failed:', err)
+    if (retryCount === 0) {
+      await new Promise((r) => setTimeout(r, 2000))
+      return sendExpoWithRetry(messages, 1)
+    }
+    return []
+  }
+}
+
+/**
+ * Poll Expo receipts for a batch of ticket IDs.
+ * Called ~30s after sending to confirm actual delivery.
+ * Cleans up DeviceNotRegistered tokens automatically.
+ */
+export async function pollExpoReceipts(
+  ticketIds: string[],
+  tokenByTicketId: Record<string, string>,
+  userIdByTicketId: Record<string, string>
+): Promise<void> {
+  if (ticketIds.length === 0) return
+
+  try {
+    const res = await fetch(EXPO_RECEIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ ids: ticketIds }),
+      signal: AbortSignal.timeout(12_000),
+    })
+
+    if (!res.ok) {
+      console.error('[Notifications] Receipt poll HTTP error:', res.status)
       return
     }
-    const result = (await res.json()) as {
-      data: { status: 'ok' | 'error'; message?: string; details?: unknown }[]
-    }
-    result.data?.forEach((ticket, i) => {
-      if (ticket.status === 'error') {
-        console.error(`[Notifications] Expo ticket ${i} error:`, ticket.message, ticket.details)
+
+    const result = (await res.json()) as { data: Record<string, ExpoReceipt> }
+
+    for (const [id, receipt] of Object.entries(result.data ?? {})) {
+      if (receipt.status === 'error') {
+        const errType = receipt.details?.error
+        const token = tokenByTicketId[id]
+        const userId = userIdByTicketId[id]
+
+        console.error(`[Notifications] Receipt error for ticket ${id}:`, receipt.message, errType)
+
+        // FIX B4 + B6: DeviceNotRegistered → clean stale token
+        if (errType === 'DeviceNotRegistered' && token && userId) {
+          await removeStaleToken(userId, token)
+        }
       }
-    })
+    }
   } catch (err) {
-    console.error('[Notifications] Failed to send Expo push:', err)
+    console.error('[Notifications] Receipt poll failed:', err)
   }
 }
 
@@ -157,8 +277,9 @@ export async function dispatch(payload: CreateNotificationPayload): Promise<void
     const shouldPush = (channel === 'push' || channel === 'both') && prefs.pushEnabled
 
     // 3. Store in-app notification
+    let notifDocRef: admin.firestore.DocumentReference | null = null
     if (shouldStoreInApp) {
-      await db.collection(`users/${payload.userId}/notifications`).add({
+      notifDocRef = await db.collection(`users/${payload.userId}/notifications`).add({
         userId: payload.userId,
         orgId: payload.orgId ?? null,
         role: payload.role,
@@ -178,23 +299,79 @@ export async function dispatch(payload: CreateNotificationPayload): Promise<void
       })
     }
 
-    // 4. Push notification
+    // 4. Push notification — FIX B1 B2 B6: priority high + channelId + all tokens
     if (shouldPush) {
-      const token = await getUserPushToken(payload.userId)
-      if (token) {
-        await sendExpo([
-          {
-            to: token,
-            title: payload.title,
-            body: payload.body,
-            data: {
-              type: payload.type,
-              category,
-              ...(payload.metadata ?? {}),
-            },
-            sound: 'default',
+      const tokens = await getUserPushTokens(payload.userId)
+
+      if (tokens.length > 0) {
+        // Calculate the real unread count so iOS/Android badge is always accurate.
+        // getUnreadCount is called AFTER the in-app notification document is committed
+        // (step 3 above), so the count already includes the new notification.
+        let badgeCount = 1
+        try {
+          badgeCount = await getUnreadCount(payload.userId)
+        } catch {
+          badgeCount = 1
+        }
+
+        const messages: ExpoMessage[] = tokens.map((token) => ({
+          to: token,
+          title: payload.title,
+          body: payload.body,
+          data: {
+            type: payload.type,
+            category,
+            role: payload.role,
+            ...(payload.metadata ?? {}),
           },
-        ])
+          sound: 'default',
+          priority: 'high', // FIX B1: wake from Doze/terminated
+          channelId: 'nuroo-default', // FIX B2: explicit high-importance Android channel
+          ttl: 86400, // 24h delivery window
+          badge: badgeCount, // Accurate unread count so OS badge is always correct
+        }))
+
+        const tickets = await sendExpoWithRetry(messages)
+
+        // Build maps for receipt polling
+        const ticketIds: string[] = []
+        const tokenByTicketId: Record<string, string> = {}
+        const userIdByTicketId: Record<string, string> = {}
+
+        tickets.forEach((ticket, i) => {
+          if (ticket.status === 'ok' && ticket.id) {
+            ticketIds.push(ticket.id)
+            tokenByTicketId[ticket.id] = tokens[i] ?? ''
+            userIdByTicketId[ticket.id] = payload.userId
+          } else if (ticket.status === 'error') {
+            console.error(
+              `[Notifications] Expo ticket error for user ${payload.userId}:`,
+              ticket.message
+            )
+            if (ticket.details?.error === 'DeviceNotRegistered' && tokens[i]) {
+              removeStaleToken(payload.userId, tokens[i]).catch(console.error)
+            }
+          }
+        })
+
+        // FIX B4: poll receipts after 35s (fire-and-forget)
+        if (ticketIds.length > 0) {
+          setTimeout(
+            () =>
+              pollExpoReceipts(ticketIds, tokenByTicketId, userIdByTicketId).catch(console.error),
+            35_000
+          )
+        }
+
+        // Update delivery status in DB
+        if (notifDocRef && tickets.some((t) => t.status === 'ok')) {
+          notifDocRef
+            .update({
+              deliveryStatus: 'sent',
+              deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
+            })
+            .catch(() => {})
+        }
       }
     }
   } catch (err) {
@@ -268,10 +445,23 @@ export async function listNotifications(
 
 // ── Device token management ───────────────────────────────────────────────────
 
+/**
+ * Register (or update) a push token for a user.
+ * FIX B6: stores token in a map keyed by token value to support multiple devices.
+ */
 export async function registerDeviceToken(userId: string, token: string): Promise<void> {
   const db = getFirestore()
+  const encodedToken = token.replace(/[[\]]/g, '_')
   await db.doc(`users/${userId}`).set(
     {
+      // New: token map for multi-device support
+      pushTokens: {
+        [encodedToken]: {
+          token,
+          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      },
+      // Legacy compat: keep single token field
       pushToken: token,
       pushTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
@@ -279,28 +469,38 @@ export async function registerDeviceToken(userId: string, token: string): Promis
   )
 }
 
-export async function deactivateDeviceToken(userId: string): Promise<void> {
+export async function deactivateDeviceToken(userId: string, token?: string): Promise<void> {
   const db = getFirestore()
-  await db.doc(`users/${userId}`).set(
-    {
-      pushToken: admin.firestore.FieldValue.delete(),
-      pushTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  )
+  if (token) {
+    // Remove specific token
+    const encodedToken = token.replace(/[[\]]/g, '_')
+    await db.doc(`users/${userId}`).set(
+      {
+        [`pushTokens.${encodedToken}`]: admin.firestore.FieldValue.delete(),
+        pushToken: admin.firestore.FieldValue.delete(),
+        pushTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+  } else {
+    // Remove all tokens
+    await db.doc(`users/${userId}`).set(
+      {
+        pushTokens: admin.firestore.FieldValue.delete(),
+        pushToken: admin.firestore.FieldValue.delete(),
+        pushTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+  }
 }
 
-// ── Backward-compat wrappers (match old pushNotificationService.ts API) ───────
+// ── Backward-compat wrappers ──────────────────────────────────────────────────
 
 /** @deprecated Use dispatch() instead */
 export async function sendPushToUser(
   userId: string,
-  legacyPayload: {
-    type: string
-    title: string
-    body: string
-    data?: Record<string, string>
-  }
+  legacyPayload: { type: string; title: string; body: string; data?: Record<string, string> }
 ): Promise<void> {
   const typeMap: Record<string, NotificationType> = {
     task_completed: 'task_completed',
@@ -309,6 +509,7 @@ export async function sendPushToUser(
     task_assigned: 'task_assigned',
     child_assigned: 'child_assigned',
     reminder: 'assignment_reminder',
+    new_message: 'new_message',
   }
   const type: NotificationType =
     (typeMap[legacyPayload.type] as NotificationType | undefined) ?? 'task_assigned'
@@ -328,12 +529,7 @@ export async function sendPushToUser(
 /** @deprecated Use dispatchToMany() instead */
 export async function sendPushToUsers(
   userIds: string[],
-  legacyPayload: {
-    type: string
-    title: string
-    body: string
-    data?: Record<string, string>
-  }
+  legacyPayload: { type: string; title: string; body: string; data?: Record<string, string> }
 ): Promise<void> {
   await Promise.all(userIds.map((uid) => sendPushToUser(uid, legacyPayload)))
 }

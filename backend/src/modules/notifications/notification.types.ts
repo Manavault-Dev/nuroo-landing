@@ -8,6 +8,7 @@ export type NotificationType =
   | 'assignment_reminder' // parent ← pending task reminder
   | 'progress_update' // parent ← progress report added
   | 'note_added' // parent ← specialist note (existing)
+  | 'new_message' // any party ← received a new chat message
   | 'child_assigned' // specialist ← admin assigned child (existing)
   | 'specialist_joined' // admin ← specialist accepted invite
   | 'new_child_added' // admin ← child added to org
@@ -32,6 +33,7 @@ export interface NotificationMetadata {
   specialistId?: string
   parentId?: string
   orgId?: string
+  conversationId?: string
   deepLink?: string
 }
 
@@ -92,6 +94,7 @@ export const TYPE_TO_CATEGORY: Record<NotificationType, NotificationCategory> = 
   assignment_reminder: 'reminders',
   progress_update: 'progressUpdates',
   note_added: 'progressUpdates',
+  new_message: 'messages',
   child_assigned: 'organizationUpdates',
   specialist_joined: 'organizationUpdates',
   new_child_added: 'organizationUpdates',
