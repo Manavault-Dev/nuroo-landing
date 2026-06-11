@@ -5,12 +5,7 @@ import { signIn, signInWithGoogle, getIdToken } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { LogIn, Mail, Lock, AlertCircle, Zap } from 'lucide-react'
-
-const DEMO_ACCOUNTS = {
-  organizer: { email: 'aijan@gmail.com', password: 'aijan123' },
-  specialist: { email: 'akylai@gmail.com', password: 'akylai' },
-} as const
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 
 /** Google "G" logo — inline SVG, no extra dependency */
 function GoogleLogo() {
@@ -44,7 +39,6 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [demoLoading, setDemoLoading] = useState<'organizer' | 'specialist' | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -93,29 +87,11 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoSignIn = async (role: 'organizer' | 'specialist') => {
-    if (demoLoading) return
-    setError('')
-    setDemoLoading(role)
-    try {
-      const { email: demoEmail, password: demoPassword } = DEMO_ACCOUNTS[role]
-      const userCredential = await signIn(demoEmail, demoPassword)
-      const idToken = await userCredential.user.getIdToken()
-      apiClient.setToken(idToken)
-      const refreshedToken = await getIdToken(true)
-      if (refreshedToken) apiClient.setToken(refreshedToken)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('signInError'))
-      setDemoLoading(null)
-    }
-  }
-
-  const isAnyLoading = loading || googleLoading || demoLoading !== null
+  const isAnyLoading = loading || googleLoading
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full space-y-8">
-        {/* Header Section */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-primary-100 p-3 rounded-full">
@@ -126,45 +102,6 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-600">{t('subtitle')}</p>
         </div>
 
-        {/* Demo Access for Jury — NOW AT THE TOP */}
-        <div className="bg-white/80 backdrop-blur-sm border-2 border-primary-200 rounded-2xl shadow-xl p-6 md:p-8 transform transition-all duration-200 hover:shadow-2xl">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-4 h-4 text-primary-500 fill-primary-500 animate-pulse" />
-            <span className="text-xs font-bold text-primary-500 uppercase tracking-wider">
-              {t('demo.kicker')}
-            </span>
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">{t('demo.title')}</h3>
-          <p className="text-sm text-gray-500 mb-5">{t('demo.subtitle')}</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => handleDemoSignIn('organizer')}
-              disabled={isAnyLoading}
-              className="flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 border-primary-200 bg-primary-50 hover:bg-primary-100 hover:border-primary-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-left group"
-            >
-              <span className="text-sm font-bold text-primary-700 group-hover:text-primary-800">
-                {demoLoading === 'organizer' ? tCommon('loading') : t('demo.organizer.cta')}
-              </span>
-              <span className="text-xs text-gray-500">{t('demo.organizer.description')}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleDemoSignIn('specialist')}
-              disabled={isAnyLoading}
-              className="flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 border-secondary-200 bg-secondary-50 hover:bg-secondary-100 hover:border-secondary-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-left group"
-            >
-              <span className="text-sm font-bold text-secondary-700 group-hover:text-secondary-800">
-                {demoLoading === 'specialist' ? tCommon('loading') : t('demo.specialist.cta')}
-              </span>
-              <span className="text-xs text-gray-500">{t('demo.specialist.description')}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Regular Login Form Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
@@ -190,9 +127,8 @@ export default function LoginPage() {
                   autoComplete="email"
                   required
                   value={email}
-                  disabled={isAnyLoading}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="example@example.com"
                 />
               </div>
@@ -213,9 +149,8 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   value={password}
-                  disabled={isAnyLoading}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="••••••••"
                 />
               </div>
@@ -232,7 +167,6 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* Divider */}
           <div className="max-w-md mx-auto flex items-center gap-3 my-6">
             <div className="flex-1 border-t border-gray-200" />
             <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
@@ -241,7 +175,6 @@ export default function LoginPage() {
             <div className="flex-1 border-t border-gray-200" />
           </div>
 
-          {/* Google Sign In */}
           <div className="max-w-md mx-auto">
             <button
               type="button"
@@ -258,7 +191,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Registration Link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               {t('noAccount')}{' '}
@@ -272,7 +204,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer Navigation */}
         <div className="text-center">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
             {t('backToHome')}
