@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import { useAlert } from '@/components/ui/AlertDialog'
@@ -19,6 +19,7 @@ import {
   Check,
 } from 'lucide-react'
 import { AIInstructionHelper } from './AIInstructionHelper'
+import { Pagination } from './Pagination'
 
 export type ContentManagementMode = 'global' | 'org'
 
@@ -64,6 +65,8 @@ interface OrgGroup {
   color: string
 }
 
+const TASKS_PER_PAGE = 10
+
 export function ContentManagement({
   mode,
   orgId,
@@ -93,7 +96,36 @@ export function ContentManagement({
   const [assigning, setAssigning] = useState(false)
   const [assignSuccess, setAssignSuccess] = useState(false)
   const [loadingGroups, setLoadingGroups] = useState(false)
+  const [taskPage, setTaskPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const tasksListRef = useRef<HTMLDivElement>(null)
   const { alert, confirm } = useAlert()
+
+  const normalizeCategory = (cat: string | undefined) => {
+    if (!cat) return ''
+    let cleaned = cat.trim()
+    if (cleaned.endsWith('.')) cleaned = cleaned.slice(0, -1).trim()
+    return cleaned.toLowerCase()
+  }
+
+  // Валидация страниц пагинации (перенесено наверх во избежание ошибок React Hooks)
+  useEffect(() => {
+    const filtered = tasks.filter((task) => {
+      const title = task.title || task.name || ''
+      const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory =
+        !selectedCategory ||
+        selectedCategory === 'all' ||
+        normalizeCategory(task.category) === selectedCategory
+      return matchesSearch && matchesCategory
+    })
+    const total = Math.ceil(filtered.length / TASKS_PER_PAGE) || 1
+
+    if (taskPage > total) {
+      setTaskPage(total)
+    }
+  }, [taskPage, tasks, searchQuery, selectedCategory])
 
   const loadContent = async () => {
     try {
@@ -127,7 +159,6 @@ export function ContentManagement({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, orgId])
-
   // Load org groups once for the assignment panel
   useEffect(() => {
     if (mode !== 'org' || !orgId) return
@@ -879,13 +910,49 @@ export function ContentManagement({
     { id: 'roadmaps' as ContentType, label: t('roadmaps'), icon: BookOpen, count: roadmaps.length },
   ]
 
-  const currentItems = activeTab === 'tasks' ? tasks : roadmaps
   const isTasksTab = activeTab === 'tasks'
   const title = pageTitle ?? (mode === 'org' ? t('title') : t('contentManagement'))
   const subtitle = pageSubtitle ?? (mode === 'org' ? t('subtitle') : t('contentManagementSubtitle'))
 
-  // ── Split-panel layout for org mode tasks ────────────────────────────────
+  const taskCategories = Array.from(
+    tasks.reduce<Map<string, string>>((map, task) => {
+      const normalized = normalizeCategory(task.category)
+      if (!normalized) return map
+      if (!map.has(normalized)) {
+        map.set(normalized, normalized.charAt(0).toUpperCase() + normalized.slice(1))
+      }
+      return map
+    }, new Map())
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([value, label]) => ({ value, label }))
+
+  const filteredTasks = tasks.filter((task) => {
+    const query = searchQuery.trim().toLowerCase()
+    const title = (task.title || task.name || '').toLowerCase()
+    const matchesSearch = !query || title.includes(query)
+    const matchesCategory =
+      !selectedCategory || normalizeCategory(task.category) === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const currentItems = isTasksTab ? filteredTasks : roadmaps
   const showSplitPanel = mode === 'org' && isTasksTab
+
+  const totalTaskPages = Math.max(1, Math.ceil(filteredTasks.length / TASKS_PER_PAGE))
+  const pagedTasks = filteredTasks.slice((taskPage - 1) * TASKS_PER_PAGE, taskPage * TASKS_PER_PAGE)
+  const pagedGridItems = isTasksTab ? pagedTasks : roadmaps
+
+  const handleTaskPageChange = (page: number) => {
+    setTaskPage(page)
+    setTimeout(() => {
+      if (showSplitPanel) {
+        tasksListRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        tasksListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 0)
+  }
 
   return (
     <div className="min-w-0 p-4 sm:p-6 lg:p-8">
@@ -908,6 +975,7 @@ export function ContentManagement({
                 onClick={() => {
                   setActiveTab(tab.id)
                   setSelectedTask(null)
+                  setTaskPage(1)
                 }}
                 className={`flex shrink-0 items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
               >
@@ -925,7 +993,7 @@ export function ContentManagement({
       </div>
 
       {/* Create button */}
-      <div className="mb-4 flex justify-stretch sm:justify-end">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={handleCreate}
@@ -934,6 +1002,41 @@ export function ContentManagement({
           <Plus className="w-4 h-4" />
           <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
         </button>
+        {isTasksTab && (
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-[minmax(0,1fr)_220px]">
+            <label className="block">
+              <span className="sr-only">Поиск по названию таски</span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setTaskPage(1)
+                }}
+                placeholder="Поиск по названию таски"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </label>
+            <label className="block">
+              <span className="sr-only">Фильтр по категории</span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  setTaskPage(1)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Все категории</option>
+                {taskCategories.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Empty state */}
@@ -966,8 +1069,11 @@ export function ContentManagement({
       {showSplitPanel && currentItems.length > 0 && (
         <div className="flex min-h-[520px] min-w-0 flex-col gap-4 lg:flex-row">
           {/* Left: task cards */}
-          <div className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
-            {tasks.map((task) => {
+          <div
+            ref={tasksListRef}
+            className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1"
+          >
+            {pagedTasks.map((task) => {
               const isSelected = selectedTask?.id === task.id
               return (
                 <div
@@ -1036,6 +1142,11 @@ export function ContentManagement({
                 </div>
               )
             })}
+            <Pagination
+              currentPage={taskPage}
+              totalPages={totalTaskPages}
+              onPageChange={handleTaskPageChange}
+            />
           </div>
 
           {/* Right: group assignment panel */}
@@ -1153,89 +1264,98 @@ export function ContentManagement({
 
       {/* ── GRID layout: global mode or roadmaps tab ── */}
       {!showSplitPanel && currentItems.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
-            >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className="text-lg font-semibold text-gray-900 mb-1 truncate"
-                    title={item.title || item.name || undefined}
-                  >
-                    {item.title || item.name || t('untitled')}
-                  </h3>
-                  {item.description && (
-                    <p
-                      className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
-                      title={item.description}
+        <div ref={tasksListRef}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pagedGridItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      className="text-lg font-semibold text-gray-900 mb-1 truncate"
+                      title={item.title || item.name || undefined}
                     >
-                      {item.description}
-                    </p>
+                      {item.title || item.name || t('untitled')}
+                    </h3>
+                    {item.description && (
+                      <p
+                        className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
+                        title={item.description}
+                      >
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(item)}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      title={t('edit')}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(activeTab, item.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      title={t('delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs text-gray-500">
+                  {item.category && (
+                    <div>
+                      <span className="font-medium">{t('category')}:</span> {item.category}
+                    </div>
+                  )}
+                  {item.ageRange && (
+                    <div>
+                      <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
+                      {item.ageRange.max} {t('years')}
+                    </div>
+                  )}
+                  {item.difficulty && (
+                    <div>
+                      <span className="font-medium">{t('difficulty')}:</span>{' '}
+                      <span className="capitalize">
+                        {t(
+                          item.difficulty === 'easy'
+                            ? 'difficultyEasy'
+                            : item.difficulty === 'medium'
+                              ? 'difficultyMedium'
+                              : 'difficultyHard'
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {item.taskIds && item.taskIds.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">{t('tasks')}:</span>{' '}
+                      {t('tasksCount', { count: item.taskIds.length })}
+                    </div>
+                  )}
+                  {item.createdAt && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <span className="font-medium">{t('createdLabel')}:</span>{' '}
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                    title={t('edit')}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(activeTab, item.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    title={t('delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-              <div className="space-y-2 text-xs text-gray-500">
-                {item.category && (
-                  <div>
-                    <span className="font-medium">{t('category')}:</span> {item.category}
-                  </div>
-                )}
-                {item.ageRange && (
-                  <div>
-                    <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
-                    {item.ageRange.max} {t('years')}
-                  </div>
-                )}
-                {item.difficulty && (
-                  <div>
-                    <span className="font-medium">{t('difficulty')}:</span>{' '}
-                    <span className="capitalize">
-                      {t(
-                        item.difficulty === 'easy'
-                          ? 'difficultyEasy'
-                          : item.difficulty === 'medium'
-                            ? 'difficultyMedium'
-                            : 'difficultyHard'
-                      )}
-                    </span>
-                  </div>
-                )}
-                {item.taskIds && item.taskIds.length > 0 && (
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">{t('tasks')}:</span>{' '}
-                    {t('tasksCount', { count: item.taskIds.length })}
-                  </div>
-                )}
-                {item.createdAt && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <span className="font-medium">{t('createdLabel')}:</span>{' '}
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          {isTasksTab && (
+            <Pagination
+              currentPage={taskPage}
+              totalPages={totalTaskPages}
+              onPageChange={handleTaskPageChange}
+            />
+          )}
         </div>
       )}
 
