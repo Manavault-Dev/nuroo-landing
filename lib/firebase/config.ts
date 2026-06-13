@@ -35,15 +35,15 @@ if (typeof window !== 'undefined') {
       }
       auth = getAuth(app)
       db = getFirestore(app)
-      try {
-        isSupported().then((supported) => {
+      void isSupported()
+        .then((supported) => {
           if (supported && app) {
             analytics = getAnalytics(app)
           }
         })
-      } catch {
-        // Analytics not supported in this environment
-      }
+        .catch(() => {
+          // Analytics is optional and can fail when Firebase endpoints are blocked.
+        })
     } catch (error) {
       console.error('❌ Failed to initialize Firebase:', error)
     }
