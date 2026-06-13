@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import { useAlert } from '@/components/ui/AlertDialog'
+import { Select } from '@/components/ui/Select'
 import {
   Plus,
   BookOpen,
@@ -17,12 +18,14 @@ import {
   Users2,
   Calendar,
   Check,
+  Search,
 } from 'lucide-react'
 import { AIInstructionHelper } from './AIInstructionHelper'
 
 export type ContentManagementMode = 'global' | 'org'
 
 type ContentType = 'tasks' | 'roadmaps'
+const ITEMS_PAGE_SIZE = 24
 
 interface ContentManagementProps {
   mode: ContentManagementMode
@@ -73,6 +76,10 @@ export function ContentManagement({
   const t = useTranslations('b2b.pages.assignments')
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ContentType>('tasks')
+  const [visibleItemCount, setVisibleItemCount] = useState(ITEMS_PAGE_SIZE)
+  const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState('')
+  const [taskDifficultyFilter, setTaskDifficultyFilter] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [saving, setSaving] = useState(false)
@@ -127,6 +134,10 @@ export function ContentManagement({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, orgId])
+
+  useEffect(() => {
+    setVisibleItemCount(ITEMS_PAGE_SIZE)
+  }, [activeTab, taskSearchQuery, taskCategoryFilter, taskDifficultyFilter])
 
   // Load org groups once for the assignment panel
   useEffect(() => {
@@ -418,6 +429,22 @@ export function ContentManagement({
     const isTask = activeTab === 'tasks'
     const isRoadmap = activeTab === 'roadmaps'
     const showMediaUpload = isTask
+    const difficultyOptions = [
+      { value: '', label: t('selectDifficulty') },
+      { value: 'easy', label: t('difficultyEasy') },
+      { value: 'medium', label: t('difficultyMedium') },
+      { value: 'hard', label: t('difficultyHard') },
+    ]
+    const selectedTaskIds = ((formData.taskIds as string[]) || []).filter(Boolean)
+    const availableTasks = tasks
+      .filter((task) => !selectedTaskIds.includes(task.id))
+      .filter((task) => {
+        const query = taskSelectValue.trim().toLowerCase()
+        if (!query) return true
+        return [task.title, task.description, task.category]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(query))
+      })
 
     return (
       <div className="space-y-4">
@@ -614,16 +641,13 @@ export function ContentManagement({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('difficulty')}
               </label>
-              <select
+              <Select
                 value={(formData.difficulty as string) || ''}
-                onChange={(e) => updateFormField('difficulty', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">{t('selectDifficulty')}</option>
-                <option value="easy">{t('difficultyEasy')}</option>
-                <option value="medium">{t('difficultyMedium')}</option>
-                <option value="hard">{t('difficultyHard')}</option>
-              </select>
+                onChange={(value) => updateFormField('difficulty', value || undefined)}
+                options={difficultyOptions}
+                placeholder={t('selectDifficulty')}
+                buttonClassName="border-gray-300"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -715,9 +739,9 @@ export function ContentManagement({
                 {t('tasksInRoadmap')}
               </label>
               <div className="border border-gray-300 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto bg-gray-50">
-                {(formData.taskIds as string[])?.length > 0 ? (
+                {selectedTaskIds.length > 0 ? (
                   <div className="space-y-2">
-                    {((formData.taskIds as string[]) || []).map((taskId: string, index: number) => {
+                    {selectedTaskIds.map((taskId: string, index: number) => {
                       const task = tasks.find((t) => t.id === taskId)
                       return (
                         <div
@@ -737,13 +761,33 @@ export function ContentManagement({
                                   {task.description}
                                 </p>
                               )}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {task?.category && (
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                                    {task.category}
+                                  </span>
+                                )}
+                                {task?.difficulty && (
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                                  >
+                                    {t(
+                                      task.difficulty === 'easy'
+                                        ? 'difficultyEasy'
+                                        : task.difficulty === 'medium'
+                                          ? 'difficultyMedium'
+                                          : 'difficultyHard'
+                                    )}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center space-x-1">
                             <button
                               type="button"
                               onClick={() => {
-                                const ids = [...((formData.taskIds as string[]) || [])]
+                                const ids = [...selectedTaskIds]
                                 if (index > 0) {
                                   ;[ids[index], ids[index - 1]] = [ids[index - 1], ids[index]]
                                   updateFormField('taskIds', ids)
@@ -764,7 +808,7 @@ export function ContentManagement({
                                   updateFormField('taskIds', ids)
                                 }
                               }}
-                              disabled={index === ((formData.taskIds as string[]) || []).length - 1}
+                              disabled={index === selectedTaskIds.length - 1}
                               className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                               title={t('moveDown')}
                             >
@@ -797,31 +841,67 @@ export function ContentManagement({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('addTaskToRoadmap')}
               </label>
-              <select
+              <input
+                type="search"
                 value={taskSelectValue}
-                onChange={(e) => {
-                  const taskId = e.target.value
-                  if (!taskId) return
-                  setTaskSelectValue('')
-                  setFormData((prev) => {
-                    const current = (prev.taskIds as string[]) || []
-                    if (current.includes(taskId)) return prev
-                    return { ...prev, taskIds: [...current, taskId] }
-                  })
-                }}
+                onChange={(e) => setTaskSelectValue(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">{t('selectTaskToAdd')}</option>
-                {tasks
-                  .filter((task) => !((formData.taskIds as string[]) || []).includes(task.id))
-                  .map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.title || t('untitledTask')}
-                    </option>
-                  ))}
-              </select>
+                placeholder={t('searchTasksToAdd')}
+              />
               {tasks.length === 0 && (
                 <p className="mt-2 text-xs text-gray-500">{t('noTasksAvailable')}</p>
+              )}
+              {tasks.length > 0 && availableTasks.length === 0 && (
+                <p className="mt-2 text-xs text-gray-500">{t('noMatchingTasks')}</p>
+              )}
+              {availableTasks.length > 0 && (
+                <div className="mt-3 grid max-h-[360px] grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 sm:grid-cols-2">
+                  {availableTasks.map((task) => (
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => {
+                        updateFormField('taskIds', [...selectedTaskIds, task.id])
+                        setTaskSelectValue('')
+                      }}
+                      className="min-w-0 rounded-lg border border-gray-200 bg-white p-3 text-left transition-colors hover:border-primary-200 hover:bg-primary-50"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-sm font-medium leading-5 text-gray-900">
+                            {task.title || t('untitledTask')}
+                          </p>
+                          {task.description && (
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                        <Plus className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" />
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {task.category && (
+                          <span className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                            {task.category}
+                          </span>
+                        )}
+                        {task.difficulty && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                          >
+                            {t(
+                              task.difficulty === 'easy'
+                                ? 'difficultyEasy'
+                                : task.difficulty === 'medium'
+                                  ? 'difficultyMedium'
+                                  : 'difficultyHard'
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -879,7 +959,34 @@ export function ContentManagement({
     { id: 'roadmaps' as ContentType, label: t('roadmaps'), icon: BookOpen, count: roadmaps.length },
   ]
 
-  const currentItems = activeTab === 'tasks' ? tasks : roadmaps
+  const taskCategories = Array.from(
+    new Set(tasks.map((task) => task.category?.trim()).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b))
+  const taskCategoryFilterOptions = [
+    { value: '', label: t('allCategories') },
+    ...taskCategories.map((category) => ({ value: category, label: category })),
+  ]
+  const taskDifficultyFilterOptions = [
+    { value: '', label: t('allDifficulties') },
+    { value: 'easy', label: t('difficultyEasy') },
+    { value: 'medium', label: t('difficultyMedium') },
+    { value: 'hard', label: t('difficultyHard') },
+  ]
+  const filteredTasks = tasks.filter((task) => {
+    const query = taskSearchQuery.trim().toLowerCase()
+    const matchesSearch =
+      !query ||
+      [task.title, task.description, task.category]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(query))
+    const matchesCategory = !taskCategoryFilter || task.category === taskCategoryFilter
+    const matchesDifficulty = !taskDifficultyFilter || task.difficulty === taskDifficultyFilter
+    return matchesSearch && matchesCategory && matchesDifficulty
+  })
+  const hasTaskFilters = Boolean(taskSearchQuery || taskCategoryFilter || taskDifficultyFilter)
+  const currentItems = activeTab === 'tasks' ? filteredTasks : roadmaps
+  const visibleItems = currentItems.slice(0, visibleItemCount)
+  const hasMoreItems = visibleItems.length < currentItems.length
   const isTasksTab = activeTab === 'tasks'
   const title = pageTitle ?? (mode === 'org' ? t('title') : t('contentManagement'))
   const subtitle = pageSubtitle ?? (mode === 'org' ? t('subtitle') : t('contentManagementSubtitle'))
@@ -891,7 +998,7 @@ export function ContentManagement({
     <div className="min-w-0 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="mb-2 text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">{title}</h1>
+        <h1 className="mb-2 text-2xl font-bold leading-tight text-gray-900 sm:text-4xl">{title}</h1>
         <p className="max-w-3xl text-base leading-7 text-gray-600 sm:text-lg">{subtitle}</p>
       </div>
 
@@ -936,9 +1043,54 @@ export function ContentManagement({
         </button>
       </div>
 
+      {isTasksTab && tasks.length > 0 && (
+        <div className="mb-4 rounded-xl border border-gray-100 bg-white p-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_180px_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="search"
+                value={taskSearchQuery}
+                onChange={(e) => setTaskSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm focus:border-transparent focus:ring-2 focus:ring-primary-500"
+                placeholder={t('searchTasks')}
+              />
+            </div>
+            <Select
+              value={taskCategoryFilter}
+              onChange={setTaskCategoryFilter}
+              options={taskCategoryFilterOptions}
+              placeholder={t('allCategories')}
+            />
+            <Select
+              value={taskDifficultyFilter}
+              onChange={setTaskDifficultyFilter}
+              options={taskDifficultyFilterOptions}
+              placeholder={t('allDifficulties')}
+            />
+            {hasTaskFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTaskSearchQuery('')
+                  setTaskCategoryFilter('')
+                  setTaskDifficultyFilter('')
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 lg:w-auto"
+              >
+                {t('clearFilters')}
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            {t('filteredTasksCount', { count: filteredTasks.length, total: tasks.length })}
+          </p>
+        </div>
+      )}
+
       {/* Empty state */}
       {currentItems.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center sm:p-12">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {isTasksTab ? (
               <CheckSquare className="w-8 h-8 text-gray-400" />
@@ -947,18 +1099,40 @@ export function ContentManagement({
             )}
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {isTasksTab ? t('noTasksYet') : t('noRoadmapsYet')}
+            {isTasksTab && hasTaskFilters
+              ? t('noMatchingTasks')
+              : isTasksTab
+                ? t('noTasksYet')
+                : t('noRoadmapsYet')}
           </h3>
           <p className="text-gray-600 mb-6">
-            {isTasksTab ? t('noTasksHint') : t('noRoadmapsHint')}
+            {isTasksTab && hasTaskFilters
+              ? t('noMatchingTasksHint')
+              : isTasksTab
+                ? t('noTasksHint')
+                : t('noRoadmapsHint')}
           </p>
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            {isTasksTab ? t('createTask') : t('createRoadmap')}
-          </button>
+          {isTasksTab && hasTaskFilters ? (
+            <button
+              type="button"
+              onClick={() => {
+                setTaskSearchQuery('')
+                setTaskCategoryFilter('')
+                setTaskDifficultyFilter('')
+              }}
+              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors sm:w-auto"
+            >
+              {t('clearFilters')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors sm:w-auto"
+            >
+              {isTasksTab ? t('createTask') : t('createRoadmap')}
+            </button>
+          )}
         </div>
       )}
 
@@ -966,8 +1140,8 @@ export function ContentManagement({
       {showSplitPanel && currentItems.length > 0 && (
         <div className="flex min-h-[520px] min-w-0 flex-col gap-4 lg:flex-row">
           {/* Left: task cards */}
-          <div className="min-w-0 flex-1 space-y-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
-            {tasks.map((task) => {
+          <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3 md:grid-cols-2 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1 2xl:grid-cols-3">
+            {visibleItems.map((task) => {
               const isSelected = selectedTask?.id === task.id
               return (
                 <div
@@ -978,11 +1152,11 @@ export function ContentManagement({
                     setAssignDueDate('')
                     setAssignSuccess(false)
                   }}
-                  className={`cursor-pointer rounded-xl border bg-white p-4 transition-all ${isSelected ? 'border-primary-500 shadow-sm ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+                  className={`flex min-h-[148px] cursor-pointer flex-col rounded-xl border bg-white p-4 transition-all ${isSelected ? 'border-primary-500 shadow-sm ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
                 >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="break-words text-sm font-semibold text-gray-900 sm:truncate">
+                      <h3 className="line-clamp-2 break-words text-sm font-semibold leading-5 text-gray-900">
                         {task.title || t('untitled')}
                       </h3>
                       {task.description && (
@@ -990,26 +1164,6 @@ export function ContentManagement({
                           {task.description}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {task.category && (
-                          <span className="text-[11px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
-                            {task.category}
-                          </span>
-                        )}
-                        {task.difficulty && (
-                          <span
-                            className={`text-[11px] px-2 py-0.5 rounded-full ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                          >
-                            {t(
-                              task.difficulty === 'easy'
-                                ? 'difficultyEasy'
-                                : task.difficulty === 'medium'
-                                  ? 'difficultyMedium'
-                                  : 'difficultyHard'
-                            )}
-                          </span>
-                        )}
-                      </div>
                     </div>
                     <div
                       className="flex items-center gap-1 flex-shrink-0"
@@ -1033,9 +1187,43 @@ export function ContentManagement({
                       </button>
                     </div>
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {task.category && (
+                      <span className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                        {task.category}
+                      </span>
+                    )}
+                    {task.difficulty && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                      >
+                        {t(
+                          task.difficulty === 'easy'
+                            ? 'difficultyEasy'
+                            : task.difficulty === 'medium'
+                              ? 'difficultyMedium'
+                              : 'difficultyHard'
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })}
+            {hasMoreItems && (
+              <div className="flex flex-col items-center gap-2 pt-2 md:col-span-2 2xl:col-span-3">
+                <p className="text-xs text-gray-500">
+                  {t('showingItems', { visible: visibleItems.length, total: currentItems.length })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setVisibleItemCount((count) => count + ITEMS_PAGE_SIZE)}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-primary-200 hover:text-primary-700"
+                >
+                  {t('showMore')}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right: group assignment panel */}
@@ -1153,90 +1341,106 @@ export function ContentManagement({
 
       {/* ── GRID layout: global mode or roadmaps tab ── */}
       {!showSplitPanel && currentItems.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
-            >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className="text-lg font-semibold text-gray-900 mb-1 truncate"
-                    title={item.title || item.name || undefined}
-                  >
-                    {item.title || item.name || t('untitled')}
-                  </h3>
-                  {item.description && (
-                    <p
-                      className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
-                      title={item.description}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visibleItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      className="text-lg font-semibold text-gray-900 mb-1 truncate"
+                      title={item.title || item.name || undefined}
                     >
-                      {item.description}
-                    </p>
+                      {item.title || item.name || t('untitled')}
+                    </h3>
+                    {item.description && (
+                      <p
+                        className="text-sm text-gray-600 line-clamp-3 break-words mt-0.5"
+                        title={item.description}
+                      >
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(item)}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      title={t('edit')}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(activeTab, item.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      title={t('delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs text-gray-500">
+                  {item.category && (
+                    <div>
+                      <span className="font-medium">{t('category')}:</span> {item.category}
+                    </div>
+                  )}
+                  {item.ageRange && (
+                    <div>
+                      <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
+                      {item.ageRange.max} {t('years')}
+                    </div>
+                  )}
+                  {item.difficulty && (
+                    <div>
+                      <span className="font-medium">{t('difficulty')}:</span>{' '}
+                      <span className="capitalize">
+                        {t(
+                          item.difficulty === 'easy'
+                            ? 'difficultyEasy'
+                            : item.difficulty === 'medium'
+                              ? 'difficultyMedium'
+                              : 'difficultyHard'
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {item.taskIds && item.taskIds.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">{t('tasks')}:</span>{' '}
+                      {t('tasksCount', { count: item.taskIds.length })}
+                    </div>
+                  )}
+                  {item.createdAt && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <span className="font-medium">{t('createdLabel')}:</span>{' '}
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                    title={t('edit')}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(activeTab, item.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    title={t('delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-              <div className="space-y-2 text-xs text-gray-500">
-                {item.category && (
-                  <div>
-                    <span className="font-medium">{t('category')}:</span> {item.category}
-                  </div>
-                )}
-                {item.ageRange && (
-                  <div>
-                    <span className="font-medium">{t('ageRange')}:</span> {item.ageRange.min}-
-                    {item.ageRange.max} {t('years')}
-                  </div>
-                )}
-                {item.difficulty && (
-                  <div>
-                    <span className="font-medium">{t('difficulty')}:</span>{' '}
-                    <span className="capitalize">
-                      {t(
-                        item.difficulty === 'easy'
-                          ? 'difficultyEasy'
-                          : item.difficulty === 'medium'
-                            ? 'difficultyMedium'
-                            : 'difficultyHard'
-                      )}
-                    </span>
-                  </div>
-                )}
-                {item.taskIds && item.taskIds.length > 0 && (
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">{t('tasks')}:</span>{' '}
-                    {t('tasksCount', { count: item.taskIds.length })}
-                  </div>
-                )}
-                {item.createdAt && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <span className="font-medium">{t('createdLabel')}:</span>{' '}
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
+            ))}
+          </div>
+          {hasMoreItems && (
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <p className="text-xs text-gray-500">
+                {t('showingItems', { visible: visibleItems.length, total: currentItems.length })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setVisibleItemCount((count) => count + ITEMS_PAGE_SIZE)}
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-primary-200 hover:text-primary-700"
+              >
+                {t('showMore')}
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Modal */}
