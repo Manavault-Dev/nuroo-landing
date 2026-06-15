@@ -930,7 +930,10 @@ export class ApiClient {
     )
   }
 
-  async updateOrganization(orgId: string, updates: { name?: string; country?: string }) {
+  async updateOrganization(
+    orgId: string,
+    updates: { name?: string; country?: string; city?: string; categories?: string[] }
+  ) {
     cache.invalidate('profile')
     cache.invalidate('organizations')
     return this.request<{
@@ -939,6 +942,8 @@ export class ApiClient {
         id: string
         name: string
         country?: string | null
+        city?: string | null
+        categories?: string[] | null
         createdBy: string
         createdAt: string
         isActive: boolean
