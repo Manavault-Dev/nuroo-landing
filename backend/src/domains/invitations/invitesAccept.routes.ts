@@ -126,6 +126,17 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
       if (memberSnap.exists) {
         const memberData = memberSnap.data()!
         if (memberData.status === 'active') {
+          await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}/organizations/${orgId}`).set(
+            {
+              orgId,
+              orgName: orgData.name || orgId,
+              country: orgData.country ?? null,
+              role: memberData.role || normalizeRole(role),
+              status: 'active',
+              updatedAt: admin.firestore.Timestamp.now(),
+            },
+            { merge: true }
+          )
           return {
             ok: true,
             orgId,
@@ -141,6 +152,15 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
           return reply.code(403).send({ error: canAdd.error ?? 'Cannot add specialist.' })
         }
         await memberRef.set(buildMemberData(uid, role, now))
+
+        await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}/organizations/${orgId}`).set({
+          orgId,
+          orgName: orgData.name || orgId,
+          country: orgData.country ?? null,
+          role: normalizeRole(role),
+          status: 'active',
+          updatedAt: admin.firestore.Timestamp.fromDate(now),
+        })
 
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
         const specialistSnap = await specialistRef.get()

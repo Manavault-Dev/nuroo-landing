@@ -15,9 +15,11 @@ const updateOrgSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     country: z.string().trim().max(100).optional(),
+    city: z.string().trim().max(100).optional(),
+    categories: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
   })
-  .refine((body) => body.name !== undefined || body.country !== undefined, {
-    message: 'At least one field (name or country) must be provided',
+  .refine((body) => Object.keys(body).length > 0, {
+    message: 'At least one field must be provided',
   })
 
 export const orgsRoute: FastifyPluginAsync = async (fastify) => {
@@ -79,6 +81,15 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
         joinedAt: admin.firestore.Timestamp.fromDate(now),
       })
 
+    await db.doc(`specialists/${uid}/organizations/${orgId}`).set({
+      orgId,
+      orgName: body.name,
+      country: body.country || null,
+      role: 'org_admin',
+      status: 'active',
+      updatedAt: admin.firestore.Timestamp.fromDate(now),
+    })
+
     const specialistRef = db.doc(`specialists/${uid}`)
     const specialistSnap = await specialistRef.get()
     if (specialistSnap.exists) {
@@ -124,7 +135,15 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(403).send({ error: 'Only organization admins can perform this action' })
     }
 
-    const body = updateOrgSchema.parse(request.body)
+    const parseResult = updateOrgSchema.safeParse(request.body)
+    if (!parseResult.success) {
+      return reply.code(400).send({
+        error: 'Invalid organization update',
+        issues: parseResult.error.issues,
+      })
+    }
+
+    const body = parseResult.data
     const db = getFirestore()
     const orgRef = db.doc(`organizations/${orgId}`)
     const orgSnap = await orgRef.get()
@@ -139,6 +158,8 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
 
     if (body.name !== undefined) updateData.name = body.name
     if (body.country !== undefined) updateData.country = body.country || null
+    if (body.city !== undefined) updateData.city = body.city || null
+    if (body.categories !== undefined) updateData.categories = body.categories
 
     await orgRef.update(updateData)
 
@@ -151,6 +172,8 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
         id: updatedSnap.id,
         name: data.name,
         country: data.country ?? null,
+        city: data.city ?? null,
+        categories: data.categories ?? [],
         createdBy: data.createdBy,
         createdAt: data.createdAt?.toDate?.() || new Date(),
         isActive: data.isActive ?? true,

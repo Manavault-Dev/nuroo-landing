@@ -7,7 +7,9 @@ import { requireOrgMember } from '../../plugins/rbac.js'
 
 const COLLECTIONS = {
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
+  ORGANIZATIONS: 'organizations',
   SPECIALISTS: 'specialists',
+  USER_ORGS: (uid: string) => `specialists/${uid}/organizations`,
 } as const
 
 const updateMemberRoleSchema = z.object({
@@ -116,10 +118,24 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Member not found' })
       }
 
+      const now = admin.firestore.Timestamp.fromDate(new Date())
       await memberRef.update({
         role: body.role,
-        updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+        updatedAt: now,
       })
+
+      const orgSnap = await db.doc(`${COLLECTIONS.ORGANIZATIONS}/${orgId}`).get()
+      await db.doc(`${COLLECTIONS.USER_ORGS(targetUid)}/${orgId}`).set(
+        {
+          orgId,
+          orgName: orgSnap.data()?.name || orgId,
+          country: orgSnap.data()?.country ?? null,
+          role: body.role,
+          status: 'active',
+          updatedAt: now,
+        },
+        { merge: true }
+      )
 
       const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${targetUid}`)
       const specialistSnap = await specialistRef.get()
@@ -127,7 +143,7 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
         await specialistRef.update({
           orgId,
           role: body.role,
-          updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+          updatedAt: now,
         })
       }
 
@@ -173,6 +189,14 @@ export const teamRoute: FastifyPluginAsync = async (fastify) => {
           removedAt: admin.firestore.Timestamp.fromDate(new Date()),
           removedBy: currentUid,
         })
+        await db.doc(`${COLLECTIONS.USER_ORGS(targetUid)}/${orgId}`).set(
+          {
+            status: 'inactive',
+            removedAt: admin.firestore.Timestamp.fromDate(new Date()),
+            removedBy: currentUid,
+          },
+          { merge: true }
+        )
 
         const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${targetUid}`)
         const specialistSnap = await specialistRef.get()
