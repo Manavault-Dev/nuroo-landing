@@ -13,8 +13,8 @@ export type NotificationType =
   | 'specialist_joined' // admin ← specialist accepted invite
   | 'new_child_added' // admin ← child added to org
   | 'subscription_update' // admin ← billing / trial status
-  | 'invoice_due'         // parent ← invoice is now due / payment link ready
-  | 'invoice_overdue'     // parent ← invoice is overdue
+  | 'invoice_due' // parent ← invoice is now due / payment link ready
+  | 'invoice_overdue' // parent ← invoice is overdue
 
 export type NotificationCategory =
   | 'assignments'

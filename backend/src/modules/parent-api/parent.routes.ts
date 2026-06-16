@@ -2,7 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { listChildSpecialists, listChildNotes, listParentLinkedChildren } from './parent.service.js'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { listInvoices, getInvoice, type InvoiceDoc } from '../../domains/payments/invoice.service.js'
+import {
+  listInvoices,
+  getInvoice,
+  type InvoiceDoc,
+} from '../../domains/payments/invoice.service.js'
 import { getOrgPaymentProvider } from '../../domains/payments/providers/registry.js'
 import { dispatch as sendNotification } from '../../modules/notifications/notification.service.js'
 import { config } from '../../config/index.js'
@@ -33,7 +37,9 @@ async function lazyUpgradeInvoices(
       // Persist overdue status fire-and-forget
       db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
         .update({ status: 'overdue', updatedAt: ts })
-        .catch(() => {/* best-effort */})
+        .catch(() => {
+          /* best-effort */
+        })
       continue
     }
 
@@ -72,7 +78,9 @@ async function lazyUpgradeInvoices(
           providerPaymentId: providerPaymentId ?? null,
           updatedAt: ts,
         })
-        .catch(() => {/* best-effort */})
+        .catch(() => {
+          /* best-effort */
+        })
 
       // Push notification fire-and-forget
       sendNotification({
@@ -87,7 +95,9 @@ async function lazyUpgradeInvoices(
         channel: 'both',
         priority: 'high',
         dedupKey: `invoice_due_${inv.id}`,
-      }).catch(() => {/* best-effort */})
+      }).catch(() => {
+        /* best-effort */
+      })
 
       result.push({ ...inv, status: 'pending' as const, paymentUrl: paymentUrl ?? undefined })
       continue
