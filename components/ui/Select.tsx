@@ -2,21 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-
-export interface SelectOption {
-  value: string
-  label: string
-}
-
-interface SelectProps {
-  value: string
-  options: SelectOption[]
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-  buttonClassName?: string
-  disabled?: boolean
-}
+import { selectStyles as s } from './Select.styles'
+import type { SelectProps } from './Select.types'
+export type { SelectOption, SelectProps } from './Select.types'
 
 export function Select({
   value,
@@ -59,7 +47,7 @@ export function Select({
   }, [isOpen])
 
   return (
-    <div ref={rootRef} className={`relative min-w-0 ${className}`}>
+    <div ref={rootRef} className={s.root(className)}>
       <button
         ref={buttonRef}
         type="button"
@@ -68,19 +56,17 @@ export function Select({
         aria-expanded={isOpen}
         aria-controls={`${id}-listbox`}
         onClick={() => setIsOpen((open) => !open)}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 shadow-sm transition-colors hover:border-gray-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 ${buttonClassName}`}
+        className={s.button(buttonClassName)}
       >
-        <span className={`truncate ${selectedOption ? '' : 'text-gray-400'}`}>
+        <span className={selectedOption ? s.value : s.placeholder}>
           {selectedOption?.label || placeholder}
         </span>
-        <ChevronDown
-          className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-        />
+        <ChevronDown className={s.chevron(isOpen)} />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-          <div id={`${id}-listbox`} role="listbox" className="max-h-72 overflow-y-auto p-1">
+        <div className={s.menu}>
+          <div id={`${id}-listbox`} role="listbox" className={s.list}>
             {options.map((option) => {
               const isSelected = option.value === value
 
@@ -95,12 +81,10 @@ export function Select({
                     setIsOpen(false)
                     buttonRef.current?.focus()
                   }}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isSelected ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={s.option(isSelected)}
                 >
-                  <Check
-                    className={`h-4 w-4 flex-shrink-0 ${isSelected ? 'text-primary-600' : 'text-transparent'}`}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  <Check className={s.check(isSelected)} />
+                  <span className={s.optionLabel}>{option.label}</span>
                 </button>
               )
             })}
