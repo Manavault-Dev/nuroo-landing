@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore'
 import { getOrgPaymentProvider } from './providers/registry.js'
 import { advanceNextInvoiceDate } from './billingProfile.service.js'
 import { config } from '../../config/index.js'
+import { dispatch as sendNotification } from '../../modules/notifications/notification.service.js'
 
 export interface GenerationResult {
   orgId: string
@@ -151,6 +152,26 @@ export async function generateMonthlyInvoicesForOrg(
           updatedAt: tsUpgrade,
         })
         await upgradeBatch.commit()
+
+        // Push notification to parent — invoice is now due
+        try {
+          await sendNotification({
+            userId: profile.parentId,
+            orgId,
+            role: 'parent',
+            type: 'invoice_due',
+            category: 'billingUpdates',
+            title: '💳 Счёт к оплате',
+            body: `Срок оплаты ${profile.amount} ${profile.currency} — ${dueDateISO}. Нажмите, чтобы оплатить.`,
+            metadata: { orgId, parentId: profile.parentId, childId: profile.childId },
+            channel: 'both',
+            priority: 'high',
+            dedupKey: `invoice_due_${upcomingId}`,
+          })
+        } catch {
+          /* best-effort — don't block invoice creation */
+        }
+
         try {
           await db.collection(`children/${profile.childId}/activityFeed`).add({
             organizationId: orgId,
@@ -251,6 +272,25 @@ export async function generateMonthlyInvoicesForOrg(
       })
       await createBatch.commit()
 
+      // Push notification to parent — new invoice due
+      try {
+        await sendNotification({
+          userId: profile.parentId,
+          orgId,
+          role: 'parent',
+          type: 'invoice_due',
+          category: 'billingUpdates',
+          title: '💳 Счёт к оплате',
+          body: `Срок оплаты ${profile.amount} ${profile.currency} — ${dueDateISO}. Нажмите, чтобы оплатить.`,
+          metadata: { orgId, parentId: profile.parentId, childId: profile.childId },
+          channel: 'both',
+          priority: 'high',
+          dedupKey: `invoice_due_${invoiceId}`,
+        })
+      } catch {
+        /* best-effort */
+      }
+
       // Activity feed — best-effort
       try {
         await db.collection(`children/${profile.childId}/activityFeed`).add({
@@ -350,6 +390,36 @@ export async function markOverdueInvoicesForOrg(
 
   if (marked > 0) {
     console.info(JSON.stringify({ event: 'invoice_marked_overdue', orgId, count: marked }))
+
+    // Notify each parent whose invoice went overdue
+    const overdueSnap = await db
+      .collection(`organizations/${orgId}/invoices`)
+      .where('status', '==', 'overdue')
+      .get()
+    const notifiedParents = new Set<string>()
+    for (const d of overdueSnap.docs) {
+      const data = d.data()
+      const parentId = data.parentId as string | undefined
+      if (!parentId || notifiedParents.has(parentId)) continue
+      notifiedParents.add(parentId)
+      try {
+        await sendNotification({
+          userId: parentId,
+          orgId,
+          role: 'parent',
+          type: 'invoice_overdue',
+          category: 'billingUpdates',
+          title: '⚠️ Просроченный платёж',
+          body: `У вас есть просроченный счёт. Пожалуйста, оплатите как можно скорее.`,
+          metadata: { orgId, parentId },
+          channel: 'both',
+          priority: 'high',
+          dedupKey: `invoice_overdue_${orgId}_${parentId}_${todayISO}`,
+        })
+      } catch {
+        /* best-effort */
+      }
+    }
   }
 
   return { marked }

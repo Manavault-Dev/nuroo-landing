@@ -73,6 +73,11 @@ export class FinikPaymentProvider implements PaymentProvider {
     const path = parsed.pathname
     const timestamp = Date.now().toString()
 
+    // PaymentId must be unique per Finik request — use invoice ID + timestamp suffix
+    // so retries (after a previous failed/rejected attempt) don't get rejected as duplicates.
+    // The `reference` field is what the webhook uses to identify the invoice, not PaymentId.
+    const finikPaymentId = `${input.invoiceId.slice(0, 20)}_${Date.now()}`
+
     const body: Record<string, unknown> = {
       Amount: input.amount,
       CardType: 'FINIK_QR',
@@ -84,7 +89,7 @@ export class FinikPaymentProvider implements PaymentProvider {
         webhookUrl: input.callbackUrl,
         reference: `${input.orgId}__${input.invoiceId}`,
       },
-      PaymentId: input.invoiceId,
+      PaymentId: finikPaymentId,
       RedirectUrl: input.returnUrl,
     }
 
@@ -125,7 +130,7 @@ export class FinikPaymentProvider implements PaymentProvider {
           this.apiUrl)
 
     return {
-      providerPaymentId: input.invoiceId,
+      providerPaymentId: finikPaymentId,
       paymentUrl,
       status: 'pending',
     }

@@ -17,6 +17,10 @@ export async function getOrgPaymentProvider(
   if (providerName === 'finik') {
     return new FinikPaymentProvider({
       accountId: (data.merchantId as string | undefined) || undefined,
+      apiKey: (data.apiKey as string | undefined) || undefined,
+      apiUrl: (data.apiUrl as string | undefined) || undefined,
+      privatePem: (data.privatePem as string | undefined) || undefined,
+      webhookSecret: (data.webhookSecret as string | undefined) || undefined,
     })
   }
 

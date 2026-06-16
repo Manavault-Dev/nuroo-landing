@@ -11,6 +11,8 @@ dist/
 **/.next/
 out/
 coverage/
+playwright-report/
+test-results/
 # testing
 /coverage
 
