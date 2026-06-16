@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { signIn, signInWithGoogle, getIdToken } from '@/lib/b2b/authClient'
+import { signIn, signInWithGoogle } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
@@ -52,9 +52,6 @@ export default function LoginPage() {
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
 
-      const refreshedToken = await getIdToken(true)
-      if (refreshedToken) apiClient.setToken(refreshedToken)
-
       // Don't navigate here — the layout's auth effect detects the new user
       // and redirects to the correct page (with ?redirect= support).
     } catch (err: unknown) {
@@ -72,9 +69,6 @@ export default function LoginPage() {
       const userCredential = await signInWithGoogle()
       const idToken = await userCredential.user.getIdToken()
       apiClient.setToken(idToken)
-
-      const refreshedToken = await getIdToken(true)
-      if (refreshedToken) apiClient.setToken(refreshedToken)
 
       // Layout auth effect handles redirect
     } catch (err: unknown) {

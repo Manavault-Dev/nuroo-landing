@@ -162,12 +162,39 @@ export const inviteCreationRoute: FastifyPluginAsync = async (fastify) => {
 
         const memberRef = orgRef.collection('members').doc(uid)
         await memberRef.set({
-          role: 'admin',
+          uid,
+          role: 'org_admin',
           status: 'active',
           joinedAt: admin.firestore.Timestamp.fromDate(now),
         })
+
+        await specialistRef
+          .collection('organizations')
+          .doc(personalOrgId)
+          .set({
+            orgId: personalOrgId,
+            orgName: personalOrgName,
+            country: null,
+            role: 'org_admin',
+            status: 'active',
+            updatedAt: admin.firestore.Timestamp.fromDate(now),
+          })
       } else {
         personalOrgId = orgsSnapshot.docs[0].id
+        await specialistRef
+          .collection('organizations')
+          .doc(personalOrgId)
+          .set(
+            {
+              orgId: personalOrgId,
+              orgName: orgsSnapshot.docs[0].data().name || personalOrgId,
+              country: orgsSnapshot.docs[0].data().country ?? null,
+              role: 'org_admin',
+              status: 'active',
+              updatedAt: admin.firestore.Timestamp.fromDate(now),
+            },
+            { merge: true }
+          )
       }
 
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

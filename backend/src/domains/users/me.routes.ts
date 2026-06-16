@@ -9,6 +9,7 @@ const COLLECTIONS = {
   SPECIALISTS: 'specialists',
   ORGANIZATIONS: 'organizations',
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
+  USER_ORGS: (uid: string) => `specialists/${uid}/organizations`,
 } as const
 
 const updateProfileSchema = z.object({
@@ -25,7 +26,11 @@ function extractName(
 }
 
 function normalizeRole(role: string): 'admin' | 'specialist' {
-  return role === 'org_admin' ? 'admin' : 'specialist'
+  return role === 'org_admin' || role === 'admin' ? 'admin' : 'specialist'
+}
+
+function denormalizeRole(role: 'admin' | 'specialist'): 'org_admin' | 'specialist' {
+  return role === 'admin' ? 'org_admin' : 'specialist'
 }
 
 async function findOrganizationsForUser(
@@ -58,6 +63,36 @@ async function findOrganizationsForUser(
     })
   }
 
+  const writeMembershipIndex = async (
+    orgId: string,
+    orgData: admin.firestore.DocumentData,
+    role: 'admin' | 'specialist'
+  ) => {
+    const now = admin.firestore.Timestamp.now()
+    await Promise.allSettled([
+      db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`).set(
+        {
+          uid,
+          role: denormalizeRole(role),
+          status: 'active',
+          updatedAt: now,
+        },
+        { merge: true }
+      ),
+      db.doc(`${COLLECTIONS.USER_ORGS(uid)}/${orgId}`).set(
+        {
+          orgId,
+          orgName: orgData.name || orgId,
+          country: orgData.country ?? null,
+          role: denormalizeRole(role),
+          status: 'active',
+          updatedAt: now,
+        },
+        { merge: true }
+      ),
+    ])
+  }
+
   if (isUserSuperAdmin) {
     const createdOrgsSnapshot = await db
       .collection(COLLECTIONS.ORGANIZATIONS)
@@ -67,6 +102,40 @@ async function findOrganizationsForUser(
     for (const orgDoc of createdOrgsSnapshot.docs) {
       addOrganization(orgDoc.id, orgDoc.data(), 'admin')
     }
+  }
+
+  // Strategy 0: fast per-user membership index. Avoids collectionGroup and org scans.
+  try {
+    const indexedSnapshot = await db
+      .collection(COLLECTIONS.USER_ORGS(uid))
+      .where('status', '==', 'active')
+      .get()
+
+    if (!indexedSnapshot.empty) {
+      const indexedEntries = await Promise.all(
+        indexedSnapshot.docs.map(async (membershipDoc) => {
+          const membershipData = membershipDoc.data()
+          const orgId = (membershipData.orgId as string | undefined) || membershipDoc.id
+          const orgSnap = await db.doc(`${COLLECTIONS.ORGANIZATIONS}/${orgId}`).get()
+          if (!orgSnap.exists) return null
+
+          return {
+            orgId,
+            orgData: orgSnap.data()!,
+            role: normalizeRole(membershipData.role),
+          }
+        })
+      )
+
+      for (const entry of indexedEntries) {
+        if (!entry) continue
+        addOrganization(entry.orgId, entry.orgData, entry.role)
+      }
+
+      return organizations
+    }
+  } catch (err) {
+    console.warn('[me] Strategy 0 (user org index) failed:', err)
   }
 
   // Strategy 1: efficient indexed query (requires uid field on member docs + composite index)
@@ -112,7 +181,9 @@ async function findOrganizationsForUser(
         })
       )
       for (const entry of directChecks) {
-        if (entry) addOrganization(entry.orgId, entry.orgData, entry.role)
+        if (!entry) continue
+        addOrganization(entry.orgId, entry.orgData, entry.role)
+        await writeMembershipIndex(entry.orgId, entry.orgData, entry.role)
       }
     } catch (err) {
       console.error('[me] Strategy 3 (direct scan) failed:', err)
@@ -140,6 +211,7 @@ async function findOrganizationsForUser(
   for (const entry of orgEntries) {
     if (!entry) continue
     addOrganization(entry.orgId, entry.orgData, entry.role)
+    await writeMembershipIndex(entry.orgId, entry.orgData, entry.role)
   }
 
   return organizations

@@ -93,6 +93,20 @@ export const joinRoute: FastifyPluginAsync = async (fastify) => {
     const memberSnap = await memberRef.get()
 
     if (memberSnap.exists) {
+      const memberData = memberSnap.data()!
+      if (memberData.status === 'active') {
+        await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}/organizations/${orgId}`).set(
+          {
+            orgId,
+            orgName: orgSnap.data()?.name || orgId,
+            country: orgSnap.data()?.country ?? null,
+            role: memberData.role || role,
+            status: 'active',
+            updatedAt: admin.firestore.Timestamp.now(),
+          },
+          { merge: true }
+        )
+      }
       return { ok: true, orgId }
     }
 
@@ -103,6 +117,15 @@ export const joinRoute: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
     await memberRef.set(buildMemberData(uid, role, now))
+
+    await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}/organizations/${orgId}`).set({
+      orgId,
+      orgName: orgSnap.data()?.name || orgId,
+      country: orgSnap.data()?.country ?? null,
+      role,
+      status: 'active',
+      updatedAt: admin.firestore.Timestamp.fromDate(now),
+    })
 
     const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
     const specialistSnap = await specialistRef.get()

@@ -7,12 +7,25 @@ const COLLECTIONS = {
   SPECIALISTS: 'specialists',
   ORGANIZATIONS: 'organizations',
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
+  USER_ORGS: (uid: string) => `specialists/${uid}/organizations`,
 } as const
 
 async function findActiveOrganization(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<string | null> {
+  const indexedSnapshot = await db
+    .collection(COLLECTIONS.USER_ORGS(uid))
+    .where('status', '==', 'active')
+    .limit(1)
+    .get()
+
+  if (!indexedSnapshot.empty) {
+    return (
+      (indexedSnapshot.docs[0].data().orgId as string | undefined) || indexedSnapshot.docs[0].id
+    )
+  }
+
   const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
 
   for (const orgDoc of orgsSnapshot.docs) {
@@ -21,6 +34,21 @@ async function findActiveOrganization(
     const memberSnap = await memberRef.get()
 
     if (memberSnap.exists && memberSnap.data()?.status === 'active') {
+      const data = memberSnap.data()!
+      await Promise.allSettled([
+        memberRef.set({ uid }, { merge: true }),
+        db.doc(`${COLLECTIONS.USER_ORGS(uid)}/${orgId}`).set(
+          {
+            orgId,
+            orgName: orgDoc.data().name || orgId,
+            country: orgDoc.data().country ?? null,
+            role: data.role || 'specialist',
+            status: 'active',
+            updatedAt: admin.firestore.Timestamp.now(),
+          },
+          { merge: true }
+        ),
+      ])
       return orgId
     }
   }
