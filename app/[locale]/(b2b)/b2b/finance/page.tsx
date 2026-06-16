@@ -494,11 +494,18 @@ export default function FinancePage() {
   }, [billingProfiles, invoices, children])
 
   const invoiceActivePlans = billingProfiles.filter((p) => p.status === 'active').length
-  // Only count actually-due invoices (exclude 'upcoming' which are future placeholders)
-  const invoicePendingCount = invoices.filter((i) => i.status === 'pending').length
-  const invoiceOverdueCount = invoices.filter((i) => i.status === 'overdue').length
+
+  // Compute client-side effective statuses (past-due upcoming → pending, past-due pending → overdue)
+  const todayISO = new Date().toISOString().split('T')[0]
+  const getEffectiveStatus = (inv: { status: string; dueDate: string }) => {
+    if (inv.status === 'upcoming' && inv.dueDate && inv.dueDate <= todayISO) return 'pending'
+    if (inv.status === 'pending' && inv.dueDate && inv.dueDate < todayISO) return 'overdue'
+    return inv.status
+  }
+  const invoicePendingCount = invoices.filter((i) => getEffectiveStatus(i) === 'pending').length
+  const invoiceOverdueCount = invoices.filter((i) => getEffectiveStatus(i) === 'overdue').length
   const invoiceOutstanding = invoices
-    .filter((i) => ['pending', 'overdue'].includes(i.status))
+    .filter((i) => ['pending', 'overdue'].includes(getEffectiveStatus(i)))
     .reduce((s, i) => s + i.amount, 0)
 
   const handleTabChange = (tab: Tab) => {
@@ -997,14 +1004,28 @@ export default function FinancePage() {
                                   label: t('statusCanceled'),
                                 },
                               }
-                              const isCfg = isc[invoice.status] ?? {
+                              // Client-side effective status:
+                              // - upcoming with dueDate in the past → show as pending (awaiting Finik upgrade)
+                              // - pending with dueDate in the past → show as overdue
+                              const todayStr = new Date().toISOString().split('T')[0]
+                              const effectiveStatus =
+                                invoice.status === 'upcoming' &&
+                                invoice.dueDate &&
+                                invoice.dueDate <= todayStr
+                                  ? 'pending'
+                                  : invoice.status === 'pending' &&
+                                      invoice.dueDate &&
+                                      invoice.dueDate < todayStr
+                                    ? 'overdue'
+                                    : invoice.status
+                              const isCfg = isc[effectiveStatus] ?? {
                                 cls: 'bg-gray-100 text-gray-500',
-                                label: invoice.status,
+                                label: effectiveStatus,
                               }
                               return (
                                 <div
                                   key={invoice.id}
-                                  className={`flex items-center gap-3 px-4 py-2.5 text-sm ${invoice.status === 'overdue' ? 'bg-red-50/40' : ''}`}
+                                  className={`flex items-center gap-3 px-4 py-2.5 text-sm ${effectiveStatus === 'overdue' ? 'bg-red-50/40' : ''}`}
                                 >
                                   <div className="flex-1 min-w-0">
                                     <span className="text-gray-700 block truncate">
@@ -1034,7 +1055,7 @@ export default function FinancePage() {
                                     {isCfg.label}
                                   </span>
                                   <div className="flex items-center gap-1.5 shrink-0">
-                                    {['pending', 'overdue'].includes(invoice.status) &&
+                                    {['pending', 'overdue'].includes(effectiveStatus) &&
                                       invoice.paymentUrl && (
                                         <button
                                           onClick={() =>
@@ -1047,7 +1068,7 @@ export default function FinancePage() {
                                         </button>
                                       )}
                                     {['pending', 'overdue', 'upcoming'].includes(
-                                      invoice.status
+                                      effectiveStatus
                                     ) && (
                                       <button
                                         onClick={() => handleCancelInvoice(invoice.id)}

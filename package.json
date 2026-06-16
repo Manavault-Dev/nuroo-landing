@@ -16,7 +16,10 @@
     "typecheck": "tsc --noEmit",
     "validate": "npm run typecheck && npm run lint && npm run format:check",
     "prepare": "husky",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
@@ -44,6 +47,7 @@
     "typescript": "^5.5.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.18",

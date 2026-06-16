@@ -29,6 +29,8 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null)
 const PROFILE_CACHE_KEY = 'nuroo:b2b:profile:v1'
 const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000
+const E2E_AUTH_KEY = 'nuroo:e2e:auth'
+const E2E_AUTH_BYPASS = process.env.NEXT_PUBLIC_E2E_AUTH_BYPASS === '1'
 
 interface CachedProfile {
   uid: string
@@ -36,6 +38,16 @@ interface CachedProfile {
   profile: SpecialistProfile
   currentOrgId: string | null
   expiresAt: number
+}
+
+interface E2EAuthPayload {
+  user: {
+    uid: string
+    email: string | null
+    displayName?: string | null
+  }
+  profile: SpecialistProfile
+  currentOrgId?: string | null
 }
 
 function readCachedProfile(currentUser: User): CachedProfile | null {
@@ -83,6 +95,24 @@ function writeCachedProfile(
 function clearCachedProfile() {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(PROFILE_CACHE_KEY)
+}
+
+function readE2EAuthPayload(): E2EAuthPayload | null {
+  if (typeof window === 'undefined' || !E2E_AUTH_BYPASS) return null
+
+  try {
+    const raw = window.localStorage.getItem(E2E_AUTH_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as E2EAuthPayload
+  } catch {
+    window.localStorage.removeItem(E2E_AUTH_KEY)
+    return null
+  }
+}
+
+function clearE2EAuthPayload() {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(E2E_AUTH_KEY)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -152,6 +182,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
+    if (E2E_AUTH_BYPASS) {
+      const mock = readE2EAuthPayload()
+      if (mock) {
+        setUser(mock.user as User)
+        setProfile(mock.profile)
+        setActiveOrgId(
+          mock.currentOrgId &&
+            mock.profile.organizations.some((org) => org.orgId === mock.currentOrgId)
+            ? mock.currentOrgId
+            : mock.profile.organizations[0]?.orgId || null
+        )
+        apiClient.setToken('e2e-token')
+      } else {
+        setUser(null)
+        setProfile(null)
+        setActiveOrgId(null)
+        apiClient.setToken(null)
+      }
+      setIsLoading(false)
+      return
+    }
+
     let isMounted = true
 
     const unsubscribe = onAuthChange(async (currentUser) => {
@@ -218,6 +270,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     Sentry.setUser(null)
+    if (E2E_AUTH_BYPASS) {
+      setUser(null)
+      setProfile(null)
+      setActiveOrgId(null)
+      apiClient.setToken(null)
+      apiClient.clearCache()
+      clearCachedProfile()
+      clearE2EAuthPayload()
+      return
+    }
     await firebaseLogout()
     setUser(null)
     setProfile(null)

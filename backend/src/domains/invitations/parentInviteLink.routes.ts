@@ -12,10 +12,8 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
     code: z.string().min(1).max(100).optional(),
   })
 
-  fastify.post<{
-    Body?: z.infer<typeof _validateInviteSchema>
-    Querystring?: { inviteCode?: string; code?: string }
-  }>('/api/org/parent-invites/validate', async (request, reply) => {
+  // Handler extracted so it can be shared between /api/... and /... (alias) routes
+  const handleValidate = async (request: any, reply: any) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -79,7 +77,11 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.error({ err: error }, 'Route handler failed')
       return reply.code(500).send({ error: error.message || 'Failed to validate invite code' })
     }
-  })
+  }
+
+  // Register both /api/... (canonical) and /... (alias for legacy mobile builds)
+  fastify.post('/api/org/parent-invites/validate', handleValidate)
+  fastify.post('/org/parent-invites/validate', handleValidate)
 
   const _useInviteSchema = z.object({
     inviteCode: z.string().min(1).max(100).optional(),
@@ -87,10 +89,7 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
     childId: z.string().min(1),
   })
 
-  fastify.post<{
-    Body?: z.infer<typeof _useInviteSchema>
-    Querystring?: { inviteCode?: string; code?: string; childId?: string }
-  }>('/api/org/parent-invites/use', async (request, reply) => {
+  const handleUse = async (request: any, reply: any) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -197,12 +196,12 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.error({ err: error }, 'Route handler failed')
       return reply.code(500).send({ error: error.message || 'Failed to use invite code' })
     }
-  })
+  }
 
-  fastify.post<{
-    Body?: z.infer<typeof _useInviteSchema>
-    Querystring?: { inviteCode?: string; code?: string; childId?: string }
-  }>('/api/org/parent-invites/accept', async (request, reply) => {
+  fastify.post('/api/org/parent-invites/use', handleUse)
+  fastify.post('/org/parent-invites/use', handleUse)
+
+  const handleAccept = async (request: any, reply: any) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -322,5 +321,8 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.error(error, '[ACCEPT] Error accepting parent invite')
       return reply.code(500).send({ error: 'Failed to accept invite code' })
     }
-  })
+  }
+
+  fastify.post('/api/org/parent-invites/accept', handleAccept)
+  fastify.post('/org/parent-invites/accept', handleAccept)
 }
