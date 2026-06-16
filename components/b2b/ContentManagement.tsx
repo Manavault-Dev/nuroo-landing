@@ -21,6 +21,7 @@ import {
   Search,
 } from 'lucide-react'
 import { AIInstructionHelper } from './AIInstructionHelper'
+import { contentManagementStyles as s } from './ContentManagement.styles'
 
 export type ContentManagementMode = 'global' | 'org'
 
@@ -447,32 +448,28 @@ export function ContentManagement({
       })
 
     return (
-      <div className="space-y-4">
+      <div className={s.formStack}>
         {/* Roadmap name/description fields — tasks use the AI helper instead */}
         {isRoadmap && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('roadmapName')} *
-              </label>
+              <label className={s.label}>{t('roadmapName')} *</label>
               <input
                 type="text"
                 value={(formData.name as string) || ''}
                 onChange={(e) => updateFormField('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('enterRoadmapName')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('roadmapDescription')}
-              </label>
+              <label className={s.label}>{t('roadmapDescription')}</label>
               <textarea
                 value={(formData.description as string) || ''}
                 onChange={(e) => updateFormField('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('enterDescription')}
               />
             </div>
@@ -481,29 +478,25 @@ export function ContentManagement({
 
         {/* Task title + description — shown for all task modes */}
         {isTask && (
-          <div className="space-y-3">
+          <div className={s.formSection}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('taskTitle')} *
-              </label>
+              <label className={s.label}>{t('taskTitle')} *</label>
               <input
                 type="text"
                 value={(formData.title as string) || ''}
                 onChange={(e) => updateFormField('title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('enterTaskTitle')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('taskDescription')}
-              </label>
+              <label className={s.label}>{t('taskDescription')}</label>
               <textarea
                 value={(formData.description as string) || ''}
                 onChange={(e) => updateFormField('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('enterDescription')}
               />
             </div>
@@ -513,7 +506,7 @@ export function ContentManagement({
         {/* AI Instruction Helper — org task mode only, optional AI assist */}
         {isTask && mode === 'org' && (
           <div className="space-y-1">
-            <p className="text-xs text-gray-500">{t('aiAssistOptional')}</p>
+            <p className={s.helperText}>{t('aiAssistOptional')}</p>
             <AIInstructionHelper
               context={{
                 title: (formData.title as string) || undefined,
@@ -536,7 +529,7 @@ export function ContentManagement({
         {/* Instructions (steps) — org mode: editable list filled by AI or manually */}
         {isTask && mode === 'org' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className={s.labelSpaced}>
               {t('instructions')}
               {((formData.instructions as string[]) || []).length > 0 && (
                 <span className="ml-2 text-xs font-normal text-gray-400">
@@ -562,7 +555,7 @@ export function ContentManagement({
                       steps[i] = e.target.value
                       updateFormField('instructions', steps)
                     }}
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className={s.subtleInput}
                     placeholder={t('instructionStepPlaceholder', { num: i + 1 })}
                   />
                   <button
@@ -598,12 +591,12 @@ export function ContentManagement({
         {/* Parent tip — org mode */}
         {isTask && mode === 'org' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('parentTip')}</label>
+            <label className={s.label}>{t('parentTip')}</label>
             <textarea
               value={(formData.parentTip as string) || ''}
               onChange={(e) => updateFormField('parentTip', e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-amber-200 bg-amber-50/40 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:border-transparent placeholder:text-gray-400"
+              className={s.amberTextarea}
               placeholder={t('parentTipPlaceholder')}
             />
           </div>
@@ -612,35 +605,31 @@ export function ContentManagement({
         {/* Expected result — org mode */}
         {isTask && mode === 'org' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('expectedResult')}
-            </label>
+            <label className={s.label}>{t('expectedResult')}</label>
             <textarea
               value={(formData.expectedResult as string) || ''}
               onChange={(e) => updateFormField('expectedResult', e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-green-200 bg-green-50/40 rounded-lg text-sm focus:ring-2 focus:ring-green-400 focus:border-transparent placeholder:text-gray-400"
+              className={s.greenTextarea}
               placeholder={t('expectedResultPlaceholder')}
             />
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
+          <label className={s.label}>{t('category')}</label>
           <input
             type="text"
             value={(formData.category as string) || ''}
             onChange={(e) => updateFormField('category', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className={s.input}
             placeholder={t('enterCategory')}
           />
         </div>
         {isTask && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('difficulty')}
-              </label>
+              <label className={s.label}>{t('difficulty')}</label>
               <Select
                 value={(formData.difficulty as string) || ''}
                 onChange={(value) => updateFormField('difficulty', value || undefined)}
@@ -650,49 +639,41 @@ export function ContentManagement({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('estimatedDuration')}
-              </label>
+              <label className={s.label}>{t('estimatedDuration')}</label>
               <input
                 type="number"
                 value={(formData.estimatedDuration as number) || ''}
                 onChange={(e) =>
                   updateFormField('estimatedDuration', parseInt(e.target.value) || undefined)
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('enterDuration')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('videoUrl')}
-              </label>
+              <label className={s.label}>{t('videoUrl')}</label>
               <input
                 type="url"
                 value={(formData.videoUrl as string) || ''}
                 onChange={(e) => updateFormField('videoUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder="https://..."
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('imageUrl')}
-              </label>
+              <label className={s.label}>{t('imageUrl')}</label>
               <input
                 type="url"
                 value={(formData.imageUrl as string) || ''}
                 onChange={(e) => updateFormField('imageUrl', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder="https://..."
               />
             </div>
             {mode === 'global' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('materials')}
-                  </label>
+                  <label className={s.label}>{t('materials')}</label>
                   <textarea
                     value={(formData.materials as string[])?.join('\n') || ''}
                     onChange={(e) => {
@@ -703,14 +684,12 @@ export function ContentManagement({
                       updateFormField('materials', materials.length > 0 ? materials : undefined)
                     }}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className={s.input}
                     placeholder={t('materialsPlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('instructions')}
-                  </label>
+                  <label className={s.label}>{t('instructions')}</label>
                   <textarea
                     value={(formData.instructions as string[])?.join('\n') || ''}
                     onChange={(e) => {
@@ -724,7 +703,7 @@ export function ContentManagement({
                       )
                     }}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className={s.input}
                     placeholder={t('instructionsPlaceholder')}
                   />
                 </div>
@@ -733,11 +712,9 @@ export function ContentManagement({
           </>
         )}
         {isRoadmap && (
-          <div className="space-y-4">
+          <div className={s.formStack}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('tasksInRoadmap')}
-              </label>
+              <label className={s.labelSpaced}>{t('tasksInRoadmap')}</label>
               <div className="border border-gray-300 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto bg-gray-50">
                 {selectedTaskIds.length > 0 ? (
                   <div className="space-y-2">
@@ -763,14 +740,10 @@ export function ContentManagement({
                               )}
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {task?.category && (
-                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                                    {task.category}
-                                  </span>
+                                  <span className={s.metadataBadge}>{task.category}</span>
                                 )}
                                 {task?.difficulty && (
-                                  <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                                  >
+                                  <span className={s.difficultyBadge(task.difficulty)}>
                                     {t(
                                       task.difficulty === 'easy'
                                         ? 'difficultyEasy'
@@ -838,14 +811,12 @@ export function ContentManagement({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('addTaskToRoadmap')}
-              </label>
+              <label className={s.labelSpaced}>{t('addTaskToRoadmap')}</label>
               <input
                 type="search"
                 value={taskSelectValue}
                 onChange={(e) => setTaskSelectValue(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={s.input}
                 placeholder={t('searchTasksToAdd')}
               />
               {tasks.length === 0 && (
@@ -880,15 +851,9 @@ export function ContentManagement({
                         <Plus className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-600" />
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {task.category && (
-                          <span className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                            {task.category}
-                          </span>
-                        )}
+                        {task.category && <span className={s.metadataBadge}>{task.category}</span>}
                         {task.difficulty && (
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                          >
+                          <span className={s.difficultyBadge(task.difficulty)}>
                             {t(
                               task.difficulty === 'easy'
                                 ? 'difficultyEasy'
@@ -908,7 +873,7 @@ export function ContentManagement({
         )}
         {showMediaUpload && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={s.label}>
               {t('uploadMediaFile')} {!editingItem && '*'}
             </label>
             <input
@@ -921,7 +886,7 @@ export function ContentManagement({
                   if (!formData.title) updateFormField('title', file.name.replace(/\.[^/.]+$/, ''))
                 }
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={s.input}
             />
             {mediaFile && (
               <div className="mt-2 flex items-center justify-between">
@@ -995,16 +960,16 @@ export function ContentManagement({
   const showSplitPanel = mode === 'org' && isTasksTab
 
   return (
-    <div className="min-w-0 p-4 sm:p-6 lg:p-8">
+    <div className={s.page}>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="mb-2 text-2xl font-bold leading-tight text-gray-900 sm:text-4xl">{title}</h1>
-        <p className="max-w-3xl text-base leading-7 text-gray-600 sm:text-lg">{subtitle}</p>
+      <div className={s.header}>
+        <h1 className={s.title}>{title}</h1>
+        <p className={s.subtitle}>{subtitle}</p>
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex gap-6 overflow-x-auto">
+      <div className={s.tabsWrap}>
+        <nav className={s.tabsNav}>
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -1016,15 +981,11 @@ export function ContentManagement({
                   setActiveTab(tab.id)
                   setSelectedTask(null)
                 }}
-                className={`flex shrink-0 items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors ${isActive ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+                className={s.tabButton(isActive)}
               >
                 <Icon className="w-5 h-5" />
                 <span>{tab.label}</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs ${isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}
-                >
-                  {tab.count}
-                </span>
+                <span className={s.tabCount(isActive)}>{tab.count}</span>
               </button>
             )
           })}
@@ -1033,26 +994,22 @@ export function ContentManagement({
 
       {/* Create button */}
       <div className="mb-4 flex justify-stretch sm:justify-end">
-        <button
-          type="button"
-          onClick={handleCreate}
-          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-primary-600 px-4 py-2.5 text-white transition-colors hover:bg-primary-700 sm:w-auto"
-        >
+        <button type="button" onClick={handleCreate} className={s.createButton}>
           <Plus className="w-4 h-4" />
           <span>{isTasksTab ? t('createTask') : t('createRoadmap')}</span>
         </button>
       </div>
 
       {isTasksTab && tasks.length > 0 && (
-        <div className="mb-4 rounded-xl border border-gray-100 bg-white p-3">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_180px_auto]">
+        <div className={s.filterPanel}>
+          <div className={s.filterGrid}>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
                 value={taskSearchQuery}
                 onChange={(e) => setTaskSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm focus:border-transparent focus:ring-2 focus:ring-primary-500"
+                className={s.searchInput}
                 placeholder={t('searchTasks')}
               />
             </div>
@@ -1076,7 +1033,7 @@ export function ContentManagement({
                   setTaskCategoryFilter('')
                   setTaskDifficultyFilter('')
                 }}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 lg:w-auto"
+                className={s.clearButton}
               >
                 {t('clearFilters')}
               </button>
@@ -1090,7 +1047,7 @@ export function ContentManagement({
 
       {/* Empty state */}
       {currentItems.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center sm:p-12">
+        <div className={s.emptyCard}>
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {isTasksTab ? (
               <CheckSquare className="w-8 h-8 text-gray-400" />
@@ -1120,16 +1077,12 @@ export function ContentManagement({
                 setTaskCategoryFilter('')
                 setTaskDifficultyFilter('')
               }}
-              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors sm:w-auto"
+              className={s.primaryButton}
             >
               {t('clearFilters')}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleCreate}
-              className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors sm:w-auto"
-            >
+            <button type="button" onClick={handleCreate} className={s.primaryButton}>
               {isTasksTab ? t('createTask') : t('createRoadmap')}
             </button>
           )}
@@ -1138,9 +1091,9 @@ export function ContentManagement({
 
       {/* ── SPLIT PANEL: org mode tasks ── */}
       {showSplitPanel && currentItems.length > 0 && (
-        <div className="flex min-h-[520px] min-w-0 flex-col gap-4 lg:flex-row">
+        <div className={s.splitPanel}>
           {/* Left: task cards */}
-          <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3 md:grid-cols-2 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1 2xl:grid-cols-3">
+          <div className={s.taskGrid}>
             {visibleItems.map((task) => {
               const isSelected = selectedTask?.id === task.id
               return (
@@ -1152,7 +1105,7 @@ export function ContentManagement({
                     setAssignDueDate('')
                     setAssignSuccess(false)
                   }}
-                  className={`flex min-h-[148px] cursor-pointer flex-col rounded-xl border bg-white p-4 transition-all ${isSelected ? 'border-primary-500 shadow-sm ring-2 ring-primary-100' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+                  className={s.taskCard(isSelected)}
                 >
                   <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -1172,7 +1125,7 @@ export function ContentManagement({
                       <button
                         type="button"
                         onClick={() => handleEdit(task)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                        className={s.iconButton}
                         title={t('edit')}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -1180,7 +1133,7 @@ export function ContentManagement({
                       <button
                         type="button"
                         onClick={() => handleDelete('tasks', task.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                        className={s.dangerIconButton}
                         title={t('delete')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1188,15 +1141,9 @@ export function ContentManagement({
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {task.category && (
-                      <span className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                        {task.category}
-                      </span>
-                    )}
+                    {task.category && <span className={s.metadataBadge}>{task.category}</span>}
                     {task.difficulty && (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] ${task.difficulty === 'easy' ? 'bg-green-100 text-green-700' : task.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                      >
+                      <span className={s.difficultyBadge(task.difficulty)}>
                         {t(
                           task.difficulty === 'easy'
                             ? 'difficultyEasy'
@@ -1212,13 +1159,13 @@ export function ContentManagement({
             })}
             {hasMoreItems && (
               <div className="flex flex-col items-center gap-2 pt-2 md:col-span-2 2xl:col-span-3">
-                <p className="text-xs text-gray-500">
+                <p className={s.helperText}>
                   {t('showingItems', { visible: visibleItems.length, total: currentItems.length })}
                 </p>
                 <button
                   type="button"
                   onClick={() => setVisibleItemCount((count) => count + ITEMS_PAGE_SIZE)}
-                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-primary-200 hover:text-primary-700"
+                  className={s.showMoreButton}
                 >
                   {t('showMore')}
                 </button>
@@ -1270,10 +1217,7 @@ export function ContentManagement({
                         {orgGroups.map((group) => {
                           const checked = selectedGroupIds.has(group.id)
                           return (
-                            <label
-                              key={group.id}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-primary-50 border border-primary-200' : 'hover:bg-gray-50 border border-transparent'}`}
-                            >
+                            <label key={group.id} className={s.groupOption(checked)}>
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -1313,7 +1257,7 @@ export function ContentManagement({
                     type="button"
                     onClick={handleAssign}
                     disabled={assigning || selectedGroupIds.size === 0}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${assignSuccess ? 'bg-green-100 text-green-700' : 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+                    className={s.assignButton(assignSuccess)}
                   >
                     {assigning ? (
                       <>
@@ -1342,12 +1286,9 @@ export function ContentManagement({
       {/* ── GRID layout: global mode or roadmaps tab ── */}
       {!showSplitPanel && currentItems.length > 0 && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={s.gridCards}>
             {visibleItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col min-h-0"
-              >
+              <div key={item.id} className={s.gridCard}>
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex-1 min-w-0">
                     <h3
@@ -1428,13 +1369,13 @@ export function ContentManagement({
           </div>
           {hasMoreItems && (
             <div className="mt-6 flex flex-col items-center gap-2">
-              <p className="text-xs text-gray-500">
+              <p className={s.helperText}>
                 {t('showingItems', { visible: visibleItems.length, total: currentItems.length })}
               </p>
               <button
                 type="button"
                 onClick={() => setVisibleItemCount((count) => count + ITEMS_PAGE_SIZE)}
-                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-primary-200 hover:text-primary-700"
+                className={s.showMoreButton}
               >
                 {t('showMore')}
               </button>
@@ -1445,9 +1386,9 @@ export function ContentManagement({
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className={s.modalBackdrop}>
+          <div className={s.modalPanel}>
+            <div className={s.modalHeader}>
               <h2 className="text-xl font-bold text-gray-900">
                 {editingItem
                   ? isTasksTab
@@ -1466,7 +1407,7 @@ export function ContentManagement({
               </button>
             </div>
             <div className="p-6">{renderForm()}</div>
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end space-x-3">
+            <div className={s.modalFooter}>
               <button
                 type="button"
                 onClick={handleCloseModal}
