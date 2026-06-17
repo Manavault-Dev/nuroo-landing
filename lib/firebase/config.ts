@@ -18,6 +18,7 @@ let app: FirebaseApp | undefined
 let auth: Auth | undefined
 let db: Firestore | undefined
 let analytics: Analytics | undefined
+let analyticsPromise: Promise<Analytics | undefined> | null = null
 
 if (typeof window !== 'undefined') {
   const env = process.env.NODE_ENV || 'development'
@@ -35,15 +36,6 @@ if (typeof window !== 'undefined') {
       }
       auth = getAuth(app)
       db = getFirestore(app)
-      void isSupported()
-        .then((supported) => {
-          if (supported && app) {
-            analytics = getAnalytics(app)
-          }
-        })
-        .catch(() => {
-          // Analytics is optional and can fail when Firebase endpoints are blocked.
-        })
     } catch (error) {
       console.error('❌ Failed to initialize Firebase:', error)
     }
@@ -54,4 +46,36 @@ if (typeof window !== 'undefined') {
   }
 }
 
-export { auth, db, analytics }
+export function getClientAnalytics(): Promise<Analytics | undefined> {
+  if (typeof window === 'undefined' || !app) {
+    return Promise.resolve(undefined)
+  }
+
+  if (analytics) {
+    return Promise.resolve(analytics)
+  }
+
+  if (analyticsPromise) {
+    return analyticsPromise
+  }
+
+  analyticsPromise = isSupported()
+    .then((supported) => {
+      if (!supported || !app) return undefined
+
+      try {
+        analytics = getAnalytics(app)
+        return analytics
+      } catch {
+        return undefined
+      }
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      analyticsPromise = null
+    })
+
+  return analyticsPromise
+}
+
+export { auth, db }

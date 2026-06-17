@@ -2,24 +2,24 @@
 
 import { logEvent as firebaseLogEvent } from 'firebase/analytics'
 import type { Analytics as FirebaseAnalytics } from 'firebase/analytics'
-import { analytics } from '@/lib/firebase/config'
+import { getClientAnalytics } from '@/lib/firebase/config'
 
 // Safe event logger — wraps Firebase Analytics
 // Never include child names, diagnoses, therapy notes, or private content
-function getAnalyticsInstance(): FirebaseAnalytics | undefined {
-  if (typeof window === 'undefined') return undefined
-  return analytics as FirebaseAnalytics | undefined
-}
-
 export function track(eventName: string, params?: Record<string, string | number | boolean>) {
-  try {
-    const instance = getAnalyticsInstance()
-    if (instance) {
-      firebaseLogEvent(instance, eventName, params as Record<string, string>)
-    }
-  } catch {
-    // Analytics must never break the app
-  }
+  void getClientAnalytics()
+    .then((instance) => {
+      if (!instance) return
+
+      try {
+        firebaseLogEvent(instance as FirebaseAnalytics, eventName, params as Record<string, string>)
+      } catch {
+        // Analytics must never break the app
+      }
+    })
+    .catch(() => {
+      // Analytics must never break the app
+    })
 }
 
 // ─── Parent events ─────────────────────────────────────────────────────────
