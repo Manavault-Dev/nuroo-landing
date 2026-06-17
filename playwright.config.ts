@@ -39,7 +39,7 @@ export default defineConfig({
   ],
   webServer: {
     command: webServerCommand,
-    url: baseURL,
+    url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: process.env.CI ? 240_000 : 120_000,
   },

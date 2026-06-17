@@ -1,11 +1,15 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { signIn, signInWithGoogle } from '@/lib/b2b/authClient'
 import { apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
+import { resolvePostLoginPath } from '@/src/config/routes'
+import { getDefaultOrgId, writeCachedProfile } from '@/lib/b2b/profileCache'
 
 /** Google "G" logo — inline SVG, no extra dependency */
 function GoogleLogo() {
@@ -32,6 +36,8 @@ function GoogleLogo() {
 }
 
 export default function LoginPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const t = useTranslations('b2b.login')
   const tCommon = useTranslations('b2b.common')
   const [email, setEmail] = useState('')
@@ -39,6 +45,19 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  const finishLogin = async (idToken: string, user: { uid: string; email: string | null }) => {
+    apiClient.setToken(idToken)
+
+    const profile = await apiClient.getMe().catch(() => null)
+    if (!profile) {
+      router.replace('/b2b/onboarding')
+      return
+    }
+
+    writeCachedProfile(user, profile, getDefaultOrgId(profile))
+    router.replace(resolvePostLoginPath(profile, searchParams.get('redirect')))
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -50,10 +69,10 @@ export default function LoginPage() {
     try {
       const userCredential = await signIn(email, password)
       const idToken = await userCredential.user.getIdToken()
-      apiClient.setToken(idToken)
-
-      // Don't navigate here — the layout's auth effect detects the new user
-      // and redirects to the correct page (with ?redirect= support).
+      await finishLogin(idToken, {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+      })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('signInError'))
       setLoading(false)
@@ -68,9 +87,10 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithGoogle()
       const idToken = await userCredential.user.getIdToken()
-      apiClient.setToken(idToken)
-
-      // Layout auth effect handles redirect
+      await finishLogin(idToken, {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       // User closing the popup is not an error

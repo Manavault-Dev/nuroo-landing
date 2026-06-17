@@ -100,7 +100,6 @@ export async function generateMonthlyInvoicesForOrg(
         // Invoice exists with 'upcoming' status — due date has arrived, upgrade it
         const upcomingId = existingDoc.id
         const backendUrl = (config.BACKEND_PUBLIC_URL ?? 'http://localhost:3101').replace(/\/$/, '')
-        const b2bUrl = (config.NEXT_PUBLIC_B2B_URL ?? 'http://localhost:3000').replace(/\/$/, '')
         let upgradeUrl: string | null = null
         let upgradeProviderId: string | null = null
         const upgradeProvider = await getOrgPaymentProvider(db, orgId, 'finik')
@@ -116,7 +115,8 @@ export async function generateMonthlyInvoicesForOrg(
               dueDate: dueDateISO,
               invoiceId: upcomingId,
               callbackUrl: `${backendUrl}/webhooks/finik`,
-              returnUrl: `${b2bUrl}/b2b/invoices/${upcomingId}?status=paid`,
+              // returnUrl redirects the parent back to the mobile app after payment
+              returnUrl: `nuroo://invoices/${upcomingId}?status=paid`,
             })
             upgradeUrl = pr.paymentUrl
             upgradeProviderId = pr.providerPaymentId
@@ -214,7 +214,6 @@ export async function generateMonthlyInvoicesForOrg(
             /\/$/,
             ''
           )
-          const b2bUrl = (config.NEXT_PUBLIC_B2B_URL ?? 'http://localhost:3000').replace(/\/$/, '')
           const providerResult = await provider.createInvoice({
             orgId,
             parentId: profile.parentId,
@@ -225,7 +224,8 @@ export async function generateMonthlyInvoicesForOrg(
             dueDate: dueDateISO,
             invoiceId,
             callbackUrl: `${backendUrl}/webhooks/finik`,
-            returnUrl: `${b2bUrl}/b2b/invoices/${invoiceId}?status=paid`,
+            // returnUrl redirects the parent back to the mobile app after payment
+            returnUrl: `nuroo://invoices/${invoiceId}?status=paid`,
           })
           paymentUrl = providerResult.paymentUrl
           providerPaymentId = providerResult.providerPaymentId

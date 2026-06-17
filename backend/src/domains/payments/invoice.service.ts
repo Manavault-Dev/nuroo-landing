@@ -77,10 +77,10 @@ export async function createInvoice(
   const invoiceId = invoiceRef.id
 
   const backendUrl = config.BACKEND_PUBLIC_URL?.replace(/\/$/, '') ?? 'http://localhost:3101'
-  const b2bUrl = config.NEXT_PUBLIC_B2B_URL?.replace(/\/$/, '') ?? 'http://localhost:3000'
 
   const callbackUrl = `${backendUrl}/webhooks/finik`
-  const returnUrl = `${b2bUrl}/b2b/invoices/${invoiceId}?status=paid`
+  // returnUrl is where Finik redirects the PARENT after payment — must be the mobile deep link
+  const returnUrl = `nuroo://invoices/${invoiceId}?status=paid`
 
   const result = await provider.createInvoice({
     orgId,

@@ -120,6 +120,10 @@ const intakeSchema = z.object({
 
   // 11. Additional
   additionalInfo: z.string().max(2000).optional(),
+
+  // Set to true only when the parent explicitly submits the completed form.
+  // Intermediate "next step" saves must NOT set this.
+  submitted: z.boolean().optional(),
 })
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -263,11 +267,16 @@ export const childrenIntakeRoute: import('fastify').FastifyPluginAsync = async (
       const snap = await ref.get()
       const isNew = !snap.exists
 
+      // Strip the `submitted` flag — it's a signal, not a stored field
+      const { submitted, ...formData } = parse.data
+
       await ref.set(
         {
-          ...parse.data,
+          ...formData,
           updatedAt: now,
-          ...(isNew ? { filledAt: now, filledByParentUid: request.user.uid } : {}),
+          // Only set filledAt when the parent explicitly submits the completed form.
+          // Intermediate "Next step" saves must NOT mark the form as filled.
+          ...(submitted ? { filledAt: now, filledByParentUid: request.user.uid } : {}),
         },
         { merge: true }
       )
