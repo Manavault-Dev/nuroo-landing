@@ -75,7 +75,9 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
       }
     } catch (error: unknown) {
       fastify.log.error({ err: error }, 'Route handler failed')
-      return reply.code(500).send({ error: error instanceof Error ? error.message : 'Failed to validate invite code' })
+      return reply
+        .code(500)
+        .send({ error: error instanceof Error ? error.message : 'Failed to validate invite code' })
     }
   }
 
@@ -194,7 +196,9 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
       }
     } catch (error: unknown) {
       fastify.log.error({ err: error }, 'Route handler failed')
-      return reply.code(500).send({ error: error instanceof Error ? error.message : 'Failed to use invite code' })
+      return reply
+        .code(500)
+        .send({ error: error instanceof Error ? error.message : 'Failed to use invite code' })
     }
   }
 

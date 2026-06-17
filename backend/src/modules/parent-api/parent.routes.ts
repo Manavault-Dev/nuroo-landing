@@ -38,7 +38,9 @@ async function lazyUpgradeInvoices(
         // Persist overdue status fire-and-forget
         db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
           .update({ status: 'overdue', updatedAt: ts })
-          .catch(() => { /* best-effort */ })
+          .catch(() => {
+            /* best-effort */
+          })
         return { ...inv, status: 'overdue' as const }
       }
 
@@ -48,7 +50,9 @@ async function lazyUpgradeInvoices(
         if (inv.paymentUrl) {
           db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
             .update({ status: 'pending', updatedAt: ts })
-            .catch(() => { /* best-effort */ })
+            .catch(() => {
+              /* best-effort */
+            })
           return { ...inv, status: 'pending' as const }
         }
 
@@ -86,7 +90,9 @@ async function lazyUpgradeInvoices(
             providerPaymentId: providerPaymentId ?? null,
             updatedAt: ts,
           })
-          .catch(() => { /* best-effort */ })
+          .catch(() => {
+            /* best-effort */
+          })
 
         // Push notification fire-and-forget
         sendNotification({
@@ -101,7 +107,9 @@ async function lazyUpgradeInvoices(
           channel: 'both',
           priority: 'high',
           dedupKey: `invoice_due_${inv.id}`,
-        }).catch(() => { /* best-effort */ })
+        }).catch(() => {
+          /* best-effort */
+        })
 
         return { ...inv, status: 'pending' as const, paymentUrl: paymentUrl ?? undefined }
       }

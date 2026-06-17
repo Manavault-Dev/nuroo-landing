@@ -187,10 +187,12 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
           {
             linkedOrganizationsById: byId,
             ...(userData.activeOrgId === orgId ? { activeOrgId: null, activeOrgName: null } : {}),
-            ...(!hasRemainingOrgs ? { parent_mode: 'standalone', onboardingModeSelected: true } : {}),
+            ...(!hasRemainingOrgs
+              ? { parent_mode: 'standalone', onboardingModeSelected: true }
+              : {}),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
-          { merge: true },
+          { merge: true }
         )
 
         return { ok: true, standalone: !hasRemainingOrgs }
@@ -200,7 +202,7 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
           error: err instanceof Error ? err.message : 'Failed to disconnect',
         })
       }
-    },
+    }
   )
 
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/parents', async (request, reply) => {
