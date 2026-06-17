@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from 'fastify'
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
 import admin from 'firebase-admin'
 import { z } from 'zod'
 
@@ -13,7 +13,7 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // Handler extracted so it can be shared between /api/... and /... (alias) routes
-  const handleValidate = async (request: any, reply: any) => {
+  const handleValidate = async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -73,9 +73,9 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
         orgId: inviteData.orgId,
         orgName: orgSnap.exists ? orgSnap.data()?.name : 'Organization',
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       fastify.log.error({ err: error }, 'Route handler failed')
-      return reply.code(500).send({ error: error.message || 'Failed to validate invite code' })
+      return reply.code(500).send({ error: error instanceof Error ? error.message : 'Failed to validate invite code' })
     }
   }
 
@@ -89,7 +89,7 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
     childId: z.string().min(1),
   })
 
-  const handleUse = async (request: any, reply: any) => {
+  const handleUse = async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
@@ -192,16 +192,16 @@ export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {
         childId,
         message: 'Child successfully connected to specialist',
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       fastify.log.error({ err: error }, 'Route handler failed')
-      return reply.code(500).send({ error: error.message || 'Failed to use invite code' })
+      return reply.code(500).send({ error: error instanceof Error ? error.message : 'Failed to use invite code' })
     }
   }
 
   fastify.post('/api/org/parent-invites/use', handleUse)
   fastify.post('/org/parent-invites/use', handleUse)
 
-  const handleAccept = async (request: any, reply: any) => {
+  const handleAccept = async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
