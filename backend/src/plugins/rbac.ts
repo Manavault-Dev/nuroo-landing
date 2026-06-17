@@ -116,17 +116,25 @@ export async function requireChildAccess(
       .where('orgId', '==', orgId)
       .get()
 
-    for (const groupDoc of groupsSnap.docs) {
-      const parentsSnap = await db
-        .collection(`specialists/${uid}/groups/${groupDoc.id}/parents`)
-        .get()
-      for (const parentDoc of parentsSnap.docs) {
-        const childIds = (parentDoc.data().childIds as string[]) || []
-        if (childIds.includes(resolvedChildId)) {
-          return resolvedChildId
-        }
-      }
+    if (groupsSnap.empty) {
+      return reply.code(403).send({ error: 'Child is not assigned to you' }) as never
     }
+
+    // Fetch all group-parent subcollections in parallel instead of sequentially
+    const allParentsSnaps = await Promise.all(
+      groupsSnap.docs.map((groupDoc) =>
+        db.collection(`specialists/${uid}/groups/${groupDoc.id}/parents`).get()
+      )
+    )
+
+    const hasAccess = allParentsSnaps.some((parentsSnap) =>
+      parentsSnap.docs.some((parentDoc) => {
+        const childIds = (parentDoc.data().childIds as string[]) || []
+        return childIds.includes(resolvedChildId)
+      })
+    )
+
+    if (hasAccess) return resolvedChildId
 
     return reply.code(403).send({ error: 'Child is not assigned to you' }) as never
   }

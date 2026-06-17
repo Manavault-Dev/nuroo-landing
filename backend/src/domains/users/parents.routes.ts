@@ -156,6 +156,53 @@ export const parentsRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // ── POST /parent/organizations/:orgId/disconnect — parent leaves an org ──────
+  fastify.post<{ Params: { orgId: string } }>(
+    '/parent/organizations/:orgId/disconnect',
+    async (request, reply) => {
+      if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+
+      const { uid } = request.user
+      const { orgId } = request.params
+      const db = getFirestore()
+
+      try {
+        // 1. Remove parent from both orgParents collections (belt + suspenders)
+        const membershipRefs = [
+          db.doc(`orgParents/${orgId}/parents/${uid}`),
+          db.doc(`organizations/${orgId}/parents/${uid}`),
+        ]
+        await Promise.allSettled(membershipRefs.map((ref) => ref.delete()))
+
+        // 2. Remove org from users/{uid}.linkedOrganizationsById
+        const userRef = db.doc(`users/${uid}`)
+        const userSnap = await userRef.get()
+        const userData = userSnap.exists ? (userSnap.data() as Record<string, any>) : {}
+
+        const byId = (userData.linkedOrganizationsById || {}) as Record<string, unknown>
+        delete byId[orgId]
+        const hasRemainingOrgs = Object.keys(byId).length > 0
+
+        await userRef.set(
+          {
+            linkedOrganizationsById: byId,
+            ...(userData.activeOrgId === orgId ? { activeOrgId: null, activeOrgName: null } : {}),
+            ...(!hasRemainingOrgs ? { parent_mode: 'standalone', onboardingModeSelected: true } : {}),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        )
+
+        return { ok: true, standalone: !hasRemainingOrgs }
+      } catch (err: unknown) {
+        fastify.log.error({ err }, '[PARENT] Failed to disconnect from organization')
+        return reply.code(500).send({
+          error: err instanceof Error ? err.message : 'Failed to disconnect',
+        })
+      }
+    },
+  )
+
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/parents', async (request, reply) => {
     try {
       const { orgId } = request.params

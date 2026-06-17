@@ -11,6 +11,9 @@ import { getOrgPaymentProvider } from '../../domains/payments/providers/registry
 import { dispatch as sendNotification } from '../../modules/notifications/notification.service.js'
 import { config } from '../../config/index.js'
 
+/** Deep link scheme used by the Nuroo mobile app */
+const MOBILE_DEEP_LINK_SCHEME = 'nuroo'
+
 /**
  * For past-due upcoming invoices: persist status=pending + Finik paymentUrl to Firestore
  * so the parent can pay immediately without waiting for the nightly cron.
@@ -26,87 +29,86 @@ async function lazyUpgradeInvoices(
   const todayISO = new Date().toISOString().split('T')[0]
   const ts = admin.firestore.FieldValue.serverTimestamp()
   const backendUrl = (config.BACKEND_PUBLIC_URL ?? 'http://localhost:3101').replace(/\/$/, '')
-  const appUrl = (config.NEXT_PUBLIC_B2B_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
-  const result: InvoiceDoc[] = []
-
-  for (const inv of invoices) {
-    // Upgrade past-due pending → overdue in response
-    if (inv.status === 'pending' && inv.dueDate && inv.dueDate < todayISO) {
-      result.push({ ...inv, status: 'overdue' as const })
-      // Persist overdue status fire-and-forget
-      db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
-        .update({ status: 'overdue', updatedAt: ts })
-        .catch(() => {
-          /* best-effort */
-        })
-      continue
-    }
-
-    // Upgrade past-due upcoming → pending + generate Finik payment URL
-    if (inv.status === 'upcoming' && inv.dueDate && inv.dueDate <= todayISO) {
-      let paymentUrl: string | null = null
-      let providerPaymentId: string | null = null
-
-      try {
-        const provider = await getOrgPaymentProvider(db, inv.orgId, 'finik')
-        if (provider) {
-          const pr = await provider.createInvoice({
-            orgId: inv.orgId,
-            parentId: inv.parentId,
-            childId: inv.childId,
-            amount: inv.amount,
-            currency: inv.currency,
-            description: inv.description,
-            dueDate: inv.dueDate,
-            invoiceId: inv.id,
-            callbackUrl: `${backendUrl}/webhooks/finik`,
-            returnUrl: `${appUrl}/invoices/${inv.id}?status=paid`,
-          })
-          paymentUrl = pr.paymentUrl
-          providerPaymentId = pr.providerPaymentId
-        }
-      } catch {
-        /* provider not configured or errored — still upgrade to pending */
+  // Process all invoices concurrently instead of sequentially
+  return Promise.all(
+    invoices.map(async (inv): Promise<InvoiceDoc> => {
+      // Upgrade past-due pending → overdue in response
+      if (inv.status === 'pending' && inv.dueDate && inv.dueDate < todayISO) {
+        // Persist overdue status fire-and-forget
+        db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
+          .update({ status: 'overdue', updatedAt: ts })
+          .catch(() => { /* best-effort */ })
+        return { ...inv, status: 'overdue' as const }
       }
 
-      // Persist upgrade fire-and-forget
-      db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
-        .update({
-          status: 'pending',
-          paymentUrl: paymentUrl ?? null,
-          providerPaymentId: providerPaymentId ?? null,
-          updatedAt: ts,
-        })
-        .catch(() => {
-          /* best-effort */
-        })
+      // Upgrade past-due upcoming → pending + generate Finik payment URL (if not already set)
+      if (inv.status === 'upcoming' && inv.dueDate && inv.dueDate <= todayISO) {
+        // Skip Finik call if a payment URL was already generated
+        if (inv.paymentUrl) {
+          db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
+            .update({ status: 'pending', updatedAt: ts })
+            .catch(() => { /* best-effort */ })
+          return { ...inv, status: 'pending' as const }
+        }
 
-      // Push notification fire-and-forget
-      sendNotification({
-        userId: inv.parentId,
-        orgId: inv.orgId,
-        role: 'parent',
-        type: 'invoice_due',
-        category: 'billingUpdates',
-        title: '💳 Счёт к оплате',
-        body: `Срок оплаты ${inv.amount} ${inv.currency} — ${inv.dueDate}. Нажмите, чтобы оплатить.`,
-        metadata: { orgId: inv.orgId, parentId: inv.parentId, childId: inv.childId },
-        channel: 'both',
-        priority: 'high',
-        dedupKey: `invoice_due_${inv.id}`,
-      }).catch(() => {
-        /* best-effort */
-      })
+        let paymentUrl: string | null = null
+        let providerPaymentId: string | null = null
 
-      result.push({ ...inv, status: 'pending' as const, paymentUrl: paymentUrl ?? undefined })
-      continue
-    }
+        try {
+          const provider = await getOrgPaymentProvider(db, inv.orgId, 'finik')
+          if (provider) {
+            const pr = await provider.createInvoice({
+              orgId: inv.orgId,
+              parentId: inv.parentId,
+              childId: inv.childId,
+              amount: inv.amount,
+              currency: inv.currency,
+              description: inv.description,
+              dueDate: inv.dueDate,
+              invoiceId: inv.id,
+              callbackUrl: `${backendUrl}/webhooks/finik`,
+              // Return URL uses the mobile deep link so the app regains focus after payment
+              returnUrl: `${MOBILE_DEEP_LINK_SCHEME}://invoices/${inv.id}?status=paid`,
+            })
+            paymentUrl = pr.paymentUrl
+            providerPaymentId = pr.providerPaymentId
+          }
+        } catch {
+          /* provider not configured or errored — still upgrade to pending */
+        }
 
-    result.push(inv)
-  }
+        // Persist upgrade fire-and-forget
+        db.doc(`organizations/${inv.orgId}/invoices/${inv.id}`)
+          .update({
+            status: 'pending',
+            paymentUrl: paymentUrl ?? null,
+            providerPaymentId: providerPaymentId ?? null,
+            updatedAt: ts,
+          })
+          .catch(() => { /* best-effort */ })
 
-  return result
+        // Push notification fire-and-forget
+        sendNotification({
+          userId: inv.parentId,
+          orgId: inv.orgId,
+          role: 'parent',
+          type: 'invoice_due',
+          category: 'billingUpdates',
+          title: '💳 Счёт к оплате',
+          body: `Срок оплаты ${inv.amount} ${inv.currency} — ${inv.dueDate}. Нажмите, чтобы оплатить.`,
+          metadata: { orgId: inv.orgId, parentId: inv.parentId, childId: inv.childId },
+          channel: 'both',
+          priority: 'high',
+          dedupKey: `invoice_due_${inv.id}`,
+        }).catch(() => { /* best-effort */ })
+
+        return { ...inv, status: 'pending' as const, paymentUrl: paymentUrl ?? undefined }
+      }
+
+      return inv
+    })
+  )
 }
 
 export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
@@ -318,7 +320,6 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const backendUrl = (config.BACKEND_PUBLIC_URL ?? 'http://localhost:3101').replace(/\/$/, '')
-        const appUrl = (config.NEXT_PUBLIC_B2B_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
         const providerResult = await provider.createInvoice({
           orgId,
@@ -330,7 +331,8 @@ export const parentApiRoutes: FastifyPluginAsync = async (fastify) => {
           dueDate: invoice.dueDate,
           invoiceId,
           callbackUrl: `${backendUrl}/webhooks/finik`,
-          returnUrl: `${appUrl}/invoices/${invoiceId}?status=paid`,
+          // Deep link returns the parent to the mobile app after payment completes
+          returnUrl: `${MOBILE_DEEP_LINK_SCHEME}://invoices/${invoiceId}?status=paid`,
         })
 
         // Persist the generated URL (and upgrade upcoming→pending) so subsequent calls return it instantly
