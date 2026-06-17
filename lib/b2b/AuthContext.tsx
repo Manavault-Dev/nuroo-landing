@@ -15,6 +15,12 @@ import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/firebase/config'
 import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
+import {
+  clearCachedProfile,
+  getDefaultOrgId,
+  readCachedProfile,
+  writeCachedProfile,
+} from './profileCache'
 
 interface AuthState {
   user: User | null
@@ -27,18 +33,8 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null)
-const PROFILE_CACHE_KEY = 'nuroo:b2b:profile:v1'
-const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000
 const E2E_AUTH_KEY = 'nuroo:e2e:auth'
 const E2E_AUTH_BYPASS = process.env.NEXT_PUBLIC_E2E_AUTH_BYPASS === '1'
-
-interface CachedProfile {
-  uid: string
-  email: string | null
-  profile: SpecialistProfile
-  currentOrgId: string | null
-  expiresAt: number
-}
 
 interface E2EAuthPayload {
   user: {
@@ -48,53 +44,6 @@ interface E2EAuthPayload {
   }
   profile: SpecialistProfile
   currentOrgId?: string | null
-}
-
-function readCachedProfile(currentUser: User): CachedProfile | null {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const raw = window.localStorage.getItem(PROFILE_CACHE_KEY)
-    if (!raw) return null
-
-    const cached = JSON.parse(raw) as CachedProfile
-    if (
-      cached.uid !== currentUser.uid ||
-      cached.email !== currentUser.email ||
-      cached.expiresAt <= Date.now()
-    ) {
-      window.localStorage.removeItem(PROFILE_CACHE_KEY)
-      return null
-    }
-
-    return cached
-  } catch {
-    window.localStorage.removeItem(PROFILE_CACHE_KEY)
-    return null
-  }
-}
-
-function writeCachedProfile(
-  currentUser: User,
-  profile: SpecialistProfile,
-  currentOrgId: string | null
-) {
-  if (typeof window === 'undefined') return
-
-  const payload: CachedProfile = {
-    uid: currentUser.uid,
-    email: currentUser.email,
-    profile,
-    currentOrgId,
-    expiresAt: Date.now() + PROFILE_CACHE_TTL_MS,
-  }
-
-  window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload))
-}
-
-function clearCachedProfile() {
-  if (typeof window === 'undefined') return
-  window.localStorage.removeItem(PROFILE_CACHE_KEY)
 }
 
 function readE2EAuthPayload(): E2EAuthPayload | null {
@@ -152,13 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (profileData) {
           setProfile(profileData)
-          const nextOrgId = (() => {
-            const prev = currentOrgIdRef.current
-            if (prev && profileData.organizations.some((org) => org.orgId === prev)) {
-              return prev
-            }
-            return profileData.organizations[0]?.orgId || null
-          })()
+          const nextOrgId = getDefaultOrgId(profileData, currentOrgIdRef.current)
           setActiveOrgId(nextOrgId)
           const currentUser = auth?.currentUser
           if (currentUser) {
@@ -187,12 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mock) {
         setUser(mock.user as User)
         setProfile(mock.profile)
-        setActiveOrgId(
-          mock.currentOrgId &&
-            mock.profile.organizations.some((org) => org.orgId === mock.currentOrgId)
-            ? mock.currentOrgId
-            : mock.profile.organizations[0]?.orgId || null
-        )
+        setActiveOrgId(getDefaultOrgId(mock.profile, mock.currentOrgId))
         apiClient.setToken('e2e-token')
       } else {
         setUser(null)
@@ -217,12 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cached = readCachedProfile(currentUser)
         if (cached) {
           setProfile(cached.profile)
-          setActiveOrgId(
-            cached.currentOrgId &&
-              cached.profile.organizations.some((org) => org.orgId === cached.currentOrgId)
-              ? cached.currentOrgId
-              : cached.profile.organizations[0]?.orgId || null
-          )
+          setActiveOrgId(getDefaultOrgId(cached.profile, cached.currentOrgId))
           setIsLoading(false)
         }
 

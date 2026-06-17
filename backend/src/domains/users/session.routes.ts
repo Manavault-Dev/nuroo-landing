@@ -26,6 +26,43 @@ async function findActiveOrganization(
     )
   }
 
+  try {
+    const memberSnapshot = await db
+      .collectionGroup('members')
+      .where('uid', '==', uid)
+      .limit(1)
+      .get()
+    const activeMemberDoc = memberSnapshot.docs.find((doc) => doc.data().status === 'active')
+
+    if (activeMemberDoc) {
+      const orgRef = activeMemberDoc.ref.parent.parent
+      if (orgRef) {
+        const orgSnap = await orgRef.get()
+        if (orgSnap.exists) {
+          const orgId = orgSnap.id
+          const data = activeMemberDoc.data()
+          await Promise.allSettled([
+            db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`).set({ uid }, { merge: true }),
+            db.doc(`${COLLECTIONS.USER_ORGS(uid)}/${orgId}`).set(
+              {
+                orgId,
+                orgName: orgSnap.data()?.name || orgId,
+                country: orgSnap.data()?.country ?? null,
+                role: data.role || 'specialist',
+                status: 'active',
+                updatedAt: admin.firestore.Timestamp.now(),
+              },
+              { merge: true }
+            ),
+          ])
+          return orgId
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[session] uid-only member lookup failed:', err)
+  }
+
   const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
 
   for (const orgDoc of orgsSnapshot.docs) {

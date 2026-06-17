@@ -151,6 +151,17 @@ async function findOrganizationsForUser(
     console.warn('[me] Strategy 1 (uid index) failed:', err)
   }
 
+  // Strategy 1b: uid-only collection-group query. Single-field indexes are more likely to exist
+  // than the composite (status + uid) index above, so this avoids falling back to org scans.
+  if (memberDocs.length === 0) {
+    try {
+      const snapshot = await db.collectionGroup('members').where('uid', '==', uid).get()
+      memberDocs = snapshot.docs.filter((doc) => doc.data().status === 'active')
+    } catch (err) {
+      console.warn('[me] Strategy 1b (uid-only index) failed:', err)
+    }
+  }
+
   // Strategy 2: status-only collection-group query, filter by doc.id in JS
   if (memberDocs.length === 0) {
     try {
