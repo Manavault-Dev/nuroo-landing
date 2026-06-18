@@ -10,7 +10,7 @@ export function Select({
   value,
   options,
   onChange,
-  placeholder = 'Select...',
+  placeholder = '',
   className = '',
   buttonClassName = '',
   disabled = false,

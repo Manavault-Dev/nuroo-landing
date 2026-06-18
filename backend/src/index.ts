@@ -120,6 +120,7 @@ async function buildServer() {
     if (url === '/health' || method === 'OPTIONS') return
     if (url.startsWith('/bootstrap/')) return
     if (url.startsWith('/public/')) return
+    if (url.startsWith('/api/organizations/public')) return
     if (url.startsWith('/api/parent/content/')) return
     if (url.startsWith('/api/parent/alphakids/')) return
     if (url.startsWith('/api/parent/access/')) return

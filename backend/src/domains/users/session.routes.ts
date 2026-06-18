@@ -27,28 +27,35 @@ async function findActiveOrganization(
   }
 
   try {
-    const memberSnapshot = await db
-      .collectionGroup('members')
-      .where('uid', '==', uid)
-      .limit(1)
-      .get()
-    const activeMemberDoc = memberSnapshot.docs.find((doc) => doc.data().status === 'active')
+    const specialistSnap = await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()
+    const orgId = specialistSnap.data()?.orgId as string | undefined
 
-    if (activeMemberDoc) {
-      const orgRef = activeMemberDoc.ref.parent.parent
-      if (orgRef) {
-        const orgSnap = await orgRef.get()
-        if (orgSnap.exists) {
-          const orgId = orgSnap.id
-          const data = activeMemberDoc.data()
+    if (orgId) {
+      const [orgSnap, memberSnap] = await Promise.all([
+        db.doc(`${COLLECTIONS.ORGANIZATIONS}/${orgId}`).get(),
+        db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`).get(),
+      ])
+
+      if (orgSnap.exists) {
+        const memberData = memberSnap.exists ? memberSnap.data() : null
+        const role =
+          memberData?.status === 'active'
+            ? memberData.role || 'specialist'
+            : orgSnap.data()?.createdBy === uid
+              ? 'org_admin'
+              : null
+
+        if (role) {
           await Promise.allSettled([
-            db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`).set({ uid }, { merge: true }),
+            db
+              .doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`)
+              .set({ uid, role, status: 'active' }, { merge: true }),
             db.doc(`${COLLECTIONS.USER_ORGS(uid)}/${orgId}`).set(
               {
                 orgId,
                 orgName: orgSnap.data()?.name || orgId,
                 country: orgSnap.data()?.country ?? null,
-                role: data.role || 'specialist',
+                role,
                 status: 'active',
                 updatedAt: admin.firestore.Timestamp.now(),
               },
@@ -60,7 +67,7 @@ async function findActiveOrganization(
       }
     }
   } catch (err) {
-    console.warn('[session] uid-only member lookup failed:', err)
+    console.warn('[session] specialist org pointer lookup failed:', err)
   }
 
   const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()

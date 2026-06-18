@@ -51,6 +51,7 @@ import {
   Star,
   ShieldCheck,
   X,
+  MapPin,
 } from 'lucide-react'
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
@@ -1164,7 +1165,7 @@ function GuardianCard({
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
-      {(guardian.phone || guardian.whatsapp || guardian.email) && (
+      {(guardian.phone || guardian.whatsapp || guardian.email || guardian.address) && (
         <div className="px-5 pb-4 flex flex-wrap gap-3">
           {guardian.phone && (
             <a
@@ -1194,6 +1195,12 @@ function GuardianCard({
               <Mail className="w-3.5 h-3.5" />
               {guardian.email}
             </a>
+          )}
+          {guardian.address && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+              <MapPin className="w-3.5 h-3.5" />
+              {guardian.address}
+            </span>
           )}
         </div>
       )}
