@@ -14,6 +14,22 @@ export interface SpecialistProfile {
     orgId: string
     orgName: string
     country?: string | null
+    city?: string | null
+    categories?: string[] | null
+    description?: string | null
+    address?: string | null
+    contactPhone?: string | null
+    whatsappNumber?: string | null
+    websiteUrl?: string | null
+    logoUrl?: string | null
+    coverImageUrl?: string | null
+    logoPositionX?: number | null
+    logoPositionY?: number | null
+    logoScale?: number | null
+    coverPositionX?: number | null
+    coverPositionY?: number | null
+    coverScale?: number | null
+    isPublicMarketplaceEnabled?: boolean
     role: 'admin' | 'specialist'
   }>
 }
@@ -933,7 +949,26 @@ export class ApiClient {
 
   async updateOrganization(
     orgId: string,
-    updates: { name?: string; country?: string; city?: string; categories?: string[] }
+    updates: {
+      name?: string
+      country?: string
+      city?: string
+      categories?: string[]
+      description?: string
+      address?: string
+      contactPhone?: string
+      whatsappNumber?: string
+      websiteUrl?: string
+      logoUrl?: string
+      coverImageUrl?: string
+      logoPositionX?: number | null
+      logoPositionY?: number | null
+      logoScale?: number | null
+      coverPositionX?: number | null
+      coverPositionY?: number | null
+      coverScale?: number | null
+      isPublicMarketplaceEnabled?: boolean
+    }
   ) {
     cache.invalidate('profile')
     cache.invalidate('organizations')
@@ -945,6 +980,20 @@ export class ApiClient {
         country?: string | null
         city?: string | null
         categories?: string[] | null
+        description?: string | null
+        address?: string | null
+        contactPhone?: string | null
+        whatsappNumber?: string | null
+        websiteUrl?: string | null
+        logoUrl?: string | null
+        coverImageUrl?: string | null
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+        coverPositionX?: number | null
+        coverPositionY?: number | null
+        coverScale?: number | null
+        isPublicMarketplaceEnabled?: boolean
         createdBy: string
         createdAt: string
         isActive: boolean
@@ -954,6 +1003,33 @@ export class ApiClient {
       method: 'PATCH',
       body: JSON.stringify(updates),
     })
+  }
+
+  async uploadOrganizationImage(orgId: string, file: File, kind: 'logo' | 'cover') {
+    const formData = new FormData()
+    formData.append('kind', kind)
+    formData.append('media', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/media`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(error.error || error.message || 'Upload failed')
+    }
+
+    return response.json() as Promise<{
+      ok: boolean
+      kind: 'logo' | 'cover'
+      url: string
+      path: string
+    }>
   }
 
   async getOrgBranding(orgId: string) {

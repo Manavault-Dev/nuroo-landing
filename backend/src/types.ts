@@ -67,6 +67,22 @@ export interface SpecialistProfile {
     orgId: string
     orgName: string
     country?: string | null
+    city?: string | null
+    categories?: string[] | null
+    description?: string | null
+    address?: string | null
+    contactPhone?: string | null
+    whatsappNumber?: string | null
+    websiteUrl?: string | null
+    logoUrl?: string | null
+    coverImageUrl?: string | null
+    logoPositionX?: number | null
+    logoPositionY?: number | null
+    logoScale?: number | null
+    coverPositionX?: number | null
+    coverPositionY?: number | null
+    coverScale?: number | null
+    isPublicMarketplaceEnabled?: boolean
     role: 'admin' | 'specialist'
   }>
 }
