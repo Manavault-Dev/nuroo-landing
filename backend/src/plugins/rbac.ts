@@ -2,6 +2,59 @@ import { FastifyRequest, FastifyReply } from 'fastify'
 import { getFirestore } from '../infrastructure/database/firebase.js'
 import type { OrgMember } from '../types.js'
 
+function normalizeOrgRole(role: unknown): OrgMember['role'] {
+  return role === 'org_admin' || role === 'admin' ? 'org_admin' : 'specialist'
+}
+
+async function recoverIndexedMembership(
+  db: ReturnType<typeof getFirestore>,
+  orgId: string,
+  uid: string
+): Promise<OrgMember | null> {
+  const now = new Date()
+  const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
+
+  // Run all recovery lookups in parallel
+  const [orgSnap, userOrgSnap, specialistSnap] = await Promise.all([
+    db.doc(`organizations/${orgId}`).get(),
+    db.doc(`specialists/${uid}/organizations/${orgId}`).get(),
+    db.doc(`specialists/${uid}`).get(),
+  ])
+
+  const orgData = orgSnap.exists ? orgSnap.data() : null
+
+  // Check 1: user created the org
+  if (orgData?.createdBy === uid) {
+    await memberRef.set(
+      { uid, role: 'org_admin', status: 'active', addedAt: now, updatedAt: now },
+      { merge: true }
+    )
+    return { uid, role: 'org_admin', status: 'active', addedAt: now }
+  }
+
+  // Check 2: specialists/{uid}.orgId points to this org (primary specialist = owner)
+  if (specialistSnap.exists && specialistSnap.data()?.orgId === orgId) {
+    await memberRef.set(
+      { uid, role: 'org_admin', status: 'active', addedAt: now, updatedAt: now },
+      { merge: true }
+    )
+    return { uid, role: 'org_admin', status: 'active', addedAt: now }
+  }
+
+  // Check 3: user has an active entry in specialists/{uid}/organizations/{orgId}
+  const userOrgData = userOrgSnap.exists ? userOrgSnap.data() : null
+  if (userOrgData?.status === 'active') {
+    const role = normalizeOrgRole(userOrgData.role)
+    await memberRef.set(
+      { uid, role, status: 'active', addedAt: now, updatedAt: now },
+      { merge: true }
+    )
+    return { uid, role, status: 'active', addedAt: now }
+  }
+
+  return null
+}
+
 export async function requireOrgMember(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -14,21 +67,46 @@ export async function requireOrgMember(
   const db = getFirestore()
   const { uid } = request.user
 
+  if (request.user.claims?.superAdmin === true) {
+    return {
+      uid,
+      role: 'org_admin',
+      status: 'active',
+      addedAt: new Date(),
+    }
+  }
+
   const memberRef = db.doc(`organizations/${orgId}/members/${uid}`)
   const memberSnap = await memberRef.get()
 
   if (!memberSnap.exists) {
+    const recoveredMember = await recoverIndexedMembership(db, orgId, uid)
+    if (recoveredMember) return recoveredMember
+
+    request.log.warn(
+      { orgId, uid },
+      '[ORG_MEMBER_FORBIDDEN] User is not indexed as an organization member'
+    )
     return reply.code(403).send({ error: 'Not a member of this organization' }) as never
   }
 
   const data = memberSnap.data()
   if (data?.status !== 'active') {
+    const recoveredMember = await recoverIndexedMembership(db, orgId, uid)
+    if (recoveredMember) return recoveredMember
+
     return reply.code(403).send({ error: 'Member account is not active' }) as never
+  }
+
+  const role = normalizeOrgRole(data.role)
+  if (role !== 'org_admin') {
+    const recoveredMember = await recoverIndexedMembership(db, orgId, uid)
+    if (recoveredMember?.role === 'org_admin') return recoveredMember
   }
 
   return {
     uid: request.user.uid,
-    role: data.role || 'specialist',
+    role,
     status: data.status,
     addedAt: data.addedAt?.toDate() || new Date(),
   }
@@ -59,7 +137,7 @@ export async function requireChildAccess(
     return reply.code(403).send({ error: 'Member account is not active' }) as never
   }
 
-  const role = memberData.role || 'specialist'
+  const role = normalizeOrgRole(memberData.role)
 
   const orgChildrenRef = db.collection(`organizations/${orgId}/children`)
   const directAssignmentRef = orgChildrenRef.doc(childId)
