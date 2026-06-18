@@ -318,6 +318,7 @@ export interface Guardian {
   phone?: string
   whatsapp?: string
   email?: string
+  address?: string
   preferredContactMethod?: 'phone' | 'whatsapp' | 'email'
   isPrimaryContact?: boolean
   isEmergencyContact?: boolean
