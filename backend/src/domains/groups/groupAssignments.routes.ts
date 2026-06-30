@@ -171,6 +171,7 @@ export const groupAssignmentsRoute: import('fastify').FastifyPluginAsync = async
             description: aData.description ?? null,
             dueDate: aData.dueDate ?? null,
             taskTitles: aData.taskTitles || [],
+            contentTaskIds: aData.contentTaskIds || [],
             contentRoadmapIds,
             roadmapNames: aData.roadmapNames || [],
             roadmaps,

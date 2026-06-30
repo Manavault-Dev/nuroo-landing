@@ -5,6 +5,7 @@ import { getFirestore, getStorageBucket } from '../../infrastructure/database/fi
 import { requireOrgMember } from '../../plugins/rbac.js'
 import {
   listContentTasks,
+  getContentTask,
   createContentTask,
   uploadContentTask,
   updateContentTask,
@@ -50,6 +51,26 @@ export const orgContentAdminRoute: import('fastify').FastifyPluginAsync = async 
         return { ok: true, ...result }
       } catch (e: any) {
         return reply.code(500).send({ error: e?.message || 'Failed to list tasks' })
+      }
+    }
+  )
+
+  fastify.get<{ Params: { orgId: string; taskId: string } }>(
+    '/orgs/:orgId/content/tasks/:taskId',
+    async (request, reply) => {
+      try {
+        const { orgId, taskId } = request.params
+        await requireOrgMember(request, reply, orgId)
+        const db = getFirestore()
+        try {
+          const task = await getContentTask(db, orgId, taskId)
+          return { ok: true, task }
+        } catch (e: any) {
+          if (e.statusCode === 404) return reply.code(404).send({ error: e.message })
+          throw e
+        }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e?.message || 'Failed to get task' })
       }
     }
   )

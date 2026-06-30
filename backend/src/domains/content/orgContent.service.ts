@@ -113,6 +113,19 @@ export async function uploadContentTask(
   return { id: ref.id, doc: await ref.get() }
 }
 
+export async function getContentTask(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  taskId: string
+) {
+  const ref = db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`)
+  const snap = await ref.get()
+  if (!snap.exists) {
+    throw Object.assign(new Error('Task not found'), { statusCode: 404 })
+  }
+  return transformDoc(snap)
+}
+
 export async function updateContentTask(
   db: admin.firestore.Firestore,
   orgId: string,
