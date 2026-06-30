@@ -43,9 +43,12 @@ export function NotificationBell() {
   }, [])
 
   useEffect(() => {
-    fetchUnread()
+    const timeout = window.setTimeout(fetchUnread, 3000)
     const interval = setInterval(fetchUnread, 60_000)
-    return () => clearInterval(interval)
+    return () => {
+      window.clearTimeout(timeout)
+      clearInterval(interval)
+    }
   }, [fetchUnread])
 
   // ── Load notifications when opening ────────────────────────────────────────

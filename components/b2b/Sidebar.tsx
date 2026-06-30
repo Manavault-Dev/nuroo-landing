@@ -53,13 +53,23 @@ function valueOrDefault(value: number | null | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function logoCropStyle(branding: ReturnType<typeof useBranding>['branding']) {
+function logoCropStyle(
+  image:
+    | ReturnType<typeof useBranding>['branding']
+    | {
+        logoPositionX?: number | null
+        logoPositionY?: number | null
+        logoScale?: number | null
+      }
+    | null
+    | undefined
+) {
   return {
-    objectPosition: `${valueOrDefault(branding?.logoPositionX, 50)}% ${valueOrDefault(
-      branding?.logoPositionY,
+    objectPosition: `${valueOrDefault(image?.logoPositionX, 50)}% ${valueOrDefault(
+      image?.logoPositionY,
       50
     )}%`,
-    transform: `scale(${valueOrDefault(branding?.logoScale, 1)})`,
+    transform: `scale(${valueOrDefault(image?.logoScale, 1)})`,
   }
 }
 
@@ -119,6 +129,9 @@ export function Sidebar({
 
   const { branding } = useBranding()
   const { meetsPlan } = usePlan()
+  const displayName = branding?.name || currentOrg?.orgName || 'Nuroo'
+  const displayLogo = branding?.logo || currentOrg?.logoUrl || null
+  const logoCropSource = branding?.logo ? branding : currentOrg
 
   const pathForMatch = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
   const isActive = (href: string) => {
@@ -239,14 +252,18 @@ export function Sidebar({
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
         {/* Identity — one block, org name appears exactly once */}
         <div className="b2b-sidebar-divider px-4 py-5 border-b border-gray-100 shrink-0">
-          <Link href="/b2b" className="flex items-center gap-3.5 min-w-0" onClick={onMobileClose}>
-            {branding?.logo ? (
+          <Link
+            href={currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b'}
+            className="flex items-center gap-3.5 min-w-0"
+            onClick={onMobileClose}
+          >
+            {displayLogo ? (
               <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">
                 <img
-                  src={branding.logo}
-                  alt={branding.name || 'Logo'}
+                  src={displayLogo}
+                  alt={displayName}
                   className="h-full w-full object-cover"
-                  style={logoCropStyle(branding)}
+                  style={logoCropStyle(logoCropSource)}
                 />
               </div>
             ) : (
@@ -261,7 +278,7 @@ export function Sidebar({
             )}
             <div className="flex-1 min-w-0">
               <span className="b2b-sidebar-org-name text-xl font-bold text-gray-900 block leading-tight truncate">
-                {branding?.name || currentOrg?.orgName || 'Nuroo'}
+                {displayName}
               </span>
               <span className="b2b-sidebar-role text-sm text-primary-500 font-semibold leading-tight mt-1 block">
                 {isOrgAdmin ? t('admin') : t('b2bPlatform')}
