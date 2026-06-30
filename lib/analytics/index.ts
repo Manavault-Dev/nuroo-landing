@@ -1,6 +1,5 @@
 'use client'
 
-import { logEvent as firebaseLogEvent } from 'firebase/analytics'
 import type { Analytics as FirebaseAnalytics } from 'firebase/analytics'
 import { getClientAnalytics } from '@/lib/firebase/config'
 
@@ -8,10 +7,11 @@ import { getClientAnalytics } from '@/lib/firebase/config'
 // Never include child names, diagnoses, therapy notes, or private content
 export function track(eventName: string, params?: Record<string, string | number | boolean>) {
   void getClientAnalytics()
-    .then((instance) => {
+    .then(async (instance) => {
       if (!instance) return
 
       try {
+        const { logEvent: firebaseLogEvent } = await import('firebase/analytics')
         firebaseLogEvent(instance as FirebaseAnalytics, eventName, params as Record<string, string>)
       } catch {
         // Analytics must never break the app

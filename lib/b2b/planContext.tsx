@@ -27,11 +27,12 @@ interface PlanContextValue {
   meetsPlan: (required: PlanId) => boolean
 }
 
+// Optimistic defaults: while loading, grant full access so no lock icons flash
 const PlanContext = createContext<PlanContextValue>({
   planId: null,
   planIsLoading: true,
-  hasFeature: () => false,
-  meetsPlan: () => false,
+  hasFeature: () => true,
+  meetsPlan: () => true,
 })
 
 interface PlanProviderProps {
@@ -50,8 +51,8 @@ export function PlanProvider({ children, rawPlanId, isLoading }: PlanProviderPro
   const value: PlanContextValue = {
     planId,
     planIsLoading: isLoading,
-    hasFeature: (feature) => planHasFeature(planId, feature),
-    meetsPlan: (required) => planMeetsRequirement(planId, required),
+    hasFeature: (feature) => (isLoading ? true : planHasFeature(planId, feature)),
+    meetsPlan: (required) => (isLoading ? true : planMeetsRequirement(planId, required)),
   }
 
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>

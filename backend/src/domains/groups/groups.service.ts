@@ -462,8 +462,10 @@ export async function getAssignmentDetail(
       const taskSnaps = await Promise.all(
         taskIds.map((tid) => db.doc(`organizations/${orgId}/contentTasks/${tid}`).get())
       )
-      const taskTitles = taskSnaps.filter((s) => s.exists).map((s) => s.data()!.title || '')
-      return { id: roadmapId, name: rData.name || 'Program', taskTitles }
+      const existingSnaps = taskSnaps.filter((s) => s.exists)
+      const taskTitles = existingSnaps.map((s) => s.data()!.title || '')
+      const resolvedTaskIds = existingSnaps.map((s) => s.id)
+      return { id: roadmapId, name: rData.name || 'Program', taskTitles, taskIds: resolvedTaskIds }
     })
   )
   const roadmaps = roadmapDetails.filter(Boolean)

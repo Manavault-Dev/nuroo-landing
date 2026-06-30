@@ -470,12 +470,19 @@ class ApiCache {
 
   // Cache TTLs in milliseconds
   private static TTL = {
-    profile: 5 * 60 * 1000, // 5 minutes for user profile
-    superAdmin: 5 * 60 * 1000, // 5 minutes for super admin check
-    children: 60 * 1000, // 1 minute for children list
-    childDetail: 30 * 1000, // 30 seconds for child details
-    organizations: 2 * 60 * 1000, // 2 minutes for org list
-    default: 30 * 1000, // 30 seconds default
+    profile: 5 * 60 * 1000,
+    superAdmin: 5 * 60 * 1000,
+    children: 2 * 60 * 1000,
+    childDetail: 90 * 1000,
+    organizations: 3 * 60 * 1000,
+    reports: 3 * 60 * 1000,
+    branches: 3 * 60 * 1000,
+    notifications: 60 * 1000,
+    unreadCount: 60 * 1000,
+    content: 5 * 60 * 1000,
+    groups: 2 * 60 * 1000,
+    assignment: 90 * 1000,
+    default: 90 * 1000,
   }
 
   get<T>(key: string): T | null {
@@ -544,8 +551,9 @@ export class ApiClient {
   }
 
   setToken(token: string | null) {
+    const tokenChanged = this.token !== token
     this.token = token
-    if (!token) {
+    if (tokenChanged) {
       cache.invalidate()
     }
   }
@@ -572,7 +580,20 @@ export class ApiClient {
   private async cachedRequest<T>(
     endpoint: string,
     cacheKey: string,
-    ttlKey?: 'profile' | 'superAdmin' | 'children' | 'childDetail' | 'organizations' | 'default'
+    ttlKey?:
+      | 'profile'
+      | 'superAdmin'
+      | 'children'
+      | 'childDetail'
+      | 'organizations'
+      | 'reports'
+      | 'branches'
+      | 'notifications'
+      | 'unreadCount'
+      | 'content'
+      | 'groups'
+      | 'assignment'
+      | 'default'
   ): Promise<T> {
     // Check cache first
     const cached = cache.get<T>(cacheKey)
@@ -655,7 +676,11 @@ export class ApiClient {
   }
 
   async getBillingStatus(orgId: string) {
-    return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
+    return this.cachedRequest<BillingStatusResponse>(
+      `/orgs/${orgId}/billing/status`,
+      `billing:status:${orgId}`,
+      'default'
+    )
   }
 
   async startTrial(
@@ -693,7 +718,11 @@ export class ApiClient {
     if (params?.parentId) qs.set('parentId', params.parentId)
     if (params?.status) qs.set('status', params.status)
     const query = qs.toString() ? `?${qs}` : ''
-    return this.request<{ ok: boolean; invoices: Invoice[] }>(`/orgs/${orgId}/invoices${query}`)
+    return this.cachedRequest<{ ok: boolean; invoices: Invoice[] }>(
+      `/orgs/${orgId}/invoices${query}`,
+      `invoices:${orgId}:${query}`,
+      'default'
+    )
   }
 
   async createInvoice(
@@ -725,8 +754,10 @@ export class ApiClient {
     const qs = new URLSearchParams()
     if (params?.childId) qs.set('childId', params.childId)
     const query = qs.toString() ? `?${qs}` : ''
-    return this.request<{ ok: boolean; profiles: ChildBillingProfile[] }>(
-      `/orgs/${orgId}/billing/profiles${query}`
+    return this.cachedRequest<{ ok: boolean; profiles: ChildBillingProfile[] }>(
+      `/orgs/${orgId}/billing/profiles${query}`,
+      `billing:profiles:${orgId}:${query}`,
+      'default'
     )
   }
 
@@ -784,7 +815,11 @@ export class ApiClient {
       }
     }
   }> {
-    return this.request(`/orgs/${orgId}/payment-providers`)
+    return this.cachedRequest(
+      `/orgs/${orgId}/payment-providers`,
+      `payment-providers:${orgId}`,
+      'default'
+    )
   }
 
   async configureFinik(orgId: string, data: { merchantId: string }): Promise<{ ok: boolean }> {
@@ -1098,7 +1133,7 @@ export class ApiClient {
   }
 
   async getReports(orgId: string, days = 30) {
-    return this.request<{
+    return this.cachedRequest<{
       ok: boolean
       days: number
       childCompletion: Array<{
@@ -1143,7 +1178,7 @@ export class ApiClient {
         completedLast30Days: number
         byChild: Array<{ childId: string; count: number }>
       }
-    }>(`/orgs/${orgId}/reports?days=${days}`)
+    }>(`/orgs/${orgId}/reports?days=${days}`, `reports:${orgId}:${days}`, 'reports')
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1235,7 +1270,8 @@ export class ApiClient {
 
   async getGroupAssignment(orgId: string, groupId: string, assignmentId: string, ownerId?: string) {
     const query = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : ''
-    return this.request<{
+    const cacheKey = `groupAssignment:${orgId}:${assignmentId}`
+    return this.cachedRequest<{
       ok: boolean
       assignment: {
         id: string
@@ -1246,9 +1282,10 @@ export class ApiClient {
         description: string | null
         dueDate: string | null
         taskTitles: string[]
+        contentTaskIds: string[]
         contentRoadmapIds: string[]
         roadmapNames: string[]
-        roadmaps: { id: string; name: string; taskTitles: string[] }[]
+        roadmaps: { id: string; name: string; taskTitles: string[]; taskIds?: string[] }[]
         childCount: number
         status: 'active' | 'closed'
         assignedAt: string | null
@@ -1266,7 +1303,11 @@ export class ApiClient {
           feedbackAt: string | null
         }>
       }
-    }>(`/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}${query}`)
+    }>(
+      `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}${query}`,
+      cacheKey,
+      'assignment'
+    )
   }
 
   async updateGroupAssignment(
@@ -1281,6 +1322,7 @@ export class ApiClient {
     }
   ) {
     cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groupAssignment:${orgId}:${assignmentId}`)
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
       { method: 'PATCH', body: JSON.stringify(updates) }
@@ -1289,6 +1331,7 @@ export class ApiClient {
 
   async deleteGroupAssignment(orgId: string, groupId: string, assignmentId: string) {
     cache.invalidate(`groupAssignments:${orgId}:${groupId}`)
+    cache.invalidate(`groupAssignment:${orgId}:${assignmentId}`)
     cache.invalidate(`groups:${orgId}`)
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}`,
@@ -1327,6 +1370,7 @@ export class ApiClient {
     childId: string,
     data: { grade: 'approved' | 'needs_revision'; feedback?: string }
   ) {
+    cache.invalidate(`groupAssignment:${orgId}:${assignmentId}`)
     return this.request<{ ok: boolean; childId: string; grade: string }>(
       `/orgs/${orgId}/groups/${groupId}/assignments/${assignmentId}/submissions/${childId}`,
       { method: 'PATCH', body: JSON.stringify(data) }
@@ -1502,6 +1546,14 @@ export class ApiClient {
     )
   }
 
+  async getOrgContentTask(orgId: string, taskId: string) {
+    return this.cachedRequest<{ ok: boolean; task: any }>(
+      `/orgs/${orgId}/content/tasks/${taskId}`,
+      `orgContent:task:${orgId}:${taskId}`,
+      'default'
+    )
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createOrgContentTask(orgId: string, task: any) {
     cache.invalidate(`orgContent:tasks:${orgId}`)
@@ -1651,7 +1703,11 @@ export class ApiClient {
 
   // Branches
   async getBranches(orgId: string) {
-    return this.request<{ ok: boolean; branches: Branch[] }>(`/orgs/${orgId}/branches`)
+    return this.cachedRequest<{ ok: boolean; branches: Branch[] }>(
+      `/orgs/${orgId}/branches`,
+      `branches:${orgId}`,
+      'branches'
+    )
   }
 
   async createBranch(
@@ -1773,18 +1829,28 @@ export class ApiClient {
     const qs = new URLSearchParams()
     if (options.limit) qs.set('limit', String(options.limit))
     if (options.unreadOnly) qs.set('unreadOnly', 'true')
-    return this.request<{ notifications: NotificationItem[] }>(`/api/notifications?${qs}`)
+    return this.cachedRequest<{ notifications: NotificationItem[] }>(
+      `/api/notifications?${qs}`,
+      `notifications:${qs.toString()}`,
+      'notifications'
+    )
   }
 
   async getUnreadCount() {
-    return this.request<{ count: number }>('/api/notifications/unread-count')
+    return this.cachedRequest<{ count: number }>(
+      '/api/notifications/unread-count',
+      'notifications:unread',
+      'unreadCount'
+    )
   }
 
   async markNotificationRead(id: string) {
+    cache.invalidate('notifications:')
     return this.request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PATCH' })
   }
 
   async markAllNotificationsRead() {
+    cache.invalidate('notifications:')
     return this.request<{ ok: boolean; updated: number }>('/api/notifications/read-all', {
       method: 'PATCH',
     })
@@ -1943,6 +2009,81 @@ export class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  // ── AI Reports ────────────────────────────────────────────────────────────
+
+  async generateAIReport(params: {
+    orgId: string
+    childId: string
+    periodStart: string
+    periodEnd: string
+    specialistType:
+      | 'speech_therapist'
+      | 'psychologist'
+      | 'aba_specialist'
+      | 'defectologist'
+      | 'ot_specialist'
+    language: 'ru' | 'en' | 'ky'
+    selectedMetrics: Record<string, string[]>
+    additionalNotes?: string
+    childName: string
+    childAge?: number
+  }) {
+    const { orgId, childId, ...body } = params
+    return this.request<{ ok: boolean; childId: string; text: string }>(
+      `/orgs/${orgId}/children/${childId}/ai-reports/generate`,
+      { method: 'POST', body: JSON.stringify(body) }
+    )
+  }
+
+  async saveAIReport(params: {
+    orgId: string
+    childId: string
+    periodStart: string
+    periodEnd: string
+    specialistType:
+      | 'speech_therapist'
+      | 'psychologist'
+      | 'aba_specialist'
+      | 'defectologist'
+      | 'ot_specialist'
+    language: 'ru' | 'en' | 'ky'
+    selectedMetrics: Record<string, string[]>
+    additionalNotes?: string
+    aiGeneratedText: string
+    finalText: string
+    status: 'draft' | 'sent'
+  }) {
+    const { orgId, childId, ...body } = params
+    cache.invalidate(`aiReports:${orgId}:${childId}`)
+    return this.request<{ ok: boolean; reportId: string }>(
+      `/orgs/${orgId}/children/${childId}/ai-reports`,
+      { method: 'POST', body: JSON.stringify(body) }
+    )
+  }
+
+  async listAIReports(orgId: string, childId: string) {
+    return this.cachedRequest<{ ok: boolean; reports: any[] }>(
+      `/orgs/${orgId}/children/${childId}/ai-reports`,
+      `aiReports:${orgId}:${childId}`,
+      'default'
+    )
+  }
+
+  async seedDemoData(orgId: string) {
+    return this.request<{
+      ok: boolean
+      created: { children: number; tasks: number }
+      message: string
+    }>(`/orgs/${orgId}/demo/seed`, { method: 'POST' })
+  }
+
+  async clearDemoData(orgId: string) {
+    return this.request<{ ok: boolean; deleted: { children: number; tasks: number } }>(
+      `/orgs/${orgId}/demo/seed`,
+      { method: 'DELETE' }
+    )
   }
 
   // Clear all cache (useful for logout)

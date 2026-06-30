@@ -11,7 +11,6 @@ import {
   useCallback,
 } from 'react'
 import { onIdTokenChanged, User } from 'firebase/auth'
-import * as Sentry from '@sentry/nextjs'
 import { auth } from '@/lib/firebase/config'
 import { onAuthChange, getIdToken, signOut as firebaseLogout } from './authClient'
 import { apiClient, SpecialistProfile } from './api'
@@ -21,6 +20,7 @@ import {
   readCachedProfile,
   writeCachedProfile,
 } from './profileCache'
+import { runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
 
 interface AuthState {
   user: User | null
@@ -35,6 +35,24 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null)
 const E2E_AUTH_KEY = 'nuroo:e2e:auth'
 const E2E_AUTH_BYPASS = process.env.NEXT_PUBLIC_E2E_AUTH_BYPASS === '1'
+
+function setSentryUserAsync(user: { id: string } | null) {
+  if (!shouldLoadClientSentry()) return
+  runWhenIdle(() => {
+    void import('@sentry/nextjs').then((Sentry) => {
+      Sentry.setUser(user)
+    })
+  })
+}
+
+function setSentryTagAsync(key: string, value: string) {
+  if (!shouldLoadClientSentry()) return
+  runWhenIdle(() => {
+    void import('@sentry/nextjs').then((Sentry) => {
+      Sentry.setTag(key, value)
+    })
+  })
+}
 
 interface E2EAuthPayload {
   user: {
@@ -78,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loadProfile = useCallback(
-    async (options?: { force?: boolean }) => {
+    async (options?: { force?: boolean; user?: User }) => {
       const requestVersion = ++profileRequestVersion.current
 
       try {
@@ -86,7 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           apiClient.clearCache()
         }
 
-        const idToken = await getIdToken(options?.force)
+        const idToken = options?.user
+          ? await options.user.getIdToken(options?.force)
+          : await getIdToken(options?.force)
         if (!idToken) return
 
         if (requestVersion !== profileRequestVersion.current) return
@@ -103,15 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(profileData)
           const nextOrgId = getDefaultOrgId(profileData, currentOrgIdRef.current)
           setActiveOrgId(nextOrgId)
-          const currentUser = auth?.currentUser
+          const currentUser = options?.user ?? auth?.currentUser
           if (currentUser) {
             writeCachedProfile(currentUser, profileData, nextOrgId)
           }
           // Enrich Sentry context with role and orgId after profile loads
           const firstOrg = profileData.organizations[0]
           if (firstOrg) {
-            Sentry.setTag('org_id', firstOrg.orgId)
-            Sentry.setTag('user_role', firstOrg.role ?? 'unknown')
+            setSentryTagAsync('org_id', firstOrg.orgId)
+            setSentryTagAsync('user_role', firstOrg.role ?? 'unknown')
           }
         }
       } catch {
@@ -151,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser)
 
       if (currentUser) {
-        Sentry.setUser({ id: currentUser.uid })
+        setSentryUserAsync({ id: currentUser.uid })
         const cached = readCachedProfile(currentUser)
         if (cached) {
           setProfile(cached.profile)
@@ -160,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          await loadProfile()
+          await loadProfile({ user: currentUser })
         } catch (error) {
           console.error('Error loading profile:', error)
           setProfile(null)
@@ -202,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile, setActiveOrgId])
 
   const logout = useCallback(async () => {
-    Sentry.setUser(null)
+    setSentryUserAsync(null)
     if (E2E_AUTH_BYPASS) {
       setUser(null)
       setProfile(null)
@@ -225,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(
     async (options?: { force?: boolean }) => {
       if (user) {
-        await loadProfile(options)
+        await loadProfile({ ...options, user })
       }
     },
     [loadProfile, user]

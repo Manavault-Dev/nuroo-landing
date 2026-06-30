@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
@@ -11,6 +12,7 @@ import {
   CheckSquare,
   Trash2,
   Edit2,
+  Eye,
   Loader2,
   X,
   ChevronUp,
@@ -19,9 +21,16 @@ import {
   Calendar,
   Check,
   Search,
+  Clock,
+  Lightbulb,
+  Target,
 } from 'lucide-react'
-import { AIInstructionHelper } from './AIInstructionHelper'
 import { contentManagementStyles as s } from './ContentManagement.styles'
+
+const OrgTaskForm = dynamic(() => import('./OrgTaskForm').then((m) => ({ default: m.OrgTaskForm })))
+const AIInstructionHelper = dynamic(() =>
+  import('./AIInstructionHelper').then((m) => ({ default: m.AIInstructionHelper }))
+)
 
 export type ContentManagementMode = 'global' | 'org'
 
@@ -92,6 +101,9 @@ export function ContentManagement({
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [taskSelectValue, setTaskSelectValue] = useState('')
+
+  // Preview modal state
+  const [previewTask, setPreviewTask] = useState<ContentItem | null>(null)
 
   // Split-panel state (org mode tasks tab)
   const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null)
@@ -446,6 +458,17 @@ export function ContentManagement({
           .filter(Boolean)
           .some((value) => value!.toLowerCase().includes(query))
       })
+
+    if (isTask && mode === 'org') {
+      return (
+        <OrgTaskForm
+          formData={formData}
+          mediaFile={mediaFile}
+          onFieldChange={updateFormField}
+          onMediaFileChange={setMediaFile}
+        />
+      )
+    }
 
     return (
       <div className={s.formStack}>
@@ -1124,6 +1147,14 @@ export function ContentManagement({
                     >
                       <button
                         type="button"
+                        onClick={() => setPreviewTask(task)}
+                        className={s.iconButton}
+                        title={t('previewLabel')}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleEdit(task)}
                         className={s.iconButton}
                         title={t('edit')}
@@ -1382,6 +1413,168 @@ export function ContentManagement({
             </div>
           )}
         </>
+      )}
+
+      {/* Task Preview Modal */}
+      {previewTask && (
+        <div className={s.modalBackdrop} onClick={() => setPreviewTask(null)}>
+          <div
+            className="relative mx-auto my-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Phone-frame header */}
+            <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary-400" />
+                <span className="text-xs font-medium text-gray-500">{t('previewAs')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewTask(null)}
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Media */}
+              {(previewTask.imageUrl || previewTask.thumbnailUrl) && (
+                <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
+                  <img
+                    src={previewTask.imageUrl || previewTask.thumbnailUrl}
+                    alt={previewTask.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
+              {previewTask.videoUrl && !previewTask.imageUrl && (
+                <div className="flex aspect-video w-full items-center justify-center bg-gray-900">
+                  <video
+                    src={previewTask.videoUrl}
+                    controls
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="p-5 space-y-5">
+                {/* Title + badges */}
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                    {previewTask.title || t('untitled')}
+                  </h2>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {previewTask.category && (
+                      <span className={s.metadataBadge}>{previewTask.category}</span>
+                    )}
+                    {previewTask.difficulty && (
+                      <span className={s.difficultyBadge(previewTask.difficulty)}>
+                        {t(
+                          previewTask.difficulty === 'easy'
+                            ? 'difficultyEasy'
+                            : previewTask.difficulty === 'medium'
+                              ? 'difficultyMedium'
+                              : 'difficultyHard'
+                        )}
+                      </span>
+                    )}
+                    {previewTask.estimatedDuration && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">
+                        <Clock className="h-3 w-3" />
+                        {previewTask.estimatedDuration} {t('previewMinutes')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm leading-relaxed text-gray-600">
+                  {previewTask.description || (
+                    <span className="italic text-gray-400">{t('previewNoDescription')}</span>
+                  )}
+                </p>
+
+                {/* Instructions */}
+                <div>
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs">
+                      ✓
+                    </span>
+                    {t('previewInstructions')}
+                  </h3>
+                  {previewTask.instructions && previewTask.instructions.length > 0 ? (
+                    <ol className="space-y-2">
+                      {previewTask.instructions.filter(Boolean).map((step, i) => (
+                        <li key={i} className="flex gap-3 text-sm text-gray-700">
+                          <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary-500 text-[11px] font-bold text-white">
+                            {i + 1}
+                          </span>
+                          <span className="leading-relaxed">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-sm italic text-gray-400">{t('previewNoInstructions')}</p>
+                  )}
+                </div>
+
+                {/* Parent tip */}
+                {previewTask.parentTip && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4 text-amber-600" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                        {t('previewParentTip')}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-amber-900">
+                      {previewTask.parentTip}
+                    </p>
+                  </div>
+                )}
+
+                {/* Expected result */}
+                {previewTask.expectedResult && (
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Target className="h-4 w-4 text-green-600" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                        {t('previewExpectedResult')}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-green-900">
+                      {previewTask.expectedResult}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewTask(null)
+                  handleEdit(previewTask)
+                }}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-700"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                {t('edit')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewTask(null)}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+              >
+                {t('previewClose')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal */}

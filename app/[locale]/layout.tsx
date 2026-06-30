@@ -23,7 +23,7 @@ export default async function LocaleLayout({ children, params }: Props) {
     <NextIntlClientProvider messages={messages} locale={locale}>
       <LandingOnlyEffects />
       <ConditionalHeader />
-      <main className="min-w-0 overflow-x-hidden">{children}</main>
+      {children}
     </NextIntlClientProvider>
   )
 }

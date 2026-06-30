@@ -1,40 +1,51 @@
-import * as Sentry from '@sentry/nextjs'
+import { runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
 
-const isProd = process.env.NODE_ENV === 'production'
+const isB2BPage = typeof window !== 'undefined' && window.location.pathname.includes('/b2b')
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  release: process.env.NEXT_PUBLIC_APP_VERSION,
+if (isB2BPage && shouldLoadClientSentry()) {
+  const isProd = process.env.NODE_ENV === 'production'
 
-  integrations: [
-    Sentry.replayIntegration({
-      blockAllMedia: true,
-      maskAllText: true,
-      maskAllInputs: true,
-    }),
-  ],
+  runWhenIdle(() => {
+    import('@sentry/nextjs').then((Sentry) => {
+      Sentry.init({
+        dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+        environment: process.env.NODE_ENV,
+        release: process.env.NEXT_PUBLIC_APP_VERSION,
 
-  tracesSampleRate: isProd ? 0.1 : 1.0,
+        integrations: [],
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: 0,
 
-  enableLogs: true,
+        tracesSampleRate: isProd ? 0.1 : 0,
+        enableLogs: isProd,
+        sendDefaultPii: false,
 
-  replaysSessionSampleRate: isProd ? 0.05 : 0.1,
-  replaysOnErrorSampleRate: 1.0,
+        beforeSend(event) {
+          if (event.request) delete event.request.data
+          const msg = event.exception?.values?.[0]?.value ?? ''
+          if (msg.includes('Extension context') || msg.includes('ResizeObserver')) return null
+          return event
+        },
+      })
 
-  sendDefaultPii: false,
+      if (isProd) {
+        window.addEventListener(
+          'load',
+          () => {
+            Sentry.addIntegration(
+              Sentry.replayIntegration({
+                blockAllMedia: true,
+                maskAllText: true,
+                maskAllInputs: true,
+              })
+            )
+          },
+          { once: true }
+        )
+      }
+    })
+  })
+}
 
-  beforeSend(event) {
-    if (event.request) {
-      delete event.request.data
-    }
-
-    const msg = event.exception?.values?.[0]?.value ?? ''
-    if (msg.includes('Extension context') || msg.includes('ResizeObserver')) {
-      return null
-    }
-    return event
-  },
-})
-
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+// onRouterTransitionStart intentionally omitted — Sentry route tracking only for B2B
+// and the lazy import above handles initialization there.

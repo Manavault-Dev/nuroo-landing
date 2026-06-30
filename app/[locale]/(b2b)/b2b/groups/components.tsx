@@ -213,6 +213,7 @@ export function AssignmentsTab({
   onDelete,
   onToggleStatus,
   onNew,
+  onPrefetch,
 }: {
   t: TimeT
   locale: string
@@ -223,6 +224,7 @@ export function AssignmentsTab({
   onDelete: (a: Assignment) => void
   onToggleStatus: (a: Assignment) => void
   onNew: () => void
+  onPrefetch?: (a: Assignment) => void
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
@@ -269,7 +271,11 @@ export function AssignmentsTab({
             className={`rounded-xl border transition-all overflow-hidden ${selectedId === a.id ? 'border-primary-200 bg-primary-50/60' : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'}`}
           >
             {/* Main row */}
-            <div onClick={() => onSelect(a)} className="flex items-center gap-3 p-4 cursor-pointer">
+            <div
+              onClick={() => onSelect(a)}
+              onMouseEnter={() => onPrefetch?.(a)}
+              className="flex items-center gap-3 p-4 cursor-pointer"
+            >
               {/* Status dot */}
               <div
                 className={`w-2 h-2 rounded-full shrink-0 ${a.status === 'active' ? 'bg-green-400' : 'bg-gray-300'}`}

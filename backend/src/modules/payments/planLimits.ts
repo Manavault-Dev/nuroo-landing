@@ -15,8 +15,8 @@ export type BillingStatus =
   | 'canceled'
 
 export const FREE_TRIAL_DAYS = 30
-// Trial gives Growth level access
-export const FREE_TRIAL_PLAN_ID: PlanId = 'growth'
+// Trial gives Enterprise level access (30 days)
+export const FREE_TRIAL_PLAN_ID: PlanId = 'enterprise'
 
 export interface PlanFeatures {
   branding: boolean
@@ -244,7 +244,7 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
       if (trialEndsAt && new Date() <= trialEndsAt) {
         return {
           active: true,
-          planId,
+          planId: FREE_TRIAL_PLAN_ID,
           source: 'free_trial',
           billingStatus: 'trialing',
           expiresAt: orgBilling.trialEndsAt ?? null,

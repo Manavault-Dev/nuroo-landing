@@ -45,8 +45,9 @@ export interface Submission {
 
 export interface AssignmentDetail extends Assignment {
   ownerId: string
+  contentTaskIds?: string[]
   submissions: Submission[]
-  roadmaps?: { id: string; name: string; taskTitles: string[] }[]
+  roadmaps?: { id: string; name: string; taskTitles: string[]; taskIds?: string[] }[]
 }
 
 export interface Comment {

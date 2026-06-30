@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
@@ -23,6 +24,13 @@ import {
 import { PRESET_COLORS, formatDate, pluralChildren } from './utils'
 import { Modal, Skeleton, Toast } from './ui'
 import { useAlert } from '@/components/ui/AlertDialog'
+const OrgTaskForm = dynamic(
+  () => import('@/components/b2b/OrgTaskForm').then((m) => ({ default: m.OrgTaskForm })),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
 import {
   AssignmentsTab,
   GroupCard,
@@ -55,12 +63,16 @@ import {
   ChevronDown,
   ChevronUp,
   ListChecks,
+  Eye,
+  Target,
+  Lightbulb,
 } from 'lucide-react'
 
 // ─── GroupsPage (Main) ────────────────────────────────────────────────────────
 
 export default function GroupsPage() {
   const t = useTranslations('b2b.pages.groups')
+  const tAssign = useTranslations('b2b.pages.assignments')
   const locale = useLocale()
   const router = useRouter()
   const { profile, orgId: resolvedOrgId, isAdmin, isLoading: authLoading } = usePageAuth()
@@ -78,6 +90,10 @@ export default function GroupsPage() {
   const [groupAssignments, setGroupAssignments] = useState<Assignment[]>([])
   const [groupDetailLoading, setGroupDetailLoading] = useState(false)
   const [groupPanelTab, setGroupPanelTab] = useState<'assignments' | 'members'>('assignments')
+
+  // Task preview modal (inside assignment detail)
+  const [previewTaskData, setPreviewTaskData] = useState<any | null>(null)
+  const [previewTaskLoading, setPreviewTaskLoading] = useState(false)
 
   // Assignment detail (full-screen overlay)
   const [assignmentDetail, setAssignmentDetail] = useState<AssignmentDetail | null>(null)
@@ -113,6 +129,10 @@ export default function GroupsPage() {
   const [selectedRoadmapIds, setSelectedRoadmapIds] = useState<Set<string>>(new Set())
   const [assignDueDate, setAssignDueDate] = useState('')
   const [creatingAssignment, setCreatingAssignment] = useState(false)
+  const [assignmentMode, setAssignmentMode] = useState<'library' | 'new'>('library')
+  const [newTaskFormData, setNewTaskFormData] = useState<Record<string, unknown>>({})
+  const [newTaskMediaFile, setNewTaskMediaFile] = useState<File | null>(null)
+  const [newTaskUploadProgress, setNewTaskUploadProgress] = useState(0)
 
   // Parent management
   const [showAddParentModal, setShowAddParentModal] = useState(false)
@@ -204,6 +224,25 @@ export default function GroupsPage() {
     [orgId, t]
   )
 
+  // ─── Task preview inside assignment detail ─────────────────────────────────
+
+  const handlePreviewTask = useCallback(
+    async (taskId: string) => {
+      if (!orgId) return
+      setPreviewTaskLoading(true)
+      setPreviewTaskData(null)
+      try {
+        const res = await apiClient.getOrgContentTask(orgId, taskId)
+        setPreviewTaskData(res.task ?? null)
+      } catch {
+        // silently ignore — if task not found just don't open modal
+      } finally {
+        setPreviewTaskLoading(false)
+      }
+    },
+    [orgId]
+  )
+
   // ─── Assignment detail ──────────────────────────────────────────────────────
 
   const handleSelectAssignment = useCallback(
@@ -229,6 +268,16 @@ export default function GroupsPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [orgId, selectedGroup, t]
+  )
+
+  const prefetchAssignment = useCallback(
+    (assignment: Assignment) => {
+      if (!orgId || !selectedGroup) return
+      apiClient
+        .getGroupAssignment(orgId, selectedGroup.id, assignment.id, selectedGroup.ownerId)
+        .catch(() => undefined)
+    },
+    [orgId, selectedGroup]
   )
 
   // ─── Group CRUD ─────────────────────────────────────────────────────────────
@@ -299,9 +348,13 @@ export default function GroupsPage() {
   const openAssignFromLibraryModal = async () => {
     if (!orgId) return
     setShowAssignmentModal(true)
+    setAssignmentMode('library')
     setSelectedContentIds(new Set())
     setSelectedRoadmapIds(new Set())
     setAssignDueDate('')
+    setNewTaskFormData({})
+    setNewTaskMediaFile(null)
+    setNewTaskUploadProgress(0)
     setLoadingLibrary(true)
     try {
       const [tasksRes, roadmapsRes] = await Promise.all([
@@ -319,19 +372,45 @@ export default function GroupsPage() {
 
   const handleAssignFromLibrary = async (e: React.FormEvent) => {
     e.preventDefault()
-    const taskIds = Array.from(selectedContentIds)
-    const roadmapIds = Array.from(selectedRoadmapIds)
-    if (!orgId || !selectedGroup || (taskIds.length === 0 && roadmapIds.length === 0)) return
+    let taskIds = Array.from(selectedContentIds)
+    const roadmapIds = assignmentMode === 'new' ? [] : Array.from(selectedRoadmapIds)
+    if (!orgId || !selectedGroup) return
+    if (assignmentMode === 'library' && taskIds.length === 0 && roadmapIds.length === 0) return
+    if (assignmentMode === 'new' && !(newTaskFormData.title as string | undefined)?.trim()) return
     if (totalChildren === 0) {
       showToast(t('errorNoChildrenInGroup'), 'error')
       return
     }
-    if (totalTasksToAssign === 0) {
+    if (assignmentMode === 'library' && totalTasksToAssign === 0) {
       showToast(t('errorNoValidTasks'), 'error')
       return
     }
     setCreatingAssignment(true)
     try {
+      if (assignmentMode === 'new') {
+        const taskPayload = {
+          title: ((newTaskFormData.title as string) || '').trim(),
+          description: (newTaskFormData.description as string | undefined)?.trim() || undefined,
+          category: newTaskFormData.category as string | undefined,
+          difficulty: newTaskFormData.difficulty as 'easy' | 'medium' | 'hard' | undefined,
+          estimatedDuration: newTaskFormData.estimatedDuration as number | undefined,
+          ageRange: newTaskFormData.ageRange as { min: number; max: number } | undefined,
+          instructions: newTaskFormData.instructions as string[] | undefined,
+          parentTip: (newTaskFormData.parentTip as string) || undefined,
+          expectedResult: (newTaskFormData.expectedResult as string) || undefined,
+          videoUrl: (newTaskFormData.videoUrl as string) || undefined,
+          imageUrl: (newTaskFormData.imageUrl as string) || undefined,
+        }
+        setNewTaskUploadProgress(newTaskMediaFile ? 10 : 0)
+        const created = newTaskMediaFile
+          ? await apiClient.uploadOrgTaskMedia(orgId, newTaskMediaFile, taskPayload)
+          : await apiClient.createOrgContentTask(orgId, taskPayload)
+        setNewTaskUploadProgress(newTaskMediaFile ? 100 : 0)
+        const createdTaskId = created.task?.id
+        if (!createdTaskId) throw new Error(t('errorCreateTask'))
+        taskIds = [createdTaskId]
+      }
+
       await apiClient.assignGroupTasks(
         orgId,
         selectedGroup.id,
@@ -341,20 +420,24 @@ export default function GroupsPage() {
         roadmapIds
       )
       const parts: string[] = []
-      if (selectedContentIds.size > 0) parts.push(t('partTasks', { n: selectedContentIds.size }))
-      if (selectedRoadmapIds.size > 0) parts.push(t('partPrograms', { n: selectedRoadmapIds.size }))
+      if (taskIds.length > 0) parts.push(t('partTasks', { n: taskIds.length }))
+      if (roadmapIds.length > 0) parts.push(t('partPrograms', { n: roadmapIds.length }))
       showToast(
         parts.length
           ? t('toastAssigned', {
               details: parts.join(', '),
-              count: selectedContentIds.size + selectedRoadmapIds.size,
+              count: taskIds.length + roadmapIds.length,
             })
-          : t('toastAssignedCount', { count: selectedContentIds.size + selectedRoadmapIds.size })
+          : t('toastAssignedCount', { count: taskIds.length + roadmapIds.length })
       )
       setShowAssignmentModal(false)
+      setAssignmentMode('library')
       setSelectedContentIds(new Set())
       setSelectedRoadmapIds(new Set())
       setAssignDueDate('')
+      setNewTaskFormData({})
+      setNewTaskMediaFile(null)
+      setNewTaskUploadProgress(0)
       await handleSelectGroup(selectedGroup)
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : t('errorAssign'), 'error')
@@ -394,7 +477,11 @@ export default function GroupsPage() {
   const hasSelection = selectedContentIds.size > 0 || selectedRoadmapIds.size > 0
   const libraryEmpty = contentTaskLibrary.length === 0 && contentRoadmapLibrary.length === 0
   const canSubmitAssignment =
-    !creatingAssignment && hasSelection && totalChildren > 0 && totalTasksToAssign > 0
+    !creatingAssignment &&
+    totalChildren > 0 &&
+    (assignmentMode === 'new'
+      ? ((newTaskFormData.title as string | undefined)?.trim().length ?? 0) > 0
+      : hasSelection && totalTasksToAssign > 0)
 
   const handleDeleteAssignment = async (a: Assignment) => {
     if (!orgId || !selectedGroup) return
@@ -794,6 +881,7 @@ export default function GroupsPage() {
                   isOwner={canManageGroup(selectedGroup)}
                   selectedId={assignmentDetail?.id}
                   onSelect={handleSelectAssignment}
+                  onPrefetch={prefetchAssignment}
                   onDelete={handleDeleteAssignment}
                   onToggleStatus={handleToggleAssignmentStatus}
                   onNew={() => openAssignFromLibraryModal()}
@@ -928,6 +1016,44 @@ export default function GroupsPage() {
                     </div>
                   )}
 
+                  {/* Direct tasks breakdown */}
+                  {assignmentDetail.taskTitles && assignmentDetail.taskTitles.length > 0 && (
+                    <div className="mb-5 rounded-xl border border-primary-100 bg-primary-50/40 overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 py-3 border-b border-primary-100">
+                        <FileText className="w-4 h-4 text-primary-500 shrink-0" />
+                        <span className="text-sm font-semibold text-primary-800">
+                          {t('tasksLabel')}
+                        </span>
+                        <span className="ml-auto text-xs text-primary-400">
+                          {assignmentDetail.taskTitles.length}
+                        </span>
+                      </div>
+                      <ul className="px-4 py-3 space-y-2">
+                        {assignmentDetail.taskTitles.map((title, i) => {
+                          const taskId = assignmentDetail.contentTaskIds?.[i]
+                          return (
+                            <li key={i} className="flex items-center gap-3">
+                              <span className="shrink-0 w-5 h-5 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-semibold text-[11px]">
+                                {i + 1}
+                              </span>
+                              <span className="flex-1 text-sm text-primary-900">{title}</span>
+                              {taskId && (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewTask(taskId)}
+                                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-primary-600 bg-white border border-primary-200 hover:bg-primary-50 transition-colors"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  {tAssign('previewLabel')}
+                                </button>
+                              )}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )}
+
                   {/* Roadmap breakdown */}
                   {assignmentDetail.roadmaps && assignmentDetail.roadmaps.length > 0 && (
                     <div className="mb-5 rounded-xl border border-purple-100 bg-purple-50/40 overflow-hidden">
@@ -974,17 +1100,30 @@ export default function GroupsPage() {
                             </button>
                             {isOpen && roadmap.taskTitles.length > 0 && (
                               <ul className="px-4 pb-3 space-y-1">
-                                {roadmap.taskTitles.map((title, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex items-start gap-2 text-xs text-purple-800"
-                                  >
-                                    <span className="shrink-0 w-4 h-4 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center font-semibold text-[10px] mt-0.5">
-                                      {i + 1}
-                                    </span>
-                                    {title}
-                                  </li>
-                                ))}
+                                {roadmap.taskTitles.map((title, i) => {
+                                  const taskId = roadmap.taskIds?.[i]
+                                  return (
+                                    <li
+                                      key={i}
+                                      className="flex items-center gap-2 text-xs text-purple-800"
+                                    >
+                                      <span className="shrink-0 w-4 h-4 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center font-semibold text-[10px]">
+                                        {i + 1}
+                                      </span>
+                                      <span className="flex-1">{title}</span>
+                                      {taskId && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePreviewTask(taskId)}
+                                          className="shrink-0 p-1 rounded text-purple-400 hover:text-purple-600 hover:bg-purple-100 transition-colors"
+                                          title={tAssign('previewLabel')}
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </li>
+                                  )
+                                })}
                               </ul>
                             )}
                           </div>
@@ -1220,9 +1359,13 @@ export default function GroupsPage() {
         <Modal
           onClose={() => {
             setShowAssignmentModal(false)
+            setAssignmentMode('library')
             setSelectedContentIds(new Set())
             setSelectedRoadmapIds(new Set())
             setAssignDueDate('')
+            setNewTaskFormData({})
+            setNewTaskMediaFile(null)
+            setNewTaskUploadProgress(0)
           }}
           maxWidth="max-w-lg"
           zIndex="z-[70]"
@@ -1236,7 +1379,13 @@ export default function GroupsPage() {
               <h2 className="text-lg font-bold text-gray-900">{t('assignTitle')}</h2>
             </div>
             <button
-              onClick={() => setShowAssignmentModal(false)}
+              onClick={() => {
+                setShowAssignmentModal(false)
+                setAssignmentMode('library')
+                setNewTaskFormData({})
+                setNewTaskMediaFile(null)
+                setNewTaskUploadProgress(0)
+              }}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
             >
               <X className="w-5 h-5" />
@@ -1250,7 +1399,36 @@ export default function GroupsPage() {
           </div>
 
           <form onSubmit={handleAssignFromLibrary} className="flex flex-col gap-4">
-            {loadingLibrary ? (
+            <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1">
+              {[
+                { key: 'library' as const, label: t('assignModeLibrary') },
+                { key: 'new' as const, label: t('assignModeNew') },
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  type="button"
+                  onClick={() => setAssignmentMode(mode.key)}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    assignmentMode === mode.key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
+            {assignmentMode === 'new' ? (
+              <OrgTaskForm
+                formData={newTaskFormData}
+                mediaFile={newTaskMediaFile}
+                onFieldChange={(field, value) =>
+                  setNewTaskFormData((prev) => ({ ...prev, [field]: value }))
+                }
+                onMediaFileChange={setNewTaskMediaFile}
+              />
+            ) : loadingLibrary ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-primary-500" />
               </div>
@@ -1364,7 +1542,7 @@ export default function GroupsPage() {
               </>
             )}
 
-            {!libraryEmpty && (
+            {(assignmentMode === 'new' || !libraryEmpty) && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -1385,7 +1563,13 @@ export default function GroupsPage() {
                 <div className="flex gap-3 pt-1">
                   <button
                     type="button"
-                    onClick={() => setShowAssignmentModal(false)}
+                    onClick={() => {
+                      setShowAssignmentModal(false)
+                      setAssignmentMode('library')
+                      setNewTaskFormData({})
+                      setNewTaskMediaFile(null)
+                      setNewTaskUploadProgress(0)
+                    }}
                     className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
                   >
                     {t('cancel')}
@@ -1400,7 +1584,11 @@ export default function GroupsPage() {
                     ) : (
                       <Send className="w-4 h-4" />
                     )}
-                    {t('assignToGroup')}
+                    {assignmentMode === 'new' && newTaskMediaFile && newTaskUploadProgress > 0
+                      ? t('uploading', { progress: newTaskUploadProgress })
+                      : assignmentMode === 'new'
+                        ? t('createAndAssignToGroup')
+                        : t('assignToGroup')}
                   </button>
                 </div>
               </>
@@ -1693,6 +1881,174 @@ export default function GroupsPage() {
           closeHint={t('lightboxCloseHint')}
           closeLabel={t('close')}
         />
+      )}
+
+      {/* ── Task preview modal ───────────────────────────────────────────────── */}
+      {(previewTaskData || previewTaskLoading) && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            setPreviewTaskData(null)
+          }}
+        >
+          <div
+            className="relative mx-auto flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary-400" />
+                <span className="text-xs font-medium text-gray-500">{tAssign('previewAs')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewTaskData(null)}
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {previewTaskLoading ? (
+              <div className="flex flex-1 items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
+              </div>
+            ) : previewTaskData ? (
+              <div className="flex-1 overflow-y-auto">
+                {/* Media */}
+                {(previewTaskData.imageUrl || previewTaskData.thumbnailUrl) && (
+                  <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
+                    <img
+                      src={previewTaskData.imageUrl || previewTaskData.thumbnailUrl}
+                      alt={previewTaskData.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+                {previewTaskData.videoUrl && !previewTaskData.imageUrl && (
+                  <div className="flex aspect-video w-full items-center justify-center bg-gray-900">
+                    <video
+                      src={previewTaskData.videoUrl}
+                      controls
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-5 p-5">
+                  {/* Title + badges */}
+                  <div>
+                    <h2 className="text-xl font-bold leading-tight text-gray-900">
+                      {previewTaskData.title || tAssign('untitled')}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {previewTaskData.category && (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                          {previewTaskData.category}
+                        </span>
+                      )}
+                      {previewTaskData.difficulty && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${previewTaskData.difficulty === 'easy' ? 'bg-green-100 text-green-700' : previewTaskData.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}
+                        >
+                          {tAssign(
+                            previewTaskData.difficulty === 'easy'
+                              ? 'difficultyEasy'
+                              : previewTaskData.difficulty === 'medium'
+                                ? 'difficultyMedium'
+                                : 'difficultyHard'
+                          )}
+                        </span>
+                      )}
+                      {previewTaskData.estimatedDuration && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">
+                          <Clock className="h-3 w-3" />
+                          {previewTaskData.estimatedDuration} {tAssign('previewMinutes')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm leading-relaxed text-gray-600">
+                    {previewTaskData.description || (
+                      <span className="italic text-gray-400">
+                        {tAssign('previewNoDescription')}
+                      </span>
+                    )}
+                  </p>
+
+                  {/* Instructions */}
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-gray-800">
+                      {tAssign('previewInstructions')}
+                    </h3>
+                    {previewTaskData.instructions?.filter(Boolean).length > 0 ? (
+                      <ol className="space-y-2">
+                        {previewTaskData.instructions
+                          .filter(Boolean)
+                          .map((step: string, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm text-gray-700">
+                              <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary-500 text-[11px] font-bold text-white">
+                                {i + 1}
+                              </span>
+                              <span className="leading-relaxed">{step}</span>
+                            </li>
+                          ))}
+                      </ol>
+                    ) : (
+                      <p className="text-sm italic text-gray-400">
+                        {tAssign('previewNoInstructions')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Parent tip */}
+                  {previewTaskData.parentTip && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-600" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                          {tAssign('previewParentTip')}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-amber-900">
+                        {previewTaskData.parentTip}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Expected result */}
+                  {previewTaskData.expectedResult && (
+                    <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <Target className="h-4 w-4 text-green-600" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                          {tAssign('previewExpectedResult')}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-green-900">
+                        {previewTaskData.expectedResult}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Footer */}
+            <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setPreviewTaskData(null)}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+              >
+                {tAssign('previewClose')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

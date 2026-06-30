@@ -50,7 +50,7 @@ const CONFIG: Record<
 
 export function SubscriptionBanner({ bannerType, message, ctaLabel, orgId, daysRemaining }: Props) {
   const router = useRouter()
-  const t = useTranslations('b2b.subscription')
+  const t = useTranslations('b2b.pages.billing')
   const [dismissed, setDismissed] = useState(false)
 
   if (bannerType === 'none' || dismissed) return null
@@ -65,48 +65,40 @@ export function SubscriptionBanner({ bannerType, message, ctaLabel, orgId, daysR
 
   // trial_active banners are dismissible; expiring/past_due are not
   const isDismissible = bannerType === 'trial_active'
-  const translatedMessage =
-    bannerType === 'trial_active'
-      ? daysRemaining !== null && daysRemaining !== undefined
-        ? t('trialActiveWithDays', { days: daysRemaining })
-        : t('trialActive')
-      : bannerType === 'trial_expiring'
-        ? daysRemaining !== null && daysRemaining !== undefined
-          ? t('trialExpiringWithDays', { days: daysRemaining })
-          : t('trialExpiring')
-        : bannerType === 'past_due'
-          ? t('pastDue')
-          : message
-  const translatedCta =
-    bannerType === 'past_due' ? t('updateBilling') : ctaLabel ? t('choosePlan') : ctaLabel
 
   return (
     <div
       role="alert"
-      className={`relative flex items-center gap-3 px-4 py-2.5 border-b text-sm ${cfg.bg} ${cfg.border} ${cfg.text}`}
+      className={`relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 border-b px-3 py-2 text-sm sm:px-4 sm:py-2.5 ${cfg.bg} ${cfg.border} ${cfg.text}`}
     >
-      <Icon className="w-4 h-4 shrink-0" aria-hidden />
-      <span className="flex-1 min-w-0">{translatedMessage}</span>
-      {daysRemaining !== null && daysRemaining !== undefined && bannerType === 'trial_expiring' && (
-        <span className="font-semibold shrink-0">{t('daysLeft', { days: daysRemaining })}</span>
-      )}
-      <button
-        type="button"
-        onClick={handleCta}
-        className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${cfg.ctaClass}`}
-      >
-        {translatedCta}
-      </button>
-      {isDismissible && (
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <span className="min-w-0 leading-snug">{message}</span>
+      <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-2">
+        {daysRemaining !== null &&
+          daysRemaining !== undefined &&
+          bannerType === 'trial_expiring' && (
+            <span className="shrink-0 font-semibold">
+              {t('bannerDaysLeft', { days: daysRemaining })}
+            </span>
+          )}
         <button
           type="button"
-          onClick={() => setDismissed(true)}
-          aria-label={t('dismiss')}
-          className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+          onClick={handleCta}
+          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${cfg.ctaClass}`}
         >
-          <X className="w-4 h-4" />
+          {ctaLabel}
         </button>
-      )}
+        {isDismissible && (
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss"
+            className="shrink-0 rounded-md p-1 opacity-60 transition-opacity hover:opacity-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

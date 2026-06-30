@@ -1,12 +1,20 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { LogOut, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-import { NotificationBell } from './NotificationBell'
+
+const NotificationBell = dynamic(
+  () => import('./NotificationBell').then((mod) => ({ default: mod.NotificationBell })),
+  {
+    ssr: false,
+    loading: () => <div className="min-w-[44px] min-h-[44px] sm:min-w-10 sm:min-h-10 rounded-lg" />,
+  }
+)
 
 interface HeaderProps {
   profile: SpecialistProfile | null
@@ -57,7 +65,7 @@ export function Header({ profile, isSidebarOpen = false, onMenuClick }: HeaderPr
   }
 
   return (
-    <header className="b2b-topbar sticky top-0 relative z-[45] isolate bg-white border-b border-gray-200 min-h-14 lg:h-16 flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+    <header className="b2b-topbar fixed left-0 right-0 top-0 z-[45] isolate flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 sm:px-4 md:sticky md:left-auto md:right-auto lg:h-16 lg:px-6">
       <div className="flex items-center gap-2 min-w-0 flex-1 overflow-visible">
         {onMenuClick && (
           <button

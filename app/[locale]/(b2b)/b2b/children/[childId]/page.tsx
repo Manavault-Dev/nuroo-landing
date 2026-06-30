@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -17,6 +18,9 @@ import {
   type GuardianInput,
 } from '@/lib/b2b/api'
 import { ActivityFeed } from '@/components/b2b/ActivityFeed'
+const AIReportBuilder = dynamic(() =>
+  import('@/components/b2b/AIReportBuilder').then((m) => ({ default: m.AIReportBuilder }))
+)
 import {
   ArrowLeft,
   Calendar,
@@ -52,6 +56,7 @@ import {
   ShieldCheck,
   X,
   MapPin,
+  Sparkles,
 } from 'lucide-react'
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
@@ -1915,8 +1920,11 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [showAIReport, setShowAIReport] = useState(false)
+  const [aiReportSent, setAIReportSent] = useState(false)
 
   const t = useTranslations('b2b.pages.childDetail')
+  const tAIReport = useTranslations('b2b.pages.aiReport')
   const locale = useLocale()
   const dateLocale = locale === 'ru' ? 'ru-RU' : locale === 'ky' ? 'ky-KG' : 'en-US'
 
@@ -2006,7 +2014,21 @@ export default function ChildDetailPage() {
               <span className="text-white font-bold text-xl">{initials(childDetail.name)}</span>
             </div>
             <div className="flex-1 min-w-0 pt-1">
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{childDetail.name}</h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                  {childDetail.name}
+                </h1>
+                <button
+                  onClick={() => {
+                    setShowAIReport(true)
+                    setAIReportSent(false)
+                  }}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 border border-primary-200 rounded-xl hover:bg-primary-100 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {tAIReport('buttonLabel')}
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {childDetail.age && (
                   <StatChip
@@ -2101,6 +2123,28 @@ export default function ChildDetailPage() {
 
         {activeTab === 'intake' && <IntakeTab orgId={orgId} childId={childId} />}
       </div>
+
+      {showAIReport && (
+        <AIReportBuilder
+          orgId={orgId}
+          childId={childId}
+          childName={childDetail.name}
+          childAge={childDetail.age}
+          locale={locale as 'ru' | 'en' | 'ky'}
+          onClose={() => setShowAIReport(false)}
+          onSent={() => {
+            setShowAIReport(false)
+            setAIReportSent(true)
+          }}
+        />
+      )}
+
+      {aiReportSent && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <Sparkles className="w-4 h-4" />
+          {tAIReport('sentSuccess')}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,11 +1,38 @@
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
 import { Hero } from '@/components/landing/Hero'
-import { Solution } from '@/components/landing/Solution'
-import { IndependentPath } from '@/components/landing/IndependentPath'
-import { Platform } from '@/components/landing/Platform'
-import { Pricing } from '@/components/landing/Pricing'
-import { Footer } from '@/components/layout/Footer'
 import { setRequestLocale } from 'next-intl/server'
+
+function SectionSkeleton() {
+  return (
+    <div className="py-16 md:py-24 animate-pulse">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-1/3 mx-auto mb-6" />
+        <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/2 mx-auto mb-12" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-48 bg-gray-100 dark:bg-gray-800 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const Solution = dynamic(() => import('@/components/landing/Solution').then((m) => m.Solution), {
+  loading: () => <SectionSkeleton />,
+})
+const IndependentPath = dynamic(
+  () => import('@/components/landing/IndependentPath').then((m) => m.IndependentPath),
+  { loading: () => <SectionSkeleton /> }
+)
+const Platform = dynamic(() => import('@/components/landing/Platform').then((m) => m.Platform), {
+  loading: () => <SectionSkeleton />,
+})
+const Pricing = dynamic(() => import('@/components/landing/Pricing').then((m) => m.Pricing), {
+  loading: () => <SectionSkeleton />,
+})
+const Footer = dynamic(() => import('@/components/layout/Footer').then((m) => m.Footer))
 
 type Props = { params: { locale: string } }
 
