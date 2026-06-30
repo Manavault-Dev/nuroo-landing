@@ -6,8 +6,6 @@ import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import {
   BarChart3,
   Users,
@@ -394,6 +392,11 @@ function ReportsContent() {
             })
         )
       )
+
+      const [html2canvas, { jsPDF }] = await Promise.all([
+        import('html2canvas').then((m) => m.default),
+        import('jspdf'),
+      ])
 
       const canvas = await html2canvas(container, {
         scale: 2,
