@@ -113,11 +113,7 @@ export async function uploadContentTask(
   return { id: ref.id, doc: await ref.get() }
 }
 
-export async function getContentTask(
-  db: admin.firestore.Firestore,
-  orgId: string,
-  taskId: string
-) {
+export async function getContentTask(db: admin.firestore.Firestore, orgId: string, taskId: string) {
   const ref = db.doc(`${COLLECTIONS.ORG_TASKS(orgId)}/${taskId}`)
   const snap = await ref.get()
   if (!snap.exists) {

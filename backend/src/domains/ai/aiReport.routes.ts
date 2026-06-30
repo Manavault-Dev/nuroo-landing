@@ -12,7 +12,13 @@ const MODEL = 'gpt-4.1-mini'
 const generateSchema = z.object({
   periodStart: z.string().min(1),
   periodEnd: z.string().min(1),
-  specialistType: z.enum(['speech_therapist', 'psychologist', 'aba_specialist', 'defectologist', 'ot_specialist']),
+  specialistType: z.enum([
+    'speech_therapist',
+    'psychologist',
+    'aba_specialist',
+    'defectologist',
+    'ot_specialist',
+  ]),
   language: z.enum(['ru', 'en', 'ky']).default('ru'),
   selectedMetrics: z.record(z.string(), z.array(z.string())),
   additionalNotes: z.string().max(1000).optional().nullable(),
@@ -23,7 +29,13 @@ const generateSchema = z.object({
 const saveSchema = z.object({
   periodStart: z.string(),
   periodEnd: z.string(),
-  specialistType: z.enum(['speech_therapist', 'psychologist', 'aba_specialist', 'defectologist', 'ot_specialist']),
+  specialistType: z.enum([
+    'speech_therapist',
+    'psychologist',
+    'aba_specialist',
+    'defectologist',
+    'ot_specialist',
+  ]),
   language: z.enum(['ru', 'en', 'ky']).default('ru'),
   selectedMetrics: z.record(z.string(), z.array(z.string())),
   additionalNotes: z.string().max(1000).optional(),
@@ -91,40 +103,112 @@ function buildReportUserPrompt(data: z.infer<typeof generateSchema>): string {
   } = data
 
   const typeLabels: Record<string, Record<string, string>> = {
-    ru: { speech_therapist: 'Логопед', psychologist: 'Психолог', aba_specialist: 'АBA-специалист', defectologist: 'Дефектолог', ot_specialist: 'Эрготерапевт' },
-    en: { speech_therapist: 'Speech Therapist', psychologist: 'Psychologist', aba_specialist: 'ABA Specialist', defectologist: 'Defectologist', ot_specialist: 'Occupational Therapist' },
-    ky: { speech_therapist: 'Логопед', psychologist: 'Психолог', aba_specialist: 'АBA-адис', defectologist: 'Дефектолог', ot_specialist: 'Эрготерапевт' },
+    ru: {
+      speech_therapist: 'Логопед',
+      psychologist: 'Психолог',
+      aba_specialist: 'АBA-специалист',
+      defectologist: 'Дефектолог',
+      ot_specialist: 'Эрготерапевт',
+    },
+    en: {
+      speech_therapist: 'Speech Therapist',
+      psychologist: 'Psychologist',
+      aba_specialist: 'ABA Specialist',
+      defectologist: 'Defectologist',
+      ot_specialist: 'Occupational Therapist',
+    },
+    ky: {
+      speech_therapist: 'Логопед',
+      psychologist: 'Психолог',
+      aba_specialist: 'АBA-адис',
+      defectologist: 'Дефектолог',
+      ot_specialist: 'Эрготерапевт',
+    },
   }
   const typeLabel = typeLabels[language]?.[specialistType] ?? specialistType
 
   const sectionLabels: Record<string, Record<string, string>> = {
     ru: {
-      speech_sounds: 'Речевые звуки', articulation: 'Артикуляция', phonemic: 'Фонематический слух',
-      communication: 'Коммуникация', attention: 'Внимание', home_practice: 'Домашние занятия', general_progress: 'Общий прогресс',
-      emotional_state: 'Эмоциональное состояние', anxiety_level: 'Тревожность', self_regulation: 'Саморегуляция',
-      social_skills: 'Социальные навыки', cognitive: 'Когнитивные функции',
-      target_behaviors: 'Целевое поведение', skill_acquisition: 'Освоение навыков', prompt_dependency: 'Подсказки', generalization: 'Генерализация',
-      cognitive_dev: 'Когнитивное развитие', perception: 'Восприятие', fine_motor: 'Мелкая моторика', learning_activity: 'Учебная деятельность',
-      sensory: 'Сенсорная интеграция', gross_motor: 'Крупная моторика', fine_motor_ot: 'Мелкая моторика', daily_living: 'Навыки самообслуживания', coordination: 'Координация',
+      speech_sounds: 'Речевые звуки',
+      articulation: 'Артикуляция',
+      phonemic: 'Фонематический слух',
+      communication: 'Коммуникация',
+      attention: 'Внимание',
+      home_practice: 'Домашние занятия',
+      general_progress: 'Общий прогресс',
+      emotional_state: 'Эмоциональное состояние',
+      anxiety_level: 'Тревожность',
+      self_regulation: 'Саморегуляция',
+      social_skills: 'Социальные навыки',
+      cognitive: 'Когнитивные функции',
+      target_behaviors: 'Целевое поведение',
+      skill_acquisition: 'Освоение навыков',
+      prompt_dependency: 'Подсказки',
+      generalization: 'Генерализация',
+      cognitive_dev: 'Когнитивное развитие',
+      perception: 'Восприятие',
+      fine_motor: 'Мелкая моторика',
+      learning_activity: 'Учебная деятельность',
+      sensory: 'Сенсорная интеграция',
+      gross_motor: 'Крупная моторика',
+      fine_motor_ot: 'Мелкая моторика',
+      daily_living: 'Навыки самообслуживания',
+      coordination: 'Координация',
       general_progress_ot: 'Общий прогресс',
     },
     en: {
-      speech_sounds: 'Speech sounds', articulation: 'Articulation exercises', phonemic: 'Phonemic hearing',
-      communication: 'Communication', attention: 'Attention and engagement', home_practice: 'Home practice', general_progress: 'General progress',
-      emotional_state: 'Emotional state', anxiety_level: 'Anxiety level', self_regulation: 'Self-regulation',
-      social_skills: 'Social skills', cognitive: 'Cognitive functions',
-      target_behaviors: 'Target behaviors', skill_acquisition: 'Skill acquisition', prompt_dependency: 'Prompt dependency', generalization: 'Skill generalization',
-      cognitive_dev: 'Cognitive development', perception: 'Perception & thinking', fine_motor: 'Fine motor skills', learning_activity: 'Learning activity',
-      sensory: 'Sensory integration', gross_motor: 'Gross motor skills', fine_motor_ot: 'Fine motor skills', daily_living: 'Daily living skills', coordination: 'Coordination & balance',
+      speech_sounds: 'Speech sounds',
+      articulation: 'Articulation exercises',
+      phonemic: 'Phonemic hearing',
+      communication: 'Communication',
+      attention: 'Attention and engagement',
+      home_practice: 'Home practice',
+      general_progress: 'General progress',
+      emotional_state: 'Emotional state',
+      anxiety_level: 'Anxiety level',
+      self_regulation: 'Self-regulation',
+      social_skills: 'Social skills',
+      cognitive: 'Cognitive functions',
+      target_behaviors: 'Target behaviors',
+      skill_acquisition: 'Skill acquisition',
+      prompt_dependency: 'Prompt dependency',
+      generalization: 'Skill generalization',
+      cognitive_dev: 'Cognitive development',
+      perception: 'Perception & thinking',
+      fine_motor: 'Fine motor skills',
+      learning_activity: 'Learning activity',
+      sensory: 'Sensory integration',
+      gross_motor: 'Gross motor skills',
+      fine_motor_ot: 'Fine motor skills',
+      daily_living: 'Daily living skills',
+      coordination: 'Coordination & balance',
     },
     ky: {
-      speech_sounds: 'Сүйлөө үндөрү', articulation: 'Артикуляция көнүгүүлөрү', phonemic: 'Фонемалык угуу',
-      communication: 'Байланыш', attention: 'Дикат жана катышуу', home_practice: 'Үй тапшырмалары', general_progress: 'Жалпы жетишкендик',
-      emotional_state: 'Эмоционалдык абал', anxiety_level: 'Тынчсыздануу деңгээли', self_regulation: 'Өзүн-өзү жөнгө салуу',
-      social_skills: 'Социалдык көндүмдөр', cognitive: 'Когнитивдик функциялар',
-      target_behaviors: 'Максаттуу жүрүм-турум', skill_acquisition: 'Көндүмдөрдү өздөштүрүү', prompt_dependency: 'Жардамга көзкарандылык', generalization: 'Жалпылоо',
-      cognitive_dev: 'Когнитивдик өнүгүү', perception: 'Кабыл алуу жана ой жүгүртүү', fine_motor: 'Майда моторика', learning_activity: 'Окуу иш-аракети',
-      sensory: 'Сенсордук интеграция', gross_motor: 'Ири моторика', fine_motor_ot: 'Майда моторика', daily_living: 'Өзүнө кам көрүү', coordination: 'Координация жана тең салмак',
+      speech_sounds: 'Сүйлөө үндөрү',
+      articulation: 'Артикуляция көнүгүүлөрү',
+      phonemic: 'Фонемалык угуу',
+      communication: 'Байланыш',
+      attention: 'Дикат жана катышуу',
+      home_practice: 'Үй тапшырмалары',
+      general_progress: 'Жалпы жетишкендик',
+      emotional_state: 'Эмоционалдык абал',
+      anxiety_level: 'Тынчсыздануу деңгээли',
+      self_regulation: 'Өзүн-өзү жөнгө салуу',
+      social_skills: 'Социалдык көндүмдөр',
+      cognitive: 'Когнитивдик функциялар',
+      target_behaviors: 'Максаттуу жүрүм-турум',
+      skill_acquisition: 'Көндүмдөрдү өздөштүрүү',
+      prompt_dependency: 'Жардамга көзкарандылык',
+      generalization: 'Жалпылоо',
+      cognitive_dev: 'Когнитивдик өнүгүү',
+      perception: 'Кабыл алуу жана ой жүгүртүү',
+      fine_motor: 'Майда моторика',
+      learning_activity: 'Окуу иш-аракети',
+      sensory: 'Сенсордук интеграция',
+      gross_motor: 'Ири моторика',
+      fine_motor_ot: 'Майда моторика',
+      daily_living: 'Өзүнө кам көрүү',
+      coordination: 'Координация жана тең салмак',
     },
   }
 
@@ -142,14 +226,13 @@ function buildReportUserPrompt(data: z.infer<typeof generateSchema>): string {
     .map(([key, opts]) => `${labels[key] || key}:\n${opts.map((o) => `  • ${o}`).join('\n')}`)
     .join('\n\n')
 
-  const notesLine =
-    additionalNotes
-      ? language === 'ru'
-        ? `\n\nДополнительные заметки специалиста:\n${additionalNotes}`
-        : language === 'ky'
-          ? `\n\nАдистин кошумча эскертүүлөрү:\n${additionalNotes}`
-          : `\n\nAdditional specialist notes:\n${additionalNotes}`
-      : ''
+  const notesLine = additionalNotes
+    ? language === 'ru'
+      ? `\n\nДополнительные заметки специалиста:\n${additionalNotes}`
+      : language === 'ky'
+        ? `\n\nАдистин кошумча эскертүүлөрү:\n${additionalNotes}`
+        : `\n\nAdditional specialist notes:\n${additionalNotes}`
+    : ''
 
   const instruction =
     language === 'ru'
@@ -174,7 +257,10 @@ export const aiReportRoute: FastifyPluginAsync = async (fastify) => {
 
       const parse = generateSchema.safeParse(request.body)
       if (!parse.success) {
-        fastify.log.warn({ body: request.body, issues: parse.error.issues }, 'aiReport generate validation failed')
+        fastify.log.warn(
+          { body: request.body, issues: parse.error.issues },
+          'aiReport generate validation failed'
+        )
         return reply.code(400).send({ error: 'Invalid input', details: parse.error.issues })
       }
 
@@ -351,7 +437,11 @@ export const aiReportRoute: FastifyPluginAsync = async (fastify) => {
           authorId: request.user!.uid,
           authorRole: 'specialist',
           authorName: (member as any).name || 'Специалист',
-          title: buildFeedTitle(reportData.language || 'ru', reportData.periodStart, reportData.periodEnd),
+          title: buildFeedTitle(
+            reportData.language || 'ru',
+            reportData.periodStart,
+            reportData.periodEnd
+          ),
           body: parse.data.finalText,
           relatedEntityType: 'ai_report',
           relatedEntityId: reportId,
