@@ -111,6 +111,11 @@ const DEMO_TASKS = [
   },
 ]
 
+const DEMO_ROUTE_RATE_LIMIT = {
+  max: 5,
+  timeWindow: '1 minute',
+}
+
 async function getOrCreateDemoParent(email: string, fullName: string): Promise<string> {
   try {
     const existing = await admin.auth().getUserByEmail(email)
@@ -127,153 +132,158 @@ async function getOrCreateDemoParent(email: string, fullName: string): Promise<s
 }
 
 export const demoSeedRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Params: { orgId: string } }>('/orgs/:orgId/demo/seed', async (request, reply) => {
-    try {
-      const { orgId } = request.params
-      const member = await requireOrgMember(request, reply, orgId)
-      if (member.role !== 'org_admin') {
-        return reply.code(403).send({ error: 'Only admins can seed demo data' })
-      }
-
-      const db = getFirestore()
-      const now = admin.firestore.Timestamp.now()
-      const uid = request.user!.uid
-
-      const createdChildIds: string[] = []
-      const createdParentUids: string[] = []
-
-      // --- 1. Create children + parents + links ---
-      for (const entry of DEMO_DATA) {
-        const { child, parent } = entry
-
-        // Create or get Firebase Auth parent account
-        const parentUid = await getOrCreateDemoParent(parent.email, parent.fullName)
-        createdParentUids.push(parentUid)
-
-        const fullName = `${child.firstName} ${child.lastName}`
-
-        // Global child doc
-        const globalRef = db.collection('children').doc()
-        const childId = globalRef.id
-        createdChildIds.push(childId)
-
-        const childData = {
-          name: fullName,
-          firstName: child.firstName,
-          lastName: child.lastName,
-          dateOfBirth: child.dateOfBirth,
-          gender: child.gender,
-          diagnosis: child.diagnosis,
-          primaryConcern: child.primaryConcern,
-          orgId,
-          createdBy: uid,
-          createdAt: now,
-          updatedAt: now,
-          isDemo: true,
+  fastify.post<{ Params: { orgId: string } }>(
+    '/orgs/:orgId/demo/seed',
+    { config: { rateLimit: DEMO_ROUTE_RATE_LIMIT } },
+    async (request, reply) => {
+      try {
+        const { orgId } = request.params
+        const member = await requireOrgMember(request, reply, orgId)
+        if (member.role !== 'org_admin') {
+          return reply.code(403).send({ error: 'Only admins can seed demo data' })
         }
-        await globalRef.set(childData)
 
-        // Org child link (with parentUserId so children page shows parent)
-        await db.collection(`organizations/${orgId}/children`).doc(childId).set({
-          assigned: true,
-          childId,
-          name: fullName,
-          parentUserId: parentUid,
-          createdAt: now,
-          updatedAt: now,
-          isDemo: true,
-        })
+        const db = getFirestore()
+        const now = admin.firestore.Timestamp.now()
+        const uid = request.user!.uid
 
-        // Parent profile in orgParents
-        await db.doc(`orgParents/${orgId}/parents/${parentUid}`).set(
-          {
-            parentUserId: parentUid,
-            fullName: parent.fullName,
-            phone: parent.phone,
-            email: parent.email,
+        const createdChildIds: string[] = []
+        const createdParentUids: string[] = []
+
+        // --- 1. Create children + parents + links ---
+        for (const entry of DEMO_DATA) {
+          const { child, parent } = entry
+
+          // Create or get Firebase Auth parent account
+          const parentUid = await getOrCreateDemoParent(parent.email, parent.fullName)
+          createdParentUids.push(parentUid)
+
+          const fullName = `${child.firstName} ${child.lastName}`
+
+          // Global child doc
+          const globalRef = db.collection('children').doc()
+          const childId = globalRef.id
+          createdChildIds.push(childId)
+
+          const childData = {
+            name: fullName,
+            firstName: child.firstName,
+            lastName: child.lastName,
+            dateOfBirth: child.dateOfBirth,
+            gender: child.gender,
+            diagnosis: child.diagnosis,
+            primaryConcern: child.primaryConcern,
             orgId,
+            createdBy: uid,
             createdAt: now,
             updatedAt: now,
             isDemo: true,
-          },
-          { merge: true }
-        )
+          }
+          await globalRef.set(childData)
 
-        // users doc so name resolves
-        await db.doc(`users/${parentUid}`).set(
-          {
-            name: parent.fullName,
-            email: parent.email,
-            role: 'parent',
-            orgId,
+          // Org child link (with parentUserId so children page shows parent)
+          await db.collection(`organizations/${orgId}/children`).doc(childId).set({
+            assigned: true,
+            childId,
+            name: fullName,
+            parentUserId: parentUid,
             createdAt: now,
+            updatedAt: now,
             isDemo: true,
+          })
+
+          // Parent profile in orgParents
+          await db.doc(`orgParents/${orgId}/parents/${parentUid}`).set(
+            {
+              parentUserId: parentUid,
+              fullName: parent.fullName,
+              phone: parent.phone,
+              email: parent.email,
+              orgId,
+              createdAt: now,
+              updatedAt: now,
+              isDemo: true,
+            },
+            { merge: true }
+          )
+
+          // users doc so name resolves
+          await db.doc(`users/${parentUid}`).set(
+            {
+              name: parent.fullName,
+              email: parent.email,
+              role: 'parent',
+              orgId,
+              createdAt: now,
+              isDemo: true,
+            },
+            { merge: true }
+          )
+        }
+
+        // --- 2. Create content tasks ---
+        const createdTaskIds: string[] = []
+        const taskBatch = db.batch()
+        for (const task of DEMO_TASKS) {
+          const ref = db.collection(`organizations/${orgId}/contentTasks`).doc()
+          createdTaskIds.push(ref.id)
+          taskBatch.set(ref, { ...task, orgId, createdAt: now, createdBy: uid, isDemo: true })
+        }
+        await taskBatch.commit()
+
+        // --- 3. Create demo group with all children + parents ---
+        const groupRef = db.collection(`specialists/${uid}/groups`).doc()
+        const groupId = groupRef.id
+        await groupRef.set({
+          name: 'Демо-группа',
+          description: 'Тестовая группа для показа клиенту',
+          color: '#6366f1',
+          orgId,
+          childIds: createdChildIds,
+          parentCount: createdParentUids.length,
+          taskCount: 0,
+          createdAt: now,
+          updatedAt: now,
+          isDemo: true,
+        })
+
+        // Link children and parents into the group
+        const groupBatch = db.batch()
+        for (let i = 0; i < createdChildIds.length; i++) {
+          const childId = createdChildIds[i]
+          const parentUid = createdParentUids[i]
+
+          groupBatch.set(db.doc(`specialists/${uid}/groups/${groupId}/children/${childId}`), {
+            childId,
+            addedAt: now,
+          })
+          groupBatch.set(db.doc(`specialists/${uid}/groups/${groupId}/parents/${parentUid}`), {
+            childIds: [childId],
+            addedAt: now,
+          })
+        }
+        await groupBatch.commit()
+
+        return {
+          ok: true,
+          created: {
+            children: createdChildIds.length,
+            parents: createdParentUids.length,
+            tasks: createdTaskIds.length,
+            groups: 1,
           },
-          { merge: true }
-        )
+          message: `Создано: ${createdChildIds.length} детей, ${createdParentUids.length} родителей, ${createdTaskIds.length} заданий, 1 группа`,
+        }
+      } catch (e: any) {
+        fastify.log.error(e)
+        return reply.code(500).send({ error: e?.message || 'Seeding failed' })
       }
-
-      // --- 2. Create content tasks ---
-      const createdTaskIds: string[] = []
-      const taskBatch = db.batch()
-      for (const task of DEMO_TASKS) {
-        const ref = db.collection(`organizations/${orgId}/contentTasks`).doc()
-        createdTaskIds.push(ref.id)
-        taskBatch.set(ref, { ...task, orgId, createdAt: now, createdBy: uid, isDemo: true })
-      }
-      await taskBatch.commit()
-
-      // --- 3. Create demo group with all children + parents ---
-      const groupRef = db.collection(`specialists/${uid}/groups`).doc()
-      const groupId = groupRef.id
-      await groupRef.set({
-        name: 'Демо-группа',
-        description: 'Тестовая группа для показа клиенту',
-        color: '#6366f1',
-        orgId,
-        childIds: createdChildIds,
-        parentCount: createdParentUids.length,
-        taskCount: 0,
-        createdAt: now,
-        updatedAt: now,
-        isDemo: true,
-      })
-
-      // Link children and parents into the group
-      const groupBatch = db.batch()
-      for (let i = 0; i < createdChildIds.length; i++) {
-        const childId = createdChildIds[i]
-        const parentUid = createdParentUids[i]
-
-        groupBatch.set(db.doc(`specialists/${uid}/groups/${groupId}/children/${childId}`), {
-          childId,
-          addedAt: now,
-        })
-        groupBatch.set(db.doc(`specialists/${uid}/groups/${groupId}/parents/${parentUid}`), {
-          childIds: [childId],
-          addedAt: now,
-        })
-      }
-      await groupBatch.commit()
-
-      return {
-        ok: true,
-        created: {
-          children: createdChildIds.length,
-          parents: createdParentUids.length,
-          tasks: createdTaskIds.length,
-          groups: 1,
-        },
-        message: `Создано: ${createdChildIds.length} детей, ${createdParentUids.length} родителей, ${createdTaskIds.length} заданий, 1 группа`,
-      }
-    } catch (e: any) {
-      fastify.log.error(e)
-      return reply.code(500).send({ error: e?.message || 'Seeding failed' })
     }
-  })
+  )
 
   fastify.delete<{ Params: { orgId: string } }>(
     '/orgs/:orgId/demo/seed',
+    { config: { rateLimit: DEMO_ROUTE_RATE_LIMIT } },
     async (request, reply) => {
       try {
         const { orgId } = request.params
