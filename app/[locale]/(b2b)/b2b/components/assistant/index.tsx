@@ -11,6 +11,7 @@ interface AssistantProps {
   orgId: string
   /** App locale from `useLocale()` — keeps assistant copy in sync on first paint (no post-mount pathname race). */
   locale: string
+  defaultOpen?: boolean
   onCommandExecuted?: () => void
 }
 
@@ -21,9 +22,14 @@ function translationForLocale(locale: string): TranslationSet {
   return translations.en
 }
 
-export default function Assistant({ orgId, locale, onCommandExecuted }: AssistantProps) {
+export default function Assistant({
+  orgId,
+  locale,
+  defaultOpen = false,
+  onCommandExecuted,
+}: AssistantProps) {
   const t = useMemo(() => translationForLocale(locale), [locale])
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen)
   const [showHelp, setShowHelp] = useState(false)
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'error'>('idle')
   const [voiceError, setVoiceError] = useState<string | null>(null)

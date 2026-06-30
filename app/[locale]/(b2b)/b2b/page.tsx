@@ -1,11 +1,10 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
-import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
-import { apiClient, type SpecialistProfile, type ChildSummary } from '@/lib/b2b/api'
+import { apiClient, type ChildSummary } from '@/lib/b2b/api'
+import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import {
   Users,
   ArrowRight,
@@ -19,13 +18,18 @@ import {
   Sparkles,
   Target,
   ChevronRight,
+  MessageCircle,
 } from 'lucide-react'
 import { InviteModal } from '@/components/b2b/InviteModal'
-import Assistant from './components/assistant'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAlert } from '@/components/ui/AlertDialog'
+
+const Assistant = dynamic(() => import('./components/assistant'), {
+  ssr: false,
+  loading: () => null,
+})
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,34 +57,31 @@ function formatLastSeen(
   return t('lastSeenDaysAgo', { days })
 }
 
+function buildHeroBackgroundStyle(borderTopColor?: string) {
+  return {
+    backgroundColor: '#0f172a',
+    backgroundImage:
+      'linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #134e4a 100%)',
+    backgroundSize: '34px 34px, 34px 34px, 100% 100%',
+    backgroundPosition: '0 0, 0 0, 0 0',
+    borderTopWidth: borderTopColor ? '3px' : undefined,
+    borderTopColor,
+  } as const
+}
+
 function cropValue(value: number | null | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function buildHeroBackgroundStyle(
-  coverImage?: string | null,
-  borderTopColor?: string,
+function heroCoverStyle(
+  imageUrl: string,
   crop?: { x?: number | null; y?: number | null; scale?: number | null }
 ) {
-  const scale = cropValue(crop?.scale, 1)
-  const backgroundImage = coverImage
-    ? `linear-gradient(rgba(15,23,42,0.76), rgba(15,23,42,0.76)), linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), url(${coverImage})`
-    : 'linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #134e4a 100%)'
-
-  const backgroundSize = coverImage
-    ? `100% 100%, 34px 34px, 34px 34px, ${Math.round(scale * 100)}% auto`
-    : '34px 34px, 34px 34px, 100% 100%'
-  const backgroundPosition = coverImage
-    ? `0 0, 0 0, 0 0, ${cropValue(crop?.x, 50)}% ${cropValue(crop?.y, 50)}%`
-    : '0 0, 0 0, 0 0'
-
   return {
-    backgroundColor: '#0f172a',
-    backgroundImage,
-    backgroundSize,
-    backgroundPosition,
-    borderTopWidth: borderTopColor ? '3px' : undefined,
-    borderTopColor,
+    backgroundImage: `url("${imageUrl.replace(/"/g, '%22')}")`,
+    backgroundPosition: `${cropValue(crop?.x, 50)}% ${cropValue(crop?.y, 50)}%`,
+    backgroundSize: `${cropValue(crop?.scale, 1) * 100}% auto`,
+    backgroundRepeat: 'no-repeat',
   } as const
 }
 
@@ -320,55 +321,28 @@ function StudentRow({ child, orgId }: { child: ChildSummary; orgId: string }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const locale = useLocale()
   const t = useTranslations('b2b.pages.dashboard')
-  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
+  const { profile, orgId, isAdmin, isLoading: authLoading } = usePageAuth()
   const [children, setChildren] = useState<ChildSummary[]>([])
   const [teamCount, setTeamCount] = useState(0)
   const [avgCompletion, setAvgCompletion] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
-  const [currentOrgId, setCurrentOrgId] = useState<string | undefined>()
+  const [showDeferredCover, setShowDeferredCover] = useState(false)
+  const [assistantRequested, setAssistantRequested] = useState(false)
   const { alert } = useAlert()
 
   useEffect(() => {
+    if (authLoading || !orgId || !profile) return
     const load = async () => {
-      const user = getCurrentUser()
-      if (!user) {
-        router.push('/b2b/login')
-        return
-      }
       try {
-        const idToken = await getIdToken()
-        if (!idToken) {
-          router.push('/b2b/login')
-          return
-        }
-        apiClient.setToken(idToken)
-        try {
-          const session = await apiClient.getSession()
-          if (!session.hasOrg) {
-            router.push('/b2b/onboarding')
-            return
-          }
-        } catch {}
-        const profileData = await apiClient.getMe()
-        setProfile(profileData)
-        const orgId = searchParams.get('orgId') || profileData.organizations[0]?.orgId
-        setCurrentOrgId(orgId)
-        if (!orgId) {
-          router.push('/b2b/onboarding')
-          return
-        }
-        const selectedOrg =
-          profileData.organizations.find((o) => o.orgId === orgId) || profileData.organizations[0]
-        const isAdmin = selectedOrg?.role === 'admin'
+        const currentOrg = profile.organizations.find((o) => o.orgId === orgId)
+        const adminRole = currentOrg?.role === 'admin'
         const [childrenData, teamData, reportsData] = await Promise.all([
           apiClient.getChildren(orgId),
-          isAdmin ? apiClient.getTeam(orgId).catch(() => []) : Promise.resolve([]),
+          adminRole ? apiClient.getTeam(orgId).catch(() => []) : Promise.resolve([]),
           apiClient.getReports(orgId, 7).catch(() => null),
         ])
         setChildren(childrenData)
@@ -381,22 +355,25 @@ export default function DashboardPage() {
           setAvgCompletion(avg)
         }
       } catch {
-        router.push('/b2b/login')
+        // layout handles auth errors
       } finally {
-        setLoading(false)
+        setDataLoading(false)
       }
     }
     load()
-  }, [router, searchParams])
+  }, [orgId, profile, authLoading])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowDeferredCover(true), 1200)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const { branding } = useBranding()
 
-  if (loading) return <DashboardSkeleton />
+  if (authLoading || dataLoading) return <DashboardSkeleton />
 
-  const orgId = searchParams.get('orgId') || profile?.organizations[0]?.orgId || currentOrgId
   const currentOrg =
     profile?.organizations.find((o) => o.orgId === orgId) || profile?.organizations[0]
-  const isAdmin = currentOrg?.role === 'admin'
   const firstName = profile?.name?.split(' ')[0] || t('there')
 
   const activeCount = children.filter((c) => (daysSince(c.lastActiveDate) ?? 99) <= 7).length
@@ -413,6 +390,25 @@ export default function DashboardPage() {
     scale: branding?.coverScale,
   }
   const handleAssistantCommandExecuted = () => undefined
+  const assistantLauncher = orgId ? (
+    assistantRequested ? (
+      <Assistant
+        orgId={orgId}
+        locale={locale}
+        defaultOpen
+        onCommandExecuted={handleAssistantCommandExecuted}
+      />
+    ) : (
+      <button
+        type="button"
+        onClick={() => setAssistantRequested(true)}
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary-600 shadow-lg transition-all hover:scale-105 hover:bg-primary-700"
+        aria-label="Open AI assistant"
+      >
+        <MessageCircle className="h-6 w-6 text-white" />
+      </button>
+    )
+  ) : null
 
   // ── Specialist action cards (derived from real operational data) ──────────
   const specialistActionCards: AdminActionCardData[] = []
@@ -527,10 +523,20 @@ export default function DashboardPage() {
       <div className="w-full p-5 lg:p-8 space-y-5">
         {/* ── Hero ── */}
         <div
-          className="rounded-2xl overflow-hidden"
-          style={buildHeroBackgroundStyle(coverImage, undefined, coverCrop)}
+          className="relative rounded-2xl overflow-hidden"
+          style={buildHeroBackgroundStyle(undefined)}
         >
-          <div className="px-6 py-7 lg:px-8">
+          {coverImage && showDeferredCover && (
+            <>
+              <div
+                className="absolute inset-0 bg-cover bg-no-repeat"
+                style={heroCoverStyle(coverImage, coverCrop)}
+                aria-hidden
+              />
+              <div className="absolute inset-0 bg-slate-950/75" aria-hidden />
+            </>
+          )}
+          <div className="relative px-6 py-7 lg:px-8">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
                 <p className="text-xs font-semibold text-teal-400 uppercase tracking-widest mb-2">
@@ -801,13 +807,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {orgId && (
-          <Assistant
-            orgId={orgId}
-            locale={locale}
-            onCommandExecuted={handleAssistantCommandExecuted}
-          />
-        )}
+        {assistantLauncher}
       </div>
     )
   }
@@ -816,12 +816,6 @@ export default function DashboardPage() {
 
   const handleInviteParent = async () => {
     try {
-      const idToken = await getIdToken()
-      if (!idToken) {
-        router.push('/b2b/login')
-        return
-      }
-      apiClient.setToken(idToken)
       const invite = await apiClient.createParentInvite(orgId!)
       setInviteCode(invite.inviteCode)
       setInviteModalOpen(true)
@@ -841,10 +835,20 @@ export default function DashboardPage() {
     <div className="w-full p-5 lg:p-8 space-y-5">
       {/* ── Specialist Workspace Header — matches admin dark style ── */}
       <div
-        className="rounded-2xl overflow-hidden"
-        style={buildHeroBackgroundStyle(coverImage, brandPrimary, coverCrop)}
+        className="relative rounded-2xl overflow-hidden"
+        style={buildHeroBackgroundStyle(brandPrimary)}
       >
-        <div className="px-6 py-7 lg:px-8 flex items-start justify-between gap-4">
+        {coverImage && showDeferredCover && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-no-repeat"
+              style={heroCoverStyle(coverImage, coverCrop)}
+              aria-hidden
+            />
+            <div className="absolute inset-0 bg-slate-950/75" aria-hidden />
+          </>
+        )}
+        <div className="relative px-6 py-7 lg:px-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold text-teal-400 uppercase tracking-widest mb-2">
               {t('therapyWorkspace')}
@@ -1017,13 +1021,7 @@ export default function DashboardPage() {
         />
       )}
 
-      {orgId && (
-        <Assistant
-          orgId={orgId}
-          locale={locale}
-          onCommandExecuted={handleAssistantCommandExecuted}
-        />
-      )}
+      {assistantLauncher}
     </div>
   )
 }
