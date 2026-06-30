@@ -133,6 +133,9 @@ export default function OrganizationPage() {
   const [uploadedImages, setUploadedImages] = useState<Set<string>>(new Set())
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [demoSeeding, setDemoSeeding] = useState(false)
+  const [demoClearing, setDemoClearing] = useState(false)
+  const [demoMessage, setDemoMessage] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
@@ -1032,6 +1035,91 @@ export default function OrganizationPage() {
             </Link>
           </div>
         </div>
+
+        {/* Demo data seeder — admin only */}
+        {isAdmin && (
+          <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-200 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5 text-violet-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Демо-данные для показа</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Быстро заполните платформу тестовыми детьми и заданиями, чтобы показать клиенту
+                  как всё работает.
+                </p>
+              </div>
+            </div>
+
+            {demoMessage && (
+              <div className="mb-4 px-3 py-2 bg-white rounded-lg border border-violet-200 text-sm text-violet-700">
+                {demoMessage}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={demoSeeding || !currentOrgId}
+                onClick={async () => {
+                  if (!currentOrgId) return
+                  setDemoSeeding(true)
+                  setDemoMessage('')
+                  try {
+                    const res = await apiClient.seedDemoData(currentOrgId)
+                    setDemoMessage(`✓ ${res.message}`)
+                  } catch {
+                    setDemoMessage('Ошибка при создании демо-данных')
+                  } finally {
+                    setDemoSeeding(false)
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {demoSeeding ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Users className="w-4 h-4" />
+                )}
+                {demoSeeding ? 'Создаём...' : 'Загрузить демо-данные'}
+              </button>
+
+              <button
+                type="button"
+                disabled={demoClearing || !currentOrgId}
+                onClick={async () => {
+                  if (!currentOrgId) return
+                  if (!confirm('Удалить все демо-данные (дети и задания с пометкой demo)?')) return
+                  setDemoClearing(true)
+                  setDemoMessage('')
+                  try {
+                    const res = await apiClient.clearDemoData(currentOrgId)
+                    setDemoMessage(
+                      `✓ Удалено: ${res.deleted.children} детей, ${res.deleted.tasks} заданий`
+                    )
+                  } catch {
+                    setDemoMessage('Ошибка при удалении демо-данных')
+                  } finally {
+                    setDemoClearing(false)
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                {demoClearing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4" />
+                )}
+                {demoClearing ? 'Удаляем...' : 'Очистить демо'}
+              </button>
+            </div>
+
+            <p className="mt-3 text-xs text-gray-400">
+              Создаёт 3 тестовых ребёнка и 5 заданий. Можно удалить одной кнопкой.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

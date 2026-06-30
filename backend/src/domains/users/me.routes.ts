@@ -298,12 +298,15 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const { uid, email } = request.user
 
     const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
-    const specialistSnap = await specialistRef.get()
+    const isUserSuperAdmin = request.user?.claims?.superAdmin === true
+
+    const [specialistSnap, organizations] = await Promise.all([
+      specialistRef.get(),
+      findOrganizationsForUser(db, uid, isUserSuperAdmin),
+    ])
+
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
     const name = extractName(specialistData, email)
-
-    const isUserSuperAdmin = request.user?.claims?.superAdmin === true
-    const organizations = await findOrganizationsForUser(db, uid, isUserSuperAdmin)
 
     const profile: SpecialistProfile = {
       uid,
