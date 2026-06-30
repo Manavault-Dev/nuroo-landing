@@ -79,11 +79,12 @@ export function Header() {
             <div className="h-4 w-px bg-gray-200 dark:bg-gray-600" aria-hidden />
             <Link
               href="/b2b/login"
+              prefetch={false}
               className="text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 transition-colors"
             >
               {t('logIn')}
             </Link>
-            <Link href="/b2b/register" className="btn-secondary text-sm">
+            <Link href="/b2b/register" prefetch={false} className="btn-secondary text-sm">
               {t('getStarted')}
             </Link>
             <a
@@ -163,6 +164,7 @@ export function Header() {
                 </p>
                 <Link
                   href="/b2b/login"
+                  prefetch={false}
                   className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-primary-500 font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -170,6 +172,7 @@ export function Header() {
                 </Link>
                 <Link
                   href="/b2b/register"
+                  prefetch={false}
                   className="block px-3 py-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >

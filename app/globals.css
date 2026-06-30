@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 @layer base {
+  /* Hide scrollbars globally while keeping scroll functionality */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
@@ -16,6 +25,177 @@
     padding-bottom: env(safe-area-inset-bottom, 0);
     overflow-x: hidden;
     min-width: 0;
+  }
+}
+
+/* Hero animations — in global CSS to avoid inline style blocks in HTML */
+@keyframes orb-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(50px, -40px) scale(1.08);
+  }
+  66% {
+    transform: translate(-30px, 25px) scale(0.95);
+  }
+}
+@keyframes orb-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-40px, 50px) scale(1.05);
+  }
+  66% {
+    transform: translate(35px, -25px) scale(0.92);
+  }
+}
+@keyframes shimmer-badge {
+  0% {
+    background-position: -300% center;
+  }
+  100% {
+    background-position: 300% center;
+  }
+}
+@keyframes hero-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+@keyframes float-card {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes hero-scroll-dot {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes hero-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-gradient-text {
+  color: #0d9488; /* visible fallback — ensures LCP can measure the text */
+  background: linear-gradient(135deg, #0d9488, #14b8a6, #2dd4bf, #0891b2, #0d9488);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: hero-gradient 5s ease infinite;
+}
+/* Browsers that don't support background-clip:text show the color fallback */
+@supports not (-webkit-background-clip: text) {
+  .hero-gradient-text {
+    -webkit-text-fill-color: unset;
+    color: #0d9488;
+  }
+}
+.hero-badge-shimmer {
+  background: linear-gradient(90deg, #ccfbf1, #a7f3d0, #5eead4, #99f6e4, #ccfbf1);
+  background-size: 300% auto;
+  animation: shimmer-badge 4s linear infinite;
+}
+.hero-orb-1 {
+  animation: orb-drift-1 14s ease-in-out infinite;
+}
+.hero-orb-2 {
+  animation: orb-drift-2 18s ease-in-out infinite;
+}
+.hero-orb-3 {
+  animation: orb-drift-1 22s ease-in-out 4s infinite;
+}
+.hero-float-0 {
+  animation: float-card 6s ease-in-out infinite;
+}
+.hero-float-1 {
+  animation: float-card 7.5s ease-in-out 1.5s infinite;
+}
+.hero-float-2 {
+  animation: float-card 5.5s ease-in-out 0.8s infinite;
+}
+.hero-scroll-dot {
+  animation: hero-scroll-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.hero-pulse-dot {
+  animation: hero-pulse-dot 2s ease-in-out infinite;
+}
+
+/* Staggered entrance — CSS only, no JS required */
+.hero-enter {
+  animation: hero-fade-up 0.6s ease both;
+}
+.hero-enter-1 {
+  animation: hero-fade-up 0.6s ease 0.1s both;
+}
+.hero-enter-2 {
+  animation: hero-fade-up 0.6s ease 0.25s both;
+}
+.hero-enter-3 {
+  animation: hero-fade-up 0.6s ease 0.4s both;
+}
+.hero-enter-4 {
+  animation: hero-fade-up 0.6s ease 0.55s both;
+}
+.hero-enter-5 {
+  animation: hero-fade-up 0.6s ease 0.7s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-orb-1,
+  .hero-orb-2,
+  .hero-orb-3,
+  .hero-float-0,
+  .hero-float-1,
+  .hero-float-2,
+  .hero-scroll-dot,
+  .hero-pulse-dot,
+  .hero-gradient-text,
+  .hero-badge-shimmer,
+  .hero-enter,
+  .hero-enter-1,
+  .hero-enter-2,
+  .hero-enter-3,
+  .hero-enter-4,
+  .hero-enter-5 {
+    animation: none;
   }
 }
 
