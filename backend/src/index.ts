@@ -26,6 +26,7 @@ import { contentDomain } from './domains/content/index.js'
 import { activityDomain } from './domains/activity/index.js'
 import { billingDomain } from './domains/billing/index.js'
 import { paymentsDomain } from './domains/payments/index.js'
+import { coursesDomain } from './domains/courses/index.js'
 
 // External modules (untouched)
 import { paymentsRoutes } from './modules/payments/index.js'
@@ -163,6 +164,7 @@ async function buildServer() {
     activityDomain,
     billingDomain,
     paymentsDomain,
+    coursesDomain,
     // External modules (notifications, payments, parent-api, ai-assistant)
     paymentsRoutes,
     parentApiRoutes,

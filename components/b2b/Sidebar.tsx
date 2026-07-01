@@ -21,6 +21,7 @@ import {
   Wallet,
   ChevronRight,
   Palette,
+  BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { type SpecialistProfile } from '@/lib/b2b/api'
@@ -162,6 +163,7 @@ export function Sidebar({
     labelKey: 'operations',
     items: [
       { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
+      { href: withOrg('/b2b/courses'), labelKey: t('courses'), icon: BookOpen },
       ...(!isOrgAdmin
         ? [
             {

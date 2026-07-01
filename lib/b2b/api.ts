@@ -2086,6 +2086,80 @@ export class ApiClient {
     )
   }
 
+  // ── Courses ───────────────────────────────────────────────────────────────
+
+  async getCourses(orgId: string) {
+    return this.request<{ ok: boolean; courses: any[] }>(`/orgs/${orgId}/courses`)
+  }
+
+  async getCourse(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses/${courseId}`)
+  }
+
+  async createCourse(orgId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCourse(orgId: string, courseId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCourse(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getCourseModules(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean; modules: any[] }>(
+      `/orgs/${orgId}/courses/${courseId}/modules`
+    )
+  }
+
+  async createCourseModule(orgId: string, courseId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean; module: any }>(
+      `/orgs/${orgId}/courses/${courseId}/modules`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async deleteCourseModule(orgId: string, courseId: string, moduleId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getModuleLessons(orgId: string, courseId: string, moduleId: string) {
+    return this.request<{ ok: boolean; lessons: any[] }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`
+    )
+  }
+
+  async createLesson(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean; lesson: any }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async deleteLesson(orgId: string, courseId: string, moduleId: string, lessonId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
+      { method: 'DELETE' }
+    )
+  }
+
   // Clear all cache (useful for logout)
   clearCache() {
     cache.invalidate()
