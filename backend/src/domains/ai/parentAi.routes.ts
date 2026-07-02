@@ -15,7 +15,7 @@ const askBodySchema = z.object({
 })
 
 const taskBodySchema = z.object({
-  area: z.string().min(1).max(100),
+  area: z.string().min(1).max(5000),
   language: z.enum(['en', 'ru', 'kg']).default('en'),
   childData: z
     .object({
@@ -119,9 +119,9 @@ function buildChildContext(childData?: ChildData) {
 
 export function buildSystemMessages(language: string, childData?: ChildData): ChatMessage[] {
   const roles: Record<string, string> = {
-    en: 'You are Nuroo, a specialized AI assistant helping parents support child development. Be encouraging, specific, and practical.',
-    ru: 'Вы — Nuroo, ИИ-помощник для поддержки родителей в развитии ребёнка. Будьте ободряющими, конкретными и практичными.',
-    kg: 'Сиз — Nuroo, ата-энелерге баланын өнүгүүсүн колдоого жардам берген ИИ-жардамчы. Кубаттоочу, конкреттүү жана практикалык болуңуз.',
+    en: 'You are Nuroo, a specialized AI assistant helping parents support child development. Be concise, specific, and practical. Never add conversational preambles — respond directly in the requested format.',
+    ru: 'Вы — Nuroo, ИИ-помощник для поддержки родителей в развитии ребёнка. Будьте краткими, конкретными и практичными. Никогда не добавляйте вводных фраз — отвечайте сразу в нужном формате без слов "Конечно!", "Вот!", "Отлично!".',
+    kg: 'Сиз — Nuroo, ата-энелерге баланын өнүгүүсүн колдоого жардам берген ИИ-жардамчы. Конкреттүү жана практикалык болуңуз. Кириш сөздөрсүз жооп бериңиз.',
   }
 
   const messages: ChatMessage[] = [{ role: 'system', content: roles[language] ?? roles.en }]
@@ -204,15 +204,11 @@ export const parentAiRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const { area, language, childData } = parsed.data
-      const safeArea = sanitizePromptData(area, 100)
+      const safeArea = sanitizePromptData(area, 5000)
 
-      const taskPrompts: Record<string, string> = {
-        en: `Create a fun, engaging ${safeArea} development activity for a child. Make it specific, age-appropriate, and easy for parents to implement at home. Include: activity name, simple instructions, materials needed, and expected duration. Respond in English.`,
-        ru: `Создайте веселое, увлекательное занятие по развитию ${safeArea} для ребёнка. Сделайте его конкретным, соответствующим возрасту и простым для родителей. Включите: название, инструкции, материалы и продолжительность. Отвечайте на русском языке.`,
-        kg: `${safeArea} өнүгүүсү үчүн балага кызыктуу кызмат түзүңүз. Аталышын, инструкцияларын, керектүү материалдарды жана узактыгын камтыңыз. Кыргыз тилинде жооп бериңиз.`,
-      }
-
-      const userPrompt = taskPrompts[language] ?? taskPrompts.en
+      // Frontend sends the full personalized prompt as `area`.
+      // Use it directly so child-specific context (difficulty, progress, skills) is preserved.
+      const userPrompt = safeArea
 
       try {
         const apiKey = getOpenAIKey()
