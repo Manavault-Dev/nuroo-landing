@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
+import { Select } from '@/components/ui/Select'
 import {
   ArrowLeft,
   Plus,
@@ -53,6 +54,13 @@ const LESSON_TYPE_LABEL: Record<string, string> = {
   pdf: 'PDF',
 }
 
+const LESSON_TYPE_OPTIONS = [
+  { value: 'text', label: 'Текст' },
+  { value: 'video', label: 'Видео' },
+  { value: 'task', label: 'Задание' },
+  { value: 'pdf', label: 'PDF' },
+]
+
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-yellow-100 text-yellow-800',
   PUBLISHED: 'bg-green-100 text-green-800',
@@ -80,7 +88,7 @@ function isPublicCourse(course: Course) {
 export default function CourseDetailPage() {
   const params = useParams()
   const courseId = params.courseId as string
-  const { orgId, isAdmin } = usePageAuth()
+  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
 
   const [course, setCourse] = useState<Course | null>(null)
   const [modules, setModules] = useState<Module[]>([])
@@ -99,7 +107,9 @@ export default function CourseDetailPage() {
   const [savingLesson, setSavingLesson] = useState(false)
 
   useEffect(() => {
-    if (!orgId) return
+    if (authLoading || !orgId) return
+    setLoading(true)
+    setError(null)
     Promise.all([apiClient.getCourse(orgId, courseId), apiClient.getCourseModules(orgId, courseId)])
       .then(([courseRes, modulesRes]) => {
         setCourse(courseRes.course)
@@ -107,7 +117,7 @@ export default function CourseDetailPage() {
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [orgId, courseId])
+  }, [authLoading, orgId, courseId])
 
   async function loadLessons(moduleId: string) {
     if (lessonsByModule[moduleId]) return
@@ -212,7 +222,7 @@ export default function CourseDetailPage() {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
@@ -311,12 +321,9 @@ export default function CourseDetailPage() {
           const lessons = lessonsByModule[mod.id]
 
           return (
-            <div
-              key={mod.id}
-              className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-            >
+            <div key={mod.id} className="relative bg-white rounded-xl border border-gray-100">
               <div
-                className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-xl"
                 onClick={() => toggleModule(mod.id)}
               >
                 {expanded ? (
@@ -378,18 +385,13 @@ export default function CourseDetailPage() {
                     <>
                       {addingLessonFor === mod.id ? (
                         <div className="flex items-center gap-2 pt-1">
-                          <select
+                          <Select
                             value={newLessonType}
-                            onChange={(e) =>
-                              setNewLessonType(e.target.value as typeof newLessonType)
-                            }
-                            className="text-xs rounded border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-300"
-                          >
-                            <option value="text">Текст</option>
-                            <option value="video">Видео</option>
-                            <option value="task">Задание</option>
-                            <option value="pdf">PDF</option>
-                          </select>
+                            onChange={(value) => setNewLessonType(value as typeof newLessonType)}
+                            options={LESSON_TYPE_OPTIONS}
+                            className="w-32 shrink-0"
+                            buttonClassName="min-h-[34px] px-2 py-1.5 text-xs"
+                          />
                           <input
                             autoFocus
                             type="text"

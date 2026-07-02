@@ -1,15 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
-import { BookOpen, Loader2, ArrowLeft } from 'lucide-react'
+import { Select } from '@/components/ui/Select'
+import { BookOpen, Loader2, ArrowLeft, Upload, Image as ImageIcon, X } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+
+const VISIBILITY_OPTIONS = [
+  { value: 'PRIVATE', label: 'Только для организации' },
+  { value: 'PUBLIC', label: 'Маркетплейс (публично)' },
+]
+
+const ACCESS_POLICY_OPTIONS = [
+  { value: 'FREE', label: 'Бесплатно для всех' },
+  { value: 'PAID', label: 'Платно для всех' },
+  {
+    value: 'VERIFIED_SPECIAL_NEEDS',
+    label: 'Бесплатно для подтвержденных детей, остальные платят',
+  },
+  { value: 'INVITATION_ONLY', label: 'Только по приглашению' },
+]
 
 export default function NewCoursePage() {
   const router = useRouter()
-  const { orgId, isAdmin } = usePageAuth()
+  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -22,7 +38,17 @@ export default function NewCoursePage() {
   const [coverImageUrl, setCoverImageUrl] = useState('')
   const [ageRange, setAgeRange] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement | null>(null)
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
+      </div>
+    )
+  }
 
   if (!isAdmin) {
     return (
@@ -56,6 +82,24 @@ export default function NewCoursePage() {
     } catch (e: any) {
       setError(e.message || 'Ошибка при создании курса')
       setSaving(false)
+    }
+  }
+
+  async function handleCoverUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !orgId) return
+
+    setUploadingCover(true)
+    setError(null)
+
+    try {
+      const { url } = await apiClient.uploadCourseCoverImage(orgId, file)
+      setCoverImageUrl(url)
+    } catch (e: any) {
+      setError(e.message || 'Ошибка при загрузке обложки')
+    } finally {
+      setUploadingCover(false)
+      if (coverInputRef.current) coverInputRef.current.value = ''
     }
   }
 
@@ -126,35 +170,25 @@ export default function NewCoursePage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Видимость</label>
-            <select
+            <Select
               value={visibility}
-              onChange={(e) => setVisibility(e.target.value as 'PRIVATE' | 'PUBLIC')}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
-            >
-              <option value="PRIVATE">Только для организации</option>
-              <option value="PUBLIC">Маркетплейс (публично)</option>
-            </select>
+              onChange={(value) => setVisibility(value as 'PRIVATE' | 'PUBLIC')}
+              options={VISIBILITY_OPTIONS}
+            />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Доступ</label>
-          <select
+          <Select
             value={accessPolicy}
-            onChange={(e) =>
+            onChange={(value) =>
               setAccessPolicy(
-                e.target.value as 'FREE' | 'PAID' | 'VERIFIED_SPECIAL_NEEDS' | 'INVITATION_ONLY'
+                value as 'FREE' | 'PAID' | 'VERIFIED_SPECIAL_NEEDS' | 'INVITATION_ONLY'
               )
             }
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
-          >
-            <option value="FREE">Бесплатно для всех</option>
-            <option value="PAID">Платно для всех</option>
-            <option value="VERIFIED_SPECIAL_NEEDS">
-              Бесплатно для подтвержденных детей, остальные платят
-            </option>
-            <option value="INVITATION_ONLY">Только по приглашению</option>
-          </select>
+            options={ACCESS_POLICY_OPTIONS}
+          />
         </div>
 
         <div>
@@ -183,15 +217,58 @@ export default function NewCoursePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            URL обложки (необязательно)
+            Обложка курса (необязательно)
           </label>
-          <input
-            type="url"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-          />
+          <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+            {coverImageUrl ? (
+              <div className="relative aspect-[16/9] bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverImageUrl} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setCoverImageUrl('')}
+                  className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm hover:bg-white"
+                  aria-label="Удалить обложку"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex aspect-[16/9] flex-col items-center justify-center gap-3 text-gray-400">
+                <ImageIcon className="h-8 w-8" />
+                <span className="text-sm">Загрузите изображение или вставьте URL ниже</span>
+              </div>
+            )}
+            <div className="flex flex-col gap-3 border-t border-gray-200 bg-white p-3 sm:flex-row">
+              <input
+                type="url"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+              />
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover || saving}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {uploadingCover ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploadingCover ? 'Загрузка...' : 'Загрузить'}
+              </button>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverUpload}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
@@ -203,7 +280,7 @@ export default function NewCoursePage() {
           </Link>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || uploadingCover}
             className="btn-primary flex items-center gap-2 text-sm px-4 py-2 disabled:opacity-60"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}

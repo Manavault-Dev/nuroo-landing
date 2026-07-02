@@ -2103,6 +2103,31 @@ export class ApiClient {
     })
   }
 
+  async uploadCourseCoverImage(orgId: string, file: File) {
+    const formData = new FormData()
+    formData.append('media', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/courses/media`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(error.error || error.message || 'Upload failed')
+    }
+
+    return response.json() as Promise<{
+      ok: boolean
+      url: string
+      path: string
+    }>
+  }
+
   async updateCourse(orgId: string, courseId: string, data: Record<string, unknown>) {
     return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
       method: 'PATCH',

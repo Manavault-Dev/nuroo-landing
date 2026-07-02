@@ -50,22 +50,22 @@ function isPublicCourse(course: Course) {
 }
 
 export default function CoursesPage() {
-  const { orgId, isAdmin } = usePageAuth()
+  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!orgId) return
+    if (authLoading || !orgId) return
     setLoading(true)
     apiClient
       .getCourses(orgId)
       .then((res) => setCourses(res.courses))
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [orgId])
+  }, [authLoading, orgId])
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
