@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 import { getCurrentUser } from '@/lib/b2b/authClient'
 import {
   THEME_PRESETS,
@@ -108,7 +109,7 @@ export default function BrandSettingsPage() {
   const currentOrgId = searchParams.get('orgId') || profile?.organizations?.[0]?.orgId || undefined
   const currentOrg =
     profile?.organizations?.find((o) => o.orgId === currentOrgId) || profile?.organizations?.[0]
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = isOrgAdminRole(currentOrg?.role)
 
   const [form, setForm] = useState<OrgBranding>({})
   const [saving, setSaving] = useState(false)

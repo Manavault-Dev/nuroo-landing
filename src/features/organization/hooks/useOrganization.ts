@@ -34,7 +34,7 @@ export function useOrganization(orgId: string | undefined) {
     )
   }, [profile, orgId])
 
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
   const isPersonalOrg = currentOrg?.orgName?.includes("'s Practice")
 
   return {

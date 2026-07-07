@@ -18,11 +18,6 @@ import { PlanProvider } from '@/lib/b2b/planContext'
 import { runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
 
 const NO_CHROME_PAGES = ['/b2b/login', '/b2b/register', '/b2b/onboarding', '/b2b/join']
-
-/**
- * Pages that must remain accessible even when the subscription is expired/suspended.
- * Check is a prefix match so /b2b/billing/success etc. are also allowed.
- */
 const PAYWALL_BYPASS_PATHS = [
   '/b2b/billing',
   '/b2b/settings',
@@ -55,7 +50,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const [isClosing, setIsClosing] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(false)
 
-  // ── Subscription state ───────────────────────────────────────────────────
   const [billingData, setBillingData] = useState<BillingStatusResponse | null>(null)
   const billingFetchedForOrg = useRef<string | null>(null)
   const pathForMatch = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
@@ -97,9 +91,10 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const currentOrgId = requestedOrg?.orgId || authOrg?.orgId || profile?.organizations?.[0]?.orgId
   const currentOrgRole =
     requestedOrg?.role || authOrg?.role || profile?.organizations?.[0]?.role || null
-  const canManageBilling = currentOrgRole === 'admin'
 
-  // Fetch billing status once per org (not on every navigation)
+  // Адаптивная проверка роли для биллинга
+  const canManageBilling = currentOrgRole === 'admin' || (currentOrgRole as string) === 'org_admin'
+
   useEffect(() => {
     if (!currentOrgId || !user || isLoading) return
     if (billingFetchedForOrg.current === currentOrgId) return
@@ -107,12 +102,9 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     apiClient
       .getBillingStatus(currentOrgId)
       .then(setBillingData)
-      .catch(() => {
-        // Network failure — treat as no data, do not block access
-      })
+      .catch(() => {})
   }, [currentOrgId, user, isLoading])
 
-  // Derive plan id: trial users get enterprise-level access (no restrictions)
   const isTrial =
     billingData?.source === 'free_trial' ||
     billingData?.billingStatus === 'trialing' ||
@@ -121,7 +113,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const planIsLoading =
     !currentOrgId || (!billingData && billingFetchedForOrg.current !== currentOrgId)
 
-  // Derive subscription state from billing API response
   const subscriptionState = getSubscriptionState(
     (billingData?.billing?.status ?? billingData?.billingStatus ?? null) as Parameters<
       typeof getSubscriptionState
@@ -130,7 +121,7 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
       billingData?.billing?.currentPeriodEnd ??
       billingData?.expiresAt ??
       null,
-    billingData?.active ?? true // optimistic: allow while loading
+    billingData?.active ?? true
   )
 
   const pathForPaywall = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, '') || pathname
@@ -201,7 +192,6 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     router.replace(query ? `${pathForMatch}?${query}` : pathForMatch)
   }, [currentOrgId, pathForMatch, profile, requestedOrgId, router, searchParams, user])
 
-  // Привязываем каждую ошибку к конкретному пользователю
   useEffect(() => {
     if (!shouldLoadClientSentry()) return
 

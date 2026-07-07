@@ -27,7 +27,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const currentOrg =
     profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org_admin'
   const isPersonalOrg = currentOrg?.orgName?.includes("'s Practice")
 
   useEffect(() => {
@@ -208,7 +208,7 @@ export function Sidebar({ profile, currentOrgId }: SidebarProps) {
               >
                 <Building2 className="w-4 h-4" />
                 <span className="truncate">{org.orgName}</span>
-                {org.role === 'admin' && (
+                {(org.role === 'admin' || org.role === 'org_admin') && (
                   <span className="ml-auto text-xs text-primary-600">Admin</span>
                 )}
               </Link>

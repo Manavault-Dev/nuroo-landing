@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { getCurrentUser, getIdToken } from '@/lib/b2b/authClient'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { apiClient } from '@/lib/b2b/api'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 import { Select } from '@/components/ui/Select'
 import {
   Building2,
@@ -143,7 +144,7 @@ export default function OrganizationPage() {
     profile?.organizations?.find((org) => org.orgId === (searchParams.get('orgId') || authOrgId)) ||
     profile?.organizations?.[0]
   const currentOrgId = currentOrg?.orgId
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = isOrgAdminRole(currentOrg?.role)
 
   useEffect(() => {
     if (!isLoading && !getCurrentUser()) router.push('/b2b/login')

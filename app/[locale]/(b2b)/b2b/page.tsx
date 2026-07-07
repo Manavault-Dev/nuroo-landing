@@ -23,6 +23,7 @@ import {
 import { InviteModal } from '@/components/b2b/InviteModal'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAlert } from '@/components/ui/AlertDialog'
 
@@ -339,7 +340,7 @@ export default function DashboardPage() {
     const load = async () => {
       try {
         const currentOrg = profile.organizations.find((o) => o.orgId === orgId)
-        const adminRole = currentOrg?.role === 'admin'
+        const adminRole = isOrgAdminRole(currentOrg?.role)
         const [childrenData, teamData, reportsData] = await Promise.all([
           apiClient.getChildren(orgId),
           adminRole ? apiClient.getTeam(orgId).catch(() => []) : Promise.resolve([]),

@@ -1,6 +1,7 @@
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from './AuthContext'
 import type { SpecialistProfile } from './api'
+import { isOrgAdminRole } from './roleUtils'
 
 export interface PageAuth {
   profile: SpecialistProfile | null
@@ -26,7 +27,7 @@ export function usePageAuth(): PageAuth {
   const orgId = validatedOrgId
   const currentOrg =
     profile?.organizations.find((o) => o.orgId === orgId) ?? profile?.organizations[0]
-  const isAdmin = currentOrg?.role === 'admin'
+  const isAdmin = isOrgAdminRole(currentOrg?.role)
 
   return { profile, orgId, isAdmin, isLoading }
 }
