@@ -204,6 +204,7 @@ export default function BillingPage() {
         router.push(
           profile.organizations[0] ? `/b2b?orgId=${profile.organizations[0].orgId}` : '/b2b'
         )
+        return
       }
     }
   }, [isLoading, profile, isAdmin, router])

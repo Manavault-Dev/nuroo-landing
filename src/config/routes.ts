@@ -23,7 +23,7 @@ export const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.REGISTER, ROUTES.JOIN]
 
 export type B2bOrgMembership = {
   orgId: string
-  role?: 'admin' | 'specialist'
+  role?: 'admin' | 'org_admin' | 'specialist'
 }
 
 export function isAuthRoute(pathname: string): boolean {

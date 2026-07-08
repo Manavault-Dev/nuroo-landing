@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { apiClient } from '@/lib/b2b/api'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 import { Save, User, Mail, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -148,10 +149,10 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium text-gray-900">{org.orgName}</p>
                     <p className="text-sm text-gray-500">
-                      {t('role')}: {org.role === 'admin' ? t('administrator') : t('specialist')}
+                      {t('role')}: {isOrgAdminRole(org.role) ? t('administrator') : t('specialist')}
                     </p>
                   </div>
-                  {org.role === 'admin' && (
+                  {isOrgAdminRole(org.role) && (
                     <span className="px-3 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
                       {t('administrator')}
                     </span>

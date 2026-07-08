@@ -40,7 +40,6 @@ interface NavItem {
   href: string
   labelKey: string
   icon: React.ElementType
-  /** If set, show an "Upgrade" badge when the current plan is below this. */
   requiredPlan?: PlanId
 }
 
@@ -103,7 +102,7 @@ function NavLink({
       />
       <span className="flex-1 truncate">{item.labelKey}</span>
       {isLocked && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 leading-none whitespace-nowrap shrink-0">
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap shrink-0">
           ↑
         </span>
       )}
@@ -125,7 +124,9 @@ export function Sidebar({
   const t = useTranslations('b2b.sidebar')
   const currentOrg =
     profile?.organizations.find((org) => org.orgId === currentOrgId) || profile?.organizations[0]
-  const isOrgAdmin = currentOrg?.role === 'admin'
+
+  // Учитываем оба варианта роли администратора из базы данных
+  const isOrgAdmin = currentOrg?.role === 'admin' || (currentOrg?.role as string) === 'org_admin'
 
   const { branding } = useBranding()
   const { meetsPlan } = usePlan()
@@ -141,8 +142,6 @@ export function Sidebar({
   }
 
   const withOrg = (path: string) => (currentOrgId ? `${path}?orgId=${currentOrgId}` : path)
-
-  // ── Navigation groups ─────────────────────────────────────────────────────
 
   const coreGroup: NavGroup = {
     labelKey: 'core',
@@ -168,7 +167,6 @@ export function Sidebar({
               href: `${withOrg('/b2b/finance')}${currentOrgId ? '&tab=attendance' : '?tab=attendance'}`,
               labelKey: t('attendance'),
               icon: CalendarDays,
-              requiredPlan: 'enterprise' as PlanId,
             },
           ]
         : []),
@@ -224,7 +222,6 @@ export function Sidebar({
   }
 
   const groups = [coreGroup, operationsGroup, teamGroup, ...(adminGroup ? [adminGroup] : [])]
-
   const mobileOpen = isMobileOpen && !isClosing
 
   return (
@@ -237,7 +234,6 @@ export function Sidebar({
         !mobileOpen ? 'pointer-events-none md:pointer-events-auto' : ''
       )}
     >
-      {/* Mobile close */}
       <div className="b2b-sidebar-close-row md:hidden flex items-center justify-end p-2 border-b border-gray-100 shrink-0">
         <button
           type="button"
@@ -250,7 +246,6 @@ export function Sidebar({
       </div>
 
       <aside className="flex-1 flex flex-col min-h-0 overflow-hidden w-full">
-        {/* Identity — one block, org name appears exactly once */}
         <div className="b2b-sidebar-divider px-4 py-5 border-b border-gray-100 shrink-0">
           <Link
             href={currentOrgId ? `/b2b?orgId=${currentOrgId}` : '/b2b'}
@@ -287,7 +282,6 @@ export function Sidebar({
           </Link>
         </div>
 
-        {/* Nav — no section labels, groups separated by thin dividers */}
         <nav className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="space-y-1">
             {groups.map((group, gi) => (
@@ -308,7 +302,6 @@ export function Sidebar({
             ))}
           </div>
 
-          {/* Settings */}
           <div className="b2b-sidebar-divider mt-2.5 pt-2.5 border-t border-gray-100">
             <NavLink
               item={settingsItem}
@@ -317,7 +310,6 @@ export function Sidebar({
             />
           </div>
 
-          {/* Switch org — only shown when user belongs to multiple orgs */}
           {profile && profile.organizations.length > 1 && (
             <div className="b2b-sidebar-divider mt-2 pt-2 border-t border-gray-100">
               <p className="b2b-sidebar-muted-text px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
@@ -338,7 +330,7 @@ export function Sidebar({
                   >
                     <Building2 className="w-3 h-3 shrink-0" />
                     <span className="flex-1 truncate">{org.orgName}</span>
-                    {org.role === 'admin' && (
+                    {((org.role as string) === 'admin' || (org.role as string) === 'org_admin') && (
                       <span className="text-[10px] text-primary-500 font-medium">{t('admin')}</span>
                     )}
                   </Link>

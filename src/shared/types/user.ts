@@ -5,7 +5,7 @@ export interface SpecialistProfile {
   organizations: Array<{
     orgId: string
     orgName: string
-    role: 'admin' | 'specialist'
+    role: 'admin' | 'org_admin' | 'specialist'
   }>
 }
 

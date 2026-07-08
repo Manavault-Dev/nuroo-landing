@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 type ReportsTranslator = ReturnType<typeof useTranslations>
@@ -255,7 +256,7 @@ function ReportsContent() {
   const router = useRouter()
   const t = useTranslations('b2b.pages.reports')
   const { user, isLoading: authLoading } = useAuth()
-  const { profile, orgId } = usePageAuth()
+  const { profile, orgId, isAdmin } = usePageAuth()
   const { branding } = useBranding()
 
   const [data, setData] = useState<ReportData | null>(null)
@@ -355,6 +356,9 @@ function ReportsContent() {
   }
 
   const canDownloadPdf = Boolean(data && hasReportData(data))
+  const canViewAdminReports = isOrgAdminRole(
+    profile?.organizations.find((o) => o.orgId === orgId)?.role
+  )
 
   const handleDownloadPdf = async () => {
     if (!data || !canDownloadPdf) return

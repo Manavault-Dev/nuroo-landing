@@ -34,6 +34,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { PlanGate } from '@/components/b2b/PlanGate'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 
 type Tab = 'attendance' | 'invoices'
 type AttendanceStatus = 'present' | 'absent' | 'late' | null
@@ -62,6 +63,9 @@ export default function FinancePage() {
   const { orgId, isAdmin, isLoading } = usePageAuth()
   const activeTab = resolveActiveTab(searchParams.get('tab'), isAdmin)
   const visibleTabs = (isAdmin ? ['attendance', 'invoices'] : ['attendance']) as Tab[]
+  const adminRole = isOrgAdminRole(
+    usePageAuth().profile?.organizations.find((o) => o.orgId === orgId)?.role
+  )
 
   const [attendanceDate, setAttendanceDate] = useState(todayDate)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])

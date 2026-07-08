@@ -30,7 +30,7 @@ export interface SpecialistProfile {
     coverPositionY?: number | null
     coverScale?: number | null
     isPublicMarketplaceEnabled?: boolean
-    role: 'admin' | 'specialist'
+    role: 'admin' | 'org_admin' | 'specialist'
   }>
 }
 
@@ -931,7 +931,7 @@ export class ApiClient {
         uid: string
         email: string
         name: string
-        role: 'admin' | 'specialist'
+        role: 'admin' | 'org_admin' | 'specialist'
         joinedAt: string
       }>
     >(`/orgs/${orgId}/team`, `team:${orgId}`, 'default')

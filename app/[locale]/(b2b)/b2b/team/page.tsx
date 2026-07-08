@@ -3,17 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { usePageAuth } from '@/lib/b2b/usePageAuth'
+import { useAuth } from '@/lib/b2b/AuthContext'
 import { apiClient } from '@/lib/b2b/api'
 import { Users, UserCog, Mail, Crown, Shield, UserPlus, Trash2, Loader2 } from 'lucide-react'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { useAlert } from '@/components/ui/AlertDialog'
+import { isOrgAdminRole } from '@/lib/b2b/roleUtils'
 
 interface TeamMember {
   uid: string
   email: string
   name: string
-  role: 'admin' | 'specialist'
+  role: 'admin' | 'org_admin' | 'specialist'
   joinedAt: Date | string
 }
 
@@ -22,7 +23,7 @@ export default function TeamPage() {
   const routerRef = useRef(router)
   routerRef.current = router
 
-  const { profile, orgId, isAdmin, isLoading } = usePageAuth()
+  const { profile, currentOrgId: orgId, isLoading, updateProfile } = useAuth()
   const t = useTranslations('b2b.pages.team')
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
@@ -32,6 +33,9 @@ export default function TeamPage() {
   const { alert, confirm } = useAlert()
 
   const currentUid = profile?.uid
+  const currentOrg =
+    profile?.organizations.find((o) => o.orgId === orgId) || profile?.organizations?.[0]
+  const isAdmin = isOrgAdminRole(currentOrg?.role)
 
   const loadTeam = useCallback(async (oid: string) => {
     setLoadingTeam(true)
@@ -65,6 +69,10 @@ export default function TeamPage() {
 
   const handleRemove = async (uid: string) => {
     if (!orgId) return
+    if (!isAdmin) {
+      alert(t('notAuthorized') || 'Not authorized')
+      return
+    }
     const confirmed = await confirm(t('removeConfirm'))
     if (!confirmed) return
     setRemovingUid(uid)
@@ -80,14 +88,28 @@ export default function TeamPage() {
 
   const handleChangeRole = async (uid: string, newRole: 'org_admin' | 'specialist') => {
     if (!orgId) return
+    if (!isAdmin) {
+      alert(t('notAuthorized') || 'Not authorized')
+      return
+    }
     setUpdatingUid(uid)
     try {
       await apiClient.updateMemberRole(orgId, uid, newRole)
-      setTeamMembers((prev) =>
-        prev.map((m) =>
-          m.uid === uid ? { ...m, role: newRole === 'org_admin' ? 'admin' : 'specialist' } : m
-        )
-      )
+
+      setTeamMembers((prev) => prev.map((m) => (m.uid === uid ? { ...m, role: newRole } : m)))
+
+      // Роль самого себя менять запрещено через UI, но оставляем этот блок на случай бэкенд синхронизации
+      if (profile && uid === currentUid) {
+        updateProfile((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            organizations: prev.organizations.map((o) =>
+              o.orgId === orgId ? { ...o, role: newRole } : o
+            ),
+          }
+        })
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : t('failedUpdateRole'), { type: 'error' })
     } finally {
@@ -98,7 +120,7 @@ export default function TeamPage() {
   if (isLoading || loadingTeam) return <PageSpinner />
   if (!isAdmin) return null
 
-  const admins = teamMembers.filter((m) => m.role === 'admin')
+  const admins = teamMembers.filter((m) => isOrgAdminRole(m.role))
   const specialists = teamMembers.filter((m) => m.role === 'specialist')
 
   return (
@@ -192,7 +214,7 @@ export default function TeamPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-gray-900">{member.name}</p>
-                          {member.role === 'admin' && (
+                          {isOrgAdminRole(member.role) && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
                               {t('admin')}
                             </span>
@@ -217,50 +239,55 @@ export default function TeamPage() {
                         </p>
                       </div>
                     </div>
-                    {!isCurrentUser && (
-                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
-                        {member.role === 'specialist' ? (
-                          <button
-                            onClick={() => handleChangeRole(member.uid, 'org_admin')}
-                            disabled={!!updatingUid}
-                            className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg disabled:opacity-50 sm:w-auto"
-                          >
-                            {updatingUid === member.uid ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Crown className="w-3 h-3" />
-                            )}
-                            {t('makeAdmin')}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleChangeRole(member.uid, 'specialist')}
-                            disabled={!!updatingUid}
-                            className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg disabled:opacity-50 sm:w-auto"
-                          >
-                            {updatingUid === member.uid ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Shield className="w-3 h-3" />
-                            )}
-                            {t('makeSpecialist')}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleRemove(member.uid)}
-                          disabled={!!removingUid}
-                          className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors sm:w-auto sm:p-2"
-                          title={t('removeFromOrg')}
-                        >
-                          {removingUid === member.uid ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end min-h-[40px]">
+                      {/* УБРАНА КНОПКА СМЕНЫ РОЛИ ДЛЯ САМОГО СЕБЯ */}
+                      {!isCurrentUser ? (
+                        <>
+                          {member.role === 'specialist' ? (
+                            <button
+                              onClick={() => handleChangeRole(member.uid, 'org_admin')}
+                              disabled={!!updatingUid}
+                              className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg disabled:opacity-50 sm:w-auto"
+                            >
+                              {updatingUid === member.uid ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Crown className="w-3 h-3" />
+                              )}
+                              {t('makeAdmin')}
+                            </button>
                           ) : (
-                            <Trash2 className="w-4 h-4" />
+                            <button
+                              onClick={() => handleChangeRole(member.uid, 'specialist')}
+                              disabled={!!updatingUid}
+                              className="inline-flex w-full items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg disabled:opacity-50 sm:w-auto"
+                            >
+                              {updatingUid === member.uid ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Shield className="w-3 h-3" />
+                              )}
+                              {t('makeSpecialist')}
+                            </button>
                           )}
-                          <span className="sm:hidden">{t('removeFromOrg')}</span>
-                        </button>
-                      </div>
-                    )}
+
+                          <button
+                            onClick={() => handleRemove(member.uid)}
+                            disabled={!!removingUid}
+                            className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors sm:w-auto sm:p-2"
+                            title={t('removeFromOrg')}
+                          >
+                            {removingUid === member.uid ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                            <span className="sm:hidden">{t('removeFromOrg')}</span>
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 )
               })}

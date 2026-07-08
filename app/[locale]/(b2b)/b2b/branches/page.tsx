@@ -20,7 +20,7 @@ const EMPTY_FORM: BranchForm = { name: '', address: '', phone: '', contactPerson
 
 export default function BranchesPage() {
   const t = useTranslations('b2b.pages.branches')
-  const { orgId, isAdmin, isLoading } = usePageAuth()
+  const { profile, orgId, isAdmin, isLoading } = usePageAuth()
 
   const [branches, setBranches] = useState<Branch[]>([])
   const [loadingBranches, setLoadingBranches] = useState(false)
@@ -51,6 +51,16 @@ export default function BranchesPage() {
   useEffect(() => {
     if (orgId) loadBranches(orgId)
   }, [orgId, loadBranches])
+
+  useEffect(() => {
+    if (!isLoading && profile && !isAdmin) {
+      const redirect = profile.organizations[0]
+        ? `/b2b?orgId=${profile.organizations[0].orgId}`
+        : '/b2b'
+      // send user back to their main dashboard
+      window.location.href = redirect
+    }
+  }, [isLoading, profile, isAdmin])
 
   const openCreate = () => {
     setEditingBranch(null)

@@ -257,7 +257,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile((prev) => {
         const next = updater(prev)
         const currentUser = auth?.currentUser
-        if (currentUser && next) {
+        // Only write cached profile when the authenticated user's UID matches
+        // the profile being written. This avoids overwriting cached profiles for
+        // other users during quick account switches or race conditions.
+        if (currentUser && next && (next as any).uid && currentUser.uid === (next as any).uid) {
           writeCachedProfile(currentUser, next, currentOrgIdRef.current)
         }
         return next
