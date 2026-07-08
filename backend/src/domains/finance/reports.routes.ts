@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
+import { resolveUserName } from '../children/children.service';
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../plugins/rbac.js'
@@ -79,10 +80,31 @@ async function getChildName(
 
 async function getParentDisplayName(uid: string): Promise<string> {
   try {
-    const user = await admin.auth().getUser(uid)
-    return user.displayName || user.email?.split('@')[0] || uid.slice(0, 8)
-  } catch {
-    return uid.slice(0, 8)
+    const db = admin.firestore();
+    const userDoc = await db.collection('users').doc(uid).get();
+
+    if (userDoc.exists) {
+      const data = userDoc.data()!;
+
+      if (data.firstName) {
+        const fn = data.firstName as string;
+        const ln = data.lastName as string | undefined;
+        return ln ? `${fn} ${ln}`.trim() : fn;
+      }
+
+      const explicitParentName = data.fullName || data.name || data.displayName;
+      if (explicitParentName) {
+        return explicitParentName as string;
+      }
+    }
+
+    const authUser = await admin.auth().getUser(uid);
+    if (authUser.displayName) return authUser.displayName;
+    if (authUser.email) return authUser.email.split('@')[0];
+
+    return uid.slice(0, 8);
+  } catch (error) {
+    return uid.slice(0, 8);
   }
 }
 
