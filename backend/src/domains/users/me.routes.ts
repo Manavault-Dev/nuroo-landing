@@ -2,11 +2,12 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import type { SpecialistProfile } from '../../types.js'
+import type { SpecialistProfile } from '../../shared/types/domain.js'
 import { z } from 'zod'
 
 const COLLECTIONS = {
   SPECIALISTS: 'specialists',
+  PARENTS: 'parents',
   ORGANIZATIONS: 'organizations',
   ORG_MEMBERS: (orgId: string) => `organizations/${orgId}/members`,
   USER_ORGS: (uid: string) => `specialists/${uid}/organizations`,
@@ -36,7 +37,8 @@ function denormalizeRole(role: 'admin' | 'specialist'): 'org_admin' | 'specialis
 async function findOrganizationsForUser(
   db: admin.firestore.Firestore,
   uid: string,
-  isUserSuperAdmin: boolean
+  isUserSuperAdmin: boolean,
+  hasSpecialistProfile: boolean = true
 ): Promise<
   Array<{
     orgId: string
@@ -238,8 +240,11 @@ async function findOrganizationsForUser(
     console.warn('[me] Strategy 1 (specialist org pointer) failed:', err)
   }
 
-  // Strategy 2: legacy fallback. Scan organizations and check direct member documents.
-  // This is slower, but it avoids Firestore collection-group indexes entirely.
+  // Strategy 2: legacy fallback. Only for users who have a specialist profile but
+  // no orgId pointer and no membership index — skip entirely for brand-new users.
+  if (!hasSpecialistProfile) {
+    return organizations
+  }
   console.warn('[me] Strategy 2: scanning organizations collection for uid:', uid)
   try {
     const orgsSnapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).get()
@@ -300,11 +305,21 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     const specialistRef = db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`)
     const isUserSuperAdmin = request.user?.claims?.superAdmin === true
 
-    const [specialistSnap, organizations] = await Promise.all([
+    const [specialistSnap, parentSnap] = await Promise.all([
       specialistRef.get(),
-      findOrganizationsForUser(db, uid, isUserSuperAdmin),
+      db.doc(`${COLLECTIONS.PARENTS}/${uid}`).get(),
     ])
 
+    const organizations = await findOrganizationsForUser(
+      db,
+      uid,
+      isUserSuperAdmin,
+      specialistSnap.exists
+    )
+
+    // Parent-only accounts (no specialist profile, no org access) get an empty
+    // organizations list. Clients derive the "parent" role from orgs.length === 0.
+    // Returning 403 here broke the mobile app role gate — 200 is the right response.
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
     const name = extractName(specialistData, email)
 

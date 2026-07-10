@@ -3,8 +3,8 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
-import { signIn, signInWithGoogle } from '@/lib/b2b/authClient'
-import { apiClient } from '@/lib/b2b/api'
+import { signIn, signInWithGoogle, signOut as signOutB2B } from '@/lib/b2b/authClient'
+import { ApiError, apiClient } from '@/lib/b2b/api'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
@@ -46,17 +46,29 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const finishLogin = async (idToken: string, user: { uid: string; email: string | null }) => {
+  const finishLogin = async (
+    idToken: string,
+    user: { uid: string; email: string | null }
+  ): Promise<boolean> => {
     apiClient.setToken(idToken)
 
-    const profile = await apiClient.getMe().catch(() => null)
+    const profile = await apiClient.getMe().catch(async (err: unknown) => {
+      if (err instanceof ApiError && err.code === 'PARENT_ACCOUNT') {
+        setError(t('parentAccountError'))
+        await signOutB2B()
+        return null
+      }
+
+      throw err
+    })
+
     if (!profile) {
-      router.replace('/b2b/onboarding')
-      return
+      return false
     }
 
     writeCachedProfile(user, profile, getDefaultOrgId(profile))
     router.replace(resolvePostLoginPath(profile, searchParams.get('redirect')))
+    return true
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -69,10 +81,11 @@ export default function LoginPage() {
     try {
       const userCredential = await signIn(email, password)
       const idToken = await userCredential.user.getIdToken()
-      await finishLogin(idToken, {
+      const completed = await finishLogin(idToken, {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
       })
+      if (!completed) setLoading(false)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('signInError'))
       setLoading(false)
@@ -87,10 +100,11 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithGoogle()
       const idToken = await userCredential.user.getIdToken()
-      await finishLogin(idToken, {
+      const completed = await finishLogin(idToken, {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
       })
+      if (!completed) setGoogleLoading(false)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       // User closing the popup is not an error
