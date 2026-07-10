@@ -33,6 +33,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { PlanGate } from '@/components/b2b/PlanGate'
+import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
 
 const DEFAULT_IMAGE_POSITION = 50
 const DEFAULT_IMAGE_SCALE = 1
@@ -718,13 +719,12 @@ export default function BrandSettingsPage() {
                     )}
                     {/* Footer */}
                     <div
-                      className="mt-auto pt-1.5 border-t text-[8px] px-1"
+                      className="mt-auto border-t px-1 pt-1.5"
                       style={{
                         borderColor: activeTokens.sidebarHoverBg,
-                        color: activeTokens.sidebarMutedText,
                       }}
                     >
-                      {t('poweredBy')}
+                      <PoweredByNuroo label={t('poweredBy')} size="xs" className="max-w-full" />
                     </div>
                   </div>
 

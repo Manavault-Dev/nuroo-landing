@@ -173,6 +173,17 @@ export default function NotFound() {
             </div>
           </div>
 
+          {/* Mascot */}
+          <div className="mb-6 -mt-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/mascot-5.svg"
+              alt=""
+              aria-hidden
+              className="w-40 h-40 object-contain drop-shadow-lg"
+            />
+          </div>
+
           {/* Copy */}
           <div className="max-w-md">
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight">
