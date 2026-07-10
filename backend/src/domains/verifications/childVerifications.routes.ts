@@ -60,7 +60,8 @@ async function resolveReviewerOrgId(
   try {
     const member = await requireOrgMember(request, reply, orgId)
     if (!member || member.role !== 'org_admin') {
-      if (!reply.sent) reply.code(403).send({ error: 'Only organization admins can review verifications' })
+      if (!reply.sent)
+        reply.code(403).send({ error: 'Only organization admins can review verifications' })
       return null
     }
     return orgId
@@ -222,7 +223,11 @@ export const childVerificationsRoute: FastifyPluginAsync = async (fastify) => {
     '/admin/verifications/children',
     { config: { rateLimit: REVIEW_RATE_LIMIT } },
     async (request, reply) => {
-      const { status = 'PENDING', courseId, orgId } = request.query as {
+      const {
+        status = 'PENDING',
+        courseId,
+        orgId,
+      } = request.query as {
         status?: ChildVerificationStatus
         courseId?: string
         orgId?: string
@@ -239,7 +244,8 @@ export const childVerificationsRoute: FastifyPluginAsync = async (fastify) => {
       // Secondary filter applied in memory; sort done in memory too.
       let baseQuery = db.collection('childVerifications').where('status', '==', status)
       if (courseId) baseQuery = baseQuery.where('courseId', '==', courseId) as typeof baseQuery
-      else if (reviewerOrgId) baseQuery = baseQuery.where('orgId', '==', reviewerOrgId) as typeof baseQuery
+      else if (reviewerOrgId)
+        baseQuery = baseQuery.where('orgId', '==', reviewerOrgId) as typeof baseQuery
       const snap = await baseQuery.limit(200).get()
 
       const bucket = await getStorageBucket()
@@ -249,7 +255,7 @@ export const childVerificationsRoute: FastifyPluginAsync = async (fastify) => {
         snap.docs.map(async (doc) => {
           const data = doc.data()
           const documentUrls: string[] = await Promise.all(
-            (data.documentRefs as string[] ?? []).map(async (ref: string) => {
+            ((data.documentRefs as string[]) ?? []).map(async (ref: string) => {
               try {
                 const [url] = await bucket.file(ref).getSignedUrl({ action: 'read', expires })
                 return url

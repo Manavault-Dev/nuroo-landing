@@ -23,7 +23,8 @@ export async function getOrgPaymentProvider(
       apiKey: (data.apiKey as string | undefined) || config.FINIK_API_KEY || undefined,
       apiUrl: (data.apiUrl as string | undefined) || config.FINIK_API_URL || undefined,
       privatePem: (data.privatePem as string | undefined) || config.FINIK_PRIVATE_PEM || undefined,
-      webhookSecret: (data.webhookSecret as string | undefined) || config.FINIK_WEBHOOK_SECRET || undefined,
+      webhookSecret:
+        (data.webhookSecret as string | undefined) || config.FINIK_WEBHOOK_SECRET || undefined,
     })
   }
 

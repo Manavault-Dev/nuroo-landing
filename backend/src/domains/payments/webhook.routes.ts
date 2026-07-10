@@ -121,7 +121,15 @@ export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
         if (parts.length === 4) {
           const [, courseOrgId, courseId, userId] = parts
           try {
-            await handleCoursePayment(db, courseOrgId, courseId, userId, invoiceId, status, fastify.log)
+            await handleCoursePayment(
+              db,
+              courseOrgId,
+              courseId,
+              userId,
+              invoiceId,
+              status,
+              fastify.log
+            )
           } catch (err) {
             fastify.log.error({ event: 'course_payment_webhook_error', err: String(err) })
           }
@@ -157,16 +165,21 @@ async function handleCoursePayment(
   log: { info: (o: object) => void; warn: (o: object) => void }
 ) {
   const paymentRef = db.collection('coursePayments').doc(paymentId)
-  await paymentRef.set({
-    status,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    ...(status === 'paid' ? { paidAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
-  }, { merge: true })
+  await paymentRef.set(
+    {
+      status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(status === 'paid' ? { paidAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
+    },
+    { merge: true }
+  )
 
   if (status !== 'paid') return
 
   // Check not already enrolled (idempotent)
-  const enrollSnap = await db.doc(`organizations/${orgId}/courses/${courseId}/enrollments/${userId}`).get()
+  const enrollSnap = await db
+    .doc(`organizations/${orgId}/courses/${courseId}/enrollments/${userId}`)
+    .get()
   if (enrollSnap.exists) {
     log.info({ event: 'course_payment_already_enrolled', orgId, courseId, userId })
     return
@@ -181,9 +194,17 @@ async function handleCoursePayment(
   const paymentSnap = await paymentRef.get()
   const paymentData = paymentSnap.data() || {}
 
-  const course = publicCoursePayload({ id: courseSnap.id, ...courseSnap.data() } as CourseDoc) as CourseDoc
+  const course = publicCoursePayload({
+    id: courseSnap.id,
+    ...courseSnap.data(),
+  } as CourseDoc) as CourseDoc
   const entitlement = await grantCourseEntitlement(
-    db, course, userId, 'PURCHASE', paymentData.childId || undefined, paymentData.amount || course.price
+    db,
+    course,
+    userId,
+    'PURCHASE',
+    paymentData.childId || undefined,
+    paymentData.amount || course.price
   )
   await createEnrollmentFromEntitlement(db, course, entitlement)
   await courseSnap.ref.update({

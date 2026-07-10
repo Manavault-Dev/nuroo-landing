@@ -83,12 +83,7 @@ function makeProgressDb({
   } as any
 }
 
-async function getProgressLogic(
-  db: any,
-  userId: string,
-  orgId: string,
-  courseId: string
-) {
+async function getProgressLogic(db: any, userId: string, orgId: string, courseId: string) {
   const progressSnap = await db
     .collection(`users/${userId}/lessonProgress`)
     .where('courseId', '==', courseId)

@@ -237,7 +237,9 @@ export async function requireOrgAdmin(
 ): Promise<OrgMember> {
   const member = await requireOrgMember(request, reply, orgId)
   if (member.role !== 'org_admin') {
-    return reply.code(403).send({ error: 'Only organization admins can perform this action' }) as never
+    return reply
+      .code(403)
+      .send({ error: 'Only organization admins can perform this action' }) as never
   }
   return member
 }
@@ -252,5 +254,7 @@ export async function requirePlatformAdmin(
   const claims = request.user?.claims as Record<string, unknown> | undefined
   if (claims?.platform_admin === true) return
 
-  return reply.code(403).send({ error: 'Platform admin access required', code: 'PLATFORM_ADMIN_REQUIRED' }) as never
+  return reply
+    .code(403)
+    .send({ error: 'Platform admin access required', code: 'PLATFORM_ADMIN_REQUIRED' }) as never
 }

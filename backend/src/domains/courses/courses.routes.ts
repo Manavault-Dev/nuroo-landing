@@ -341,10 +341,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const ref = db.doc(`organizations/${orgId}/courses/${courseId}`)
-      const [snap, orgSnap] = await Promise.all([
-        ref.get(),
-        db.doc(`organizations/${orgId}`).get(),
-      ])
+      const [snap, orgSnap] = await Promise.all([ref.get(), db.doc(`organizations/${orgId}`).get()])
       if (!snap.exists) return reply.code(404).send({ error: 'Course not found' })
 
       const currentCourse = { id: snap.id, ...snap.data() } as CourseDoc
@@ -360,8 +357,14 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
           : {}),
         accessPolicy,
         price: accessPolicy === 'FREE' ? 0 : (parse.data.price ?? currentCourse.price),
-        ownerOrgName: orgData?.name || orgData?.displayName || orgData?.title || currentCourse.ownerOrgName,
-        ownerOrgLogo: orgData?.logo || orgData?.logoUrl || orgData?.logoImage || currentCourse.ownerOrgLogo || undefined,
+        ownerOrgName:
+          orgData?.name || orgData?.displayName || orgData?.title || currentCourse.ownerOrgName,
+        ownerOrgLogo:
+          orgData?.logo ||
+          orgData?.logoUrl ||
+          orgData?.logoImage ||
+          currentCourse.ownerOrgLogo ||
+          undefined,
         updatedAt: now(),
       }
 
