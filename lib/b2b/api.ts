@@ -541,6 +541,18 @@ class ApiCache {
 
 const cache = new ApiCache()
 
+export class ApiError extends Error {
+  status: number
+  code?: string
+
+  constructor(message: string, status: number, code?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+}
+
 // API Client with caching and request deduplication
 export class ApiClient {
   private baseUrl: string
@@ -570,7 +582,7 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
-      throw new Error(error.error || 'API request failed')
+      throw new ApiError(error.error || 'API request failed', response.status, error.code)
     }
 
     return response.json()
@@ -676,11 +688,7 @@ export class ApiClient {
   }
 
   async getBillingStatus(orgId: string) {
-    return this.cachedRequest<BillingStatusResponse>(
-      `/orgs/${orgId}/billing/status`,
-      `billing:status:${orgId}`,
-      'default'
-    )
+    return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
   }
 
   async startTrial(
@@ -2104,8 +2112,17 @@ export class ApiClient {
   }
 
   async uploadCourseCoverImage(orgId: string, file: File) {
+    return this.uploadCourseMedia(orgId, file, 'cover')
+  }
+
+  async uploadCourseMedia(
+    orgId: string,
+    file: File,
+    kind: 'cover' | 'lesson-video' | 'lesson-image' | 'lesson-pdf'
+  ) {
     const formData = new FormData()
     formData.append('media', file)
+    formData.append('kind', kind)
 
     const headers = new Headers()
     if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
@@ -2125,6 +2142,9 @@ export class ApiClient {
       ok: boolean
       url: string
       path: string
+      mediaType?: string
+      filename?: string
+      kind?: string
     }>
   }
 
@@ -2152,6 +2172,18 @@ export class ApiClient {
       `/orgs/${orgId}/courses/${courseId}/modules`,
       { method: 'POST', body: JSON.stringify(data) }
     )
+  }
+
+  async updateCourseModule(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
   }
 
   async deleteCourseModule(orgId: string, courseId: string, moduleId: string) {
@@ -2187,6 +2219,34 @@ export class ApiClient {
     return this.request<{ ok: boolean; verifications: any[] }>('/verifications/children/mine')
   }
 
+  async uploadChildVerificationDocument(file: File) {
+    const formData = new FormData()
+    formData.append('document', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/verifications/children/documents`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new ApiError(error.error || 'Document upload failed', response.status, error.code)
+    }
+
+    return response.json() as Promise<{
+      ok: boolean
+      documentRef: string
+      path: string
+      filename: string
+      contentType: string
+      size: number
+    }>
+  }
+
   async submitChildVerification(data: { childId: string; documentRefs: string[]; note?: string }) {
     return this.request<{ ok: boolean; verification: any }>('/verifications/children', {
       method: 'POST',
@@ -2194,9 +2254,16 @@ export class ApiClient {
     })
   }
 
-  async getChildVerificationsForReview(status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') {
+  async getChildVerificationsForReview(
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING',
+    orgId?: string,
+    courseId?: string
+  ) {
+    const params = new URLSearchParams({ status })
+    if (orgId) params.set('orgId', orgId)
+    if (courseId) params.set('courseId', courseId)
     return this.request<{ ok: boolean; verifications: any[] }>(
-      `/admin/verifications/children?status=${encodeURIComponent(status)}`
+      `/admin/verifications/children?${params.toString()}`
     )
   }
 
@@ -2219,6 +2286,19 @@ export class ApiClient {
     return this.request<{ ok: boolean; lesson: any }>(
       `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`,
       { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async updateLesson(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
     )
   }
 

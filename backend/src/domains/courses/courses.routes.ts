@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import multipart from '@fastify/multipart'
 import { z } from 'zod'
 import { getFirestore, getStorageBucket } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import type { CourseDoc, ModuleDoc, LessonDoc } from './courses.types.js'
 import {
   normalizeAccessPolicy,
@@ -65,6 +65,8 @@ const createLessonSchema = z.object({
   type: z.enum(['text', 'video', 'task', 'pdf']),
   order: z.number().int().min(0),
   body: z.string().max(50000).optional().nullable(),
+  imageUrl: z.string().url().optional().nullable(),
+  imageName: z.string().max(200).optional().nullable(),
   videoUrl: z.string().url().optional().nullable(),
   videoDurationMin: z.number().min(0).optional().nullable(),
   taskDescription: z.string().max(5000).optional().nullable(),
@@ -114,16 +116,74 @@ async function uploadCourseCoverImage(
   }
 }
 
+function courseMediaFolder(kind: string, mediaMimetype: string) {
+  if (kind === 'cover') return 'covers'
+  if (kind === 'lesson-video') return 'lesson-videos'
+  if (kind === 'lesson-image') return 'lesson-images'
+  if (kind === 'lesson-pdf') return 'lesson-pdfs'
+  if (mediaMimetype.startsWith('video/')) return 'lesson-videos'
+  if (mediaMimetype.startsWith('image/')) return 'lesson-images'
+  return 'lesson-files'
+}
+
+function validateCourseMedia(kind: string, mediaMimetype: string): string | null {
+  if (kind === 'cover' || kind === 'lesson-image') {
+    return mediaMimetype.startsWith('image/') ? null : 'Only image uploads are allowed'
+  }
+  if (kind === 'lesson-video') {
+    return mediaMimetype.startsWith('video/') ? null : 'Only video uploads are allowed'
+  }
+  if (kind === 'lesson-pdf') {
+    return mediaMimetype === 'application/pdf' ? null : 'Only PDF uploads are allowed'
+  }
+  if (
+    mediaMimetype.startsWith('image/') ||
+    mediaMimetype.startsWith('video/') ||
+    mediaMimetype === 'application/pdf'
+  ) {
+    return null
+  }
+  return 'Only image, video, and PDF uploads are allowed'
+}
+
+async function uploadCourseMedia(
+  orgId: string,
+  kind: string,
+  mediaBuffer: Buffer,
+  mediaMimetype: string,
+  mediaFilename: string
+) {
+  const bucket = await getStorageBucket()
+  const safeName = mediaFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const folder = courseMediaFolder(kind, mediaMimetype)
+  const storagePath = `orgs/${orgId}/courses/${folder}/${Date.now()}-${safeName}`
+  const file = bucket.file(storagePath)
+
+  await file.save(mediaBuffer, {
+    contentType: mediaMimetype || undefined,
+    metadata: {
+      cacheControl: 'public, max-age=31536000',
+    },
+  })
+  await file.makePublic()
+
+  return {
+    url: `https://storage.googleapis.com/${bucket.name}/${storagePath}`,
+    path: storagePath,
+    mediaType: mediaMimetype,
+    filename: mediaFilename,
+    kind,
+  }
+}
+
 function resolveAccessPolicy(input: { accessPolicy?: CourseDoc['accessPolicy']; price?: number }) {
   return input.accessPolicy || (Number(input.price || 0) > 0 ? 'PAID' : 'FREE')
 }
 
 function validatePublishableCourse(course: CourseDoc): string | null {
   if (normalizeCourseStatus(course.status) !== 'PUBLISHED') return null
-  if (normalizeCourseVisibility(course.visibility) !== 'PUBLIC') return null
   if (!course.title?.trim()) return 'Published courses require a title'
   if (!course.description?.trim()) return 'Published courses require a description'
-  if (!course.coverUrl && !course.coverImageUrl) return 'Published courses require a cover image'
   if (normalizeAccessPolicy(course) !== 'FREE' && Number(course.price || 0) <= 0) {
     return 'Paid access policies require a positive price'
   }
@@ -134,7 +194,7 @@ function validatePublishableCourse(course: CourseDoc): string | null {
 
 export const coursesRoute: FastifyPluginAsync = async (fastify) => {
   const db = getFirestore()
-  await fastify.register(multipart, { limits: { fileSize: 8 * 1024 * 1024 } })
+  await fastify.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } })
 
   // ── Courses ────────────────────────────────────────────────────────────────
 
@@ -155,6 +215,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
         let mediaBuffer: Buffer | null = null
         let mediaMimetype = ''
         let mediaFilename = 'course-cover'
+        let kind = 'cover'
 
         for await (const part of parts) {
           if (part.type === 'file' && part.fieldname === 'media') {
@@ -163,23 +224,24 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
             mediaBuffer = Buffer.concat(chunks)
             mediaMimetype = part.mimetype || ''
             mediaFilename = part.filename || 'course-cover'
+          } else if (part.type === 'field' && part.fieldname === 'kind') {
+            kind = String(part.value || 'cover')
           }
         }
 
         if (!mediaBuffer || mediaBuffer.length === 0) {
-          return reply.code(400).send({ error: 'Image file is required' })
+          return reply.code(400).send({ error: 'Media file is required' })
         }
 
-        if (!mediaMimetype.startsWith('image/')) {
-          return reply.code(400).send({ error: 'Only image uploads are allowed' })
+        const mediaError = validateCourseMedia(kind, mediaMimetype)
+        if (mediaError) {
+          return reply.code(400).send({ error: mediaError })
         }
 
-        const uploaded = await uploadCourseCoverImage(
-          orgId,
-          mediaBuffer,
-          mediaMimetype,
-          mediaFilename
-        )
+        const uploaded =
+          kind === 'cover'
+            ? await uploadCourseCoverImage(orgId, mediaBuffer, mediaMimetype, mediaFilename)
+            : await uploadCourseMedia(orgId, kind, mediaBuffer, mediaMimetype, mediaFilename)
         return reply.code(201).send({ ok: true, ...uploaded })
       } catch (error: unknown) {
         if (
@@ -188,10 +250,10 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
           'code' in error &&
           error.code === 'FST_FILES_LIMIT'
         ) {
-          return reply.code(413).send({ error: 'Image file is too large' })
+          return reply.code(413).send({ error: 'Media file is too large' })
         }
-        request.log.error(error, '[COURSE_MEDIA_UPLOAD] Failed to upload course cover image')
-        return reply.code(500).send({ error: 'Failed to upload image' })
+        request.log.error(error, '[COURSE_MEDIA_UPLOAD] Failed to upload course media')
+        return reply.code(500).send({ error: 'Failed to upload media' })
       }
     }
   )
@@ -245,6 +307,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       orgId,
       ownerOrgId: orgId,
       ownerOrgName: orgData?.name || orgData?.displayName || orgData?.title || undefined,
+      ownerOrgLogo: orgData?.logo || orgData?.logoUrl || undefined,
       ...parse.data,
       coverUrl: parse.data.coverUrl || parse.data.coverImageUrl || undefined,
       accessPolicy,
@@ -278,10 +341,14 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const ref = db.doc(`organizations/${orgId}/courses/${courseId}`)
-      const snap = await ref.get()
+      const [snap, orgSnap] = await Promise.all([
+        ref.get(),
+        db.doc(`organizations/${orgId}`).get(),
+      ])
       if (!snap.exists) return reply.code(404).send({ error: 'Course not found' })
 
       const currentCourse = { id: snap.id, ...snap.data() } as CourseDoc
+      const orgData = orgSnap.exists ? orgSnap.data() : null
       const accessPolicy = resolveAccessPolicy({
         accessPolicy: parse.data.accessPolicy || currentCourse.accessPolicy,
         price: parse.data.price ?? currentCourse.price,
@@ -293,20 +360,44 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
           : {}),
         accessPolicy,
         price: accessPolicy === 'FREE' ? 0 : (parse.data.price ?? currentCourse.price),
+        ownerOrgName: orgData?.name || orgData?.displayName || orgData?.title || currentCourse.ownerOrgName,
+        ownerOrgLogo: orgData?.logo || orgData?.logoUrl || orgData?.logoImage || currentCourse.ownerOrgLogo || undefined,
         updatedAt: now(),
       }
 
       const nextCourse = { ...currentCourse, ...updates } as CourseDoc
-      const publishError = validatePublishableCourse(nextCourse)
-      if (publishError) {
-        return reply.code(400).send({ error: publishError })
+      const isPublishing =
+        parse.data.status !== undefined &&
+        normalizeCourseStatus(parse.data.status) === 'PUBLISHED' &&
+        normalizeCourseStatus(currentCourse.status) !== 'PUBLISHED'
+      if (isPublishing) {
+        const publishError = validatePublishableCourse(nextCourse)
+        if (publishError) {
+          return reply.code(400).send({ error: publishError })
+        }
       }
 
       if (normalizeCourseStatus(nextCourse.status) === 'PUBLISHED' && !currentCourse.publishedAt) {
         updates.publishedAt = now()
       }
 
-      await ref.update(updates as Record<string, unknown>)
+      // Sync courseIndex atomically with the course update
+      const finalStatus = normalizeCourseStatus(nextCourse.status)
+      const finalVisibility = normalizeCourseVisibility(nextCourse.visibility)
+      const indexRef = db.doc(`courseIndex/${orgId}_${courseId}`)
+
+      if (finalStatus === 'PUBLISHED' && finalVisibility === 'PUBLIC') {
+        const batch = db.batch()
+        batch.update(ref, updates as Record<string, unknown>)
+        batch.set(indexRef, { ...nextCourse, id: courseId, courseId, orgId }, { merge: true })
+        await batch.commit()
+      } else {
+        const batch = db.batch()
+        batch.update(ref, updates as Record<string, unknown>)
+        batch.delete(indexRef)
+        await batch.commit()
+      }
+
       return { ok: true }
     }
   )
@@ -320,7 +411,10 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       if (member.role !== 'org_admin') {
         return reply.code(403).send({ error: 'Only admins can delete courses' })
       }
-      await db.doc(`organizations/${orgId}/courses/${courseId}`).delete()
+      await Promise.all([
+        db.doc(`organizations/${orgId}/courses/${courseId}`).delete(),
+        db.doc(`courseIndex/${orgId}_${courseId}`).delete(),
+      ])
       return { ok: true }
     }
   )

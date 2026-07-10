@@ -24,6 +24,9 @@ export interface LessonDoc {
   order: number
   // text lesson
   body?: string
+  // shared lesson media
+  imageUrl?: string
+  imageName?: string
   // video lesson
   videoUrl?: string
   videoDurationMin?: number
@@ -82,7 +85,7 @@ export interface EnrollmentDoc {
   courseId: string
   orgId: string
   userId: string // parent uid
-  childId?: string
+  childId?: string | null
   entitlementId?: string
   status: EnrollmentStatus | LegacyEnrollmentStatus
   pricePaid: number
@@ -98,7 +101,7 @@ export interface CourseEntitlementDoc {
   courseId: string
   orgId: string
   userId: string
-  childId?: string
+  childId?: string | null
   source: CourseEntitlementSource
   status: CourseEntitlementStatus
   pricePaid: number
@@ -112,6 +115,8 @@ export interface ChildVerificationDoc {
   id: string
   childId: string
   parentUserId: string
+  courseId?: string
+  orgId?: string
   status: ChildVerificationStatus
   documentRefs: string[]
   note?: string

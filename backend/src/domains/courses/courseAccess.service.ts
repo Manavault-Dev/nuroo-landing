@@ -102,34 +102,38 @@ async function getActiveEntitlement(
 async function getVerificationStatus(
   db: FirestoreDb,
   userId: string,
+  courseId?: string,
   childId?: string
 ): Promise<{ status: ChildVerificationStatus | 'NONE'; childId?: string }> {
-  let query = db
+  // Query by parentUserId only (single-field index, no composite index needed).
+  // Filter by courseId/childId in memory to avoid Firestore composite index requirements.
+  const snap = await db
     .collection('childVerifications')
     .where('parentUserId', '==', userId)
-    .orderBy('updatedAt', 'desc')
-    .limit(10)
+    .limit(50)
+    .get()
 
-  if (childId) {
-    query = db
-      .collection('childVerifications')
-      .where('parentUserId', '==', userId)
-      .where('childId', '==', childId)
-      .orderBy('updatedAt', 'desc')
-      .limit(1)
-  }
-
-  const snap = await query.get()
   if (snap.empty) return { status: 'NONE' }
 
-  const approved = snap.docs.find((doc) => doc.data().status === 'APPROVED')
-  if (approved) {
-    const data = approved.data() as ChildVerificationDoc
-    return { status: 'APPROVED', childId: data.childId }
+  let docs = snap.docs.map((d) => d.data() as ChildVerificationDoc)
+
+  // Prefer course-specific verification; fall back to any verification for backward compat
+  const forCourse = courseId ? docs.filter((d) => d.courseId === courseId) : docs
+  const pool = forCourse.length > 0 ? forCourse : docs
+
+  if (childId) {
+    const forChild = pool.filter((d) => d.childId === childId)
+    if (forChild.length > 0) docs = forChild
+    else docs = pool
+  } else {
+    docs = pool
   }
 
-  const latest = snap.docs[0].data() as ChildVerificationDoc
-  return { status: latest.status || 'NONE', childId: latest.childId }
+  const approved = docs.find((d) => d.status === 'APPROVED')
+  if (approved) return { status: 'APPROVED', childId: approved.childId }
+
+  const latest = docs[0]
+  return { status: latest?.status || 'NONE', childId: latest?.childId }
 }
 
 export async function decideCourseAccess(
@@ -165,7 +169,7 @@ export async function decideCourseAccess(
   }
 
   if (normalized.accessPolicy === 'VERIFIED_SPECIAL_NEEDS') {
-    const verification = await getVerificationStatus(db, userId, childId)
+    const verification = await getVerificationStatus(db, userId, normalized.id, childId)
     if (verification.status === 'APPROVED') {
       return {
         canAccess: true,
@@ -221,12 +225,13 @@ export async function grantCourseEntitlement(
   const normalized = publicCoursePayload(course)
   const ts = nowIso()
   const id = entitlementIdFor(normalized.orgId, normalized.id)
+  const normalizedChildId = childId || null
   const entitlement: CourseEntitlementDoc = {
     id,
     courseId: normalized.id,
     orgId: normalized.orgId,
     userId,
-    childId,
+    childId: normalizedChildId,
     source,
     status: 'ACTIVE',
     pricePaid,
