@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/node'
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireOrgAdmin } from '../../shared/guards/index.js'
-import { PLAN_IDS, type PlanId, getSubscriptionStatus } from '../../modules/payments/planLimits.js'
+import { requireOrgMember, requireOrgAdmin } from '../../infrastructure/auth/rbac.js'
+import { PLAN_IDS, type PlanId, getSubscriptionStatus } from '../payments/planLimits.js'
 import { config } from '../../config/index.js'
 import {
   createCheckoutSession,
@@ -29,15 +29,24 @@ function isBillingActive(
   trialEndsAt: string | null,
   currentPeriodEnd: string | null
 ): boolean {
-  if (status === 'manual_active' || status === 'active') {
+  const normalizedStatus = normalizeBillingStatus(status)
+  if (normalizedStatus === 'manual_active' || normalizedStatus === 'active') {
     if (!currentPeriodEnd) return true
     return new Date(currentPeriodEnd).getTime() > Date.now()
   }
-  if (status === 'trialing') {
+  if (normalizedStatus === 'trialing') {
     if (!trialEndsAt) return false
     return new Date(trialEndsAt).getTime() > Date.now()
   }
   return false
+}
+
+function normalizeBillingStatus(status: unknown): string | null {
+  if (typeof status !== 'string') return null
+  const value = status.trim().toLowerCase()
+  if (value === 'starter' || value === 'growth' || value === 'enterprise') return 'manual_active'
+  if (value === 'corporate' || value === 'corp' || value === 'корпоративный') return 'manual_active'
+  return value
 }
 
 export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -180,7 +189,8 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       const trialEndsAt = timestampToIso(billingField.trialEndsAt)
       const currentPeriodEnd = timestampToIso(billingField.currentPeriodEnd)
       const updatedAt = timestampToIso(billingField.updatedAt)
-      const billingActive = isBillingActive(billingField.status, trialEndsAt, currentPeriodEnd)
+      const normalizedBillingStatus = normalizeBillingStatus(billingField.status)
+      const billingActive = isBillingActive(normalizedBillingStatus, trialEndsAt, currentPeriodEnd)
       const billingPlan = typeof billingField.plan === 'string' ? billingField.plan : null
 
       return reply.code(200).send({
@@ -190,17 +200,17 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         source:
           subscriptionStatus.source ??
           (billingActive
-            ? billingField.status === 'trialing'
+            ? normalizedBillingStatus === 'trialing'
               ? 'free_trial'
               : 'subscription'
             : undefined),
-        billingStatus: billingField.status ?? subscriptionStatus.billingStatus,
+        billingStatus: normalizedBillingStatus ?? subscriptionStatus.billingStatus,
         expiresAt: subscriptionStatus.expiresAt
           ? timestampToIso(subscriptionStatus.expiresAt)
           : currentPeriodEnd,
         billing: {
           provider: billingField.provider ?? null,
-          status: billingField.status ?? null,
+          status: normalizedBillingStatus,
           plan: billingPlan,
           trialEndsAt,
           currentPeriodEnd,

@@ -541,6 +541,18 @@ class ApiCache {
 
 const cache = new ApiCache()
 
+export class ApiError extends Error {
+  status: number
+  code?: string
+
+  constructor(message: string, status: number, code?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+}
+
 // API Client with caching and request deduplication
 export class ApiClient {
   private baseUrl: string
@@ -570,7 +582,7 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
-      throw new Error(error.error || 'API request failed')
+      throw new ApiError(error.error || 'API request failed', response.status, error.code)
     }
 
     return response.json()
@@ -676,11 +688,7 @@ export class ApiClient {
   }
 
   async getBillingStatus(orgId: string) {
-    return this.cachedRequest<BillingStatusResponse>(
-      `/orgs/${orgId}/billing/status`,
-      `billing:status:${orgId}`,
-      'default'
-    )
+    return this.request<BillingStatusResponse>(`/orgs/${orgId}/billing/status`)
   }
 
   async startTrial(
@@ -2082,6 +2090,221 @@ export class ApiClient {
   async clearDemoData(orgId: string) {
     return this.request<{ ok: boolean; deleted: { children: number; tasks: number } }>(
       `/orgs/${orgId}/demo/seed`,
+      { method: 'DELETE' }
+    )
+  }
+
+  // ── Courses ───────────────────────────────────────────────────────────────
+
+  async getCourses(orgId: string) {
+    return this.request<{ ok: boolean; courses: any[] }>(`/orgs/${orgId}/courses`)
+  }
+
+  async getCourse(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses/${courseId}`)
+  }
+
+  async createCourse(orgId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async uploadCourseCoverImage(orgId: string, file: File) {
+    return this.uploadCourseMedia(orgId, file, 'cover')
+  }
+
+  async uploadCourseMedia(
+    orgId: string,
+    file: File,
+    kind: 'cover' | 'lesson-video' | 'lesson-image' | 'lesson-pdf'
+  ) {
+    const formData = new FormData()
+    formData.append('media', file)
+    formData.append('kind', kind)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/courses/media`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(error.error || error.message || 'Upload failed')
+    }
+
+    return response.json() as Promise<{
+      ok: boolean
+      url: string
+      path: string
+      mediaType?: string
+      filename?: string
+      kind?: string
+    }>
+  }
+
+  async updateCourse(orgId: string, courseId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCourse(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getCourseModules(orgId: string, courseId: string) {
+    return this.request<{ ok: boolean; modules: any[] }>(
+      `/orgs/${orgId}/courses/${courseId}/modules`
+    )
+  }
+
+  async createCourseModule(orgId: string, courseId: string, data: Record<string, unknown>) {
+    return this.request<{ ok: boolean; module: any }>(
+      `/orgs/${orgId}/courses/${courseId}/modules`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async updateCourseModule(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCourseModule(orgId: string, courseId: string, moduleId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getModuleLessons(orgId: string, courseId: string, moduleId: string) {
+    return this.request<{ ok: boolean; lessons: any[] }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`
+    )
+  }
+
+  async getMarketplaceCourseAccess(orgId: string, courseId: string, childId?: string) {
+    const qs = childId ? `?childId=${encodeURIComponent(childId)}` : ''
+    return this.request<{ ok: boolean; access: any }>(
+      `/marketplace/orgs/${orgId}/courses/${courseId}/access${qs}`
+    )
+  }
+
+  async enrollMarketplaceCourse(orgId: string, courseId: string, childId?: string) {
+    return this.request<{ ok: boolean; enrollment: any; entitlement?: any; access?: any }>(
+      `/marketplace/orgs/${orgId}/courses/${courseId}/enroll`,
+      {
+        method: 'POST',
+        body: JSON.stringify(childId ? { childId } : {}),
+      }
+    )
+  }
+
+  async getMyChildVerifications() {
+    return this.request<{ ok: boolean; verifications: any[] }>('/verifications/children/mine')
+  }
+
+  async uploadChildVerificationDocument(file: File) {
+    const formData = new FormData()
+    formData.append('document', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/verifications/children/documents`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new ApiError(error.error || 'Document upload failed', response.status, error.code)
+    }
+
+    return response.json() as Promise<{
+      ok: boolean
+      documentRef: string
+      path: string
+      filename: string
+      contentType: string
+      size: number
+    }>
+  }
+
+  async submitChildVerification(data: { childId: string; documentRefs: string[]; note?: string }) {
+    return this.request<{ ok: boolean; verification: any }>('/verifications/children', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getChildVerificationsForReview(
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING',
+    orgId?: string,
+    courseId?: string
+  ) {
+    const params = new URLSearchParams({ status })
+    if (orgId) params.set('orgId', orgId)
+    if (courseId) params.set('courseId', courseId)
+    return this.request<{ ok: boolean; verifications: any[] }>(
+      `/admin/verifications/children?${params.toString()}`
+    )
+  }
+
+  async reviewChildVerification(
+    verificationId: string,
+    data: { status: 'APPROVED' | 'REJECTED'; rejectionReason?: string }
+  ) {
+    return this.request<{ ok: boolean }>(`/admin/verifications/children/${verificationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createLesson(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean; lesson: any }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`,
+      { method: 'POST', body: JSON.stringify(data) }
+    )
+  }
+
+  async updateLesson(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    data: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
+      { method: 'PATCH', body: JSON.stringify(data) }
+    )
+  }
+
+  async deleteLesson(orgId: string, courseId: string, moduleId: string, lessonId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
       { method: 'DELETE' }
     )
   }

@@ -141,6 +141,7 @@ function makeGenerationMockDb({
 
   const mockDocUpdate = vi.fn().mockResolvedValue(undefined)
   const mockBatch = {
+    set: vi.fn(),
     update: vi.fn(),
     commit: vi.fn().mockResolvedValue(undefined),
   }
@@ -180,14 +181,16 @@ describe('generateMonthlyInvoicesForOrg', () => {
 
     it('THEN invoice doc is created with status pending and billingProfileId set', async () => {
       vi.mocked(getOrgPaymentProvider).mockResolvedValue(null)
-      const { db, newInvoiceSet } = makeGenerationMockDb({
+      const { db, mockBatch } = makeGenerationMockDb({
         profiles: [makeActiveProfileDoc()],
         existingInvoices: [],
       })
 
       await generateMonthlyInvoicesForOrg(db, 'org1')
 
-      expect(newInvoiceSet).toHaveBeenCalledWith(
+      // batch.set(ref, data) — data is 2nd arg
+      expect(mockBatch.set).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           status: 'pending',
           billingProfileId: 'profile1',
@@ -197,28 +200,30 @@ describe('generateMonthlyInvoicesForOrg', () => {
 
     it('THEN invoice has periodStart and periodEnd set', async () => {
       vi.mocked(getOrgPaymentProvider).mockResolvedValue(null)
-      const { db, newInvoiceSet } = makeGenerationMockDb({
+      const { db, mockBatch } = makeGenerationMockDb({
         profiles: [makeActiveProfileDoc()],
         existingInvoices: [],
       })
 
       await generateMonthlyInvoicesForOrg(db, 'org1')
 
-      const setArg = newInvoiceSet.mock.calls[0][0] as Record<string, unknown>
+      const setArg = mockBatch.set.mock.calls[0][1] as Record<string, unknown>
       expect(typeof setArg.periodStart).toBe('string')
       expect(typeof setArg.periodEnd).toBe('string')
     })
 
     it('THEN profile nextInvoiceDate is advanced to next month', async () => {
       vi.mocked(getOrgPaymentProvider).mockResolvedValue(null)
-      const { db, mockDocUpdate } = makeGenerationMockDb({
+      const { db, mockBatch } = makeGenerationMockDb({
         profiles: [makeActiveProfileDoc()],
         existingInvoices: [],
       })
 
       await generateMonthlyInvoicesForOrg(db, 'org1')
 
-      expect(mockDocUpdate).toHaveBeenCalledWith(
+      // batch.update(ref, data) — data is 2nd arg
+      expect(mockBatch.update).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           nextInvoiceDate: expect.any(Date),
         })
@@ -257,7 +262,7 @@ describe('generateMonthlyInvoicesForOrg', () => {
       const periodStartISO = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1)
         .toISOString()
         .split('T')[0]
-      const { db, newInvoiceSet } = makeGenerationMockDb({
+      const { db, mockBatch } = makeGenerationMockDb({
         profiles: [makeActiveProfileDoc()],
         existingInvoices: [
           makeInvoiceDoc({ billingProfileId: 'profile1', periodStart: periodStartISO }),
@@ -266,7 +271,7 @@ describe('generateMonthlyInvoicesForOrg', () => {
 
       await generateMonthlyInvoicesForOrg(db, 'org1')
 
-      expect(newInvoiceSet).not.toHaveBeenCalled()
+      expect(mockBatch.set).not.toHaveBeenCalled()
     })
   })
 
@@ -305,7 +310,7 @@ describe('generateMonthlyInvoicesForOrg', () => {
   describe('GIVEN getOrgPaymentProvider returns null', () => {
     it('THEN result.created === 1 and invoice is created with paymentUrl = null', async () => {
       vi.mocked(getOrgPaymentProvider).mockResolvedValue(null)
-      const { db, newInvoiceSet } = makeGenerationMockDb({
+      const { db, mockBatch } = makeGenerationMockDb({
         profiles: [makeActiveProfileDoc()],
         existingInvoices: [],
       })
@@ -313,7 +318,10 @@ describe('generateMonthlyInvoicesForOrg', () => {
       const result = await generateMonthlyInvoicesForOrg(db, 'org1')
 
       expect(result.created).toBe(1)
-      expect(newInvoiceSet).toHaveBeenCalledWith(expect.objectContaining({ paymentUrl: null }))
+      expect(mockBatch.set).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ paymentUrl: null })
+      )
     })
   })
 

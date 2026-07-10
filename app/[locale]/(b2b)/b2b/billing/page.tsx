@@ -400,7 +400,7 @@ export default function BillingPage() {
       active: { cls: 'bg-green-100 text-green-700 border-green-200', label: t('statusActive') },
       manual_active: {
         cls: 'bg-teal-100 text-teal-700 border-teal-200',
-        label: t('statusManualActive'),
+        label: t('statusActive'),
       },
       past_due: { cls: 'bg-red-100 text-red-700 border-red-200', label: t('statusPastDue') },
       expired: { cls: 'bg-gray-100 text-gray-500 border-gray-200', label: t('statusExpired') },
@@ -475,6 +475,9 @@ export default function BillingPage() {
   const hasStripeCustomer = Boolean(billingStatus?.stripeCustomerId)
   const trialEndDate = formatDate(billingStatus?.trialEndsAt)
   const manualStatus = billingStatus?.billingStatus
+  const manualPlanEndDate =
+    billingStatus?.currentPeriodEnd ?? billingStatus?.billing?.currentPeriodEnd
+  const hasManualActiveBilling = manualStatus === 'manual_active' || manualStatus === 'active'
   const manualTrialUnavailable =
     manualStatus === 'expired' || manualStatus === 'canceled' || manualStatus === 'cancelled'
   const canStartManualTrial =
@@ -765,7 +768,7 @@ export default function BillingPage() {
               </div>
             )}
 
-            {billingStatus?.billingStatus === 'manual_active' && (
+            {hasManualActiveBilling && (
               <div className="bg-teal-50 border border-teal-200 rounded-xl p-5">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
@@ -773,22 +776,19 @@ export default function BillingPage() {
                     <p className="text-sm font-semibold text-teal-900 mb-1">
                       {t('manualActiveTitle')}
                     </p>
-                    {(billingStatus.currentPeriodEnd ??
-                      billingStatus.billing?.currentPeriodEnd) && (
+                    {manualPlanEndDate ? (
                       <p className="text-sm text-teal-700">
                         {t('activeUntil', {
                           date:
-                            formatDate(
-                              billingStatus.currentPeriodEnd ??
-                                billingStatus.billing?.currentPeriodEnd,
-                              {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              }
-                            ) ?? '',
+                            formatDate(manualPlanEndDate, {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            }) ?? '',
                         })}
                       </p>
+                    ) : (
+                      <p className="text-sm text-amber-700">{t('activeUntilMissing')}</p>
                     )}
                   </div>
                 </div>

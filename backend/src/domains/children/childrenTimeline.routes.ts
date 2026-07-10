@@ -1,8 +1,8 @@
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
-import type { TimelineResponse } from '../../types.js'
+import { requireOrgMember, requireChildAccess } from '../../infrastructure/auth/rbac.js'
+import type { TimelineResponse } from '../../shared/types/domain.js'
 import {
   parseTimelineDays,
   buildActivityMap,

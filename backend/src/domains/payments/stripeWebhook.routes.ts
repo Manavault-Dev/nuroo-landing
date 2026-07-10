@@ -5,7 +5,7 @@ import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { constructWebhookEvent } from './stripe.service.js'
-import type { PlanId } from '../../modules/payments/planLimits.js'
+import type { PlanId } from '../payments/planLimits.js'
 
 type StripeBillingStatus = 'trialing' | 'active' | 'past_due' | 'canceled'
 

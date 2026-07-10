@@ -31,7 +31,8 @@ export function errorHandler(error: FastifyError, request: FastifyRequest, reply
       endpoint: request.url,
       errorCode: `auth/${code}`,
     })
-    return reply.code(400).send({
+    const expiredOrRevoked = code === 'id-token-expired' || code === 'id-token-revoked'
+    return reply.code(expiredOrRevoked ? 401 : 403).send({
       error: getFirebaseAuthErrorMessage(code),
       code: `auth/${code}`,
     })

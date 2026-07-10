@@ -3,9 +3,9 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
+import { requireOrgMember, requireChildAccess } from '../../infrastructure/auth/rbac.js'
 import { dispatch } from '../../modules/notifications/index.js'
-import type { SpecialistNote } from '../../types.js'
+import type { SpecialistNote } from '../../shared/types/domain.js'
 import { createFeedItem } from '../activity/activity.service.js'
 
 const COLLECTIONS = {

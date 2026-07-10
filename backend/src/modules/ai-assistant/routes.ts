@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 import { aiAssistant } from './service.js'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { LogEvent, logEvent } from '../../shared/observability/logger.js'
 
 const COLLECTIONS = {

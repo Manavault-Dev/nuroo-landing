@@ -30,6 +30,27 @@ type BillingDoc = {
   updatedAt?: admin.firestore.Timestamp | null
 }
 
+function normalizeBillingStatus(status: string | undefined): BillingStatusValue | null {
+  if (!status) return null
+  const value = status.trim().toLowerCase()
+  if (value === 'starter' || value === 'growth' || value === 'enterprise') return 'manual_active'
+  if (value === 'corporate' || value === 'corp' || value === 'корпоративный') {
+    return 'manual_active'
+  }
+  if (
+    value === 'trialing' ||
+    value === 'active' ||
+    value === 'manual_active' ||
+    value === 'past_due' ||
+    value === 'expired' ||
+    value === 'canceled' ||
+    value === 'cancelled'
+  ) {
+    return value
+  }
+  return null
+}
+
 export async function requireActiveSubscription(
   orgId: string,
   db: Firestore
@@ -46,8 +67,9 @@ export async function requireActiveSubscription(
   }
 
   const now = new Date()
+  const billingStatus = normalizeBillingStatus(billing.status)
 
-  switch (billing.status as BillingStatusValue) {
+  switch (billingStatus) {
     case 'trialing': {
       if (billing.trialEndsAt && now > billing.trialEndsAt.toDate()) {
         return {

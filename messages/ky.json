@@ -364,6 +364,7 @@
       "register": "Катталуу",
       "backToHome": "← Nuroo башкы бетине",
       "signInError": "Кирүү ишке ашкан жок. Email жана сыр сөздү текшериңиз.",
+      "parentAccountError": "Бул ата-эне аккаунту. Кирүү үчүн Nuroo ата-энелер колдонмосун колдонуңуз.",
       "demo": {
         "kicker": "Демо кирүү",
         "title": "Платформаны көрүп чыгыңыз",
@@ -452,6 +453,7 @@
       "attendance": "Катышуу",
       "notifications": "Билдирүүлөр",
       "brandSettings": "Бренд жөндөөлөр",
+      "courses": "Курстар",
       "closeMenu": "Менюну жабуу",
       "switchCenter": "Борборду алмаштыруу",
       "poweredBy": "Powered by"
@@ -1565,7 +1567,7 @@
         "statusCanceled": "Жокко чыгарылган",
         "trialEndsOn": "Сынак мезгили {date} аяктайт",
         "upgradeplan": "Планды жаңылоо",
-        "statusManualActive": "Активдүү (кол менен)",
+        "statusManualActive": "Активдүү",
         "statusExpired": "Мөөнөтү өттү",
         "manualTrialTitle": "30 күндүк акысыз сыноо мезгили",
         "manualTrialDescription": "Nuroo'нун бардык өзгөчөлүктөрүн 30 күн бекер сынап көрүңүз. Төлөм маалыматтары талап кылынбайт.",
@@ -1577,6 +1579,7 @@
         "trialExpiredDescription": "Сыноо мезгилиңиз бүттү. Платформаны колдонууну улантуу үчүн Nuroo командасы менен байланышыңыз.",
         "manualActiveTitle": "Жазылуу активдүү",
         "activeUntil": "{date} дейин активдүү",
+        "activeUntilMissing": "Жазылуунун аяктоо күнү көрсөтүлгөн эмес. Уюм жөндөөлөрүнө billing.currentPeriodEnd кошуңуз.",
         "contactToSubscribeTitle": "Улантууга даярсызбы?",
         "contactToSubscribeDescription": "Биз пилоттук этапта жатабыз. Төлөмдөр кол менен иштетилет — бизге жазыңыз, биз 1 жумуш күнүндө жазылууңузду активдештирибиз.",
         "contactNurooTeam": "Nuroo командасына жазуу",

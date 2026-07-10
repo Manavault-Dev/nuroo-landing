@@ -1,8 +1,8 @@
 import admin from 'firebase-admin'
 import type { FastifyPluginAsync } from 'fastify'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgAdmin } from '../../shared/guards/index.js'
-import { checkOrgHasFeature } from '../../modules/payments/planLimits.js'
+import { requireOrgAdmin } from '../../infrastructure/auth/rbac.js'
+import { checkOrgHasFeature } from '../payments/planLimits.js'
 import {
   createBillingProfile,
   getBillingProfile,

@@ -2,7 +2,7 @@ import multipart from '@fastify/multipart'
 import { z } from 'zod'
 
 import { getFirestore, getStorageBucket } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import {
   listContentTasks,
   getContentTask,

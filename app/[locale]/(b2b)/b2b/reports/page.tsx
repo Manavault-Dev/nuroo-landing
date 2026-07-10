@@ -237,7 +237,12 @@ function buildPdfMarkup(
       <!-- Footer -->
       <div style="border-top: 1px solid #e5e7eb; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center;">
         ${displayName ? `<span style="font-size: 10px; color: #9ca3af;">${escapeHtml(displayName)}</span>` : '<span></span>'}
-        <span style="font-size: 10px; line-height: 1; color: #9ca3af;">${escapeHtml(t('poweredByPrefix'))} <span style="font-weight: 600; color: #14b8a6;">Nuroo</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #ccfbf1; border-radius: 999px; background: #ffffff; color: #9ca3af; font-size: 10px; line-height: 1;">
+          <span style="display: inline-flex; width: 18px; height: 18px; overflow: hidden; border-radius: 999px; background: #f0fdfa; border: 1px solid #ccfbf1;">
+            <img src="/mascot-1.svg" alt="Nuroo" style="width: 18px; height: 18px; object-fit: cover;" />
+          </span>
+          <span>${escapeHtml(t('poweredByPrefix'))} <span style="font-weight: 700; color: #0f766e;">Nuroo</span></span>
+        </span>
       </div>
     </div>
   `

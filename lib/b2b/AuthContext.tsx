@@ -172,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (currentUser) {
         setSentryUserAsync({ id: currentUser.uid })
+        const cachedToken = await currentUser.getIdToken().catch(() => null)
+        if (cachedToken) apiClient.setToken(cachedToken)
+
         const cached = readCachedProfile(currentUser)
         if (cached) {
           setProfile(cached.profile)

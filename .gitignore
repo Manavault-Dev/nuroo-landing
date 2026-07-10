@@ -91,6 +91,11 @@ ruvector.db
 .claude/settings.local.json
 .claude/worktrees/
 
+# AI agent configs — not for production
+.agents/
+.codex/
+AGENTS.md
+
 # Custom AI agent configuration files (Claude Code, etc.)
 CLAUDE.md
 CLAUDE.md.bak

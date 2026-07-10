@@ -28,8 +28,18 @@ export interface BillingPlan {
   updatedAt: admin.firestore.Timestamp
 }
 
-function isBillingPlanId(value: unknown): value is BillingPlanId {
-  return value === 'starter' || value === 'growth' || value === 'enterprise'
+function normalizeBillingPlanId(value: unknown): BillingPlanId | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'basic') return 'starter'
+  if (normalized === 'professional' || normalized === 'pro') return 'growth'
+  if (normalized === 'corporate' || normalized === 'corp' || normalized === 'корпоративный') {
+    return 'enterprise'
+  }
+  if (normalized === 'starter' || normalized === 'growth' || normalized === 'enterprise') {
+    return normalized
+  }
+  return null
 }
 
 export async function createPaymentRecord(payment: Omit<PaymentRecord, 'createdAt' | 'updatedAt'>) {
@@ -116,10 +126,10 @@ export async function getBillingPlan(orgId: string) {
   if (!orgSnap.exists) return null
 
   const orgData = orgSnap.data() ?? {}
-  const planId = orgData.billingPlan
+  const planId = normalizeBillingPlanId(orgData.billingPlan)
   const billingStatus = orgData.billingStatus
 
-  if (!isBillingPlanId(planId)) return null
+  if (!planId) return null
 
   const now = admin.firestore.Timestamp.now()
   const status: BillingPlan['status'] =

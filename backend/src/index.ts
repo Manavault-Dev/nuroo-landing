@@ -9,7 +9,7 @@ import rateLimit from '@fastify/rate-limit'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 import { config } from './config/index.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
-import type { AuthenticatedUser } from './types.js'
+import type { AuthenticatedUser } from './shared/types/domain.js'
 
 // Domain imports — structured by bounded context
 import { systemDomain } from './domains/system/index.js'
@@ -24,11 +24,9 @@ import { childrenDomain } from './domains/children/index.js'
 import { groupsDomain } from './domains/groups/index.js'
 import { contentDomain } from './domains/content/index.js'
 import { activityDomain } from './domains/activity/index.js'
-import { billingDomain } from './domains/billing/index.js'
 import { paymentsDomain } from './domains/payments/index.js'
-
-// External modules (untouched)
-import { paymentsRoutes } from './modules/payments/index.js'
+import { coursesDomain } from './domains/courses/index.js'
+import { verificationsDomain } from './domains/verifications/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 
@@ -125,6 +123,18 @@ async function buildServer() {
     if (url.startsWith('/api/parent/alphakids/')) return
     if (url.startsWith('/api/parent/access/')) return
     if (url.startsWith('/webhooks/')) return
+    if (url === '/marketplace/courses' || url.startsWith('/marketplace/courses?')) return
+    // Public read routes — explicit list to avoid accidentally exposing future endpoints
+    if (
+      method === 'GET' &&
+      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+(\/modules\/[^/]+\/lessons)?(\?.*)?$/.test(url)
+    )
+      return
+    if (
+      method === 'GET' &&
+      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+\/lessons\/[^/]+(\?.*)?$/.test(url)
+    )
+      return
 
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
@@ -161,10 +171,10 @@ async function buildServer() {
     groupsDomain,
     contentDomain,
     activityDomain,
-    billingDomain,
     paymentsDomain,
-    // External modules (notifications, payments, parent-api, ai-assistant)
-    paymentsRoutes,
+    coursesDomain,
+    verificationsDomain,
+    // External modules (parent-api, ai-assistant)
     parentApiRoutes,
     aiAssistantRoutes,
     intentRoutes,
@@ -177,15 +187,32 @@ async function buildServer() {
   return fastify
 }
 
+async function warmUpFirebaseAuth() {
+  // Fetch Firebase public keys on startup so the first real auth request isn't slow.
+  // verifyIdToken with a dummy token fails signature check but caches the public keys.
+  try {
+    await getAuth()
+      .verifyIdToken('warmup')
+      .catch(() => {})
+    console.log('[AUTH] Firebase public key cache warmed up')
+  } catch {
+    // ignore — warmup is best-effort
+  }
+}
+
 async function start() {
   try {
     const server = await buildServer()
     const port = parseInt(process.env.PORT || config.PORT || '8080', 10)
-    const host = config.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'
+    // 0.0.0.0 required for Cloud Run container networking (also allows LAN dev on physical devices)
+    const host = '0.0.0.0'
 
     await server.listen({ port, host })
     console.log(`\n✅ Backend (Fastify) running at http://${host}:${port}`)
     console.log(`   Health: http://${host}:${port}/health\n`)
+
+    // Warm up Firebase Auth public key cache in background (don't block startup)
+    warmUpFirebaseAuth()
   } catch (err) {
     console.error('\n❌ Backend failed to start:', err)
     process.exit(1)

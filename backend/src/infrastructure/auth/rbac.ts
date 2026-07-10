@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { getFirestore } from '../infrastructure/database/firebase.js'
-import type { OrgMember } from '../types.js'
+import { getFirestore } from '../database/firebase.js'
+import { config } from '../../config/index.js'
+import type { OrgMember } from '../../shared/types/domain.js'
 
 function normalizeOrgRole(role: unknown): OrgMember['role'] {
   return role === 'org_admin' || role === 'admin' ? 'org_admin' : 'specialist'
@@ -227,4 +228,33 @@ export async function requireChildAssigned(
   childId: string
 ): Promise<string> {
   return requireChildAccess(request, reply, orgId, childId)
+}
+
+export async function requireOrgAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  orgId: string
+): Promise<OrgMember> {
+  const member = await requireOrgMember(request, reply, orgId)
+  if (member.role !== 'org_admin') {
+    return reply
+      .code(403)
+      .send({ error: 'Only organization admins can perform this action' }) as never
+  }
+  return member
+}
+
+export async function requirePlatformAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const headerKey = request.headers['x-platform-admin-key']
+  if (config.PLATFORM_ADMIN_SECRET && headerKey === config.PLATFORM_ADMIN_SECRET) return
+
+  const claims = request.user?.claims as Record<string, unknown> | undefined
+  if (claims?.platform_admin === true) return
+
+  return reply
+    .code(403)
+    .send({ error: 'Platform admin access required', code: 'PLATFORM_ADMIN_REQUIRED' }) as never
 }

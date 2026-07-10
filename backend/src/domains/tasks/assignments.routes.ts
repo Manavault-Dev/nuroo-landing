@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { dispatch } from '../../modules/notifications/index.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,

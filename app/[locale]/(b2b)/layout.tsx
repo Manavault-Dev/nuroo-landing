@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, Suspense, useState, useRef } from 'react'
+import { useCallback, useEffect, Suspense, useState, useRef } from 'react'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -98,19 +98,40 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
   const currentOrgRole =
     requestedOrg?.role || authOrg?.role || profile?.organizations?.[0]?.role || null
   const canManageBilling = currentOrgRole === 'admin'
+  const refreshBillingStatus = useCallback(async (orgId: string) => {
+    try {
+      const nextBillingData = await apiClient.getBillingStatus(orgId)
+      setBillingData(nextBillingData)
+    } catch {
+      // Network failure — treat as no data, do not block access
+    }
+  }, [])
 
   // Fetch billing status once per org (not on every navigation)
   useEffect(() => {
     if (!currentOrgId || !user || isLoading) return
     if (billingFetchedForOrg.current === currentOrgId) return
     billingFetchedForOrg.current = currentOrgId
-    apiClient
-      .getBillingStatus(currentOrgId)
-      .then(setBillingData)
-      .catch(() => {
-        // Network failure — treat as no data, do not block access
-      })
-  }, [currentOrgId, user, isLoading])
+    void refreshBillingStatus(currentOrgId)
+  }, [currentOrgId, user, isLoading, refreshBillingStatus])
+
+  useEffect(() => {
+    if (!currentOrgId || !user || isLoading) return
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshBillingStatus(currentOrgId)
+      }
+    }
+
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [currentOrgId, user, isLoading, refreshBillingStatus])
 
   // Derive plan id: trial users get enterprise-level access (no restrictions)
   const isTrial =

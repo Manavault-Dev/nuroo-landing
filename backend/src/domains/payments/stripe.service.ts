@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { config } from '../../config/index.js'
-import type { PlanId } from '../../modules/payments/planLimits.js'
+import type { PlanId } from '../payments/planLimits.js'
 
 let _stripe: Stripe | null = null
 

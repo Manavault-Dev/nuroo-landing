@@ -21,8 +21,10 @@ import {
   Wallet,
   ChevronRight,
   Palette,
+  BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { usePlan } from '@/lib/b2b/planContext'
@@ -162,6 +164,7 @@ export function Sidebar({
     labelKey: 'operations',
     items: [
       { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
+      { href: withOrg('/b2b/courses'), labelKey: t('courses'), icon: BookOpen },
       ...(!isOrgAdmin
         ? [
             {
@@ -349,20 +352,7 @@ export function Sidebar({
         </nav>
 
         <div className="b2b-sidebar-footer shrink-0 border-t border-gray-100 px-4 py-3">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <Image
-              src="/Logo.svg"
-              alt="Nuroo"
-              width={20}
-              height={20}
-              className="shrink-0"
-              unoptimized
-            />
-            <span>
-              {t('poweredBy')}{' '}
-              <span className="b2b-sidebar-role font-semibold text-primary-600">Nuroo</span>
-            </span>
-          </div>
+          <PoweredByNuroo label={t('poweredBy')} size="xs" className="max-w-full" />
         </div>
       </aside>
     </div>

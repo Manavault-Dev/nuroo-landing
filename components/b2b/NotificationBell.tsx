@@ -5,6 +5,7 @@ import { Bell, Check, BellOff } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { apiClient, type NotificationItem } from '@/lib/b2b/api'
+import { useAuth } from '@/lib/b2b/AuthContext'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ function timeAgo(date: Date | string | null): string {
 
 export function NotificationBell() {
   const t = useTranslations('b2b.notifications')
+  const { user, profile, isLoading: authLoading } = useAuth()
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -34,26 +36,38 @@ export function NotificationBell() {
   // ── Load unread count ───────────────────────────────────────────────────────
 
   const fetchUnread = useCallback(async () => {
+    if (authLoading || !user || !profile) {
+      setUnreadCount(0)
+      return
+    }
+
     try {
       const res = await apiClient.getUnreadCount()
       setUnreadCount(res.count)
     } catch {
       // silent
     }
-  }, [])
+  }, [authLoading, profile, user])
 
   useEffect(() => {
+    if (authLoading || !user || !profile) {
+      setUnreadCount(0)
+      return
+    }
+
     const timeout = window.setTimeout(fetchUnread, 3000)
     const interval = setInterval(fetchUnread, 60_000)
     return () => {
       window.clearTimeout(timeout)
       clearInterval(interval)
     }
-  }, [fetchUnread])
+  }, [authLoading, fetchUnread, profile, user])
 
   // ── Load notifications when opening ────────────────────────────────────────
 
   const openDropdown = useCallback(async () => {
+    if (authLoading || !user || !profile) return
+
     setOpen(true)
     if (notifications.length === 0) {
       setLoading(true)
@@ -66,7 +80,7 @@ export function NotificationBell() {
         setLoading(false)
       }
     }
-  }, [notifications.length])
+  }, [authLoading, notifications.length, profile, user])
 
   // ── Outside click ───────────────────────────────────────────────────────────
 

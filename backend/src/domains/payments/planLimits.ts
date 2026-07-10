@@ -113,10 +113,33 @@ export function isPlanId(id: string): id is PlanId {
 const LEGACY_PLAN_MAP: Record<string, PlanId> = {
   basic: 'starter',
   professional: 'growth',
+  pro: 'growth',
+  corporate: 'enterprise',
+  corp: 'enterprise',
+  корпоративный: 'enterprise',
 }
 
 export function normalizePlanId(id: string): PlanId | null {
-  return LEGACY_PLAN_MAP[id] ?? (isPlanId(id) ? id : null)
+  const value = id.trim().toLowerCase()
+  return LEGACY_PLAN_MAP[value] ?? (isPlanId(value) ? value : null)
+}
+
+function normalizeBillingStatusValue(status: unknown): BillingStatus | null {
+  if (typeof status !== 'string') return null
+  const value = status.trim().toLowerCase()
+  if (normalizePlanId(value)) return 'manual_active'
+  if (
+    value === 'trialing' ||
+    value === 'active' ||
+    value === 'manual_active' ||
+    value === 'past_due' ||
+    value === 'expired' ||
+    value === 'cancelled' ||
+    value === 'canceled'
+  ) {
+    return value
+  }
+  return null
 }
 
 export function getPlanLimits(planId: string): PlanLimit | null {
@@ -235,12 +258,13 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
   const orgSnap = await db.collection('organizations').doc(orgId).get()
   const orgBilling = orgSnap.exists ? orgSnap.data()?.billing : null
   if (orgBilling) {
+    const billingStatus = normalizeBillingStatusValue(orgBilling.status)
     const planId =
       normalizePlanId(String(orgBilling.plan ?? FREE_TRIAL_PLAN_ID)) ?? FREE_TRIAL_PLAN_ID
     const trialEndsAt = timestampToDate(orgBilling.trialEndsAt)
     const currentPeriodEnd = timestampToDate(orgBilling.currentPeriodEnd)
 
-    if (orgBilling.status === 'trialing') {
+    if (billingStatus === 'trialing') {
       if (trialEndsAt && new Date() <= trialEndsAt) {
         return {
           active: true,
@@ -259,13 +283,13 @@ export async function getSubscriptionStatus(orgId: string): Promise<{
       }
     }
 
-    if (orgBilling.status === 'manual_active' || orgBilling.status === 'active') {
+    if (billingStatus === 'manual_active' || billingStatus === 'active') {
       if (!currentPeriodEnd || new Date() <= currentPeriodEnd) {
         return {
           active: true,
           planId,
           source: 'subscription',
-          billingStatus: orgBilling.status === 'manual_active' ? 'manual_active' : 'active',
+          billingStatus,
           expiresAt: orgBilling.currentPeriodEnd ?? null,
         }
       }

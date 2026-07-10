@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Loader2, Building2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { type PresetId } from '@/lib/b2b/types'
 
@@ -263,12 +264,12 @@ function ConnectPageInner() {
           </div>
 
           {/* Powered by */}
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <img src="/Logo.svg" alt="Nuroo" className="h-5 w-5 shrink-0 object-contain" />
-            <p className="text-xs text-gray-400 leading-none">
-              {displayName} · {t('poweredBy')}{' '}
-              <span className="font-semibold text-teal-600">Nuroo</span>
-            </p>
+          <div className="mt-6 flex justify-center">
+            <PoweredByNuroo
+              label={t('poweredBy')}
+              organizationName={displayName}
+              className="max-w-full"
+            />
           </div>
         </div>
       </div>

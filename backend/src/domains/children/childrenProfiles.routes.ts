@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
+import { requireOrgMember, requireChildAccess } from '../../infrastructure/auth/rbac.js'
 import { getChildProfile, updateChildProfile } from './children.service.js'
 
 const childProfileUpdateSchema = z.object({

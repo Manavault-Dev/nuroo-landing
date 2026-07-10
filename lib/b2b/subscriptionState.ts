@@ -18,6 +18,11 @@ export type RawBillingStatus =
   | 'cancelled'
   | 'canceled'
   | 'suspended'
+  | 'starter'
+  | 'growth'
+  | 'enterprise'
+  | 'corporate'
+  | 'corp'
   | null
   | undefined
 
@@ -60,6 +65,19 @@ const TRIAL_WARNING_DAYS = 7
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function normalizeBillingStatus(status: RawBillingStatus): RawBillingStatus {
+  if (
+    status === 'starter' ||
+    status === 'growth' ||
+    status === 'enterprise' ||
+    status === 'corporate' ||
+    status === 'corp'
+  ) {
+    return 'manual_active'
+  }
+  return status
+}
+
 /** Days remaining until expiresAt. Returns null if date is invalid or missing. */
 export function calcDaysRemaining(expiresAt: string | null | undefined): number | null {
   if (!expiresAt) return null
@@ -84,10 +102,11 @@ export function getSubscriptionState(
   expiresAt: string | null | undefined,
   active: boolean
 ): SubscriptionState {
+  const normalizedBillingStatus = normalizeBillingStatus(billingStatus)
   const days = calcDaysRemaining(expiresAt)
 
   // ── Suspended ─────────────────────────────────────────────────────────────
-  if (billingStatus === 'suspended') {
+  if (normalizedBillingStatus === 'suspended') {
     return {
       status: 'suspended',
       isTrial: false,
@@ -109,7 +128,7 @@ export function getSubscriptionState(
   }
 
   // ── Past due ──────────────────────────────────────────────────────────────
-  if (billingStatus === 'past_due') {
+  if (normalizedBillingStatus === 'past_due') {
     return {
       status: 'past_due',
       isTrial: false,
@@ -131,7 +150,7 @@ export function getSubscriptionState(
   }
 
   // ── Trialing ──────────────────────────────────────────────────────────────
-  if (billingStatus === 'trialing') {
+  if (normalizedBillingStatus === 'trialing') {
     if (active && days !== null && days > 0) {
       const expiringSoon = days <= TRIAL_WARNING_DAYS
       return {
@@ -197,9 +216,9 @@ export function getSubscriptionState(
 
   // ── Active / manual_active ─────────────────────────────────────────────────
   if (
-    billingStatus === 'active' ||
-    billingStatus === 'manual_active' ||
-    (active && (billingStatus === null || billingStatus === undefined))
+    normalizedBillingStatus === 'active' ||
+    normalizedBillingStatus === 'manual_active' ||
+    (active && (normalizedBillingStatus === null || normalizedBillingStatus === undefined))
   ) {
     return {
       status: 'active',
@@ -222,9 +241,9 @@ export function getSubscriptionState(
 
   // ── Cancelled / expired ────────────────────────────────────────────────────
   if (
-    billingStatus === 'expired' ||
-    billingStatus === 'cancelled' ||
-    billingStatus === 'canceled' ||
+    normalizedBillingStatus === 'expired' ||
+    normalizedBillingStatus === 'cancelled' ||
+    normalizedBillingStatus === 'canceled' ||
     !active
   ) {
     return {

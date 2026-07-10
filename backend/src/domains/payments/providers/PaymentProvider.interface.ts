@@ -7,6 +7,7 @@ export interface CreateInvoiceInput {
   description: string
   dueDate: string // ISO date
   invoiceId: string // our internal ID used as external reference
+  reference?: string // optional provider reference override for non-invoice payment flows
   callbackUrl: string // webhook URL
   returnUrl: string // where parent is redirected after payment
 }

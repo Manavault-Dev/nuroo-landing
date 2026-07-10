@@ -46,10 +46,12 @@ export const FEATURE_MIN_PLAN: Record<GatedFeature, PlanId> = {
  * Falls back to 'starter' when the string is unknown.
  */
 export function normalizePlanIdFE(raw: string | null | undefined): PlanId {
-  if (!raw) return 'starter'
-  if (raw === 'professional') return 'growth'
-  if (raw === 'basic') return 'starter'
-  if (raw === 'starter' || raw === 'growth' || raw === 'enterprise') return raw as PlanId
+  const value = raw?.trim().toLowerCase()
+  if (!value) return 'starter'
+  if (value === 'professional' || value === 'pro') return 'growth'
+  if (value === 'basic') return 'starter'
+  if (value === 'corporate' || value === 'corp' || value === 'корпоративный') return 'enterprise'
+  if (value === 'starter' || value === 'growth' || value === 'enterprise') return value as PlanId
   return 'starter'
 }
 

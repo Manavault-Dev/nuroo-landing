@@ -59,13 +59,17 @@ function makeBillingProfileMockDb(profileId = 'profile_abc') {
     update: vi.fn().mockResolvedValue(undefined),
   }
 
-  const mockCollRef = {
+  const emptySnap = { empty: true, docs: [] }
+  const limitRef = { get: vi.fn().mockResolvedValue(emptySnap) }
+  const mockCollRef: any = {
     doc: vi.fn().mockReturnValue(mockDocRef),
-    where: vi.fn().mockReturnThis(),
     get: vi.fn().mockResolvedValue({
+      empty: false,
       docs: [{ id: profileId, data: () => docData }],
     }),
+    limit: vi.fn().mockReturnValue(limitRef),
   }
+  mockCollRef.where = vi.fn().mockReturnValue(mockCollRef)
 
   const db = {
     collection: vi.fn().mockReturnValue(mockCollRef),

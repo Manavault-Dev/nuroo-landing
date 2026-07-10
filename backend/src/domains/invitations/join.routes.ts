@@ -3,7 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { checkOrgCanAddSpecialist } from '../../modules/payments/planLimits.js'
+import { checkOrgCanAddSpecialist } from '../payments/planLimits.js'
 
 const COLLECTIONS = {
   ORG_INVITES: 'orgInvites',
