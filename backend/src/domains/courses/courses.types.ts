@@ -57,6 +57,7 @@ export interface CourseDoc {
   orgId: string
   ownerOrgId: string
   ownerOrgName?: string
+  ownerOrgLogo?: string
   title: string
   description: string
   coverImageUrl?: string

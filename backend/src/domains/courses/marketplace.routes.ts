@@ -355,18 +355,24 @@ export const marketplaceRoute: FastifyPluginAsync = async (fastify) => {
       const paymentId = paymentRef.id
       // Reference format recognised by webhook: course__orgId__courseId__userId
       const reference = `course__${orgId}__${courseId}__${userId}`
+      const backendUrl = (config.BACKEND_PUBLIC_URL ?? 'http://localhost:3101').replace(/\/$/, '')
       const returnUrl =
         parse.data.returnUrl ||
-        `${config.APP_URL || 'https://nuroo.app'}/courses/${orgId}/${courseId}?payment=done`
+        `${config.NEXT_PUBLIC_B2B_URL || 'https://nuroo.app'}/courses/${orgId}/${courseId}?payment=done`
 
       let invoiceResult
       try {
         invoiceResult = await paymentProvider.createInvoice({
           invoiceId: paymentId,
+          orgId,
+          parentId: userId,
+          childId: parse.data.childId || userId,
           amount: course.price,
-          currency: course.currency || 'KGS',
+          currency: 'KGS',
           description: `Оплата за курс: ${course.title}`,
+          dueDate: new Date().toISOString().slice(0, 10),
           reference,
+          callbackUrl: `${backendUrl}/webhooks/finik`,
           returnUrl,
         })
       } catch (err) {

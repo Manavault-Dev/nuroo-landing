@@ -186,7 +186,7 @@ export const childrenRecordsRoute: import('fastify').FastifyPluginAsync = async 
           }
         })
 
-        let parentInfo: import('../../types.js').ParentInfo | undefined
+        let parentInfo: import('../../shared/types/domain.js').ParentInfo | undefined
         if (parentUserId) {
           let orgParentData: admin.firestore.DocumentData | null = null
           try {

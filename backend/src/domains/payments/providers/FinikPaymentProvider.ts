@@ -87,7 +87,7 @@ export class FinikPaymentProvider implements PaymentProvider {
         merchantCategoryCode: '0742',
         name_en: input.description,
         webhookUrl: input.callbackUrl,
-        reference: `${input.orgId}__${input.invoiceId}`,
+        reference: input.reference || `${input.orgId}__${input.invoiceId}`,
       },
       PaymentId: finikPaymentId,
       RedirectUrl: input.returnUrl,
