@@ -145,6 +145,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
+    apiClient.setTokenProvider((forceRefresh = false) => getIdToken(forceRefresh))
+
     if (E2E_AUTH_BYPASS) {
       const mock = readE2EAuthPayload()
       if (mock) {
@@ -219,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false
       clearTimeout(timeout)
+      apiClient.setTokenProvider(null)
       unsubscribe()
       tokenUnsub()
     }

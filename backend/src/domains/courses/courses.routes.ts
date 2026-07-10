@@ -261,6 +261,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
   // List org courses
   fastify.get<{ Params: { orgId: string } }>('/orgs/:orgId/courses', async (request, reply) => {
     await requireOrgMember(request, reply, request.params.orgId)
+    if (reply.sent) return
     const snap = await db
       .collection(`organizations/${request.params.orgId}/courses`)
       .orderBy('createdAt', 'desc')
@@ -277,6 +278,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { orgId, courseId } = request.params
       await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
       const snap = await db.doc(`organizations/${orgId}/courses/${courseId}`).get()
       if (!snap.exists) return reply.code(404).send({ error: 'Course not found' })
       return { ok: true, course: publicCoursePayload({ id: snap.id, ...snap.data() } as CourseDoc) }
@@ -430,6 +432,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { orgId, courseId } = request.params
       await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
       const snap = await db
         .collection(`organizations/${orgId}/courses/${courseId}/modules`)
         .orderBy('order')
@@ -557,6 +560,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { orgId, courseId, moduleId } = request.params
       await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
       const snap = await db
         .collection(`organizations/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`)
         .orderBy('order')
@@ -724,6 +728,7 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { orgId, courseId } = request.params
       await requireOrgMember(request, reply, orgId)
+      if (reply.sent) return
       const snap = await db
         .collection(`organizations/${orgId}/courses/${courseId}/enrollments`)
         .orderBy('enrolledAt', 'desc')
