@@ -91,6 +91,22 @@ function newId(db: ReturnType<typeof getFirestore>, path: string): string {
   return db.collection(path).doc().id
 }
 
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefined(item)) as T
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([key, entryValue]) => [key, stripUndefined(entryValue)])
+    ) as T
+  }
+
+  return value
+}
+
 async function uploadCourseCoverImage(
   orgId: string,
   mediaBuffer: Buffer,
@@ -323,8 +339,9 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       updatedAt: ts,
     } as CourseDoc
 
-    await db.doc(`organizations/${orgId}/courses/${id}`).set(course)
-    return reply.code(201).send({ ok: true, course })
+    const courseData = stripUndefined(course)
+    await db.doc(`organizations/${orgId}/courses/${id}`).set(courseData)
+    return reply.code(201).send({ ok: true, course: courseData })
   })
 
   // Update course
@@ -390,15 +407,17 @@ export const coursesRoute: FastifyPluginAsync = async (fastify) => {
       const finalStatus = normalizeCourseStatus(nextCourse.status)
       const finalVisibility = normalizeCourseVisibility(nextCourse.visibility)
       const indexRef = db.doc(`courseIndex/${orgId}_${courseId}`)
+      const cleanUpdates = stripUndefined(updates as Record<string, unknown>)
+      const cleanIndexCourse = stripUndefined({ ...nextCourse, id: courseId, courseId, orgId })
 
       if (finalStatus === 'PUBLISHED' && finalVisibility === 'PUBLIC') {
         const batch = db.batch()
-        batch.update(ref, updates as Record<string, unknown>)
-        batch.set(indexRef, { ...nextCourse, id: courseId, courseId, orgId }, { merge: true })
+        batch.update(ref, cleanUpdates)
+        batch.set(indexRef, cleanIndexCourse, { merge: true })
         await batch.commit()
       } else {
         const batch = db.batch()
-        batch.update(ref, updates as Record<string, unknown>)
+        batch.update(ref, cleanUpdates)
         batch.delete(indexRef)
         await batch.commit()
       }
