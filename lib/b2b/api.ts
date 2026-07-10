@@ -557,9 +557,14 @@ export class ApiError extends Error {
 export class ApiClient {
   private baseUrl: string
   private token: string | null = null
+  private tokenProvider: ((forceRefresh?: boolean) => Promise<string | null>) | null = null
 
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl
+  }
+
+  setTokenProvider(provider: ((forceRefresh?: boolean) => Promise<string | null>) | null) {
+    this.tokenProvider = provider
   }
 
   setToken(token: string | null) {
@@ -570,7 +575,24 @@ export class ApiClient {
     }
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async resolveToken(forceRefresh = false) {
+    if (!this.tokenProvider) return this.token
+    const nextToken = await this.tokenProvider(forceRefresh).catch(() => null)
+    if (nextToken && nextToken !== this.token) {
+      this.setToken(nextToken)
+    }
+    return nextToken || this.token
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    retryAuth = true
+  ): Promise<T> {
+    if (!this.token) {
+      await this.resolveToken(false)
+    }
+
     const headers = new Headers(options.headers)
     if (options.body !== undefined && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
@@ -579,6 +601,14 @@ export class ApiClient {
 
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
     const response = await fetch(url, { ...options, headers })
+
+    if (response.status === 401 && retryAuth && this.tokenProvider) {
+      const previousToken = this.token
+      const refreshedToken = await this.resolveToken(true)
+      if (refreshedToken && refreshedToken !== previousToken) {
+        return this.request<T>(endpoint, options, false)
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))

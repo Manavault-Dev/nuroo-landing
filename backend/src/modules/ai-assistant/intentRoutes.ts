@@ -302,7 +302,7 @@ export const intentRoutes: FastifyPluginAsync = async (fastify) => {
       return { type: toolCall.function.name, params, raw: message }
     } catch (error) {
       fastify.log.error({ error }, '[AI] Intent extraction failed')
-      return reply.code(500).send({ error: 'Intent extraction failed' })
+      return { type: 'unknown', params: {}, raw: message }
     }
   })
 
