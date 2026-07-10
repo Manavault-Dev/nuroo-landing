@@ -3,7 +3,7 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { checkOrgCanAddChild } from '../../modules/payments/planLimits.js'
+import { checkOrgCanAddChild } from '../payments/planLimits.js'
 import { registeredChildDisplayName } from './invitations.helpers.js'
 
 export const parentInviteLinkRoute: FastifyPluginAsync = async (fastify) => {

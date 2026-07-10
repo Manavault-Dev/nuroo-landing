@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../shared/guards/index.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { createInvoice, listInvoices, getInvoice, cancelInvoice } from './invoice.service.js'
 import type { PaymentStatus } from './providers/PaymentProvider.interface.js'
 

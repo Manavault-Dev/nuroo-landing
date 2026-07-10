@@ -1,9 +1,9 @@
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember, requireChildAccess } from '../../plugins/rbac.js'
-import { checkOrgCanAddChild } from '../../modules/payments/planLimits.js'
-import type { ChildDetail } from '../../types.js'
+import { requireOrgMember, requireChildAccess } from '../../infrastructure/auth/rbac.js'
+import { checkOrgCanAddChild } from '../payments/planLimits.js'
+import type { ChildDetail } from '../../shared/types/domain.js'
 import {
   fetchAssignedChildren,
   pickStoredProfileName,

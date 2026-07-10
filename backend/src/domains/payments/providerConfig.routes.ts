@@ -1,7 +1,7 @@
 import admin from 'firebase-admin'
 import type { FastifyPluginAsync } from 'fastify'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgAdmin, requireOrgMember } from '../../shared/guards/index.js'
+import { requireOrgAdmin, requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { FinikPaymentProvider } from './providers/FinikPaymentProvider.js'
 
 export const providerConfigRoutes: FastifyPluginAsync = async (fastify) => {

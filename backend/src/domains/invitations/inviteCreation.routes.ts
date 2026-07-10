@@ -4,7 +4,7 @@ import { randomInt } from 'crypto'
 import { z } from 'zod'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 
 const createInviteSchema = z.object({
   role: z.enum(['specialist', 'org_admin', 'admin']).default('specialist'),

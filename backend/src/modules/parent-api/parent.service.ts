@@ -7,7 +7,7 @@ import {
   type LinkedSpecialist,
   type LinkedOrganization,
 } from './parent.repository.js'
-import type { SpecialistNote } from '../../shared/types/common.js'
+import type { SpecialistNote } from '../../shared/types/domain.js'
 
 export interface ParentChildData {
   childId: string

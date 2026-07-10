@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { getAuth } from '../database/firebase.js'
-import type { AuthenticatedUser } from '../../shared/types/common.js'
+import type { AuthenticatedUser } from '../../shared/types/domain.js'
 
 declare module 'fastify' {
   interface FastifyRequest {

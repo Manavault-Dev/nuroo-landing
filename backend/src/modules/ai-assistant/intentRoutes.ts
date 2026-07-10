@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { aiAssistant } from './service.js'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY

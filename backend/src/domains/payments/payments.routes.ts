@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { requireOrgMember } from '../../shared/guards/index.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { createPayment, verifyPayment, getPlanPrices, getPlanNames } from './payments.service.js'
 import { PLAN_LIMITS, type PlanId } from './planLimits.js'
 import { createPaymentSchema } from './payments.schema.js'

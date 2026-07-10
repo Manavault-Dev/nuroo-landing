@@ -6,6 +6,12 @@ import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { config } from '../../config/index.js'
 import { updateInvoiceStatus } from './invoice.service.js'
 import type { PaymentStatus } from './providers/PaymentProvider.interface.js'
+import {
+  grantCourseEntitlement,
+  createEnrollmentFromEntitlement,
+  publicCoursePayload,
+} from '../../domains/courses/courseAccess.service.js'
+import type { CourseDoc } from '../../domains/courses/courses.types.js'
 
 export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /webhooks/finik — NO Firebase auth, called by Finik servers
@@ -109,6 +115,20 @@ export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
       const status = mapStatus(rawStatus)
       const paidAt = status === 'paid' ? new Date() : undefined
 
+      // Course payment: reference = course__orgId__courseId__userId
+      if (rawRef.startsWith('course__')) {
+        const parts = rawRef.split('__')
+        if (parts.length === 4) {
+          const [, courseOrgId, courseId, userId] = parts
+          try {
+            await handleCoursePayment(db, courseOrgId, courseId, userId, invoiceId, status, fastify.log)
+          } catch (err) {
+            fastify.log.error({ event: 'course_payment_webhook_error', err: String(err) })
+          }
+        }
+        return reply.code(200).send({ ok: true })
+      }
+
       // If orgId is present, update via full service; else try to find org from invoice
       if (orgId) {
         try {
@@ -125,6 +145,52 @@ export const webhookRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(200).send({ ok: true })
     }
   )
+}
+
+async function handleCoursePayment(
+  db: ReturnType<typeof getFirestore>,
+  orgId: string,
+  courseId: string,
+  userId: string,
+  paymentId: string,
+  status: PaymentStatus,
+  log: { info: (o: object) => void; warn: (o: object) => void }
+) {
+  const paymentRef = db.collection('coursePayments').doc(paymentId)
+  await paymentRef.set({
+    status,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...(status === 'paid' ? { paidAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
+  }, { merge: true })
+
+  if (status !== 'paid') return
+
+  // Check not already enrolled (idempotent)
+  const enrollSnap = await db.doc(`organizations/${orgId}/courses/${courseId}/enrollments/${userId}`).get()
+  if (enrollSnap.exists) {
+    log.info({ event: 'course_payment_already_enrolled', orgId, courseId, userId })
+    return
+  }
+
+  const courseSnap = await db.doc(`organizations/${orgId}/courses/${courseId}`).get()
+  if (!courseSnap.exists) {
+    log.warn({ event: 'course_payment_course_not_found', orgId, courseId })
+    return
+  }
+
+  const paymentSnap = await paymentRef.get()
+  const paymentData = paymentSnap.data() || {}
+
+  const course = publicCoursePayload({ id: courseSnap.id, ...courseSnap.data() } as CourseDoc) as CourseDoc
+  const entitlement = await grantCourseEntitlement(
+    db, course, userId, 'PURCHASE', paymentData.childId || undefined, paymentData.amount || course.price
+  )
+  await createEnrollmentFromEntitlement(db, course, entitlement)
+  await courseSnap.ref.update({
+    enrollmentCount: admin.firestore.FieldValue.increment(1),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  })
+  log.info({ event: 'course_payment_enrollment_granted', orgId, courseId, userId })
 }
 
 function mapStatus(raw: string): PaymentStatus {

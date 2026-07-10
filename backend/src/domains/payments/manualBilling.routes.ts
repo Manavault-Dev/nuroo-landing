@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/node'
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requirePlatformAdmin } from '../../shared/guards/index.js'
-import { PLAN_IDS, type PlanId } from '../../modules/payments/planLimits.js'
+import { requirePlatformAdmin } from '../../infrastructure/auth/rbac.js'
+import { PLAN_IDS, type PlanId } from '../payments/planLimits.js'
 
 function parseActiveUntil(dateStr: string): Date | null {
   const d = new Date(dateStr + 'T23:59:59Z')

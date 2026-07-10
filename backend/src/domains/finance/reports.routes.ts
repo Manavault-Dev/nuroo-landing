@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import admin from 'firebase-admin'
 
 import { getFirestore } from '../../infrastructure/database/firebase.js'
-import { requireOrgMember } from '../../plugins/rbac.js'
+import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 
 const COLLECTIONS = {
   ORG_CHILDREN: (orgId: string) => `organizations/${orgId}/children`,

@@ -8,7 +8,7 @@ import {
   getParentRef,
 } from '../../infrastructure/database/collections.js'
 import admin from 'firebase-admin'
-import type { SpecialistNote } from '../../shared/types/common.js'
+import type { SpecialistNote } from '../../shared/types/domain.js'
 
 export interface LinkedSpecialist {
   uid: string
