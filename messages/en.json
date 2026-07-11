@@ -460,7 +460,10 @@
       "courses": "Courses",
       "closeMenu": "Close menu",
       "switchCenter": "Switch center",
-      "poweredBy": "Powered by"
+      "poweredBy": "Powered by",
+      "workSection": "Work & Analytics",
+      "mainNav": "Navigation",
+      "more": "More"
     },
     "header": {
       "dashboard": "Dashboard",
@@ -1737,6 +1740,233 @@
       "common": {
         "loading": "Loading...",
         "viewAll": "View all"
+      },
+      "courses": {
+        "actions": {
+          "cancel": "Cancel",
+          "upload": "Upload",
+          "uploading": "Uploading..."
+        },
+        "list": {
+          "title": "Courses",
+          "subtitle": "Create and publish learning materials",
+          "newCourse": "New course",
+          "coursesTab": "Courses",
+          "verificationsTab": "Special access requests",
+          "emptyTitle": "No courses yet",
+          "emptyDescription": "Create your first course and share knowledge with parents",
+          "createCourse": "Create course"
+        },
+        "status": {
+          "draft": "Draft",
+          "published": "Published",
+          "archived": "Archived"
+        },
+        "visibility": {
+          "public": "Marketplace",
+          "private": "Organization",
+          "privateOnly": "Organization only"
+        },
+        "visibilityOptions": {
+          "private": "Organization only",
+          "public": "Marketplace (public)",
+          "privateShort": "Org only",
+          "publicShort": "Marketplace"
+        },
+        "accessPolicy": {
+          "FREE": "Free",
+          "PAID": "Paid",
+          "VERIFIED_SPECIAL_NEEDS": "Free for verified children",
+          "INVITATION_ONLY": "Invite only"
+        },
+        "accessPolicyOptions": {
+          "free": "Free for everyone",
+          "paid": "Paid for everyone",
+          "verifiedSpecialNeeds": "Free for verified children, everyone else pays",
+          "invitationOnly": "Invite only"
+        },
+        "pricing": {
+          "free": "Free"
+        },
+        "metrics": {
+          "modules": "modules",
+          "lessons": "lessons",
+          "students": "students",
+          "modulesCount": "{count, plural, one {# module} other {# modules}}",
+          "lessonsCount": "{count, plural, one {# lesson} other {# lessons}}",
+          "enrollmentsCount": "{count, plural, one {# enrollment} other {# enrollments}}"
+        },
+        "delete": {
+          "trigger": "Delete course",
+          "title": "Delete course?",
+          "subtitle": "This action cannot be undone",
+          "description": "Course <strong>“{title}”</strong> and all modules and lessons will be permanently deleted.",
+          "confirm": "Delete",
+          "error": "Could not delete the course. Please try again."
+        },
+        "verifications": {
+          "course": "Course",
+          "note": "Note",
+          "rejectionReason": "Rejection reason",
+          "reject": "Reject",
+          "approve": "Approve",
+          "documentsCount": "{count, plural, one {# document} other {# documents}}",
+          "documentName": "Document {index}",
+          "documentUnavailable": "Document {index} (unavailable)",
+          "loadError": "Could not load requests. Please try again.",
+          "approveError": "Approval failed.",
+          "rejectError": "Rejection failed.",
+          "refresh": "Refresh",
+          "emptyTitle": "No requests",
+          "emptyDescription": "Special access requests will appear here",
+          "rejectTitle": "Reject request",
+          "rejectDescription": "Add a reason. The parent will see it.",
+          "rejectPlaceholder": "Example: document is unreadable or expired...",
+          "status": {
+            "pending": "Pending review",
+            "approved": "Approved",
+            "rejected": "Rejected"
+          },
+          "tabs": {
+            "pending": "Pending review",
+            "approved": "Approved",
+            "rejected": "Rejected"
+          }
+        },
+        "new": {
+          "title": "New course",
+          "adminOnly": "Only administrators can create courses.",
+          "createError": "Could not create course",
+          "coverUploadError": "Could not upload cover",
+          "titlePlaceholder": "Example: Speech development for children ages 3-5",
+          "descriptionPlaceholder": "What will parents learn? What will the child gain?",
+          "freeHint": "0 = free",
+          "agePlaceholder": "Example: 3-7 years",
+          "tagsPlaceholder": "speech, autism, motor skills",
+          "removeCover": "Remove cover",
+          "coverHint": "Upload an image or paste a URL below"
+        },
+        "fields": {
+          "title": "Title",
+          "description": "Description",
+          "courseTitle": "Course title",
+          "courseDescription": "Course description",
+          "priceKgs": "Price (KGS)",
+          "visibility": "Visibility",
+          "access": "Access",
+          "ageRange": "Child age range",
+          "tags": "Tags (comma-separated)",
+          "coverOptional": "Course cover (optional)"
+        },
+        "publishErrors": {
+          "titleRequired": "Add a course title before publishing.",
+          "descriptionRequired": "Add a course description before publishing.",
+          "coverRequired": "Add a course cover before publishing to the marketplace.",
+          "positivePriceRequired": "Paid courses require a price greater than 0."
+        },
+        "validation": {
+          "titleRequired": "Course title is required.",
+          "descriptionRequired": "Course description is required."
+        },
+        "errors": {
+          "generic": "Something went wrong",
+          "notFound": "Course not found",
+          "coverUpload": "Cover upload failed",
+          "coverSave": "Cover save failed"
+        },
+        "confirm": {
+          "deleteModule": "Delete this module and all lessons?",
+          "deleteLesson": "Delete this lesson?"
+        },
+        "lessonTypes": {
+          "text": {
+            "label": "Text",
+            "description": "Theory, instructions, or methodology."
+          },
+          "video": {
+            "label": "Video",
+            "description": "Video lesson link and lesson duration."
+          },
+          "task": {
+            "label": "Assignment",
+            "description": "Practice, exercise, or homework."
+          },
+          "pdf": {
+            "label": "PDF",
+            "description": "File, workbook, or handout."
+          }
+        },
+        "lesson": {
+          "imageTitle": "Lesson image",
+          "imageUrl": "Image URL",
+          "uploadImage": "Upload image",
+          "imageAlt": "Lesson image",
+          "content": "Lesson content",
+          "contentPlaceholder": "Add theory, instructions, or methodology notes for the lesson.",
+          "video": "Video",
+          "uploadVideo": "Upload video",
+          "minutes": "Minutes",
+          "taskDescription": "Assignment description",
+          "taskDescriptionPlaceholder": "What should the child, parent, or specialist do?",
+          "taskExample": "Example answer",
+          "taskExamplePlaceholder": "Add an example, hint, or review criteria.",
+          "pdfFile": "PDF file",
+          "uploadPdf": "Upload PDF",
+          "fileName": "File name",
+          "fileNamePlaceholder": "Workbook",
+          "newTitle": "New lesson",
+          "delete": "Delete lesson",
+          "title": "Lesson title",
+          "titlePlaceholder": "Example: Speech techniques",
+          "type": "Lesson type",
+          "create": "Create lesson",
+          "save": "Save lesson",
+          "add": "Add lesson",
+          "loading": "Loading lessons...",
+          "emptyInModule": "No lessons in this module yet.",
+          "indexWithType": "Lesson {index} · {type}"
+        },
+        "module": {
+          "newKicker": "New module",
+          "kicker": "Course module",
+          "newTitle": "Create a program section",
+          "delete": "Delete module",
+          "title": "Module title",
+          "titlePlaceholder": "Example: Speech techniques",
+          "description": "Short description",
+          "descriptionPlaceholder": "What will users study in this module?",
+          "create": "Create module",
+          "save": "Save module",
+          "add": "Module",
+          "collapse": "Collapse module",
+          "expand": "Expand module",
+          "index": "Module {index}"
+        },
+        "editor": {
+          "emptyTitle": "Select a course item",
+          "emptyDescription": "Open a module or lesson on the left to edit the course program."
+        },
+        "cover": {
+          "title": "Course cover",
+          "description": "Used in the course list and marketplace.",
+          "url": "Cover URL",
+          "placeholder": "Paste a cover URL or upload a file"
+        },
+        "settings": {
+          "title": "Course settings",
+          "description": "Change pricing, access, and publishing details here.",
+          "save": "Save settings",
+          "priceWarning": "For a paid course, enter a price greater than 0 and click “Save settings”."
+        },
+        "program": {
+          "title": "Course program",
+          "summary": "{modules, plural, one {# module} other {# modules}}, {lessons, plural, one {# lesson} other {# lessons}}",
+          "emptyModules": "Add the first module to build the course structure."
+        },
+        "publish": {
+          "publish": "Publish",
+          "unpublish": "Unpublish"
+        }
       },
       "brand": {
         "title": "Brand Settings",

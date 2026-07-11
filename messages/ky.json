@@ -456,7 +456,10 @@
       "courses": "Курстар",
       "closeMenu": "Менюну жабуу",
       "switchCenter": "Борборду алмаштыруу",
-      "poweredBy": "Powered by"
+      "poweredBy": "Powered by",
+      "workSection": "Иш жана аналитика",
+      "mainNav": "Навигация",
+      "more": "Дагы"
     },
     "header": {
       "dashboard": "Башкы бет",
@@ -1733,6 +1736,233 @@
       "common": {
         "loading": "Жүктөлүп жатат...",
         "viewAll": "Баарын көрүү"
+      },
+      "courses": {
+        "actions": {
+          "cancel": "Жокко чыгаруу",
+          "upload": "Жүктөө",
+          "uploading": "Жүктөлүүдө..."
+        },
+        "list": {
+          "title": "Курстар",
+          "subtitle": "Окуу материалдарын түзүңүз жана жарыялаңыз",
+          "newCourse": "Жаңы курс",
+          "coursesTab": "Курстар",
+          "verificationsTab": "Жеңилдетилген доступ заявкалары",
+          "emptyTitle": "Азырынча курс жок",
+          "emptyDescription": "Биринчи курсту түзүп, ата-энелер менен билим бөлүшүңүз",
+          "createCourse": "Курс түзүү"
+        },
+        "status": {
+          "draft": "Черновик",
+          "published": "Жарыяланды",
+          "archived": "Архив"
+        },
+        "visibility": {
+          "public": "Маркетплейс",
+          "private": "Уюм",
+          "privateOnly": "Уюм гана"
+        },
+        "visibilityOptions": {
+          "private": "Уюм үчүн гана",
+          "public": "Маркетплейс (ачык)",
+          "privateShort": "Уюм үчүн",
+          "publicShort": "Маркетплейс"
+        },
+        "accessPolicy": {
+          "FREE": "Бесплатно",
+          "PAID": "Платно",
+          "VERIFIED_SPECIAL_NEEDS": "Бесплатно для подтвержденных детей",
+          "INVITATION_ONLY": "По приглашению"
+        },
+        "accessPolicyOptions": {
+          "free": "Бесплатно для всех",
+          "paid": "Платно для всех",
+          "verifiedSpecialNeeds": "Бесплатно для подтвержденных детей, остальные платят",
+          "invitationOnly": "Только по приглашению"
+        },
+        "pricing": {
+          "free": "Акысыз"
+        },
+        "metrics": {
+          "modules": "модулей",
+          "lessons": "уроков",
+          "students": "учеников",
+          "modulesCount": "{count, plural, one {# модуль} few {# модуля} other {# модулей}}",
+          "lessonsCount": "{count, plural, one {# урок} few {# урока} other {# уроков}}",
+          "enrollmentsCount": "{count, plural, one {# записавшийся} few {# записавшихся} other {# записавшихся}}"
+        },
+        "delete": {
+          "trigger": "Удалить курс",
+          "title": "Удалить курс?",
+          "subtitle": "Это действие нельзя отменить",
+          "description": "Курс <strong>«{title}»</strong> и все его модули и уроки будут удалены навсегда.",
+          "confirm": "Удалить",
+          "error": "Не удалось удалить курс. Попробуйте ещё раз."
+        },
+        "verifications": {
+          "course": "Курс",
+          "note": "Примечание",
+          "rejectionReason": "Причина отклонения",
+          "reject": "Отклонить",
+          "approve": "Одобрить",
+          "documentsCount": "{count, plural, one {# документ} few {# документа} other {# документов}}",
+          "documentName": "Документ {index}",
+          "documentUnavailable": "Документ {index} (недоступен)",
+          "loadError": "Не удалось загрузить заявки. Попробуйте ещё раз.",
+          "approveError": "Ошибка при одобрении.",
+          "rejectError": "Ошибка при отклонении.",
+          "refresh": "Обновить",
+          "emptyTitle": "Нет заявок",
+          "emptyDescription": "Заявки на льготный доступ появятся здесь",
+          "rejectTitle": "Отклонить заявку",
+          "rejectDescription": "Укажите причину — родитель её увидит.",
+          "rejectPlaceholder": "Например: документ нечитаем, истёк срок справки...",
+          "status": {
+            "pending": "На рассмотрении",
+            "approved": "Одобрено",
+            "rejected": "Отклонено"
+          },
+          "tabs": {
+            "pending": "На рассмотрении",
+            "approved": "Одобренные",
+            "rejected": "Отклонённые"
+          }
+        },
+        "new": {
+          "title": "Новый курс",
+          "adminOnly": "Только администраторы могут создавать курсы.",
+          "createError": "Ошибка при создании курса",
+          "coverUploadError": "Ошибка при загрузке обложки",
+          "titlePlaceholder": "Например: Развитие речи для детей 3–5 лет",
+          "descriptionPlaceholder": "Что узнает родитель из этого курса? Что получит ребёнок?",
+          "freeHint": "0 = бесплатно",
+          "agePlaceholder": "Например: 3–7 лет",
+          "tagsPlaceholder": "речь, аутизм, моторика",
+          "removeCover": "Удалить обложку",
+          "coverHint": "Загрузите изображение или вставьте URL ниже"
+        },
+        "fields": {
+          "title": "Название",
+          "description": "Описание",
+          "courseTitle": "Название курса",
+          "courseDescription": "Описание курса",
+          "priceKgs": "Цена (KGS)",
+          "visibility": "Видимость",
+          "access": "Доступ",
+          "ageRange": "Возраст детей",
+          "tags": "Теги (через запятую)",
+          "coverOptional": "Обложка курса (необязательно)"
+        },
+        "publishErrors": {
+          "titleRequired": "Перед публикацией нужно указать название курса.",
+          "descriptionRequired": "Перед публикацией нужно добавить описание курса.",
+          "coverRequired": "Перед публикацией в маркетплейсе нужно добавить обложку курса.",
+          "positivePriceRequired": "Для платного курса нужно указать цену больше 0."
+        },
+        "validation": {
+          "titleRequired": "Название курса обязательно.",
+          "descriptionRequired": "Описание курса обязательно."
+        },
+        "errors": {
+          "generic": "Произошла ошибка",
+          "notFound": "Курс не найден",
+          "coverUpload": "Ошибка загрузки обложки",
+          "coverSave": "Ошибка сохранения обложки"
+        },
+        "confirm": {
+          "deleteModule": "Удалить модуль со всеми уроками?",
+          "deleteLesson": "Удалить урок?"
+        },
+        "lessonTypes": {
+          "text": {
+            "label": "Текст",
+            "description": "Теория, инструкция или методический материал."
+          },
+          "video": {
+            "label": "Видео",
+            "description": "Ссылка на видеоурок и длительность занятия."
+          },
+          "task": {
+            "label": "Задание",
+            "description": "Практика, упражнение или домашняя работа."
+          },
+          "pdf": {
+            "label": "PDF",
+            "description": "Файл, рабочая тетрадь или раздаточный материал."
+          }
+        },
+        "lesson": {
+          "imageTitle": "Картинка к уроку",
+          "imageUrl": "URL картинки",
+          "uploadImage": "Загрузить картинку",
+          "imageAlt": "Картинка урока",
+          "content": "Содержание урока",
+          "contentPlaceholder": "Добавьте теорию, инструкцию или методические заметки для урока.",
+          "video": "Видео",
+          "uploadVideo": "Загрузить видео",
+          "minutes": "Минуты",
+          "taskDescription": "Описание задания",
+          "taskDescriptionPlaceholder": "Что должен сделать ребенок, родитель или специалист?",
+          "taskExample": "Пример выполнения",
+          "taskExamplePlaceholder": "Добавьте пример, подсказку или критерии проверки.",
+          "pdfFile": "PDF файл",
+          "uploadPdf": "Загрузить PDF",
+          "fileName": "Название файла",
+          "fileNamePlaceholder": "Рабочая тетрадь",
+          "newTitle": "Новый урок",
+          "delete": "Удалить урок",
+          "title": "Название урока",
+          "titlePlaceholder": "Например: Речевые техники",
+          "type": "Тип урока",
+          "create": "Создать урок",
+          "save": "Сохранить урок",
+          "add": "Добавить урок",
+          "loading": "Загрузка уроков...",
+          "emptyInModule": "В модуле пока нет уроков.",
+          "indexWithType": "Урок {index} · {type}"
+        },
+        "module": {
+          "newKicker": "Новый модуль",
+          "kicker": "Модуль курса",
+          "newTitle": "Создайте раздел программы",
+          "delete": "Удалить модуль",
+          "title": "Название модуля",
+          "titlePlaceholder": "Например: Речевые техники",
+          "description": "Краткое описание",
+          "descriptionPlaceholder": "Что изучает пользователь в этом модуле?",
+          "create": "Создать модуль",
+          "save": "Сохранить модуль",
+          "add": "Модуль",
+          "collapse": "Свернуть модуль",
+          "expand": "Развернуть модуль",
+          "index": "Модуль {index}"
+        },
+        "editor": {
+          "emptyTitle": "Выберите элемент курса",
+          "emptyDescription": "Откройте модуль или урок слева, чтобы редактировать программу курса."
+        },
+        "cover": {
+          "title": "Обложка курса",
+          "description": "Используется в списке курсов и в маркетплейсе.",
+          "url": "URL обложки",
+          "placeholder": "Вставьте URL обложки или загрузите файл"
+        },
+        "settings": {
+          "title": "Настройки курса",
+          "description": "Здесь меняются цена, доступ и данные, которые нужны для публикации.",
+          "save": "Сохранить настройки",
+          "priceWarning": "Для платного курса укажите цену больше 0 и нажмите “Сохранить настройки”."
+        },
+        "program": {
+          "title": "Программа курса",
+          "summary": "{modules, plural, one {# модуль} few {# модуля} other {# модулей}}, {lessons, plural, one {# урок} few {# урока} other {# уроков}}",
+          "emptyModules": "Добавьте первый модуль, чтобы собрать структуру курса."
+        },
+        "publish": {
+          "publish": "Опубликовать",
+          "unpublish": "Снять с публикации"
+        }
       },
       "brand": {
         "title": "Бренд жөндөөлөр",
