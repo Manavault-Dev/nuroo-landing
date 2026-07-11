@@ -1,52 +1,42 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-
-// ─── Inline toast (avoids alert() blocking the thread) ────────────────────────
-type ToastKind = 'error' | 'success' | 'warn'
-interface ToastMsg {
-  id: number
-  kind: ToastKind
-  text: string
-}
-
-function useToast() {
-  const [toasts, setToasts] = useState<ToastMsg[]>([])
-  const counter = useRef(0)
-  const show = useCallback((text: string, kind: ToastKind = 'error') => {
-    const id = ++counter.current
-    setToasts((prev) => [...prev, { id, kind, text }])
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000)
-  }, [])
-  return { toasts, show }
-}
-
-const TOAST_COLORS: Record<ToastKind, string> = {
-  error: 'bg-red-600',
-  success: 'bg-green-600',
-  warn: 'bg-yellow-500',
-}
-
-function ToastContainer({ toasts }: { toasts: ToastMsg[] }) {
-  if (!toasts.length) return null
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`${TOAST_COLORS[t.kind]} text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-bottom-2 duration-200`}
-        >
-          {t.text}
-        </div>
-      ))}
-    </div>
-  )
-}
+import { useTranslations } from 'next-intl'
+import { useToast } from '@/hooks/useToast'
+import { ToastContainer } from '@/components/ui/Toast'
 import { useParams } from 'next/navigation'
 import { Link } from '@/i18n/navigation'
 import { Select } from '@/components/ui/Select'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
+import {
+  STATUS_COLORS,
+  isPublishedCourse,
+  isPublicCourse,
+  type Course,
+  type CourseModule,
+  type Lesson,
+} from '@/lib/b2b/types/course'
+import type {
+  CourseMediaKind,
+  Selection,
+  ModuleDraft,
+  LessonDraft,
+  CourseSettingsDraft,
+  LessonType,
+  CourseAccessPolicy,
+} from './types'
+import {
+  getPublishBlocker,
+  getCourseUpdateErrorMessage,
+  getErrorMessage,
+  emptyModuleDraft,
+  draftFromCourse,
+  draftFromModule,
+  emptyLessonDraft,
+  draftFromLesson,
+  buildLessonPayload,
+} from './utils'
 import {
   ArrowLeft,
   BookOpen,
@@ -68,299 +58,20 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-type LessonType = 'text' | 'video' | 'task' | 'pdf'
-type CourseMediaKind = 'lesson-video' | 'lesson-image' | 'lesson-pdf'
-type CourseAccessPolicy = 'FREE' | 'PAID' | 'VERIFIED_SPECIAL_NEEDS' | 'INVITATION_ONLY'
-type CourseVisibility = 'PRIVATE' | 'PUBLIC' | 'org_only' | 'marketplace'
-
-interface Course {
-  id: string
-  title: string
-  description: string
-  coverUrl?: string | null
-  coverImageUrl?: string | null
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'draft' | 'published' | 'archived'
-  visibility: CourseVisibility
-  accessPolicy?: CourseAccessPolicy
-  price: number
-  currency: string
-  ownerOrgName?: string | null
-  moduleCount: number
-  lessonCount: number
-  enrollmentCount: number
-}
-
-interface CourseModule {
-  id: string
-  title: string
-  description?: string | null
-  order: number
-  lessonCount: number
-}
-
-interface Lesson {
-  id: string
-  title: string
-  type: LessonType
-  order: number
-  body?: string | null
-  imageUrl?: string | null
-  imageName?: string | null
-  videoUrl?: string | null
-  videoDurationMin?: number | null
-  taskDescription?: string | null
-  taskExample?: string | null
-  pdfUrl?: string | null
-  pdfName?: string | null
-}
-
-type Selection =
-  | { type: 'new-module' }
-  | { type: 'module'; moduleId: string }
-  | { type: 'new-lesson'; moduleId: string }
-  | { type: 'lesson'; moduleId: string; lessonId: string }
-
-interface ModuleDraft {
-  title: string
-  description: string
-}
-
-interface LessonDraft {
-  title: string
-  type: LessonType
-  body: string
-  imageUrl: string
-  imageName: string
-  videoUrl: string
-  videoDurationMin: string
-  taskDescription: string
-  taskExample: string
-  pdfUrl: string
-  pdfName: string
-}
-
-interface CourseSettingsDraft {
-  title: string
-  description: string
-  visibility: 'PRIVATE' | 'PUBLIC'
-  accessPolicy: CourseAccessPolicy
-  price: string
-  coverUrl: string
-}
-
-const VISIBILITY_OPTIONS = [
-  { value: 'PRIVATE', label: 'Только для организации' },
-  { value: 'PUBLIC', label: 'Маркетплейс (публично)' },
-]
-
-const ACCESS_POLICY_OPTIONS = [
-  { value: 'FREE', label: 'Бесплатно для всех' },
-  { value: 'PAID', label: 'Платно для всех' },
-  {
-    value: 'VERIFIED_SPECIAL_NEEDS',
-    label: 'Бесплатно для подтвержденных детей, остальные платят',
-  },
-  { value: 'INVITATION_ONLY', label: 'Только по приглашению' },
-]
-
-const LESSON_TYPE_OPTIONS = [
-  { value: 'text', label: 'Текст' },
-  { value: 'video', label: 'Видео' },
-  { value: 'task', label: 'Задание' },
-  { value: 'pdf', label: 'PDF' },
-]
-
-const LESSON_TYPE_META: Record<
-  LessonType,
-  { label: string; description: string; icon: LucideIcon }
-> = {
-  text: {
-    label: 'Текст',
-    description: 'Теория, инструкция или методический материал.',
-    icon: FileText,
-  },
-  video: {
-    label: 'Видео',
-    description: 'Ссылка на видеоурок и длительность занятия.',
-    icon: Video,
-  },
-  task: {
-    label: 'Задание',
-    description: 'Практика, упражнение или домашняя работа.',
-    icon: ClipboardList,
-  },
-  pdf: {
-    label: 'PDF',
-    description: 'Файл, рабочая тетрадь или раздаточный материал.',
-    icon: File,
-  },
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-yellow-100 text-yellow-800',
-  PUBLISHED: 'bg-green-100 text-green-800',
-  ARCHIVED: 'bg-gray-100 text-gray-600',
-  draft: 'bg-yellow-100 text-yellow-800',
-  published: 'bg-green-100 text-green-800',
-  archived: 'bg-gray-100 text-gray-600',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Черновик',
-  PUBLISHED: 'Опубликован',
-  ARCHIVED: 'Архив',
-  draft: 'Черновик',
-  published: 'Опубликован',
-  archived: 'Архив',
-}
-
-const ACCESS_POLICY_LABELS: Record<string, string> = {
-  FREE: 'Бесплатно',
-  PAID: 'Платно',
-  VERIFIED_SPECIAL_NEEDS: 'Бесплатно для подтвержденных детей',
-  INVITATION_ONLY: 'По приглашению',
-}
-
-function isPublished(course: Course) {
-  return course.status === 'PUBLISHED' || course.status === 'published'
-}
-
-function isPublicCourse(course: Course) {
-  return course.visibility === 'PUBLIC' || course.visibility === 'marketplace'
-}
-
-function getPublishBlocker(course: Course): string | null {
-  if (!isPublicCourse(course)) return null
-  if (!course.title?.trim()) return 'Перед публикацией нужно указать название курса.'
-  if (!course.description?.trim()) return 'Перед публикацией нужно добавить описание курса.'
-  if (!course.coverUrl && !course.coverImageUrl) {
-    return 'Перед публикацией в маркетплейсе нужно добавить обложку курса.'
-  }
-  if (course.accessPolicy !== 'FREE' && Number(course.price || 0) <= 0) {
-    return 'Для платного курса нужно указать цену больше 0.'
-  }
-  return null
-}
-
-function getCourseUpdateErrorMessage(error: unknown) {
-  const message = getErrorMessage(error)
-  const knownMessages: Record<string, string> = {
-    'Published courses require a title': 'Перед публикацией нужно указать название курса.',
-    'Published courses require a description': 'Перед публикацией нужно добавить описание курса.',
-    'Published courses require a cover image':
-      'Перед публикацией в маркетплейсе нужно добавить обложку курса.',
-    'Paid access policies require a positive price':
-      'Для платного курса нужно указать цену больше 0.',
-  }
-
-  return knownMessages[message] || message
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Произошла ошибка'
-}
-
-function emptyModuleDraft(): ModuleDraft {
-  return { title: '', description: '' }
-}
-
-function normalizeDraftVisibility(visibility: CourseVisibility): 'PRIVATE' | 'PUBLIC' {
-  return visibility === 'PUBLIC' || visibility === 'marketplace' ? 'PUBLIC' : 'PRIVATE'
-}
-
-function draftFromCourse(course: Course): CourseSettingsDraft {
-  return {
-    title: course.title,
-    description: course.description,
-    visibility: normalizeDraftVisibility(course.visibility),
-    accessPolicy: course.accessPolicy || (Number(course.price || 0) > 0 ? 'PAID' : 'FREE'),
-    price: String(course.price || 0),
-    coverUrl: course.coverUrl || course.coverImageUrl || '',
-  }
-}
-
-function draftFromModule(module: CourseModule): ModuleDraft {
-  return {
-    title: module.title,
-    description: module.description || '',
-  }
-}
-
-function emptyLessonDraft(type: LessonType = 'text'): LessonDraft {
-  return {
-    title: '',
-    type,
-    body: '',
-    imageUrl: '',
-    imageName: '',
-    videoUrl: '',
-    videoDurationMin: '',
-    taskDescription: '',
-    taskExample: '',
-    pdfUrl: '',
-    pdfName: '',
-  }
-}
-
-function draftFromLesson(lesson: Lesson): LessonDraft {
-  return {
-    title: lesson.title,
-    type: lesson.type,
-    body: lesson.body || '',
-    imageUrl: lesson.imageUrl || '',
-    imageName: lesson.imageName || '',
-    videoUrl: lesson.videoUrl || '',
-    videoDurationMin:
-      lesson.videoDurationMin === null || lesson.videoDurationMin === undefined
-        ? ''
-        : String(lesson.videoDurationMin),
-    taskDescription: lesson.taskDescription || '',
-    taskExample: lesson.taskExample || '',
-    pdfUrl: lesson.pdfUrl || '',
-    pdfName: lesson.pdfName || '',
-  }
-}
-
-function buildLessonPayload(draft: LessonDraft, order?: number) {
-  const payload: Record<string, unknown> = {
-    title: draft.title.trim(),
-    type: draft.type,
-    imageUrl: draft.imageUrl.trim() || null,
-    imageName: draft.imageName.trim() || null,
-  }
-
-  if (order !== undefined) {
-    payload.order = order
-  }
-
-  if (draft.type === 'text') {
-    payload.body = draft.body.trim() || null
-  }
-
-  if (draft.type === 'video') {
-    payload.videoUrl = draft.videoUrl.trim() || null
-    payload.videoDurationMin = draft.videoDurationMin ? Number(draft.videoDurationMin) : null
-  }
-
-  if (draft.type === 'task') {
-    payload.taskDescription = draft.taskDescription.trim() || null
-    payload.taskExample = draft.taskExample.trim() || null
-  }
-
-  if (draft.type === 'pdf') {
-    payload.pdfUrl = draft.pdfUrl.trim() || null
-    payload.pdfName = draft.pdfName.trim() || null
-  }
-
-  return payload
+const LESSON_TYPE_ICONS: Record<LessonType, LucideIcon> = {
+  text: FileText,
+  video: Video,
+  task: ClipboardList,
+  pdf: File,
 }
 
 function LessonIcon({ type, className }: { type: LessonType; className?: string }) {
-  const Icon = LESSON_TYPE_META[type]?.icon || FileText
+  const Icon = LESSON_TYPE_ICONS[type] || FileText
   return <Icon className={className} />
 }
 
 export default function CourseDetailPage() {
+  const t = useTranslations('b2b.pages.courses')
   const params = useParams()
   const courseId = params.courseId as string
   const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
@@ -382,6 +93,50 @@ export default function CourseDetailPage() {
   const [uploadingMedia, setUploadingMedia] = useState<CourseMediaKind | null>(null)
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement | null>(null)
+  const visibilityOptions = [
+    { value: 'PRIVATE', label: t('visibilityOptions.private') },
+    { value: 'PUBLIC', label: t('visibilityOptions.public') },
+  ]
+  const accessPolicyOptions = [
+    { value: 'FREE', label: t('accessPolicyOptions.free') },
+    { value: 'PAID', label: t('accessPolicyOptions.paid') },
+    {
+      value: 'VERIFIED_SPECIAL_NEEDS',
+      label: t('accessPolicyOptions.verifiedSpecialNeeds'),
+    },
+    { value: 'INVITATION_ONLY', label: t('accessPolicyOptions.invitationOnly') },
+  ]
+  const lessonTypeOptions = [
+    { value: 'text', label: t('lessonTypes.text.label') },
+    { value: 'video', label: t('lessonTypes.video.label') },
+    { value: 'task', label: t('lessonTypes.task.label') },
+    { value: 'pdf', label: t('lessonTypes.pdf.label') },
+  ]
+  const lessonTypeMeta: Record<
+    LessonType,
+    { label: string; description: string; icon: LucideIcon }
+  > = {
+    text: {
+      label: t('lessonTypes.text.label'),
+      description: t('lessonTypes.text.description'),
+      icon: FileText,
+    },
+    video: {
+      label: t('lessonTypes.video.label'),
+      description: t('lessonTypes.video.description'),
+      icon: Video,
+    },
+    task: {
+      label: t('lessonTypes.task.label'),
+      description: t('lessonTypes.task.description'),
+      icon: ClipboardList,
+    },
+    pdf: {
+      label: t('lessonTypes.pdf.label'),
+      description: t('lessonTypes.pdf.description'),
+      icon: File,
+    },
+  }
 
   const selectedModule = useMemo(() => {
     if (!selection || selection.type === 'new-module') return null
@@ -417,13 +172,13 @@ export default function CourseDetailPage() {
         setLessonsByModule((prev) => ({ ...prev, [moduleId]: res.lessons }))
         return res.lessons as Lesson[]
       } catch (err) {
-        toast(getErrorMessage(err))
+        toast(getErrorMessage(err, t))
         return []
       } finally {
         setLoadingLessonsFor((current) => (current === moduleId ? null : current))
       }
     },
-    [courseId, lessonsByModule, orgId, toast]
+    [courseId, lessonsByModule, orgId, toast, t]
   )
 
   useEffect(() => {
@@ -452,16 +207,16 @@ export default function CourseDetailPage() {
                 [nextModules[0].id]: lessonsRes.lessons,
               }))
             })
-            .catch((err: unknown) => toast(getErrorMessage(err)))
+            .catch((err: unknown) => toast(getErrorMessage(err, t)))
             .finally(() => setLoadingLessonsFor(null))
         } else {
           setSelection(isAdmin ? { type: 'new-module' } : null)
           setModuleDraft(emptyModuleDraft())
         }
       })
-      .catch((err: unknown) => setError(getErrorMessage(err)))
+      .catch((err: unknown) => setError(getErrorMessage(err, t)))
       .finally(() => setLoading(false))
-  }, [authLoading, courseId, isAdmin, orgId, toast])
+  }, [authLoading, courseId, isAdmin, orgId, toast, t])
 
   function expandModule(moduleId: string) {
     setExpandedModules((prev) => {
@@ -510,10 +265,10 @@ export default function CourseDetailPage() {
 
   async function handlePublish() {
     if (!course || !orgId) return
-    const nextStatus = isPublished(course) ? 'DRAFT' : 'PUBLISHED'
+    const nextStatus = isPublishedCourse(course) ? 'DRAFT' : 'PUBLISHED'
 
     if (nextStatus === 'PUBLISHED') {
-      const publishBlocker = getPublishBlocker(course)
+      const publishBlocker = getPublishBlocker(course, t)
       if (publishBlocker) {
         toast(publishBlocker, 'warn')
         return
@@ -524,7 +279,7 @@ export default function CourseDetailPage() {
       await apiClient.updateCourse(orgId, courseId, { status: nextStatus })
       setCourse((prev) => prev && { ...prev, status: nextStatus })
     } catch (err) {
-      toast(getCourseUpdateErrorMessage(err))
+      toast(getCourseUpdateErrorMessage(err, t))
     }
   }
 
@@ -535,17 +290,17 @@ export default function CourseDetailPage() {
       courseDraft.accessPolicy === 'FREE' ? 0 : Math.max(0, Number(courseDraft.price || 0))
 
     if (!courseDraft.title.trim()) {
-      toast('Название курса обязательно.', 'warn')
+      toast(t('validation.titleRequired'), 'warn')
       return
     }
 
     if (!courseDraft.description.trim()) {
-      toast('Описание курса обязательно.', 'warn')
+      toast(t('validation.descriptionRequired'), 'warn')
       return
     }
 
     if (courseDraft.accessPolicy !== 'FREE' && normalizedPrice <= 0) {
-      toast('Для платного курса нужно указать цену больше 0.', 'warn')
+      toast(t('publishErrors.positivePriceRequired'), 'warn')
       return
     }
 
@@ -587,7 +342,7 @@ export default function CourseDetailPage() {
           : prev
       )
     } catch (err) {
-      toast(getCourseUpdateErrorMessage(err))
+      toast(getCourseUpdateErrorMessage(err, t))
     } finally {
       setSavingCourse(false)
     }
@@ -602,7 +357,7 @@ export default function CourseDetailPage() {
       setCourse((prev) => prev && { ...prev, coverUrl: url, coverImageUrl: url })
       setCourseDraft((prev) => (prev ? { ...prev, coverUrl: url } : prev))
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Ошибка загрузки обложки')
+      toast(err instanceof Error ? err.message : t('errors.coverUpload'))
     } finally {
       setUploadingCover(false)
     }
@@ -615,7 +370,7 @@ export default function CourseDetailPage() {
       setCourse((prev) => prev && { ...prev, coverUrl: url, coverImageUrl: url })
       setCourseDraft((prev) => (prev ? { ...prev, coverUrl: url } : prev))
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Ошибка сохранения обложки')
+      toast(err instanceof Error ? err.message : t('errors.coverSave'))
     }
   }
 
@@ -657,14 +412,14 @@ export default function CourseDetailPage() {
         )
       }
     } catch (err) {
-      toast(getErrorMessage(err))
+      toast(getErrorMessage(err, t))
     } finally {
       setSaving(false)
     }
   }
 
   async function deleteModule(moduleId: string) {
-    if (!orgId || !confirm('Удалить модуль со всеми уроками?')) return
+    if (!orgId || !confirm(t('confirm.deleteModule'))) return
 
     try {
       await apiClient.deleteCourseModule(orgId, courseId, moduleId)
@@ -698,7 +453,7 @@ export default function CourseDetailPage() {
       setSelection(nextSelection)
       setModuleDraft(nextModules[0] ? draftFromModule(nextModules[0]) : emptyModuleDraft())
     } catch (err) {
-      toast(getErrorMessage(err))
+      toast(getErrorMessage(err, t))
     }
   }
 
@@ -758,14 +513,14 @@ export default function CourseDetailPage() {
         }))
       }
     } catch (err) {
-      toast(getErrorMessage(err))
+      toast(getErrorMessage(err, t))
     } finally {
       setSaving(false)
     }
   }
 
   async function deleteLesson(moduleId: string, lessonId: string) {
-    if (!orgId || !confirm('Удалить урок?')) return
+    if (!orgId || !confirm(t('confirm.deleteLesson'))) return
 
     try {
       await apiClient.deleteLesson(orgId, courseId, moduleId, lessonId)
@@ -790,7 +545,7 @@ export default function CourseDetailPage() {
         setModuleDraft(targetModule ? draftFromModule(targetModule) : emptyModuleDraft())
       }
     } catch (err) {
-      toast(getErrorMessage(err))
+      toast(getErrorMessage(err, t))
     }
   }
 
@@ -806,7 +561,7 @@ export default function CourseDetailPage() {
       const uploaded = await apiClient.uploadCourseMedia(orgId, file, kind)
       onUploaded(uploaded.url, uploaded.filename || file.name)
     } catch (err) {
-      toast(getErrorMessage(err))
+      toast(getErrorMessage(err, t))
     } finally {
       setUploadingMedia(null)
     }
@@ -836,7 +591,7 @@ export default function CourseDetailPage() {
         ) : (
           <Upload className="h-4 w-4" />
         )}
-        {isUploading ? 'Загрузка...' : label}
+        {isUploading ? t('actions.uploading') : label}
         <input
           type="file"
           accept={accept}
@@ -857,11 +612,11 @@ export default function CourseDetailPage() {
       <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-4">
         <div className="mb-3 flex items-center gap-2">
           <ImageIcon className="h-4 w-4 text-gray-500" />
-          <h3 className="text-sm font-semibold text-gray-800">Картинка к уроку</h3>
+          <h3 className="text-sm font-semibold text-gray-800">{t('lesson.imageTitle')}</h3>
         </div>
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">URL картинки</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.imageUrl')}</span>
             <input
               type="url"
               value={lessonDraft.imageUrl}
@@ -875,7 +630,7 @@ export default function CourseDetailPage() {
           </label>
           <div className="flex items-end">
             {renderUploadControl({
-              label: 'Загрузить картинку',
+              label: t('lesson.uploadImage'),
               accept: 'image/*',
               kind: 'lesson-image',
               onUploaded: (url, filename) =>
@@ -892,7 +647,7 @@ export default function CourseDetailPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={lessonDraft.imageUrl}
-              alt={lessonDraft.imageName || 'Картинка урока'}
+              alt={lessonDraft.imageName || t('lesson.imageAlt')}
               className="max-h-64 w-full object-cover"
             />
           </div>
@@ -905,12 +660,12 @@ export default function CourseDetailPage() {
     if (lessonDraft.type === 'text') {
       return (
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Содержание урока</span>
+          <span className="text-sm font-medium text-gray-700">{t('lesson.content')}</span>
           <textarea
             value={lessonDraft.body}
             onChange={(event) => setLessonDraft((prev) => ({ ...prev, body: event.target.value }))}
             rows={10}
-            placeholder="Добавьте теорию, инструкцию или методические заметки для урока."
+            placeholder={t('lesson.contentPlaceholder')}
             className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100"
           />
         </label>
@@ -921,7 +676,7 @@ export default function CourseDetailPage() {
       return (
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
           <div className="block">
-            <span className="text-sm font-medium text-gray-700">Видео</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.video')}</span>
             <div className="mt-2 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 type="url"
@@ -934,7 +689,7 @@ export default function CourseDetailPage() {
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
               />
               {renderUploadControl({
-                label: 'Загрузить видео',
+                label: t('lesson.uploadVideo'),
                 accept: 'video/*',
                 kind: 'lesson-video',
                 onUploaded: (url) =>
@@ -946,7 +701,7 @@ export default function CourseDetailPage() {
             </div>
           </div>
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Минуты</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.minutes')}</span>
             <input
               type="number"
               min="0"
@@ -966,26 +721,26 @@ export default function CourseDetailPage() {
       return (
         <div className="grid gap-4">
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Описание задания</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.taskDescription')}</span>
             <textarea
               value={lessonDraft.taskDescription}
               onChange={(event) =>
                 setLessonDraft((prev) => ({ ...prev, taskDescription: event.target.value }))
               }
               rows={6}
-              placeholder="Что должен сделать ребенок, родитель или специалист?"
+              placeholder={t('lesson.taskDescriptionPlaceholder')}
               className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Пример выполнения</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.taskExample')}</span>
             <textarea
               value={lessonDraft.taskExample}
               onChange={(event) =>
                 setLessonDraft((prev) => ({ ...prev, taskExample: event.target.value }))
               }
               rows={4}
-              placeholder="Добавьте пример, подсказку или критерии проверки."
+              placeholder={t('lesson.taskExamplePlaceholder')}
               className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100"
             />
           </label>
@@ -996,7 +751,7 @@ export default function CourseDetailPage() {
     return (
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
         <div className="block">
-          <span className="text-sm font-medium text-gray-700">PDF файл</span>
+          <span className="text-sm font-medium text-gray-700">{t('lesson.pdfFile')}</span>
           <div className="mt-2 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
             <input
               type="url"
@@ -1009,7 +764,7 @@ export default function CourseDetailPage() {
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
             />
             {renderUploadControl({
-              label: 'Загрузить PDF',
+              label: t('lesson.uploadPdf'),
               accept: 'application/pdf,.pdf',
               kind: 'lesson-pdf',
               onUploaded: (url, filename) =>
@@ -1022,7 +777,7 @@ export default function CourseDetailPage() {
           </div>
         </div>
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Название файла</span>
+          <span className="text-sm font-medium text-gray-700">{t('lesson.fileName')}</span>
           <input
             type="text"
             value={lessonDraft.pdfName}
@@ -1030,7 +785,7 @@ export default function CourseDetailPage() {
               setLessonDraft((prev) => ({ ...prev, pdfName: event.target.value }))
             }
             disabled={!isAdmin}
-            placeholder="Рабочая тетрадь"
+            placeholder={t('lesson.fileNamePlaceholder')}
             className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
           />
         </label>
@@ -1046,10 +801,10 @@ export default function CourseDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-primary-600">
-              {isNew ? 'Новый модуль' : 'Модуль курса'}
+              {isNew ? t('module.newKicker') : t('module.kicker')}
             </p>
             <h2 className="mt-1 text-2xl font-semibold text-gray-900">
-              {isNew ? 'Создайте раздел программы' : selectedModule?.title}
+              {isNew ? t('module.newTitle') : selectedModule?.title}
             </h2>
           </div>
           {!isNew && selectedModule && isAdmin && (
@@ -1057,7 +812,7 @@ export default function CourseDetailPage() {
               type="button"
               onClick={() => void deleteModule(selectedModule.id)}
               className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-              aria-label="Удалить модуль"
+              aria-label={t('module.delete')}
             >
               <Trash2 className="h-5 w-5" />
             </button>
@@ -1066,7 +821,7 @@ export default function CourseDetailPage() {
 
         <div className="grid gap-4">
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Название модуля</span>
+            <span className="text-sm font-medium text-gray-700">{t('module.title')}</span>
             <input
               type="text"
               value={moduleDraft.title}
@@ -1074,12 +829,12 @@ export default function CourseDetailPage() {
                 setModuleDraft((prev) => ({ ...prev, title: event.target.value }))
               }
               disabled={!isAdmin}
-              placeholder="Например: Речевые техники"
+              placeholder={t('module.titlePlaceholder')}
               className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Краткое описание</span>
+            <span className="text-sm font-medium text-gray-700">{t('module.description')}</span>
             <textarea
               value={moduleDraft.description}
               onChange={(event) =>
@@ -1087,7 +842,7 @@ export default function CourseDetailPage() {
               }
               disabled={!isAdmin}
               rows={5}
-              placeholder="Что изучает пользователь в этом модуле?"
+              placeholder={t('module.descriptionPlaceholder')}
               className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
             />
           </label>
@@ -1102,7 +857,7 @@ export default function CourseDetailPage() {
               className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isNew ? 'Создать модуль' : 'Сохранить модуль'}
+              {isNew ? t('module.create') : t('module.save')}
             </button>
             {isNew && modules[0] && (
               <button
@@ -1110,7 +865,7 @@ export default function CourseDetailPage() {
                 onClick={() => selectModule(modules[0])}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
               >
-                Отменить
+                {t('actions.cancel')}
               </button>
             )}
           </div>
@@ -1123,7 +878,7 @@ export default function CourseDetailPage() {
     if (!selection || !('moduleId' in selection) || !selectedModule) return null
 
     const isNew = selection.type === 'new-lesson'
-    const currentMeta = LESSON_TYPE_META[lessonDraft.type]
+    const currentMeta = lessonTypeMeta[lessonDraft.type]
     const CurrentIcon = currentMeta.icon
 
     return (
@@ -1134,7 +889,7 @@ export default function CourseDetailPage() {
               {selectedModule.title}
             </p>
             <h2 className="mt-1 text-2xl font-semibold text-gray-900">
-              {isNew ? 'Новый урок' : selectedLesson?.title}
+              {isNew ? t('lesson.newTitle') : selectedLesson?.title}
             </h2>
           </div>
           {!isNew && selectedLesson && isAdmin && (
@@ -1142,7 +897,7 @@ export default function CourseDetailPage() {
               type="button"
               onClick={() => void deleteLesson(selection.moduleId, selectedLesson.id)}
               className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-              aria-label="Удалить урок"
+              aria-label={t('lesson.delete')}
             >
               <Trash2 className="h-5 w-5" />
             </button>
@@ -1163,7 +918,7 @@ export default function CourseDetailPage() {
 
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Название урока</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.title')}</span>
             <input
               type="text"
               value={lessonDraft.title}
@@ -1171,18 +926,18 @@ export default function CourseDetailPage() {
                 setLessonDraft((prev) => ({ ...prev, title: event.target.value }))
               }
               disabled={!isAdmin}
-              placeholder="Например: Речевые техники"
+              placeholder={t('lesson.titlePlaceholder')}
               className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-500"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Тип урока</span>
+            <span className="text-sm font-medium text-gray-700">{t('lesson.type')}</span>
             <Select
               value={lessonDraft.type}
               onChange={(value) =>
                 setLessonDraft((prev) => ({ ...prev, type: value as LessonType }))
               }
-              options={LESSON_TYPE_OPTIONS}
+              options={lessonTypeOptions}
               disabled={!isAdmin}
               className="mt-2"
               buttonClassName="min-h-[46px]"
@@ -1202,7 +957,7 @@ export default function CourseDetailPage() {
               className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isNew ? 'Создать урок' : 'Сохранить урок'}
+              {isNew ? t('lesson.create') : t('lesson.save')}
             </button>
             {isNew && (
               <button
@@ -1210,7 +965,7 @@ export default function CourseDetailPage() {
                 onClick={() => selectModule(selectedModule)}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
               >
-                Отменить
+                {t('actions.cancel')}
               </button>
             )}
           </div>
@@ -1226,10 +981,8 @@ export default function CourseDetailPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
             <BookOpen className="h-7 w-7" />
           </div>
-          <h2 className="mt-4 text-xl font-semibold text-gray-900">Выберите элемент курса</h2>
-          <p className="mt-2 max-w-sm text-sm text-gray-500">
-            Откройте модуль или урок слева, чтобы редактировать программу курса.
-          </p>
+          <h2 className="mt-4 text-xl font-semibold text-gray-900">{t('editor.emptyTitle')}</h2>
+          <p className="mt-2 max-w-sm text-sm text-gray-500">{t('editor.emptyDescription')}</p>
         </div>
       )
     }
@@ -1250,7 +1003,7 @@ export default function CourseDetailPage() {
   }
 
   if (error || !course) {
-    return <div className="p-6 text-center text-red-500">{error || 'Курс не найден'}</div>
+    return <div className="p-6 text-center text-red-500">{error || t('errors.notFound')}</div>
   }
 
   return (
@@ -1269,30 +1022,30 @@ export default function CourseDetailPage() {
             <span
               className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[course.status]}`}
             >
-              {STATUS_LABELS[course.status] || course.status}
+              {t(`status.${String(course.status).toLowerCase()}`) || course.status}
             </span>
             {isPublicCourse(course) ? (
               <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs text-blue-700">
                 <Globe className="h-3 w-3" />
-                Маркетплейс
+                {t('visibility.public')}
               </span>
             ) : (
               <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
                 <Lock className="h-3 w-3" />
-                Только организация
+                {t('visibility.privateOnly')}
               </span>
             )}
           </div>
           <p className="max-w-3xl text-sm text-gray-500">{course.description}</p>
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-500">
-            <span>{totals.modules} модулей</span>
-            <span>{totals.lessons} уроков</span>
-            <span>{course.enrollmentCount} записавшихся</span>
+            <span>{t('metrics.modulesCount', { count: totals.modules })}</span>
+            <span>{t('metrics.lessonsCount', { count: totals.lessons })}</span>
+            <span>{t('metrics.enrollmentsCount', { count: course.enrollmentCount })}</span>
             <span className="font-medium text-gray-700">
-              {course.price === 0 ? 'Бесплатно' : `${course.price} ${course.currency}`}
+              {course.price === 0 ? t('pricing.free') : `${course.price} ${course.currency}`}
             </span>
             {course.accessPolicy && (
-              <span>{ACCESS_POLICY_LABELS[course.accessPolicy] ?? course.accessPolicy}</span>
+              <span>{t(`accessPolicy.${course.accessPolicy}`) ?? course.accessPolicy}</span>
             )}
           </div>
         </div>
@@ -1305,12 +1058,12 @@ export default function CourseDetailPage() {
                   await apiClient.updateCourse(orgId!, courseId, { visibility: val })
                   setCourse((prev) => prev && { ...prev, visibility: val as Course['visibility'] })
                 } catch (err: unknown) {
-                  toast(err instanceof Error ? err.message : 'Ошибка')
+                  toast(err instanceof Error ? err.message : t('errors.generic'))
                 }
               }}
               options={[
-                { value: 'PRIVATE', label: '🔒 Только для орг.' },
-                { value: 'PUBLIC', label: '🌐 Маркетплейс' },
+                { value: 'PRIVATE', label: t('visibilityOptions.privateShort') },
+                { value: 'PUBLIC', label: t('visibilityOptions.publicShort') },
               ]}
               buttonClassName="text-sm py-2 min-w-[160px]"
             />
@@ -1318,12 +1071,12 @@ export default function CourseDetailPage() {
               type="button"
               onClick={() => void handlePublish()}
               className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                isPublished(course)
+                isPublishedCourse(course)
                   ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                   : 'btn-primary'
               }`}
             >
-              {isPublished(course) ? 'Снять с публикации' : 'Опубликовать'}
+              {isPublishedCourse(course) ? t('publish.unpublish') : t('publish.publish')}
             </button>
           </div>
         )}
@@ -1349,10 +1102,8 @@ export default function CourseDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Обложка курса</h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  Используется в списке курсов и в маркетплейсе.
-                </p>
+                <h2 className="text-sm font-semibold text-gray-900">{t('cover.title')}</h2>
+                <p className="mt-1 text-xs text-gray-500">{t('cover.description')}</p>
               </div>
               {course.ownerOrgName && (
                 <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-2">
@@ -1367,7 +1118,7 @@ export default function CourseDetailPage() {
             {isAdmin && (
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="min-w-0">
-                  <span className="sr-only">URL обложки</span>
+                  <span className="sr-only">{t('cover.url')}</span>
                   <input
                     type="url"
                     value={courseDraft?.coverUrl || ''}
@@ -1381,7 +1132,7 @@ export default function CourseDetailPage() {
                         void handleCoverUrlSave(event.target.value)
                       }
                     }}
-                    placeholder="Вставьте URL обложки или загрузите файл"
+                    placeholder={t('cover.placeholder')}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                   />
                 </label>
@@ -1395,7 +1146,7 @@ export default function CourseDetailPage() {
                   ) : (
                     <Upload className="h-4 w-4" />
                   )}
-                  {uploadingCover ? 'Загрузка...' : 'Загрузить'}
+                  {uploadingCover ? t('actions.uploading') : t('actions.upload')}
                   <input
                     ref={coverInputRef}
                     type="file"
@@ -1418,10 +1169,8 @@ export default function CourseDetailPage() {
         <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Настройки курса</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Здесь меняются цена, доступ и данные, которые нужны для публикации.
-              </p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('settings.title')}</h2>
+              <p className="mt-1 text-sm text-gray-500">{t('settings.description')}</p>
             </div>
             <button
               type="button"
@@ -1434,13 +1183,13 @@ export default function CourseDetailPage() {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              Сохранить настройки
+              {t('settings.save')}
             </button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Название курса</span>
+              <span className="text-sm font-medium text-gray-700">{t('fields.courseTitle')}</span>
               <input
                 type="text"
                 value={courseDraft.title}
@@ -1451,7 +1200,7 @@ export default function CourseDetailPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Цена (KGS)</span>
+              <span className="text-sm font-medium text-gray-700">{t('fields.priceKgs')}</span>
               <input
                 type="number"
                 min="0"
@@ -1465,7 +1214,7 @@ export default function CourseDetailPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Видимость</span>
+              <span className="text-sm font-medium text-gray-700">{t('fields.visibility')}</span>
               <Select
                 value={courseDraft.visibility}
                 onChange={(value) =>
@@ -1473,13 +1222,13 @@ export default function CourseDetailPage() {
                     prev ? { ...prev, visibility: value as 'PRIVATE' | 'PUBLIC' } : prev
                   )
                 }
-                options={VISIBILITY_OPTIONS}
+                options={visibilityOptions}
                 className="mt-2"
                 buttonClassName="min-h-[46px]"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Доступ</span>
+              <span className="text-sm font-medium text-gray-700">{t('fields.access')}</span>
               <Select
                 value={courseDraft.accessPolicy}
                 onChange={(value) =>
@@ -1493,7 +1242,7 @@ export default function CourseDetailPage() {
                       : prev
                   )
                 }
-                options={ACCESS_POLICY_OPTIONS}
+                options={accessPolicyOptions}
                 className="mt-2"
                 buttonClassName="min-h-[46px]"
               />
@@ -1501,7 +1250,9 @@ export default function CourseDetailPage() {
           </div>
 
           <label className="mt-4 block">
-            <span className="text-sm font-medium text-gray-700">Описание курса</span>
+            <span className="text-sm font-medium text-gray-700">
+              {t('fields.courseDescription')}
+            </span>
             <textarea
               value={courseDraft.description}
               onChange={(event) =>
@@ -1516,7 +1267,7 @@ export default function CourseDetailPage() {
 
           {courseDraft.accessPolicy !== 'FREE' && Number(courseDraft.price || 0) <= 0 && (
             <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-              Для платного курса укажите цену больше 0 и нажмите “Сохранить настройки”.
+              {t('settings.priceWarning')}
             </div>
           )}
         </section>
@@ -1528,10 +1279,10 @@ export default function CourseDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-primary-600" />
-                <h2 className="font-semibold text-gray-900">Программа курса</h2>
+                <h2 className="font-semibold text-gray-900">{t('program.title')}</h2>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                {totals.modules} модулей, {totals.lessons} уроков
+                {t('program.summary', { modules: totals.modules, lessons: totals.lessons })}
               </p>
             </div>
             {isAdmin && (
@@ -1541,7 +1292,7 @@ export default function CourseDetailPage() {
                 className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary-700 transition hover:bg-primary-50"
               >
                 <Plus className="h-4 w-4" />
-                Модуль
+                {t('module.add')}
               </button>
             )}
           </div>
@@ -1551,9 +1302,7 @@ export default function CourseDetailPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
                 <Layers className="h-6 w-6" />
               </div>
-              <p className="mt-3 text-sm text-gray-500">
-                Добавьте первый модуль, чтобы собрать структуру курса.
-              </p>
+              <p className="mt-3 text-sm text-gray-500">{t('program.emptyModules')}</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -1579,7 +1328,7 @@ export default function CourseDetailPage() {
                           type="button"
                           onClick={() => toggleModule(module.id)}
                           className="rounded-md p-1 text-gray-400 transition hover:bg-white hover:text-gray-600"
-                          aria-label={expanded ? 'Свернуть модуль' : 'Развернуть модуль'}
+                          aria-label={expanded ? t('module.collapse') : t('module.expand')}
                         >
                           {expanded ? (
                             <ChevronDown className="h-4 w-4" />
@@ -1593,13 +1342,13 @@ export default function CourseDetailPage() {
                           className="min-w-0 flex-1 text-left"
                         >
                           <span className="block text-xs font-medium uppercase tracking-wide text-gray-400">
-                            Модуль {moduleIndex + 1}
+                            {t('module.index', { index: moduleIndex + 1 })}
                           </span>
                           <span className="block truncate font-medium text-gray-900">
                             {module.title}
                           </span>
                           <span className="block text-xs text-gray-500">
-                            {module.lessonCount} уроков
+                            {t('metrics.lessonsCount', { count: module.lessonCount })}
                           </span>
                         </button>
                         {isAdmin && (
@@ -1607,7 +1356,7 @@ export default function CourseDetailPage() {
                             type="button"
                             onClick={() => startNewLesson(module.id)}
                             className="rounded-lg p-2 text-primary-600 transition hover:bg-white"
-                            aria-label="Добавить урок"
+                            aria-label={t('lesson.add')}
                           >
                             <Plus className="h-4 w-4" />
                           </button>
@@ -1619,11 +1368,11 @@ export default function CourseDetailPage() {
                           {lessons === undefined || loadingLessonsFor === module.id ? (
                             <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-400">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Загрузка уроков...
+                              {t('lesson.loading')}
                             </div>
                           ) : lessons.length === 0 ? (
                             <p className="rounded-lg px-3 py-2 text-sm text-gray-400">
-                              В модуле пока нет уроков.
+                              {t('lesson.emptyInModule')}
                             </p>
                           ) : (
                             lessons.map((lesson, lessonIndex) => {
@@ -1649,8 +1398,10 @@ export default function CourseDetailPage() {
                                       {lesson.title}
                                     </span>
                                     <span className="block text-xs text-gray-400">
-                                      Урок {lessonIndex + 1} ·{' '}
-                                      {LESSON_TYPE_META[lesson.type]?.label || lesson.type}
+                                      {t('lesson.indexWithType', {
+                                        index: lessonIndex + 1,
+                                        type: lessonTypeMeta[lesson.type]?.label || lesson.type,
+                                      })}
                                     </span>
                                   </span>
                                 </button>
