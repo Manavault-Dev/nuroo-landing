@@ -19,8 +19,8 @@ export function PoweredByNuroo({
   return (
     <div
       className={clsx(
-        'inline-flex items-center rounded-full border border-teal-100/80 bg-white/90 text-gray-500 shadow-sm shadow-teal-900/5 backdrop-blur',
-        compact ? 'gap-2 px-2.5 py-1.5 text-xs' : 'gap-2.5 px-3 py-2 text-sm',
+        'inline-flex items-center text-gray-500',
+        compact ? 'gap-2 px-2.5 py-1.5 text-sm' : 'gap-2.5 px-3 py-2 text-base',
         className
       )}
     >
@@ -46,7 +46,7 @@ export function PoweredByNuroo({
             <span className="mx-1 text-gray-300">·</span>
           </>
         )}
-        <span className="text-gray-400">{label}</span>{' '}
+        <span className="font-bold text-gray-400">{label}</span>{' '}
         <span className="font-semibold text-teal-700">Nuroo</span>
       </span>
     </div>
