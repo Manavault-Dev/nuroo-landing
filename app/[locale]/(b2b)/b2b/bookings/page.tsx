@@ -294,7 +294,7 @@ function ClientBriefModal({
 
 // ── Bookings tab ──────────────────────────────────────────────────────────────
 
-function BookingsTab({ orgId }: { orgId: string }) {
+function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: string }) {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
@@ -314,10 +314,10 @@ function BookingsTab({ orgId }: { orgId: string }) {
   useEffect(() => {
     setLoading(true)
     apiClient
-      .getOrgBookings(orgId, filter || undefined)
+      .getOrgBookings(orgId, filter || undefined, specialistId)
       .then((res) => setBookings(res.bookings as Booking[]))
       .finally(() => setLoading(false))
-  }, [orgId, filter])
+  }, [orgId, filter, specialistId])
 
   const handleStatus = async (b: Booking, next: BookingStatus) => {
     setActionLoading(b.id)
@@ -486,7 +486,15 @@ function BookingsTab({ orgId }: { orgId: string }) {
 
 // ── Services tab ──────────────────────────────────────────────────────────────
 
-function ServicesTab({ orgId }: { orgId: string }) {
+function ServicesTab({
+  orgId,
+  isAdmin,
+  specialistId,
+}: {
+  orgId: string
+  isAdmin: boolean
+  specialistId?: string
+}) {
   const [services, setServices] = useState<Service[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -499,28 +507,28 @@ function ServicesTab({ orgId }: { orgId: string }) {
     durationMinutes: 60,
     price: 0,
     currency: 'KGS',
-    specialistId: '',
+    specialistId: specialistId ?? '',
     requireIntake: false,
   })
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    const [svcRes, tmRes] = await Promise.all([
-      apiClient.getOrgBookings(orgId).catch(() => ({ bookings: [] })), // we'll use a direct fetch
-      apiClient.getTeam(orgId),
-    ])
-    setTeam(tmRes)
-  }, [orgId])
+    if (!isAdmin) {
+      setTeam([])
+      return
+    }
+    await apiClient.getTeam(orgId).then(setTeam)
+  }, [orgId, isAdmin])
 
-  // Direct fetch for services since we didn't add a typed method
   const loadServices = useCallback(async () => {
     try {
       const res = await apiClient.getOrgServices(orgId)
-      setServices(res.services ?? [])
+      const all = (res.services ?? []) as Service[]
+      setServices(isAdmin ? all : all.filter((s) => s.specialistId === specialistId))
     } catch {
       setServices([])
     }
-  }, [orgId])
+  }, [orgId, isAdmin, specialistId])
 
   useEffect(() => {
     Promise.all([load(), loadServices()]).finally(() => setLoading(false))
@@ -533,7 +541,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
       durationMinutes: 60,
       price: 0,
       currency: 'KGS',
-      specialistId: team[0]?.uid ?? '',
+      specialistId: isAdmin ? (team[0]?.uid ?? '') : (specialistId ?? ''),
       requireIntake: false,
     })
     setEditingId(null)
@@ -652,23 +660,25 @@ function ServicesTab({ orgId }: { orgId: string }) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">
-                  Специалист *
-                </label>
-                <select
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
-                  value={form.specialistId}
-                  onChange={(e) => setForm((f) => ({ ...f, specialistId: e.target.value }))}
-                >
-                  <option value="">Выберите специалиста</option>
-                  {team.map((m) => (
-                    <option key={m.uid} value={m.uid}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isAdmin && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Специалист *
+                  </label>
+                  <select
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                    value={form.specialistId}
+                    onChange={(e) => setForm((f) => ({ ...f, specialistId: e.target.value }))}
+                  >
+                    <option value="">Выберите специалиста</option>
+                    {team.map((m) => (
+                      <option key={m.uid} value={m.uid}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -838,9 +848,17 @@ function ServicesTab({ orgId }: { orgId: string }) {
 
 // ── Schedule tab ──────────────────────────────────────────────────────────────
 
-function ScheduleTab({ orgId }: { orgId: string }) {
+function ScheduleTab({
+  orgId,
+  isAdmin,
+  specialistId,
+}: {
+  orgId: string
+  isAdmin: boolean
+  specialistId?: string
+}) {
   const [team, setTeam] = useState<TeamMember[]>([])
-  const [selectedUid, setSelectedUid] = useState('')
+  const [selectedUid, setSelectedUid] = useState(isAdmin ? '' : (specialistId ?? ''))
   const [schedule, setSchedule] = useState<WeekSchedule>(emptyWeek())
   const [slotDuration, setSlotDuration] = useState(60)
   const [breakMins, setBreakMins] = useState(0)
@@ -849,6 +867,10 @@ function ScheduleTab({ orgId }: { orgId: string }) {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false)
+      return
+    }
     apiClient
       .getTeam(orgId)
       .then((t) => {
@@ -856,7 +878,7 @@ function ScheduleTab({ orgId }: { orgId: string }) {
         if (t.length > 0) setSelectedUid(t[0].uid)
       })
       .finally(() => setLoading(false))
-  }, [orgId])
+  }, [orgId, isAdmin])
 
   useEffect(() => {
     if (!selectedUid) return
@@ -926,26 +948,28 @@ function ScheduleTab({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Specialist picker */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-gray-500">Специалист:</span>
-        <div className="flex gap-2 flex-wrap">
-          {team.map((m) => (
-            <button
-              key={m.uid}
-              onClick={() => setSelectedUid(m.uid)}
-              className={clsx(
-                'px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
-                selectedUid === m.uid
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {m.name}
-            </button>
-          ))}
+      {/* Specialist picker — admins only */}
+      {isAdmin && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-semibold text-gray-500">Специалист:</span>
+          <div className="flex gap-2 flex-wrap">
+            {team.map((m) => (
+              <button
+                key={m.uid}
+                onClick={() => setSelectedUid(m.uid)}
+                className={clsx(
+                  'px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
+                  selectedUid === m.uid
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                )}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {selectedUid && (
         <>
@@ -1076,13 +1100,15 @@ function ScheduleTab({ orgId }: { orgId: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
-  const { orgId, isLoading } = usePageAuth()
+  const { orgId, isLoading, isAdmin, profile } = usePageAuth()
   const [tab, setTab] = useState<Tab>('bookings')
 
-  const TABS: { id: Tab; label: string; hint?: string }[] = [
+  const specialistId = isAdmin ? undefined : (profile?.uid ?? undefined)
+
+  const TABS: { id: Tab; label: string }[] = [
     { id: 'bookings', label: 'Записи' },
-    { id: 'services', label: 'Услуги', hint: 'Создайте услуги сначала' },
-    { id: 'schedule', label: 'Расписание', hint: 'Затем задайте рабочие часы' },
+    { id: 'services', label: 'Услуги' },
+    { id: 'schedule', label: 'Расписание' },
   ]
 
   if (isLoading || !orgId) return null
@@ -1132,9 +1158,13 @@ export default function BookingsPage() {
         ))}
       </div>
 
-      {tab === 'bookings' && <BookingsTab orgId={orgId} />}
-      {tab === 'services' && <ServicesTab orgId={orgId} />}
-      {tab === 'schedule' && <ScheduleTab orgId={orgId} />}
+      {tab === 'bookings' && <BookingsTab orgId={orgId} specialistId={specialistId} />}
+      {tab === 'services' && (
+        <ServicesTab orgId={orgId} isAdmin={isAdmin} specialistId={specialistId} />
+      )}
+      {tab === 'schedule' && (
+        <ScheduleTab orgId={orgId} isAdmin={isAdmin} specialistId={specialistId} />
+      )}
     </div>
   )
 }

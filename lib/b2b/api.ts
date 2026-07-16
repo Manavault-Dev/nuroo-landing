@@ -2365,8 +2365,11 @@ export class ApiClient {
 
   // ── Bookings ──────────────────────────────────────────────────────────────
 
-  async getOrgBookings(orgId: string, status?: string) {
-    const q = status ? `?status=${status}` : ''
+  async getOrgBookings(orgId: string, status?: string, specialistId?: string) {
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    if (specialistId) params.set('specialistId', specialistId)
+    const q = params.size > 0 ? `?${params}` : ''
     return this.request<{
       ok: boolean
       bookings: {
