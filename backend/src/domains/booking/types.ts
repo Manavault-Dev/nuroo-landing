@@ -5,7 +5,7 @@ export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 
 export interface TimeRange {
   start: string // 'HH:MM'
-  end: string   // 'HH:MM'
+  end: string // 'HH:MM'
 }
 
 export interface SpecialistService {
@@ -40,9 +40,9 @@ export interface Slot {
   orgId: string
   specialistId: string
   serviceId: string | null
-  date: string  // 'YYYY-MM-DD'
+  date: string // 'YYYY-MM-DD'
   startTime: string // 'HH:MM'
-  endTime: string   // 'HH:MM'
+  endTime: string // 'HH:MM'
   status: 'available' | 'booked'
   bookingId: string | null
   createdAt: string

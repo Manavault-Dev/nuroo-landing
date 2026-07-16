@@ -1,7 +1,20 @@
-import type { AvailabilityTemplate, BookingDoc, BookingStatus, DayOfWeek, Slot, TimeRange } from './types.js'
+import type {
+  AvailabilityTemplate,
+  BookingDoc,
+  BookingStatus,
+  DayOfWeek,
+  Slot,
+  TimeRange,
+} from './types.js'
 
 const DAY_MAP: Record<DayOfWeek, number> = {
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
 }
 
 const DAY_KEYS: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
@@ -14,7 +27,9 @@ export function timeToMinutes(t: string): number {
 
 /** Convert total minutes to 'HH:MM' */
 export function minutesToTime(m: number): string {
-  const hh = Math.floor(m / 60).toString().padStart(2, '0')
+  const hh = Math.floor(m / 60)
+    .toString()
+    .padStart(2, '0')
   const mm = (m % 60).toString().padStart(2, '0')
   return `${hh}:${mm}`
 }
@@ -27,7 +42,7 @@ export function generateSlotsForDay(
   date: string,
   orgId: string,
   specialistId: string,
-  serviceId: string | null,
+  serviceId: string | null
 ): Omit<Slot, 'id' | 'status' | 'bookingId'>[] {
   const slots: Omit<Slot, 'id' | 'status' | 'bookingId'>[] = []
   const step = slotDurationMinutes + breakMinutes
@@ -58,7 +73,7 @@ export function generateSlotsForRange(
   template: AvailabilityTemplate,
   startDate: string,
   days: number,
-  serviceId: string | null,
+  serviceId: string | null
 ): Omit<Slot, 'id' | 'status' | 'bookingId'>[] {
   const result: Omit<Slot, 'id' | 'status' | 'bookingId'>[] = []
   const start = new Date(startDate + 'T00:00:00Z')
@@ -78,7 +93,7 @@ export function generateSlotsForRange(
       dateStr,
       template.orgId,
       template.specialistId,
-      serviceId,
+      serviceId
     )
     result.push(...daySlots)
   }
@@ -98,10 +113,7 @@ export function canTransition(current: BookingStatus, next: BookingStatus): bool
 }
 
 /** Build a partial booking update for a status transition */
-export function buildStatusUpdate(
-  next: BookingStatus,
-  reason?: string,
-): Partial<BookingDoc> {
+export function buildStatusUpdate(next: BookingStatus, reason?: string): Partial<BookingDoc> {
   const now = new Date().toISOString()
   const base: Partial<BookingDoc> = { status: next, updatedAt: now }
   if (next === 'confirmed') base.confirmedAt = now
@@ -117,7 +129,7 @@ export function buildStatusUpdate(
 export function validateBookingInput(
   specialistId: string,
   slotId: string,
-  date: string,
+  date: string
 ): string | null {
   if (!specialistId || typeof specialistId !== 'string') return 'specialistId is required'
   if (!slotId || typeof slotId !== 'string') return 'slotId is required'

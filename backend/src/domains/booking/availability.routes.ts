@@ -14,10 +14,7 @@ const timeRangeSchema = z.object({
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 
 const availabilitySchema = z.object({
-  schedule: z.record(
-    z.enum(DAY_KEYS),
-    z.array(timeRangeSchema),
-  ),
+  schedule: z.record(z.enum(DAY_KEYS), z.array(timeRangeSchema)),
   slotDurationMinutes: z.number().int().min(5).max(480).default(60),
   breakBetweenSlotsMinutes: z.number().int().min(0).max(120).default(0),
 })
@@ -44,7 +41,7 @@ export const availabilityRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       return { ok: true, availability: snap.data() as AvailabilityTemplate }
-    },
+    }
   )
 
   /** PUT /orgs/:orgId/specialists/:specialistId/availability */
@@ -71,18 +68,18 @@ export const availabilityRoute: FastifyPluginAsync = async (fastify) => {
       const doc: AvailabilityTemplate = {
         specialistId,
         orgId,
-        schedule: parse.data.schedule as Partial<Record<DayOfWeek, { start: string; end: string }[]>>,
+        schedule: parse.data.schedule as Partial<
+          Record<DayOfWeek, { start: string; end: string }[]>
+        >,
         slotDurationMinutes: parse.data.slotDurationMinutes,
         breakBetweenSlotsMinutes: parse.data.breakBetweenSlotsMinutes,
         updatedAt: new Date().toISOString(),
       }
 
-      await db
-        .doc(`organizations/${orgId}/specialistAvailability/${specialistId}`)
-        .set(doc)
+      await db.doc(`organizations/${orgId}/specialistAvailability/${specialistId}`).set(doc)
 
       return { ok: true, availability: doc }
-    },
+    }
   )
 
   /** GET /marketplace/organizations/:orgId/specialists — public list */
@@ -103,9 +100,7 @@ export const availabilityRoute: FastifyPluginAsync = async (fastify) => {
       // Fetch all members and filter in-memory — status field may be absent on older records
       // (same logic as isActiveMember in rbac.ts). No isPublicMarketplaceEnabled gate here
       // because the parent is authenticated and already arrived via the marketplace UI.
-      const membersSnap = await db
-        .collection(`organizations/${orgId}/members`)
-        .get()
+      const membersSnap = await db.collection(`organizations/${orgId}/members`).get()
 
       const activeMembers = membersSnap.docs.filter((d) => {
         const s = d.data().status
@@ -126,13 +121,13 @@ export const availabilityRoute: FastifyPluginAsync = async (fastify) => {
             bio: p.bio ?? null,
             role: doc.data().role,
           }
-        }),
+        })
       )
 
       return {
         ok: true,
         specialists: specialistProfiles.filter(Boolean),
       }
-    },
+    }
   )
 }

@@ -7,7 +7,12 @@ export const NUROO_SECTIONS: IntakeSection[] = [
     id: 'child_info',
     title: 'Информация о ребёнке',
     fields: [
-      { id: 'child_preferred_name', label: 'Как зовут вашего ребёнка?', type: 'text', required: true },
+      {
+        id: 'child_preferred_name',
+        label: 'Как зовут вашего ребёнка?',
+        type: 'text',
+        required: true,
+      },
       { id: 'child_age', label: 'Возраст ребёнка', type: 'text', required: true },
     ],
   },
@@ -15,46 +20,96 @@ export const NUROO_SECTIONS: IntakeSection[] = [
     id: 'reason_for_visit',
     title: 'Причина обращения',
     fields: [
-      { id: 'reason_for_visit', label: 'Что привело вас к специалисту?', type: 'textarea', required: true },
-      { id: 'main_concerns', label: 'Что вас беспокоит больше всего?', type: 'textarea', required: false },
+      {
+        id: 'reason_for_visit',
+        label: 'Что привело вас к специалисту?',
+        type: 'textarea',
+        required: true,
+      },
+      {
+        id: 'main_concerns',
+        label: 'Что вас беспокоит больше всего?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
   {
     id: 'concern_history',
     title: 'История беспокойств',
     fields: [
-      { id: 'when_first_noticed', label: 'Когда вы впервые заметили эти особенности?', type: 'textarea', required: false },
-      { id: 'changes_over_time', label: 'Как ситуация менялась со временем?', type: 'textarea', required: false },
+      {
+        id: 'when_first_noticed',
+        label: 'Когда вы впервые заметили эти особенности?',
+        type: 'textarea',
+        required: false,
+      },
+      {
+        id: 'changes_over_time',
+        label: 'Как ситуация менялась со временем?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
   {
     id: 'previous_support',
     title: 'Предыдущая помощь',
     fields: [
-      { id: 'had_previous_specialist', label: 'Работал ли ваш ребёнок ранее со специалистом?', type: 'checkbox', required: false },
-      { id: 'previous_support_details', label: 'Если да — какую помощь получал ребёнок?', type: 'textarea', required: false },
+      {
+        id: 'had_previous_specialist',
+        label: 'Работал ли ваш ребёнок ранее со специалистом?',
+        type: 'checkbox',
+        required: false,
+      },
+      {
+        id: 'previous_support_details',
+        label: 'Если да — какую помощь получал ребёнок?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
   {
     id: 'current_support',
     title: 'Текущая поддержка',
     fields: [
-      { id: 'current_support', label: 'Получает ли ребёнок сейчас развивающую или учебную поддержку?', type: 'textarea', required: false },
+      {
+        id: 'current_support',
+        label: 'Получает ли ребёнок сейчас развивающую или учебную поддержку?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
   {
     id: 'expectations',
     title: 'Ожидания',
     fields: [
-      { id: 'most_want_help_with', label: 'В чём вы хотите получить помощь больше всего?', type: 'textarea', required: false },
-      { id: 'what_makes_useful', label: 'Что сделало бы эту консультацию полезной для вас?', type: 'textarea', required: false },
+      {
+        id: 'most_want_help_with',
+        label: 'В чём вы хотите получить помощь больше всего?',
+        type: 'textarea',
+        required: false,
+      },
+      {
+        id: 'what_makes_useful',
+        label: 'Что сделало бы эту консультацию полезной для вас?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
   {
     id: 'additional_info',
     title: 'Дополнительная информация',
     fields: [
-      { id: 'additional_notes', label: 'Есть ли что-то ещё, что специалист должен знать до встречи?', type: 'textarea', required: false },
+      {
+        id: 'additional_notes',
+        label: 'Есть ли что-то ещё, что специалист должен знать до встречи?',
+        type: 'textarea',
+        required: false,
+      },
     ],
   },
 ]
@@ -77,7 +132,7 @@ export function getAllFields(form: Pick<IntakeFormDoc, 'fields' | 'sections'>): 
  */
 export function validateAnswers(
   fields: IntakeField[],
-  answers: Record<string, string | boolean>,
+  answers: Record<string, string | boolean>
 ): string | null {
   const validIds = new Set(fields.map((f) => f.id))
 

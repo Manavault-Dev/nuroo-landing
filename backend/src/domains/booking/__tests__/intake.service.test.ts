@@ -40,9 +40,7 @@ const SECTIONED_FORM: Pick<IntakeFormDoc, 'name' | 'fields' | 'sections'> = {
     {
       id: 's2',
       title: 'Section 2',
-      fields: [
-        { id: 'q3', label: 'Q3', type: 'textarea', required: true },
-      ],
+      fields: [{ id: 'q3', label: 'Q3', type: 'textarea', required: true }],
     },
   ],
 }

@@ -24,7 +24,12 @@ describe('generateSlotsForDay', () => {
   it('generates 4 slots for 2-hour window with 30-min slots no break', () => {
     const slots = generateSlotsForDay(
       [{ start: '09:00', end: '11:00' }],
-      30, 0, '2025-01-06', BASE.orgId, BASE.specialistId, BASE.serviceId,
+      30,
+      0,
+      '2025-01-06',
+      BASE.orgId,
+      BASE.specialistId,
+      BASE.serviceId
     )
     expect(slots).toHaveLength(4)
     expect(slots[0].startTime).toBe('09:00')
@@ -35,7 +40,12 @@ describe('generateSlotsForDay', () => {
   it('respects break between slots', () => {
     const slots = generateSlotsForDay(
       [{ start: '09:00', end: '11:00' }],
-      30, 10, '2025-01-06', BASE.orgId, BASE.specialistId, BASE.serviceId,
+      30,
+      10,
+      '2025-01-06',
+      BASE.orgId,
+      BASE.specialistId,
+      BASE.serviceId
     )
     // step = 40 min → 09:00, 09:40, 10:20 → 3 slots (next would be 11:00 which needs 30 min → 11:30 > 11:00)
     expect(slots).toHaveLength(3)
@@ -45,8 +55,16 @@ describe('generateSlotsForDay', () => {
 
   it('handles multiple windows', () => {
     const slots = generateSlotsForDay(
-      [{ start: '09:00', end: '10:00' }, { start: '14:00', end: '15:00' }],
-      30, 0, '2025-01-06', BASE.orgId, BASE.specialistId, BASE.serviceId,
+      [
+        { start: '09:00', end: '10:00' },
+        { start: '14:00', end: '15:00' },
+      ],
+      30,
+      0,
+      '2025-01-06',
+      BASE.orgId,
+      BASE.specialistId,
+      BASE.serviceId
     )
     expect(slots).toHaveLength(4)
     expect(slots[0].startTime).toBe('09:00')
@@ -56,7 +74,12 @@ describe('generateSlotsForDay', () => {
   it('produces no slots when window is shorter than slot', () => {
     const slots = generateSlotsForDay(
       [{ start: '09:00', end: '09:20' }],
-      30, 0, '2025-01-06', BASE.orgId, BASE.specialistId, BASE.serviceId,
+      30,
+      0,
+      '2025-01-06',
+      BASE.orgId,
+      BASE.specialistId,
+      BASE.serviceId
     )
     expect(slots).toHaveLength(0)
   })
@@ -91,8 +114,10 @@ describe('generateSlotsForRange', () => {
 describe('canTransition', () => {
   it('pending → confirmed allowed', () => expect(canTransition('pending', 'confirmed')).toBe(true))
   it('pending → cancelled allowed', () => expect(canTransition('pending', 'cancelled')).toBe(true))
-  it('confirmed → completed allowed', () => expect(canTransition('confirmed', 'completed')).toBe(true))
-  it('confirmed → cancelled allowed', () => expect(canTransition('confirmed', 'cancelled')).toBe(true))
+  it('confirmed → completed allowed', () =>
+    expect(canTransition('confirmed', 'completed')).toBe(true))
+  it('confirmed → cancelled allowed', () =>
+    expect(canTransition('confirmed', 'cancelled')).toBe(true))
   it('completed → anything not allowed', () => {
     expect(canTransition('completed', 'cancelled')).toBe(false)
     expect(canTransition('completed', 'confirmed')).toBe(false)
@@ -100,7 +125,8 @@ describe('canTransition', () => {
   it('cancelled → anything not allowed', () => {
     expect(canTransition('cancelled', 'confirmed')).toBe(false)
   })
-  it('pending → completed not allowed', () => expect(canTransition('pending', 'completed')).toBe(false))
+  it('pending → completed not allowed', () =>
+    expect(canTransition('pending', 'completed')).toBe(false))
 })
 
 describe('buildStatusUpdate', () => {

@@ -53,9 +53,7 @@ async function listParentBookings(db: FirebaseFirestore.Firestore, parentId: str
     })
   )
 
-  return sortBookingsByDateDesc(
-    freshDocs.filter((b): b is NonNullable<typeof b> => b !== null)
-  )
+  return sortBookingsByDateDesc(freshDocs.filter((b): b is NonNullable<typeof b> => b !== null))
 }
 
 export const bookingRoute: FastifyPluginAsync = async (fastify) => {
@@ -184,7 +182,9 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
         throw err
       }
 
-      return reply.code(201).send({ ok: true, bookingId: bookingRef.id, intakeStatus, intakeFormId })
+      return reply
+        .code(201)
+        .send({ ok: true, bookingId: bookingRef.id, intakeStatus, intakeFormId })
     }
   )
 
