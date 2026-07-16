@@ -27,6 +27,9 @@ import {
   Upload,
   X,
   RotateCcw,
+  Star,
+  ShieldCheck,
+  ShieldOff,
 } from 'lucide-react'
 import { COUNTRIES, ORG_CATEGORIES } from '@/lib/b2b/countries'
 
@@ -136,6 +139,24 @@ export default function OrganizationPage() {
   const [demoSeeding, setDemoSeeding] = useState(false)
   const [demoClearing, setDemoClearing] = useState(false)
   const [demoMessage, setDemoMessage] = useState('')
+
+  // Reviews
+  type AdminReview = {
+    id: string
+    authorId: string
+    authorName: string
+    rating: number
+    text: string
+    status: 'published' | 'removed'
+    createdAt: string
+    isVerifiedEnrollment: boolean
+  }
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [reviewCount, setReviewCount] = useState(0)
+  const [averageRating, setAverageRating] = useState(0)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState('')
+  const [togglingReview, setTogglingReview] = useState<string | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
@@ -185,6 +206,45 @@ export default function OrganizationPage() {
     setCoverScale(o.coverScale ?? null)
     setIsPublicMarketplaceEnabled(o.isPublicMarketplaceEnabled ?? false)
   }, [currentOrg])
+
+  // Load reviews when org is known
+  useEffect(() => {
+    if (!currentOrgId || !isAdmin) return
+    setReviewsLoading(true)
+    apiClient
+      .getOrgReviewsAdmin(currentOrgId)
+      .then((res) => {
+        setReviews(res.reviews as AdminReview[])
+        setReviewCount(res.reviewCount)
+        setAverageRating(res.averageRating)
+      })
+      .catch(() => setReviewsError('Не удалось загрузить отзывы'))
+      .finally(() => setReviewsLoading(false))
+  }, [currentOrgId, isAdmin])
+
+  const handleToggleReviewStatus = async (review: AdminReview) => {
+    if (!currentOrgId) return
+    const next = review.status === 'published' ? 'removed' : 'published'
+    setTogglingReview(review.id)
+    try {
+      await apiClient.updateReviewStatus(currentOrgId, review.id, next)
+      setReviews((prev) => prev.map((r) => (r.id === review.id ? { ...r, status: next } : r)))
+      // Recalculate displayed aggregate
+      const published = reviews
+        .map((r) => (r.id === review.id ? { ...r, status: next } : r))
+        .filter((r) => r.status === 'published')
+      setReviewCount(published.length)
+      setAverageRating(
+        published.length > 0
+          ? Math.round((published.reduce((s, r) => s + r.rating, 0) / published.length) * 10) / 10
+          : 0
+      )
+    } catch {
+      setReviewsError('Не удалось обновить статус отзыва')
+    } finally {
+      setTogglingReview(null)
+    }
+  }
 
   const toggleCategory = (cat: string) =>
     setCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
@@ -1034,6 +1094,105 @@ export default function OrganizationPage() {
               </div>
             </Link>
           </div>
+        </div>
+
+        {/* ── Reviews ── */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Отзывы</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Отзывы клиентов о вашем центре</p>
+            </div>
+            {reviewCount > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-100 rounded-xl">
+                <span className="text-lg font-bold text-amber-600">{averageRating.toFixed(1)}</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`w-4 h-4 ${s <= Math.round(averageRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">{reviewCount} отз.</span>
+              </div>
+            )}
+          </div>
+
+          {reviewsError && <p className="text-sm text-red-600 mb-3">{reviewsError}</p>}
+
+          {reviewsLoading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Загружаем отзывы...
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Star className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+              <p className="text-sm">Отзывов пока нет</p>
+              <p className="text-xs mt-1">Они появятся, когда клиенты оставят первые оценки</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className={`flex gap-3 p-4 rounded-xl border transition-colors ${
+                    review.status === 'removed'
+                      ? 'border-gray-100 bg-gray-50 opacity-60'
+                      : 'border-gray-100 bg-white'
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center shrink-0 text-primary-700 font-bold text-sm">
+                    {review.authorName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {review.authorName}
+                      </span>
+                      {review.isVerifiedEnrollment && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
+                          Клиент
+                        </span>
+                      )}
+                      <div className="flex gap-0.5 ml-auto">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">{review.text}</p>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      {new Date(review.createdAt).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={togglingReview === review.id}
+                    onClick={() => handleToggleReviewStatus(review)}
+                    title={review.status === 'published' ? 'Скрыть отзыв' : 'Опубликовать отзыв'}
+                    className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    {togglingReview === review.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : review.status === 'published' ? (
+                      <ShieldOff className="w-4 h-4" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 text-teal-500" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Demo data seeder — admin only */}

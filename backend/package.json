@@ -19,7 +19,8 @@
     "format:check": "prettier --check src/",
     "validate": "npm run typecheck && npm run lint && npm run format:check",
     "set-super-admin": "tsx scripts/setSuperAdmin.ts",
-    "set-super-admin-direct": "tsx scripts/setSuperAdminDirect.ts"
+    "set-super-admin-direct": "tsx scripts/setSuperAdminDirect.ts",
+    "predev": "node scripts/freeDevPort.cjs"
   },
   "dependencies": {
     "@fastify/compress": "^7.0.3",

@@ -87,16 +87,19 @@ export const notesRoute: FastifyPluginAsync = async (fastify) => {
       try {
         const { orgId, childId } = request.params
 
-        await requireOrgMember(request, reply, orgId)
+        const member = await requireOrgMember(request, reply, orgId)
         const resolvedChildId = await requireChildAccess(request, reply, orgId, childId)
 
         const db = getFirestore()
         const notesRef = db.collection(COLLECTIONS.CHILD_NOTES(resolvedChildId))
+
         const notesSnapshot = await notesRef.orderBy('createdAt', 'desc').get()
 
-        const notes: SpecialistNote[] = notesSnapshot.docs.map((doc) =>
-          transformNote(doc, resolvedChildId, orgId)
-        )
+        const notes: SpecialistNote[] = notesSnapshot.docs
+          .filter(
+            (doc) => member.role !== 'specialist' || doc.data().specialistId === request.user!.uid
+          )
+          .map((doc) => transformNote(doc, resolvedChildId, orgId))
 
         return notes
       } catch (error: any) {

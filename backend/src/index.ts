@@ -29,6 +29,7 @@ import { coursesDomain } from './domains/courses/index.js'
 import { verificationsDomain } from './domains/verifications/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
+import { bookingDomain } from './domains/booking/index.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -174,6 +175,7 @@ async function buildServer() {
     paymentsDomain,
     coursesDomain,
     verificationsDomain,
+    bookingDomain,
     // External modules (parent-api, ai-assistant)
     parentApiRoutes,
     aiAssistantRoutes,

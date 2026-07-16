@@ -165,6 +165,7 @@ export function Sidebar({
     items: [
       { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
       { href: withOrg('/b2b/courses'), labelKey: t('courses'), icon: BookOpen },
+      { href: withOrg('/b2b/bookings'), labelKey: t('bookings'), icon: CalendarDays },
       ...(!isOrgAdmin
         ? [
             {

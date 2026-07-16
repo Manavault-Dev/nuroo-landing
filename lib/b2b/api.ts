@@ -584,11 +584,7 @@ export class ApiClient {
     return nextToken || this.token
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retryAuth = true
-  ): Promise<T> {
+  async request<T>(endpoint: string, options: RequestInit = {}, retryAuth = true): Promise<T> {
     if (!this.token) {
       await this.resolveToken(false)
     }
@@ -2336,6 +2332,192 @@ export class ApiClient {
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
       { method: 'DELETE' }
+    )
+  }
+
+  // ── Organization reviews ────────────────────────────────────────────────────
+
+  async getOrgReviewsAdmin(orgId: string) {
+    return this.request<{
+      ok: boolean
+      reviews: {
+        id: string
+        authorId: string
+        authorName: string
+        rating: number
+        text: string
+        status: 'published' | 'removed'
+        createdAt: string
+        updatedAt: string
+        isVerifiedEnrollment: boolean
+      }[]
+      reviewCount: number
+      averageRating: number
+    }>(`/orgs/${orgId}/reviews`)
+  }
+
+  async updateReviewStatus(orgId: string, reviewId: string, status: 'published' | 'removed') {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/reviews/${reviewId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  // ── Bookings ──────────────────────────────────────────────────────────────
+
+  async getOrgBookings(orgId: string, status?: string, specialistId?: string) {
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    if (specialistId) params.set('specialistId', specialistId)
+    const q = params.size > 0 ? `?${params}` : ''
+    return this.request<{
+      ok: boolean
+      bookings: {
+        id: string
+        orgId: string
+        specialistId: string
+        parentId: string
+        childId: string | null
+        serviceId: string | null
+        slotId: string
+        date: string
+        startTime: string
+        endTime: string
+        status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+        intakeStatus: 'none' | 'pending' | 'submitted' | 'reviewed'
+        intakeFormId: string | null
+        notes: string | null
+        cancelReason: string | null
+        createdAt: string
+        updatedAt: string
+      }[]
+    }>(`/orgs/${orgId}/bookings${q}`)
+  }
+
+  async updateBookingStatus(
+    orgId: string,
+    bookingId: string,
+    status: 'confirmed' | 'completed' | 'cancelled',
+    cancelReason?: string
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/bookings/${bookingId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, cancelReason }),
+    })
+  }
+
+  // ── Intake submissions ────────────────────────────────────────────────────
+
+  async getBookingIntake(orgId: string, bookingId: string) {
+    return this.request<{
+      intake: {
+        answers: Record<string, string | boolean>
+        submittedAt: string
+        templateSnapshot: {
+          name: string
+          fields: unknown[]
+          sections?: unknown[]
+        }
+      } | null
+    }>(`/orgs/${orgId}/bookings/${bookingId}/intake`)
+  }
+
+  async markIntakeReviewed(orgId: string, bookingId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/bookings/${bookingId}/intake/reviewed`, {
+      method: 'POST',
+    })
+  }
+
+  // ── Services ──────────────────────────────────────────────────────────────
+
+  async getOrgServices(orgId: string) {
+    return this.request<{
+      services: {
+        id: string
+        name: string
+        description: string | null
+        durationMinutes: number
+        price: number
+        currency: string
+        specialistId: string
+        intakeFormId: string | null
+      }[]
+    }>(`/orgs/${orgId}/services`)
+  }
+
+  async createOrgService(
+    orgId: string,
+    payload: {
+      name: string
+      description?: string | null
+      durationMinutes: number
+      price: number
+      currency: string
+      specialistId?: string | null
+      intakeFormId?: string | null
+    }
+  ) {
+    return this.request<{ ok: boolean; service: { id: string } }>(`/orgs/${orgId}/services`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateOrgService(
+    orgId: string,
+    serviceId: string,
+    payload: {
+      name?: string
+      description?: string | null
+      durationMinutes?: number
+      price?: number
+      currency?: string
+      specialistId?: string | null
+      intakeFormId?: string | null
+    }
+  ) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/services/${serviceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteOrgService(orgId: string, serviceId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/services/${serviceId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async ensureDefaultIntakeTemplate(orgId: string) {
+    return this.request<{ form: { id: string } }>(`/orgs/${orgId}/default-intake-template`, {
+      method: 'POST',
+    })
+  }
+
+  // ── Specialist availability ────────────────────────────────────────────────
+
+  async getSpecialistAvailability(orgId: string, specialistId: string) {
+    return this.request<{
+      availability: {
+        schedule: Record<string, { start: string; end: string }[]>
+        slotDurationMinutes: number
+        breakBetweenSlotsMinutes: number
+      } | null
+    }>(`/orgs/${orgId}/specialists/${specialistId}/availability`)
+  }
+
+  async updateSpecialistAvailability(
+    orgId: string,
+    specialistId: string,
+    payload: {
+      schedule: Record<string, { start: string; end: string }[]>
+      slotDurationMinutes: number
+      breakBetweenSlotsMinutes: number
+    }
+  ) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/specialists/${specialistId}/availability`,
+      { method: 'PUT', body: JSON.stringify(payload) }
     )
   }
 

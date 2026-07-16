@@ -426,6 +426,8 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
         contactPhone: d.contactPhone ?? null,
         whatsappNumber: d.whatsappNumber ?? null,
         websiteUrl: d.websiteUrl ?? null,
+        reviewCount: (d.reviewCount as number) ?? 0,
+        averageRating: (d.averageRating as number) ?? 0,
       }
     })
 
