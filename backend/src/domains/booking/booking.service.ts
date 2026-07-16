@@ -7,16 +7,6 @@ import type {
   TimeRange,
 } from './types.js'
 
-const DAY_MAP: Record<DayOfWeek, number> = {
-  sun: 0,
-  mon: 1,
-  tue: 2,
-  wed: 3,
-  thu: 4,
-  fri: 5,
-  sat: 6,
-}
-
 const DAY_KEYS: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
 /** Convert 'HH:MM' to total minutes since midnight */
