@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
 import {
@@ -16,13 +17,13 @@ import {
   Timer,
   Pencil,
   Trash2,
-  ChevronRight,
   CalendarDays,
   FileText,
   Eye,
   X,
   ClipboardList,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -96,58 +97,36 @@ type WeekSchedule = Record<string, DaySchedule>
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DAYS = [
-  { key: 'mon', label: 'Пн' },
-  { key: 'tue', label: 'Вт' },
-  { key: 'wed', label: 'Ср' },
-  { key: 'thu', label: 'Чт' },
-  { key: 'fri', label: 'Пт' },
-  { key: 'sat', label: 'Сб' },
-  { key: 'sun', label: 'Вс' },
-]
+const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 
-const MONTH_NAMES = [
-  'янв',
-  'фев',
-  'мар',
-  'апр',
-  'май',
-  'июн',
-  'июл',
-  'авг',
-  'сен',
-  'окт',
-  'ноя',
-  'дек',
-]
+const STATUS_CONFIG: Record<BookingStatus, { bg: string; text: string; icon: LucideIcon }> = {
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700', icon: AlertCircle },
+  confirmed: {
+    bg: 'bg-teal-50',
+    text: 'text-teal-700',
+    icon: CheckCircle2,
+  },
+  completed: { bg: 'bg-gray-100', text: 'text-gray-600', icon: CheckCircle2 },
+  cancelled: { bg: 'bg-red-50', text: 'text-red-600', icon: XCircle },
+}
 
-const STATUS_CONFIG: Record<BookingStatus, { label: string; bg: string; text: string; icon: any }> =
-  {
-    pending: { label: 'Ожидает', bg: 'bg-amber-50', text: 'text-amber-700', icon: AlertCircle },
-    confirmed: {
-      label: 'Подтверждено',
-      bg: 'bg-teal-50',
-      text: 'text-teal-700',
-      icon: CheckCircle2,
-    },
-    completed: { label: 'Завершено', bg: 'bg-gray-100', text: 'text-gray-600', icon: CheckCircle2 },
-    cancelled: { label: 'Отменено', bg: 'bg-red-50', text: 'text-red-600', icon: XCircle },
-  }
-
-function formatDate(iso: string) {
-  const d = new Date(iso + 'T00:00:00Z')
-  return `${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}`
+function formatDate(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(iso + 'T00:00:00Z'))
 }
 
 function emptyWeek(): WeekSchedule {
   return Object.fromEntries(
-    DAYS.map((d) => [d.key, { enabled: false, windows: [{ start: '09:00', end: '18:00' }] }])
+    DAY_KEYS.map((key) => [key, { enabled: false, windows: [{ start: '09:00', end: '18:00' }] }])
   )
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: BookingStatus }) {
+function StatusBadge({ status, label }: { status: BookingStatus; label: string }) {
   const cfg = STATUS_CONFIG[status]
   const Icon = cfg.icon
   return (
@@ -159,20 +138,26 @@ function StatusBadge({ status }: { status: BookingStatus }) {
       )}
     >
       <Icon className="w-3.5 h-3.5" />
-      {cfg.label}
+      {label}
     </span>
   )
 }
 
-const INTAKE_BADGE_CONFIG: Partial<
-  Record<IntakeStatus, { label: string; bg: string; text: string }>
-> = {
-  pending: { label: 'Анкета не заполнена', bg: 'bg-amber-50', text: 'text-amber-700' },
-  submitted: { label: 'Анкета отправлена', bg: 'bg-indigo-50', text: 'text-indigo-700' },
-  reviewed: { label: 'Анкета проверена', bg: 'bg-gray-100', text: 'text-gray-500' },
+const INTAKE_BADGE_CONFIG: Partial<Record<IntakeStatus, { bg: string; text: string }>> = {
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700' },
+  submitted: { bg: 'bg-indigo-50', text: 'text-indigo-700' },
+  reviewed: { bg: 'bg-gray-100', text: 'text-gray-500' },
 }
 
-function IntakeBadge({ status, onView }: { status: IntakeStatus; onView?: () => void }) {
+function IntakeBadge({
+  status,
+  label,
+  onView,
+}: {
+  status: IntakeStatus
+  label: string
+  onView?: () => void
+}) {
   const cfg = INTAKE_BADGE_CONFIG[status]
   if (!cfg) return null
   return (
@@ -187,7 +172,7 @@ function IntakeBadge({ status, onView }: { status: IntakeStatus; onView?: () => 
       )}
     >
       <FileText className="w-3.5 h-3.5" />
-      {cfg.label}
+      {label}
     </button>
   )
 }
@@ -205,10 +190,14 @@ function ClientBriefModal({
   onClose: () => void
   onReviewed: () => void
 }) {
+  const t = useTranslations('b2b.pages.bookings')
+  const locale = useLocale()
   const [marking, setMarking] = useState(false)
   const snap = submission.templateSnapshot
-  const allFields: IntakeField[] = snap.sections?.flatMap((s) => s.fields) ?? snap.fields
   const sections = snap.sections ?? [{ id: '_', title: '', fields: snap.fields }]
+  const submittedAt = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+    new Date(submission.submittedAt)
+  )
 
   const handleMarkReviewed = async () => {
     setMarking(true)
@@ -232,9 +221,9 @@ function ClientBriefModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h3 className="font-bold text-gray-900">Анкета клиента</h3>
+            <h3 className="font-bold text-gray-900">{t('clientBriefTitle')}</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Отправлено {new Date(submission.submittedAt).toLocaleDateString('ru')}
+              {t('submittedAt', { date: submittedAt })}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
@@ -255,7 +244,11 @@ function ClientBriefModal({
                 {sec.fields.map((field) => {
                   const val = submission.answers[field.id]
                   const display =
-                    val === true ? 'Да' : val === false ? 'Нет' : (val as string) || '—'
+                    val === true
+                      ? t('yes')
+                      : val === false
+                        ? t('no')
+                        : (val as string) || t('emptyValue')
                   return (
                     <div key={field.id} className="bg-gray-50 rounded-xl px-4 py-3">
                       <p className="text-xs text-gray-400 mb-1">{field.label}</p>
@@ -276,7 +269,7 @@ function ClientBriefModal({
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
           >
-            Закрыть
+            {t('close')}
           </button>
           <button
             onClick={handleMarkReviewed}
@@ -284,7 +277,7 @@ function ClientBriefModal({
             className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {marking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-            Отметить просмотренным
+            {t('markReviewed')}
           </button>
         </div>
       </div>
@@ -295,6 +288,8 @@ function ClientBriefModal({
 // ── Bookings tab ──────────────────────────────────────────────────────────────
 
 function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: string }) {
+  const t = useTranslations('b2b.pages.bookings')
+  const locale = useLocale()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
@@ -304,11 +299,11 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
   const [briefLoading, setBriefLoading] = useState(false)
 
   const FILTERS = [
-    { value: '', label: 'Все' },
-    { value: 'pending', label: 'Ожидают' },
-    { value: 'confirmed', label: 'Подтверждённые' },
-    { value: 'completed', label: 'Завершённые' },
-    { value: 'cancelled', label: 'Отменённые' },
+    { value: '', label: t('filterAll') },
+    { value: 'pending', label: t('filterPending') },
+    { value: 'confirmed', label: t('filterConfirmed') },
+    { value: 'completed', label: t('filterCompleted') },
+    { value: 'cancelled', label: t('filterCancelled') },
   ]
 
   useEffect(() => {
@@ -385,8 +380,8 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
       ) : bookings.length === 0 ? (
         <div className="text-center py-16">
           <CalendarDays className="w-14 h-14 mx-auto mb-4 text-gray-200" />
-          <p className="font-semibold text-gray-500">Записей нет</p>
-          <p className="text-sm text-gray-400 mt-1">Клиенты записываются через маркетплейс</p>
+          <p className="font-semibold text-gray-500">{t('emptyBookingsTitle')}</p>
+          <p className="text-sm text-gray-400 mt-1">{t('emptyBookingsDescription')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -403,7 +398,7 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
                     <Calendar className="w-5 h-5 text-primary-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{formatDate(b.date)}</p>
+                    <p className="text-sm font-bold text-gray-900">{formatDate(b.date, locale)}</p>
                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                       <Clock className="w-3 h-3" />
                       {b.startTime}–{b.endTime}
@@ -412,10 +407,11 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={b.status} />
+                    <StatusBadge status={b.status} label={t(`status.${b.status}`)} />
                     {b.intakeStatus && b.intakeStatus !== 'not_required' && (
                       <IntakeBadge
                         status={b.intakeStatus}
+                        label={t(`intakeStatus.${b.intakeStatus}`)}
                         onView={
                           b.intakeStatus === 'submitted' || b.intakeStatus === 'reviewed'
                             ? () => openBrief(b)
@@ -443,9 +439,7 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
                               : 'text-teal-700 bg-teal-50 hover:bg-teal-100'
                           )}
                         >
-                          {s === 'confirmed' && 'Подтвердить'}
-                          {s === 'completed' && 'Завершить'}
-                          {s === 'cancelled' && 'Отменить'}
+                          {t(`actions.${s}`)}
                         </button>
                       ))
                     )}
@@ -462,7 +456,7 @@ function BookingsTab({ orgId, specialistId }: { orgId: string; specialistId?: st
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
           <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-            <p className="text-sm text-gray-500 font-medium">Загружаем анкету...</p>
+            <p className="text-sm text-gray-500 font-medium">{t('loadingBrief')}</p>
           </div>
         </div>
       )}
@@ -495,6 +489,7 @@ function ServicesTab({
   isAdmin: boolean
   specialistId?: string
 }) {
+  const t = useTranslations('b2b.pages.bookings')
   const [services, setServices] = useState<Service[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -569,11 +564,11 @@ function ServicesTab({
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      setError('Введите название услуги')
+      setError(t('errorServiceNameRequired'))
       return
     }
     if (!form.specialistId) {
-      setError('Выберите специалиста')
+      setError(t('errorSpecialistRequired'))
       return
     }
     setSaving(true)
@@ -604,19 +599,23 @@ function ServicesTab({
       setShowForm(false)
       resetForm()
     } catch (e: any) {
-      setError(e?.payload?.error ?? 'Ошибка сохранения')
+      setError(e?.payload?.error ?? t('errorSaveService'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Удалить услугу?')) return
-    await apiClient.deleteOrgService(orgId, id).catch(() => {})
-    setServices((prev) => prev.filter((s) => s.id !== id))
+    if (!confirm(t('confirmDeleteService'))) return
+    try {
+      await apiClient.deleteOrgService(orgId, id)
+      setServices((prev) => prev.filter((s) => s.id !== id))
+    } catch {
+      setError(t('errorDeleteService'))
+    }
   }
 
-  const specialistName = (uid: string) => team.find((t) => t.uid === uid)?.name ?? uid
+  const specialistName = (uid: string) => team.find((member) => member.uid === uid)?.name ?? uid
 
   if (loading)
     return (
@@ -630,14 +629,14 @@ function ServicesTab({
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
           {services.length === 0
-            ? 'Добавьте услуги — клиенты будут выбирать их при записи'
-            : `${services.length} ${services.length === 1 ? 'услуга' : 'услуг'}`}
+            ? t('servicesHint')
+            : t('serviceCount', { count: services.length })}
         </p>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-colors"
         >
-          <Plus className="w-4 h-4" /> Добавить услугу
+          <Plus className="w-4 h-4" /> {t('addService')}
         </button>
       </div>
 
@@ -646,15 +645,17 @@ function ServicesTab({
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
             <h3 className="text-lg font-bold text-gray-900">
-              {editingId ? 'Редактировать услугу' : 'Новая услуга'}
+              {editingId ? t('editService') : t('newService')}
             </h3>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Название *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  {t('serviceNameLabel')}
+                </label>
                 <input
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
-                  placeholder="Логопедическая консультация"
+                  placeholder={t('serviceNamePlaceholder')}
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 />
@@ -663,14 +664,14 @@ function ServicesTab({
               {isAdmin && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Специалист *
+                    {t('specialistLabel')}
                   </label>
                   <select
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
                     value={form.specialistId}
                     onChange={(e) => setForm((f) => ({ ...f, specialistId: e.target.value }))}
                   >
-                    <option value="">Выберите специалиста</option>
+                    <option value="">{t('specialistPlaceholder')}</option>
                     {team.map((m) => (
                       <option key={m.uid} value={m.uid}>
                         {m.name}
@@ -683,7 +684,7 @@ function ServicesTab({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Длительность (мин)
+                    {t('durationLabel')}
                   </label>
                   <input
                     type="number"
@@ -698,7 +699,7 @@ function ServicesTab({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Цена (KGS)
+                    {t('priceLabel')}
                   </label>
                   <input
                     type="number"
@@ -711,11 +712,13 @@ function ServicesTab({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Описание</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  {t('descriptionLabel')}
+                </label>
                 <textarea
                   rows={2}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none"
-                  placeholder="Что входит в услугу?"
+                  placeholder={t('descriptionPlaceholder')}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 />
@@ -752,11 +755,9 @@ function ServicesTab({
                       form.requireIntake ? 'text-indigo-700' : 'text-gray-600'
                     )}
                   >
-                    Предварительная анкета
+                    {t('intakeToggleTitle')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Клиент заполнит анкету после записи — специалист увидит её до встречи
-                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">{t('intakeToggleDescription')}</p>
                 </div>
               </button>
 
@@ -771,7 +772,7 @@ function ServicesTab({
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
               >
-                Отмена
+                {t('cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -779,7 +780,7 @@ function ServicesTab({
                 className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Сохранить
+                {t('save')}
               </button>
             </div>
           </div>
@@ -790,8 +791,8 @@ function ServicesTab({
       {services.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
           <Scissors className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-          <p className="font-semibold text-gray-400">Услуги не добавлены</p>
-          <p className="text-sm text-gray-300 mt-1">Клиенты не смогут записаться без услуг</p>
+          <p className="font-semibold text-gray-400">{t('emptyServicesTitle')}</p>
+          <p className="text-sm text-gray-300 mt-1">{t('emptyServicesDescription')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -808,16 +809,17 @@ function ServicesTab({
                   <p className="font-semibold text-gray-900 text-sm">{svc.name}</p>
                   {svc.intakeFormId && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600">
-                      <ClipboardList className="w-3 h-3" /> Анкета
+                      <ClipboardList className="w-3 h-3" /> {t('intakeBadge')}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5">
                   <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <Timer className="w-3 h-3" /> {svc.durationMinutes} мин
+                    <Timer className="w-3 h-3" />{' '}
+                    {t('minutesShort', { count: svc.durationMinutes })}
                   </span>
                   <span className="text-xs font-semibold text-primary-600">
-                    {svc.price === 0 ? 'Бесплатно' : `${svc.price} ${svc.currency}`}
+                    {svc.price === 0 ? t('free') : `${svc.price} ${svc.currency}`}
                   </span>
                   <span className="text-xs text-gray-400 flex items-center gap-1">
                     <User className="w-3 h-3" /> {specialistName(svc.specialistId)}
@@ -857,6 +859,7 @@ function ScheduleTab({
   isAdmin: boolean
   specialistId?: string
 }) {
+  const t = useTranslations('b2b.pages.bookings')
   const [team, setTeam] = useState<TeamMember[]>([])
   const [selectedUid, setSelectedUid] = useState(isAdmin ? '' : (specialistId ?? ''))
   const [schedule, setSchedule] = useState<WeekSchedule>(emptyWeek())
@@ -865,6 +868,7 @@ function ScheduleTab({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const days = DAY_KEYS.map((key) => ({ key, label: t(`days.${key}`) }))
 
   useEffect(() => {
     if (!isAdmin) {
@@ -951,7 +955,7 @@ function ScheduleTab({
       {/* Specialist picker — admins only */}
       {isAdmin && (
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-semibold text-gray-500">Специалист:</span>
+          <span className="text-sm font-semibold text-gray-500">{t('specialistFilterLabel')}</span>
           <div className="flex gap-2 flex-wrap">
             {team.map((m) => (
               <button
@@ -975,10 +979,10 @@ function ScheduleTab({
         <>
           {/* Slot settings */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <p className="text-sm font-bold text-gray-700 mb-4">Параметры слотов</p>
+            <p className="text-sm font-bold text-gray-700 mb-4">{t('slotSettingsTitle')}</p>
             <div className="flex gap-6 flex-wrap">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Длительность слота (мин)</label>
+                <label className="block text-xs text-gray-400 mb-1">{t('slotDurationLabel')}</label>
                 <select
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
                   value={slotDuration}
@@ -986,14 +990,14 @@ function ScheduleTab({
                 >
                   {[15, 20, 30, 45, 60, 90, 120].map((v) => (
                     <option key={v} value={v}>
-                      {v} мин
+                      {t('minutesShort', { count: v })}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">
-                  Перерыв между слотами (мин)
+                  {t('breakBetweenSlotsLabel')}
                 </label>
                 <select
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
@@ -1002,7 +1006,7 @@ function ScheduleTab({
                 >
                   {[0, 5, 10, 15, 20, 30].map((v) => (
                     <option key={v} value={v}>
-                      {v === 0 ? 'Без перерыва' : `${v} мин`}
+                      {v === 0 ? t('noBreak') : t('minutesShort', { count: v })}
                     </option>
                   ))}
                 </select>
@@ -1012,8 +1016,8 @@ function ScheduleTab({
 
           {/* Weekly schedule */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <p className="text-sm font-bold text-gray-700 mb-2">Рабочие дни и часы</p>
-            {DAYS.map(({ key, label }) => {
+            <p className="text-sm font-bold text-gray-700 mb-2">{t('workingHoursTitle')}</p>
+            {days.map(({ key, label }) => {
               const cfg = schedule[key]
               return (
                 <div
@@ -1068,7 +1072,7 @@ function ScheduleTab({
                       ))}
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-400">Выходной</span>
+                    <span className="text-sm text-gray-400">{t('dayOff')}</span>
                   )}
                 </div>
               )
@@ -1083,11 +1087,11 @@ function ScheduleTab({
               className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm hover:bg-primary-700 disabled:opacity-60 transition-colors"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Сохранить расписание
+              {t('saveSchedule')}
             </button>
             {saved && (
               <span className="text-sm text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" /> Сохранено
+                <CheckCircle2 className="w-4 h-4" /> {t('saved')}
               </span>
             )}
           </div>
@@ -1100,15 +1104,16 @@ function ScheduleTab({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function BookingsPage() {
+  const t = useTranslations('b2b.pages.bookings')
   const { orgId, isLoading, isAdmin, profile } = usePageAuth()
   const [tab, setTab] = useState<Tab>('bookings')
 
   const specialistId = isAdmin ? undefined : (profile?.uid ?? undefined)
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: 'bookings', label: 'Записи' },
-    { id: 'services', label: 'Услуги' },
-    { id: 'schedule', label: 'Расписание' },
+    { id: 'bookings', label: t('tabBookings') },
+    { id: 'services', label: t('tabServices') },
+    { id: 'schedule', label: t('tabSchedule') },
   ]
 
   if (isLoading || !orgId) return null
@@ -1119,24 +1124,24 @@ export default function BookingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <CalendarDays className="w-6 h-6 text-primary-600" />
-          Записи на приём
+          {t('title')}
         </h1>
         <p className="text-sm text-gray-400 mt-1">
-          Сначала добавьте{' '}
+          {t('subtitlePrefix')}{' '}
           <button
             onClick={() => setTab('services')}
             className="text-primary-600 hover:underline font-medium"
           >
-            услуги
+            {t('subtitleServices')}
           </button>
-          , затем настройте{' '}
+          {t('subtitleMiddle')}{' '}
           <button
             onClick={() => setTab('schedule')}
             className="text-primary-600 hover:underline font-medium"
           >
-            расписание
+            {t('subtitleSchedule')}
           </button>{' '}
-          — клиенты запишутся сами через маркетплейс
+          {t('subtitleSuffix')}
         </p>
       </div>
 
