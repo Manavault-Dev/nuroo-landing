@@ -1,4 +1,5 @@
 import type { OrgBranding } from './types'
+import { captureClientException } from '@/lib/sentryClient'
 
 const API_BASE_URL =
   typeof window !== 'undefined'
@@ -541,6 +542,24 @@ class ApiCache {
 
 const cache = new ApiCache()
 
+function reportApiError(
+  error: unknown,
+  endpoint: string,
+  options: RequestInit,
+  extra?: Record<string, unknown>
+) {
+  captureClientException(error, {
+    tags: {
+      surface: 'b2b-api-client',
+      method: options.method ?? 'GET',
+    },
+    extra: {
+      endpoint: endpoint.split('?')[0],
+      ...extra,
+    },
+  })
+}
+
 export class ApiError extends Error {
   status: number
   code?: string
@@ -596,7 +615,13 @@ export class ApiClient {
     if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
 
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
-    const response = await fetch(url, { ...options, headers })
+    let response: Response
+    try {
+      response = await fetch(url, { ...options, headers })
+    } catch (error) {
+      reportApiError(error, endpoint, options, { failureType: 'network' })
+      throw error
+    }
 
     if (response.status === 401 && retryAuth && this.tokenProvider) {
       const previousToken = this.token
@@ -608,7 +633,19 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
-      throw new ApiError(error.error || 'API request failed', response.status, error.code)
+      const apiError = new ApiError(
+        error.error || 'API request failed',
+        response.status,
+        error.code
+      )
+      if (response.status >= 500) {
+        reportApiError(apiError, endpoint, options, {
+          failureType: 'http',
+          status: response.status,
+          code: error.code,
+        })
+      }
+      throw apiError
     }
 
     return response.json()
