@@ -1,13 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({
-  subsets: ['latin', 'cyrillic'],
-  display: 'swap',
-  preload: true,
-  variable: '--font-inter',
-})
 
 export const metadata: Metadata = {
   title: {
@@ -105,7 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
         <link rel="dns-prefetch" href="https://storage.googleapis.com" />
       </head>
-      <body className={`${inter.className} overflow-x-hidden`}>{children}</body>
+      <body className="font-sans overflow-x-hidden">{children}</body>
     </html>
   )
 }
