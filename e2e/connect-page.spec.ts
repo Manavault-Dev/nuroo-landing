@@ -23,7 +23,7 @@ test.describe('Connect page flow', () => {
 
     await expect(page.getByRole('heading', { name: 'Bright Steps Center' })).toBeVisible()
     await expect(page.getByText('Jane Doe')).toBeVisible()
-    await expect(page.getByText('INV123')).toBeVisible()
-    await expect(page.getByRole('button', { name: /open app/i })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: /^INV123$/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /open nuroo app/i })).toBeVisible()
   })
 })
