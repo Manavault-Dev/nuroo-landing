@@ -10,4 +10,11 @@ Sentry.init({
   enableLogs: true,
 
   sendDefaultPii: false,
+
+  beforeSend(event) {
+    if (event.request) {
+      delete event.request.data
+    }
+    return event
+  },
 })

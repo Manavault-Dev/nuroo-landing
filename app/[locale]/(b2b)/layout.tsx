@@ -15,7 +15,7 @@ import { SubscriptionPaywall } from '@/components/ui/SubscriptionPaywall'
 import { getSubscriptionState } from '@/lib/b2b/subscriptionState'
 import { apiClient, type BillingStatusResponse } from '@/lib/b2b/api'
 import { PlanProvider } from '@/lib/b2b/planContext'
-import { runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
+import { initClientSentry, runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
 
 const NO_CHROME_PAGES = ['/b2b/login', '/b2b/register', '/b2b/onboarding', '/b2b/join']
 
@@ -229,8 +229,9 @@ function B2BLayoutContent({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     const cancelIdle = runWhenIdle(() => {
-      void import('@sentry/nextjs').then((Sentry) => {
+      void initClientSentry()?.then((Sentry) => {
         if (cancelled) return
+        if (!Sentry) return
 
         if (user && profile) {
           Sentry.setUser({

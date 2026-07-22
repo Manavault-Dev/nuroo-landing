@@ -1,5 +1,10 @@
 'use client'
 
+type SentryNext = typeof import('@sentry/nextjs')
+
+let clientSentryPromise: Promise<SentryNext | null> | null = null
+let replayIntegrationAdded = false
+
 export function shouldLoadClientSentry() {
   if (typeof window === 'undefined') return false
   if (process.env.NODE_ENV !== 'production') return false
@@ -14,6 +19,76 @@ export function shouldLoadClientSentry() {
   }
 
   return true
+}
+
+export function initClientSentry() {
+  if (!shouldLoadClientSentry()) return null
+  if (clientSentryPromise) return clientSentryPromise
+
+  const isProd = process.env.NODE_ENV === 'production'
+
+  clientSentryPromise = import('@sentry/nextjs')
+    .then((Sentry) => {
+      Sentry.init({
+        dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+        environment: process.env.NODE_ENV,
+        release: process.env.NEXT_PUBLIC_APP_VERSION,
+
+        integrations: [],
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: 0,
+
+        tracesSampleRate: isProd ? 0.1 : 0,
+        enableLogs: isProd,
+        sendDefaultPii: false,
+
+        beforeSend(event) {
+          if (event.request) delete event.request.data
+          const msg = event.exception?.values?.[0]?.value ?? ''
+          if (msg.includes('Extension context') || msg.includes('ResizeObserver')) return null
+          return event
+        },
+      })
+
+      return Sentry
+    })
+    .catch(() => {
+      clientSentryPromise = null
+      return null
+    })
+
+  return clientSentryPromise
+}
+
+export function addClientReplayWhenIdle() {
+  if (process.env.NODE_ENV !== 'production') return () => undefined
+
+  return runWhenIdle(() => {
+    void initClientSentry()?.then((Sentry) => {
+      if (!Sentry || replayIntegrationAdded) return
+      replayIntegrationAdded = true
+      Sentry.addIntegration(
+        Sentry.replayIntegration({
+          blockAllMedia: true,
+          maskAllText: true,
+          maskAllInputs: true,
+        })
+      )
+    })
+  })
+}
+
+export function captureClientException(
+  error: unknown,
+  context?: {
+    tags?: Record<string, string | number | boolean | null | undefined>
+    extra?: Record<string, unknown>
+  }
+) {
+  void initClientSentry()?.then((Sentry) => {
+    if (!Sentry) return
+    Sentry.captureException(error, context)
+  })
 }
 
 export function runWhenIdle(callback: () => void) {

@@ -2,14 +2,13 @@
 
 import NextError from 'next/error'
 import { useEffect } from 'react'
-import { shouldLoadClientSentry } from '@/lib/sentryClient'
+import { captureClientException } from '@/lib/sentryClient'
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    if (!shouldLoadClientSentry()) return
-
-    void import('@sentry/nextjs').then((Sentry) => {
-      Sentry.captureException(error)
+    captureClientException(error, {
+      tags: { surface: 'global-error' },
+      extra: { digest: error.digest },
     })
   }, [error])
 
