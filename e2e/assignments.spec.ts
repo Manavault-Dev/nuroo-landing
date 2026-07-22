@@ -109,7 +109,7 @@ test.describe('Assignments product flows', () => {
     await expect(page.getByText('26 of 26 tasks')).toBeVisible()
 
     await page.getByRole('button', { name: /show more/i }).click()
-    await expect(page.getByText('Showing 26 of 26')).toBeVisible()
+    await expect(page.getByText('Task 26')).toBeVisible()
 
     await page.getByText('Speech Sounds').click()
     await expect(page.getByText('Morning Group')).toBeVisible()

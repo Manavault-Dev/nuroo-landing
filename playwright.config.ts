@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const port = Number(process.env.PORT || 3000)
-const baseURL = `http://127.0.0.1:${port}`
+const baseURL = `http://localhost:${port}`
 const sharedEnv = [
   'NEXT_PUBLIC_FIREBASE_API_KEY=mock-api-key',
   'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=mock.firebaseapp.com',
@@ -11,12 +11,15 @@ const sharedEnv = [
   'NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123',
   'NEXT_PUBLIC_E2E_AUTH_BYPASS=1',
   'NEXT_PUBLIC_API_URL=http://127.0.0.1:3101',
+  'NEXT_PUBLIC_AMPLITUDE_API_KEY=',
 ]
+const sharedEnvCommand = sharedEnv.join(' ')
 const webServerCommand = process.env.CI
-  ? [...sharedEnv, 'npm run build', 'npm run start -- --hostname 127.0.0.1 --port ' + port].join(
-      ' && '
-    )
-  : [...sharedEnv, 'npm run dev -- --hostname 127.0.0.1 --port ' + port].join(' ')
+  ? [
+      `${sharedEnvCommand} npm run build`,
+      `${sharedEnvCommand} npm run start -- --port ${port}`,
+    ].join(' && ')
+  : `${sharedEnvCommand} npm run dev -- --port ${port}`
 
 export default defineConfig({
   testDir: './e2e',
