@@ -23,6 +23,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@amplitude/unified": "^1.1.26",
     "@headlessui/react": "^1.7.18",
     "@sentry/nextjs": "^10.53.1",
     "@types/node": "^20.14.12",
