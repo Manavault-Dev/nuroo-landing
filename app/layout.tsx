@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { AmplitudeProvider } from '@/components/providers/AmplitudeProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -97,7 +98,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
         <link rel="dns-prefetch" href="https://storage.googleapis.com" />
       </head>
-      <body className="font-sans overflow-x-hidden">{children}</body>
+      <body className="font-sans overflow-x-hidden">
+        <AmplitudeProvider />
+        {children}
+      </body>
     </html>
   )
 }
