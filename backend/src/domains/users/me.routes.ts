@@ -17,13 +17,8 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 })
 
-function extractName(
-  specialistData: admin.firestore.DocumentData | null | undefined,
-  email: string | undefined
-): string {
-  if (specialistData?.fullName) return specialistData.fullName
-  if (specialistData?.name) return specialistData.name
-  return email?.split('@')[0] || 'Specialist'
+function extractName(specialistData: admin.firestore.DocumentData | null | undefined): string {
+  return specialistData?.fullName || specialistData?.name || ''
 }
 
 function normalizeRole(role: string): 'admin' | 'specialist' {
@@ -321,7 +316,7 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
     // organizations list. Clients derive the "parent" role from orgs.length === 0.
     // Returning 403 here broke the mobile app role gate — 200 is the right response.
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
-    const name = extractName(specialistData, email)
+    const name = extractName(specialistData)
 
     const profile: SpecialistProfile = {
       uid,
@@ -357,12 +352,12 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
         specialist: {
           uid,
           email: email || '',
-          name: extractName(data, email),
+          name: extractName(data),
         },
       }
     }
 
-    const name = body.name || email?.split('@')[0] || 'Specialist'
+    const name = body.name || ''
     const newData = buildNewProfileData(uid, email, name, now)
     await specialistRef.set(newData)
 

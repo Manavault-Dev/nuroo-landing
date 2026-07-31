@@ -2157,221 +2157,6 @@ export class ApiClient {
     )
   }
 
-  // ── Courses ───────────────────────────────────────────────────────────────
-
-  async getCourses(orgId: string) {
-    return this.request<{ ok: boolean; courses: any[] }>(`/orgs/${orgId}/courses`)
-  }
-
-  async getCourse(orgId: string, courseId: string) {
-    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses/${courseId}`)
-  }
-
-  async createCourse(orgId: string, data: Record<string, unknown>) {
-    return this.request<{ ok: boolean; course: any }>(`/orgs/${orgId}/courses`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async uploadCourseCoverImage(orgId: string, file: File) {
-    return this.uploadCourseMedia(orgId, file, 'cover')
-  }
-
-  async uploadCourseMedia(
-    orgId: string,
-    file: File,
-    kind: 'cover' | 'lesson-video' | 'lesson-image' | 'lesson-pdf'
-  ) {
-    const formData = new FormData()
-    formData.append('media', file)
-    formData.append('kind', kind)
-
-    const headers = new Headers()
-    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
-
-    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/courses/media`, {
-      method: 'POST',
-      body: formData,
-      headers,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
-      throw new Error(error.error || error.message || 'Upload failed')
-    }
-
-    return response.json() as Promise<{
-      ok: boolean
-      url: string
-      path: string
-      mediaType?: string
-      filename?: string
-      kind?: string
-    }>
-  }
-
-  async updateCourse(orgId: string, courseId: string, data: Record<string, unknown>) {
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async deleteCourse(orgId: string, courseId: string) {
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async getCourseModules(orgId: string, courseId: string) {
-    return this.request<{ ok: boolean; modules: any[] }>(
-      `/orgs/${orgId}/courses/${courseId}/modules`
-    )
-  }
-
-  async createCourseModule(orgId: string, courseId: string, data: Record<string, unknown>) {
-    return this.request<{ ok: boolean; module: any }>(
-      `/orgs/${orgId}/courses/${courseId}/modules`,
-      { method: 'POST', body: JSON.stringify(data) }
-    )
-  }
-
-  async updateCourseModule(
-    orgId: string,
-    courseId: string,
-    moduleId: string,
-    data: Record<string, unknown>
-  ) {
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async deleteCourseModule(orgId: string, courseId: string, moduleId: string) {
-    return this.request<{ ok: boolean }>(`/orgs/${orgId}/courses/${courseId}/modules/${moduleId}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async getModuleLessons(orgId: string, courseId: string, moduleId: string) {
-    return this.request<{ ok: boolean; lessons: any[] }>(
-      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`
-    )
-  }
-
-  async getMarketplaceCourseAccess(orgId: string, courseId: string, childId?: string) {
-    const qs = childId ? `?childId=${encodeURIComponent(childId)}` : ''
-    return this.request<{ ok: boolean; access: any }>(
-      `/marketplace/orgs/${orgId}/courses/${courseId}/access${qs}`
-    )
-  }
-
-  async enrollMarketplaceCourse(orgId: string, courseId: string, childId?: string) {
-    return this.request<{ ok: boolean; enrollment: any; entitlement?: any; access?: any }>(
-      `/marketplace/orgs/${orgId}/courses/${courseId}/enroll`,
-      {
-        method: 'POST',
-        body: JSON.stringify(childId ? { childId } : {}),
-      }
-    )
-  }
-
-  async getMyChildVerifications() {
-    return this.request<{ ok: boolean; verifications: any[] }>('/verifications/children/mine')
-  }
-
-  async uploadChildVerificationDocument(file: File) {
-    const formData = new FormData()
-    formData.append('document', file)
-
-    const headers = new Headers()
-    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
-
-    const response = await fetch(`${this.baseUrl}/verifications/children/documents`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
-      throw new ApiError(error.error || 'Document upload failed', response.status, error.code)
-    }
-
-    return response.json() as Promise<{
-      ok: boolean
-      documentRef: string
-      path: string
-      filename: string
-      contentType: string
-      size: number
-    }>
-  }
-
-  async submitChildVerification(data: { childId: string; documentRefs: string[]; note?: string }) {
-    return this.request<{ ok: boolean; verification: any }>('/verifications/children', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async getChildVerificationsForReview(
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING',
-    orgId?: string,
-    courseId?: string
-  ) {
-    const params = new URLSearchParams({ status })
-    if (orgId) params.set('orgId', orgId)
-    if (courseId) params.set('courseId', courseId)
-    return this.request<{ ok: boolean; verifications: any[] }>(
-      `/admin/verifications/children?${params.toString()}`
-    )
-  }
-
-  async reviewChildVerification(
-    verificationId: string,
-    data: { status: 'APPROVED' | 'REJECTED'; rejectionReason?: string }
-  ) {
-    return this.request<{ ok: boolean }>(`/admin/verifications/children/${verificationId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async createLesson(
-    orgId: string,
-    courseId: string,
-    moduleId: string,
-    data: Record<string, unknown>
-  ) {
-    return this.request<{ ok: boolean; lesson: any }>(
-      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons`,
-      { method: 'POST', body: JSON.stringify(data) }
-    )
-  }
-
-  async updateLesson(
-    orgId: string,
-    courseId: string,
-    moduleId: string,
-    lessonId: string,
-    data: Record<string, unknown>
-  ) {
-    return this.request<{ ok: boolean }>(
-      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
-      { method: 'PATCH', body: JSON.stringify(data) }
-    )
-  }
-
-  async deleteLesson(orgId: string, courseId: string, moduleId: string, lessonId: string) {
-    return this.request<{ ok: boolean }>(
-      `/orgs/${orgId}/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
-      { method: 'DELETE' }
-    )
-  }
-
   // ── Organization reviews ────────────────────────────────────────────────────
 
   async getOrgReviewsAdmin(orgId: string) {
@@ -2555,6 +2340,151 @@ export class ApiClient {
     return this.request<{ ok: boolean }>(
       `/orgs/${orgId}/specialists/${specialistId}/availability`,
       { method: 'PUT', body: JSON.stringify(payload) }
+    )
+  }
+
+  // ── Cohorts ───────────────────────────────────────────────────────────────
+
+  async getCohorts(orgId: string) {
+    return this.request<{ ok: boolean; cohorts: any[] }>(`/orgs/${orgId}/cohorts`)
+  }
+
+  async getCohort(orgId: string, cohortId: string) {
+    return this.request<{ ok: boolean; cohort: any }>(`/orgs/${orgId}/cohorts/${cohortId}`)
+  }
+
+  async createCohort(orgId: string, body: Record<string, unknown>) {
+    return this.request<{ ok: boolean; cohort: any }>(`/orgs/${orgId}/cohorts`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
+  async updateCohort(orgId: string, cohortId: string, body: Record<string, unknown>) {
+    return this.request<{ ok: boolean; cohort: any }>(`/orgs/${orgId}/cohorts/${cohortId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  }
+
+  async deleteCohort(orgId: string, cohortId: string) {
+    return this.request<{ ok: boolean }>(`/orgs/${orgId}/cohorts/${cohortId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getCohortSessions(orgId: string, cohortId: string) {
+    return this.request<{ ok: boolean; sessions: any[] }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions`
+    )
+  }
+
+  async createCohortSession(orgId: string, cohortId: string, body: Record<string, unknown>) {
+    return this.request<{ ok: boolean; session: any }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions`,
+      { method: 'POST', body: JSON.stringify(body) }
+    )
+  }
+
+  async updateCohortSession(
+    orgId: string,
+    cohortId: string,
+    sessionId: string,
+    body: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean; session: any }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions/${sessionId}`,
+      { method: 'PATCH', body: JSON.stringify(body) }
+    )
+  }
+
+  async deleteCohortSession(orgId: string, cohortId: string, sessionId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions/${sessionId}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getCohortParticipants(orgId: string, cohortId: string) {
+    return this.request<{ ok: boolean; participants: any[] }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/participants`
+    )
+  }
+
+  async addCohortParticipant(orgId: string, cohortId: string, body: Record<string, unknown>) {
+    return this.request<{ ok: boolean; participant: any }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/participants`,
+      { method: 'POST', body: JSON.stringify(body) }
+    )
+  }
+
+  async updateCohortParticipant(
+    orgId: string,
+    cohortId: string,
+    participantId: string,
+    body: Record<string, unknown>
+  ) {
+    return this.request<{ ok: boolean; participant: any }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/participants/${participantId}`,
+      { method: 'PATCH', body: JSON.stringify(body) }
+    )
+  }
+
+  async getCohortAttendance(orgId: string, cohortId: string, sessionId: string) {
+    return this.request<{ ok: boolean; attendance: any[] }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions/${sessionId}/attendance`
+    )
+  }
+
+  async saveCohortAttendance(
+    orgId: string,
+    cohortId: string,
+    sessionId: string,
+    records: Array<{ childId: string; status: 'present' | 'absent' | 'late' }>
+  ) {
+    return this.request<{ ok: boolean; count: number }>(
+      `/orgs/${orgId}/cohorts/${cohortId}/sessions/${sessionId}/attendance`,
+      { method: 'POST', body: JSON.stringify({ records }) }
+    )
+  }
+
+  // ── Schedule blocking ──────────────────────────────────────────────────────
+
+  async getSpecialistBlocking(orgId: string, specialistId: string) {
+    return this.request<{
+      blocks: Array<{
+        id: string
+        startDate: string
+        endDate: string
+        startTime: string | null
+        endTime: string | null
+        reason: string | null
+        createdAt: string
+      }>
+    }>(`/orgs/${orgId}/specialists/${specialistId}/blocking`)
+  }
+
+  async createSpecialistBlock(
+    orgId: string,
+    specialistId: string,
+    payload: {
+      startDate: string
+      endDate: string
+      startTime?: string | null
+      endTime?: string | null
+      reason?: string | null
+    }
+  ) {
+    return this.request<{ ok: boolean; block: { id: string } }>(
+      `/orgs/${orgId}/specialists/${specialistId}/blocking`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    )
+  }
+
+  async deleteSpecialistBlock(orgId: string, specialistId: string, blockId: string) {
+    return this.request<{ ok: boolean }>(
+      `/orgs/${orgId}/specialists/${specialistId}/blocking/${blockId}`,
+      { method: 'DELETE' }
     )
   }
 

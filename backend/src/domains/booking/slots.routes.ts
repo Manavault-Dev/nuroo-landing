@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { generateSlotsForRange } from './booking.service.js'
-import type { AvailabilityTemplate, Slot } from './types.js'
+import type { AvailabilityTemplate, BlockedPeriod, Slot } from './types.js'
 
 const RATE_PUBLIC = { max: 120, timeWindow: '1 minute' }
 
@@ -73,7 +73,38 @@ export const slotsRoute: FastifyPluginAsync = async (fastify) => {
           .map((slot) => `${slot.date}|${slot.startTime}`)
       )
 
-      const available = generated.filter((s) => !bookedKeys.has(`${s.date}|${s.startTime}`))
+      // Load blocked periods for this specialist (single-equality query — no composite index needed)
+      // and filter the date range in JS to avoid requiring a Firestore composite index.
+      let blocks: BlockedPeriod[] = []
+      try {
+        const blockedSnap = await db
+          .collection(`organizations/${orgId}/specialistBlocking`)
+          .where('specialistId', '==', specialistId)
+          .get()
+
+        blocks = blockedSnap.docs
+          .map((d) => d.data() as BlockedPeriod)
+          .filter((b) => b.endDate >= startDate && b.startDate <= endDateStr)
+      } catch {
+        // Non-fatal: if blocking query fails, serve slots without blocking applied
+        blocks = []
+      }
+
+      const isBlocked = (date: string, startTime: string, endTime: string): boolean => {
+        for (const b of blocks) {
+          if (date < b.startDate || date > b.endDate) continue
+          // Full-day block
+          if (!b.startTime || !b.endTime) return true
+          // Time-range block — blocked if slot overlaps the block window
+          if (startTime < b.endTime && endTime > b.startTime) return true
+        }
+        return false
+      }
+
+      const available = generated.filter(
+        (s) =>
+          !bookedKeys.has(`${s.date}|${s.startTime}`) && !isBlocked(s.date, s.startTime, s.endTime)
+      )
 
       return {
         ok: true,

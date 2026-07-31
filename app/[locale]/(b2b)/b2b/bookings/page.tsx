@@ -22,6 +22,8 @@ import {
   Eye,
   X,
   ClipboardList,
+  Ban,
+  ChevronRight,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
@@ -116,6 +118,10 @@ function formatDate(iso: string, locale: string) {
     month: 'short',
     timeZone: 'UTC',
   }).format(new Date(iso + 'T00:00:00Z'))
+}
+
+function memberDisplayName(name: string, unnamed: string) {
+  return name && name.trim() ? name : unnamed
 }
 
 function emptyWeek(): WeekSchedule {
@@ -615,7 +621,10 @@ function ServicesTab({
     }
   }
 
-  const specialistName = (uid: string) => team.find((member) => member.uid === uid)?.name ?? uid
+  const specialistName = (uid: string) => {
+    const m = team.find((member) => member.uid === uid)
+    return m ? memberDisplayName(m.name, t('unnamedSpecialist')) : uid
+  }
 
   if (loading)
     return (
@@ -674,7 +683,7 @@ function ServicesTab({
                     <option value="">{t('specialistPlaceholder')}</option>
                     {team.map((m) => (
                       <option key={m.uid} value={m.uid}>
-                        {m.name}
+                        {memberDisplayName(m.name, t('unnamedSpecialist'))}
                       </option>
                     ))}
                   </select>
@@ -848,7 +857,392 @@ function ServicesTab({
   )
 }
 
-// ── Schedule tab ──────────────────────────────────────────────────────────────
+// ── Types for blocking ────────────────────────────────────────────────────────
+
+interface BlockedPeriod {
+  id: string
+  startDate: string
+  endDate: string
+  startTime: string | null
+  endTime: string | null
+  reason: string | null
+}
+
+// ── Slot helpers (pure) ───────────────────────────────────────────────────────
+
+const DOW_MAP = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+function dayKeyFromIso(iso: string) {
+  return DOW_MAP[new Date(iso + 'T00:00:00Z').getUTCDay()]
+}
+
+function generateDaySlots(
+  windows: { start: string; end: string }[],
+  slotMin: number,
+  breakMin: number
+) {
+  const result: { start: string; end: string }[] = []
+  for (const w of windows) {
+    const [wh, wm] = w.start.split(':').map(Number)
+    const [eh, em] = w.end.split(':').map(Number)
+    let cur = wh * 60 + wm
+    const endM = eh * 60 + em
+    while (cur + slotMin <= endM) {
+      const fmt = (m: number) =>
+        `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+      result.push({ start: fmt(cur), end: fmt(cur + slotMin) })
+      cur += slotMin + breakMin
+    }
+  }
+  return result
+}
+
+function findBlockForSlot(
+  date: string,
+  start: string,
+  end: string,
+  blocks: BlockedPeriod[]
+): BlockedPeriod | null {
+  return (
+    blocks.find((b) => {
+      if (date < b.startDate || date > b.endDate) return false
+      if (!b.startTime || !b.endTime) return true // full-day block
+      return b.startTime <= start && b.endTime >= end
+    }) ?? null
+  )
+}
+
+// ── Blocking section ──────────────────────────────────────────────────────────
+
+function BlockingSection({
+  orgId,
+  specialistId,
+  schedule,
+  slotDuration,
+  breakMins,
+}: {
+  orgId: string
+  specialistId: string
+  schedule: WeekSchedule
+  slotDuration: number
+  breakMins: number
+}) {
+  const t = useTranslations('b2b.pages.bookings')
+  const [blocks, setBlocks] = useState<BlockedPeriod[]>([])
+  const [loading, setLoading] = useState(true)
+  const [toggling, setToggling] = useState<string | null>(null) // slotKey being saved
+  const [error, setError] = useState('')
+
+  // Calendar state
+  const now = new Date()
+  const [viewYear, setViewYear] = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  const today = now.toISOString().split('T')[0]
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    apiClient
+      .getSpecialistBlocking(orgId, specialistId)
+      .then((r) => setBlocks(r.blocks))
+      .catch(() => setBlocks([]))
+      .finally(() => setLoading(false))
+  }, [orgId, specialistId])
+
+  // ── Calendar helpers ─────────────────────────────────────────────────────────
+
+  const isoDate = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate()
+  const firstWeekday = (y: number, m: number) => {
+    const d = new Date(y, m, 1).getDay()
+    return d === 0 ? 6 : d - 1 // Mon = 0
+  }
+
+  const prevMonth = () =>
+    viewMonth === 0 ? (setViewYear((y) => y - 1), setViewMonth(11)) : setViewMonth((m) => m - 1)
+  const nextMonth = () =>
+    viewMonth === 11 ? (setViewYear((y) => y + 1), setViewMonth(0)) : setViewMonth((m) => m + 1)
+
+  const monthLabel = new Intl.DateTimeFormat('ru', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(viewYear, viewMonth, 1))
+
+  // Does this date have ANY block (partial or full-day)?
+  const hasAnyBlock = (date: string) => blocks.some((b) => date >= b.startDate && date <= b.endDate)
+
+  // Count blocked slots on a date
+  const blockedSlotsOnDate = (date: string) =>
+    blocks.filter((b) => date >= b.startDate && date <= b.endDate)
+
+  // ── Slot helpers ─────────────────────────────────────────────────────────────
+
+  // Get the working windows for a given date based on weekly schedule
+  const windowsForDate = (date: string) => {
+    const key = dayKeyFromIso(date)
+    const dayCfg = schedule[key]
+    if (!dayCfg?.enabled) return null
+    return dayCfg.windows
+  }
+
+  // All slots for the selected date
+  const slotsForDate = (date: string) => {
+    const windows = windowsForDate(date)
+    if (!windows) return null
+    return generateDaySlots(windows, slotDuration, breakMins)
+  }
+
+  // ── Toggle a single slot ─────────────────────────────────────────────────────
+
+  const toggleSlot = async (date: string, start: string, end: string) => {
+    const slotKey = `${date}|${start}`
+    const existing = findBlockForSlot(date, start, end, blocks)
+
+    setToggling(slotKey)
+    setError('')
+    try {
+      if (existing) {
+        // Unblock
+        await apiClient.deleteSpecialistBlock(orgId, specialistId, existing.id)
+        setBlocks((prev) => prev.filter((b) => b.id !== existing.id))
+      } else {
+        // Block this slot
+        const res = await apiClient.createSpecialistBlock(orgId, specialistId, {
+          startDate: date,
+          endDate: date,
+          startTime: start,
+          endTime: end,
+          reason: null,
+        })
+        setBlocks((prev) => [
+          ...prev,
+          {
+            id: res.block.id,
+            startDate: date,
+            endDate: date,
+            startTime: start,
+            endTime: end,
+            reason: null,
+          },
+        ])
+      }
+    } catch {
+      setError(existing ? t('blockDeleteError') : t('blockSaveError'))
+    } finally {
+      setToggling(null)
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+  const totalDays = daysInMonth(viewYear, viewMonth)
+  const offset = firstWeekday(viewYear, viewMonth)
+
+  const selectedSlots = selectedDate ? slotsForDate(selectedDate) : null
+  const selectedDayLabel = selectedDate
+    ? new Intl.DateTimeFormat('ru', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'UTC',
+      }).format(new Date(selectedDate + 'T00:00:00Z'))
+    : null
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      {/* Section header */}
+      <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+        <p className="text-sm font-bold text-gray-800">{t('blockingTitle')}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{t('blockingHint')}</p>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
+        </div>
+      ) : (
+        <div className="md:flex">
+          {/* ── Left: mini calendar ── */}
+          <div className="p-5 md:w-72 md:border-r md:border-gray-100 flex-shrink-0">
+            {/* Month nav */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={prevMonth}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180" />
+              </button>
+              <p className="text-sm font-bold text-gray-800 capitalize">{monthLabel}</p>
+              <button
+                onClick={nextMonth}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Day names */}
+            <div className="grid grid-cols-7 mb-1">
+              {DAY_NAMES.map((d) => (
+                <div key={d} className="text-center text-xs font-semibold text-gray-300 py-1">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7 gap-y-1">
+              {Array.from({ length: offset }).map((_, i) => (
+                <div key={`e${i}`} />
+              ))}
+              {Array.from({ length: totalDays }).map((_, i) => {
+                const day = i + 1
+                const date = isoDate(viewYear, viewMonth, day)
+                const isPast = date < today
+                const isSelected = date === selectedDate
+                const isToday = date === today
+                const hasBlocks = hasAnyBlock(date)
+                const isWorking = !!windowsForDate(date)
+
+                return (
+                  <button
+                    key={date}
+                    disabled={isPast}
+                    onClick={() => setSelectedDate(isSelected ? null : date)}
+                    className={clsx(
+                      'relative flex flex-col items-center justify-center rounded-xl h-9 text-sm font-semibold transition-all select-none',
+                      isPast && 'text-gray-200 cursor-not-allowed',
+                      !isPast &&
+                        !isSelected &&
+                        isWorking &&
+                        'text-gray-700 hover:bg-gray-50 cursor-pointer',
+                      !isPast &&
+                        !isSelected &&
+                        !isWorking &&
+                        'text-gray-300 cursor-pointer hover:bg-gray-50',
+                      isToday && !isSelected && 'ring-1 ring-inset ring-primary-300',
+                      isSelected && 'bg-primary-600 text-white shadow-sm'
+                    )}
+                  >
+                    {day}
+                    {/* Dot: has blocked slots */}
+                    {hasBlocks && !isSelected && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-400" />
+                    )}
+                    {/* Dot: non-working */}
+                    {!isWorking && !isPast && !isSelected && !hasBlocks && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gray-200" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex gap-3 mt-4 flex-wrap">
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                Есть блокировки
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />
+                Нерабочий день
+              </span>
+            </div>
+          </div>
+
+          {/* ── Right: slot grid for selected day ── */}
+          <div className="flex-1 p-5">
+            {!selectedDate ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center">
+                <Calendar className="w-8 h-8 text-gray-200 mb-3" />
+                <p className="text-sm font-semibold text-gray-400">Выберите дату</p>
+                <p className="text-xs text-gray-300 mt-1">
+                  Нажмите на день, чтобы управлять слотами
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Day label */}
+                <p className="text-sm font-bold text-gray-800 capitalize">{selectedDayLabel}</p>
+
+                {selectedSlots === null ? (
+                  // Non-working day
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <Ban className="w-4 h-4 text-gray-300" />
+                    Нерабочий день по расписанию
+                  </div>
+                ) : selectedSlots.length === 0 ? (
+                  // No slots (schedule window too short for slot duration)
+                  <div className="text-sm text-gray-400">Нет доступных слотов</div>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-400">
+                      Нажмите на слот, чтобы заблокировать или разблокировать его
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedSlots.map((slot) => {
+                        const slotKey = `${selectedDate}|${slot.start}`
+                        const blocked = !!findBlockForSlot(
+                          selectedDate,
+                          slot.start,
+                          slot.end,
+                          blocks
+                        )
+                        const isToggling = toggling === slotKey
+
+                        return (
+                          <button
+                            key={slotKey}
+                            onClick={() => toggleSlot(selectedDate, slot.start, slot.end)}
+                            disabled={isToggling}
+                            className={clsx(
+                              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-all',
+                              blocked
+                                ? 'bg-red-50 border-red-200 text-red-500 hover:bg-red-100'
+                                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100',
+                              isToggling && 'opacity-50 cursor-not-allowed'
+                            )}
+                          >
+                            {isToggling ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : blocked ? (
+                              <Ban className="w-3 h-3" />
+                            ) : (
+                              <Clock className="w-3 h-3 text-gray-400" />
+                            )}
+                            <span className={blocked ? 'line-through' : ''}>{slot.start}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Summary for selected day */}
+                    {blockedSlotsOnDate(selectedDate).length > 0 && (
+                      <p className="text-xs text-red-400 font-medium pt-1">
+                        Заблокировано: {blockedSlotsOnDate(selectedDate).length} из{' '}
+                        {selectedSlots.length} слотов
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {error && <p className="text-sm text-red-500">{error}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Schedule tab (unified) ────────────────────────────────────────────────────
 
 function ScheduleTab({
   orgId,
@@ -860,6 +1254,8 @@ function ScheduleTab({
   specialistId?: string
 }) {
   const t = useTranslations('b2b.pages.bookings')
+
+  // ── Schedule state ───────────────────────────────────────────────────────────
   const [team, setTeam] = useState<TeamMember[]>([])
   const [selectedUid, setSelectedUid] = useState(isAdmin ? '' : (specialistId ?? ''))
   const [schedule, setSchedule] = useState<WeekSchedule>(emptyWeek())
@@ -868,6 +1264,18 @@ function ScheduleTab({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // ── Blocking state ───────────────────────────────────────────────────────────
+  const now = new Date()
+  const [blocks, setBlocks] = useState<BlockedPeriod[]>([])
+  const [blocksLoading, setBlocksLoading] = useState(false)
+  const [toggling, setToggling] = useState<string | null>(null)
+  const [blockError, setBlockError] = useState('')
+  const [viewYear, setViewYear] = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const today = now.toISOString().split('T')[0]
+
   const days = DAY_KEYS.map((key) => ({ key, label: t(`days.${key}`) }))
 
   useEffect(() => {
@@ -911,6 +1319,16 @@ function ScheduleTab({
       .finally(() => setLoading(false))
   }, [orgId, selectedUid])
 
+  useEffect(() => {
+    if (!selectedUid) return
+    setBlocksLoading(true)
+    apiClient
+      .getSpecialistBlocking(orgId, selectedUid)
+      .then((r) => setBlocks(r.blocks))
+      .catch(() => setBlocks([]))
+      .finally(() => setBlocksLoading(false))
+  }, [orgId, selectedUid])
+
   const toggleDay = (day: string) => {
     setSchedule((s) => ({ ...s, [day]: { ...s[day], enabled: !s[day].enabled } }))
   }
@@ -922,6 +1340,8 @@ function ScheduleTab({
       return { ...s, [day]: { ...s[day], windows: wins } }
     })
   }
+
+  // ── Save schedule ────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     setSaving(true)
@@ -943,6 +1363,93 @@ function ScheduleTab({
     }
   }
 
+  // ── Blocking helpers (inline) ─────────────────────────────────────────────
+
+  const isoDate = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const prevMonth = () =>
+    viewMonth === 0 ? (setViewYear((y) => y - 1), setViewMonth(11)) : setViewMonth((m) => m - 1)
+  const nextMonth = () =>
+    viewMonth === 11 ? (setViewYear((y) => y + 1), setViewMonth(0)) : setViewMonth((m) => m + 1)
+
+  const monthLabel = new Intl.DateTimeFormat('ru', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(viewYear, viewMonth, 1))
+
+  const totalDays = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const calOffset = (() => {
+    const d = new Date(viewYear, viewMonth, 1).getDay()
+    return d === 0 ? 6 : d - 1
+  })()
+
+  const hasAnyBlock = (date: string) => blocks.some((b) => date >= b.startDate && date <= b.endDate)
+
+  const windowsForDate = (date: string) => {
+    const key = dayKeyFromIso(date)
+    const cfg = schedule[key]
+    return cfg?.enabled ? cfg.windows : null
+  }
+
+  const slotsForDate = (date: string) => {
+    const w = windowsForDate(date)
+    return w ? generateDaySlots(w, slotDuration, breakMins) : null
+  }
+
+  const toggleSlot = async (date: string, start: string, end: string) => {
+    const slotKey = `${date}|${start}`
+    const existing = findBlockForSlot(date, start, end, blocks)
+    setToggling(slotKey)
+    setBlockError('')
+    try {
+      if (existing) {
+        await apiClient.deleteSpecialistBlock(orgId, selectedUid, existing.id)
+        setBlocks((prev) => prev.filter((b) => b.id !== existing.id))
+      } else {
+        const res = await apiClient.createSpecialistBlock(orgId, selectedUid, {
+          startDate: date,
+          endDate: date,
+          startTime: start,
+          endTime: end,
+          reason: null,
+        })
+        setBlocks((prev) => [
+          ...prev,
+          {
+            id: res.block.id,
+            startDate: date,
+            endDate: date,
+            startTime: start,
+            endTime: end,
+            reason: null,
+          },
+        ])
+      }
+    } catch {
+      setBlockError(existing ? t('blockDeleteError') : t('blockSaveError'))
+    } finally {
+      setToggling(null)
+    }
+  }
+
+  // ── Derived values for calendar panel ────────────────────────────────────────
+
+  const selectedSlots = selectedDate ? slotsForDate(selectedDate) : null
+  const selectedDayLabel = selectedDate
+    ? new Intl.DateTimeFormat('ru', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'UTC',
+      }).format(new Date(selectedDate + 'T00:00:00Z'))
+    : null
+  const blockedCountOnDay = selectedDate
+    ? blocks.filter((b) => selectedDate >= b.startDate && selectedDate <= b.endDate).length
+    : 0
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   if (loading)
     return (
       <div className="flex justify-center py-16">
@@ -950,25 +1457,27 @@ function ScheduleTab({
       </div>
     )
 
+  const CAL_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+
   return (
-    <div className="space-y-6">
-      {/* Specialist picker — admins only */}
+    <div className="space-y-4">
+      {/* Specialist picker */}
       {isAdmin && (
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-semibold text-gray-500">{t('specialistFilterLabel')}</span>
+          <span className="text-sm font-medium text-gray-500">{t('specialistFilterLabel')}</span>
           <div className="flex gap-2 flex-wrap">
             {team.map((m) => (
               <button
                 key={m.uid}
                 onClick={() => setSelectedUid(m.uid)}
                 className={clsx(
-                  'px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
+                  'px-4 py-2 rounded-xl text-sm font-semibold transition-all',
                   selectedUid === m.uid
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-600'
                 )}
               >
-                {m.name}
+                {memberDisplayName(m.name, t('unnamedSpecialist'))}
               </button>
             ))}
           </div>
@@ -977,123 +1486,353 @@ function ScheduleTab({
 
       {selectedUid && (
         <>
-          {/* Slot settings */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <p className="text-sm font-bold text-gray-700 mb-4">{t('slotSettingsTitle')}</p>
-            <div className="flex gap-6 flex-wrap">
+          {/* ── CARD 1: Schedule ─────────────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">{t('slotDurationLabel')}</label>
-                <select
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-                  value={slotDuration}
-                  onChange={(e) => setSlotDuration(Number(e.target.value))}
-                >
-                  {[15, 20, 30, 45, 60, 90, 120].map((v) => (
-                    <option key={v} value={v}>
-                      {t('minutesShort', { count: v })}
-                    </option>
-                  ))}
-                </select>
+                <h3 className="text-sm font-bold text-gray-900">{t('workingHoursTitle')}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Укажите дни и часы работы</p>
               </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">
-                  {t('breakBetweenSlotsLabel')}
-                </label>
-                <select
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-                  value={breakMins}
-                  onChange={(e) => setBreakMins(Number(e.target.value))}
+              <div className="flex items-center gap-3">
+                {saved && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {t('saved')}
+                  </span>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 active:scale-95 disabled:opacity-60 transition-all"
                 >
-                  {[0, 5, 10, 15, 20, 30].map((v) => (
-                    <option key={v} value={v}>
-                      {v === 0 ? t('noBreak') : t('minutesShort', { count: v })}
-                    </option>
-                  ))}
-                </select>
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  {t('saveSchedule')}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Slot settings */}
+              <div className="flex gap-4 flex-wrap">
+                <div>
+                  <label className="block text-xs text-gray-500 font-medium mb-1.5">
+                    {t('slotDurationLabel')}
+                  </label>
+                  <select
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400 cursor-pointer"
+                    value={slotDuration}
+                    onChange={(e) => setSlotDuration(Number(e.target.value))}
+                  >
+                    {[15, 20, 30, 45, 60, 90, 120].map((v) => (
+                      <option key={v} value={v}>
+                        {t('minutesShort', { count: v })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 font-medium mb-1.5">
+                    {t('breakBetweenSlotsLabel')}
+                  </label>
+                  <select
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400 cursor-pointer"
+                    value={breakMins}
+                    onChange={(e) => setBreakMins(Number(e.target.value))}
+                  >
+                    {[0, 5, 10, 15, 20, 30].map((v) => (
+                      <option key={v} value={v}>
+                        {v === 0 ? t('noBreak') : t('minutesShort', { count: v })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Day rows */}
+              <div className="space-y-1.5">
+                {days.map(({ key, label }) => {
+                  const cfg = schedule[key]
+                  return (
+                    <div
+                      key={key}
+                      className={clsx(
+                        'flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
+                        cfg.enabled ? 'bg-primary-50' : 'bg-gray-50'
+                      )}
+                    >
+                      <button
+                        onClick={() => toggleDay(key)}
+                        aria-label={`Toggle ${label}`}
+                        className={clsx(
+                          'w-10 h-[22px] rounded-full relative transition-colors flex-shrink-0 focus:outline-none',
+                          cfg.enabled ? 'bg-primary-500' : 'bg-gray-300'
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            'absolute top-[3px] w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200',
+                            cfg.enabled ? 'left-[22px]' : 'left-[3px]'
+                          )}
+                        />
+                      </button>
+                      <span
+                        className={clsx(
+                          'text-sm font-semibold w-8 flex-shrink-0',
+                          cfg.enabled ? 'text-primary-700' : 'text-gray-400'
+                        )}
+                      >
+                        {label}
+                      </span>
+                      {cfg.enabled ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            value={cfg.windows[0]?.start ?? '09:00'}
+                            onChange={(e) => updateWindow(key, 0, 'start', e.target.value)}
+                            className="w-[88px] border border-primary-200 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-primary-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 [&::-webkit-calendar-picker-indicator]:hidden tabular-nums"
+                          />
+                          <span className="text-gray-300 text-sm">—</span>
+                          <input
+                            type="time"
+                            value={cfg.windows[0]?.end ?? '18:00'}
+                            onChange={(e) => updateWindow(key, 0, 'end', e.target.value)}
+                            className="w-[88px] border border-primary-200 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-primary-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 [&::-webkit-calendar-picker-indicator]:hidden tabular-nums"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">{t('dayOff')}</span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>
 
-          {/* Weekly schedule */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <p className="text-sm font-bold text-gray-700 mb-2">{t('workingHoursTitle')}</p>
-            {days.map(({ key, label }) => {
-              const cfg = schedule[key]
-              return (
-                <div
-                  key={key}
-                  className={clsx(
-                    'flex items-center gap-4 p-3 rounded-xl transition-colors',
-                    cfg.enabled ? 'bg-primary-50' : 'bg-gray-50'
-                  )}
-                >
-                  {/* Toggle */}
-                  <button
-                    onClick={() => toggleDay(key)}
-                    className={clsx(
-                      'w-11 h-6 rounded-full relative transition-colors flex-shrink-0',
-                      cfg.enabled ? 'bg-primary-600' : 'bg-gray-300'
-                    )}
-                  >
-                    <span
-                      className={clsx(
-                        'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all',
-                        cfg.enabled ? 'left-5' : 'left-0.5'
-                      )}
-                    />
-                  </button>
-                  <span
-                    className={clsx(
-                      'text-sm font-bold w-8 flex-shrink-0',
-                      cfg.enabled ? 'text-primary-700' : 'text-gray-400'
-                    )}
-                  >
-                    {label}
-                  </span>
+          {/* ── CARD 2: Blocking calendar ─────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-900">{t('blockingTitle')}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{t('blockingHint')}</p>
+            </div>
 
-                  {cfg.enabled ? (
-                    <div className="flex items-center gap-2 flex-wrap flex-1">
-                      {cfg.windows.map((w, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <input
-                            type="time"
-                            value={w.start}
-                            onChange={(e) => updateWindow(key, i, 'start', e.target.value)}
-                            className="border border-primary-200 rounded-lg px-2 py-1 text-sm text-primary-800 bg-white focus:outline-none focus:ring-1 focus:ring-primary-400"
-                          />
-                          <span className="text-gray-400 text-sm">—</span>
-                          <input
-                            type="time"
-                            value={w.end}
-                            onChange={(e) => updateWindow(key, i, 'end', e.target.value)}
-                            className="border border-primary-200 rounded-lg px-2 py-1 text-sm text-primary-800 bg-white focus:outline-none focus:ring-1 focus:ring-primary-400"
-                          />
+            <div className="p-5">
+              {blocksLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                </div>
+              ) : (
+                <div className="flex gap-8 flex-col sm:flex-row">
+                  {/* Calendar */}
+                  <div className="flex-shrink-0 w-full sm:w-60">
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={prevMonth}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                      </button>
+                      <p className="text-sm font-bold text-gray-800 capitalize">{monthLabel}</p>
+                      <button
+                        onClick={nextMonth}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-7 mb-1">
+                      {CAL_DAYS.map((d) => (
+                        <div
+                          key={d}
+                          className="text-center text-[11px] font-semibold text-gray-300 py-1"
+                        >
+                          {d}
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">{t('dayOff')}</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
 
-          {/* Save */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm hover:bg-primary-700 disabled:opacity-60 transition-colors"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {t('saveSchedule')}
-            </button>
-            {saved && (
-              <span className="text-sm text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" /> {t('saved')}
-              </span>
-            )}
+                    <div className="grid grid-cols-7 gap-y-1">
+                      {Array.from({ length: calOffset }).map((_, i) => (
+                        <div key={`e${i}`} />
+                      ))}
+                      {Array.from({ length: totalDays }).map((_, i) => {
+                        const day = i + 1
+                        const date = isoDate(viewYear, viewMonth, day)
+                        const isPast = date < today
+                        const isSelected = date === selectedDate
+                        const isToday = date === today
+                        const isWorking = !!windowsForDate(date)
+                        const daySlots = slotsForDate(date)
+                        const hasBlocks = hasAnyBlock(date)
+                        const allBlocked =
+                          !!daySlots &&
+                          daySlots.length > 0 &&
+                          daySlots.every((s) => !!findBlockForSlot(date, s.start, s.end, blocks))
+
+                        return (
+                          <button
+                            key={date}
+                            disabled={isPast || !isWorking}
+                            onClick={() => setSelectedDate(isSelected ? null : date)}
+                            className={clsx(
+                              'relative flex flex-col items-center justify-center rounded-xl h-9 text-sm font-semibold transition-all select-none focus:outline-none',
+                              (isPast || !isWorking) && 'text-gray-200 cursor-not-allowed',
+                              !isPast &&
+                                isWorking &&
+                                !isSelected &&
+                                'cursor-pointer hover:bg-primary-50 hover:text-primary-700 text-gray-700',
+                              isToday && !isSelected && 'ring-2 ring-primary-300',
+                              isSelected && 'bg-primary-600 text-white shadow-sm scale-105'
+                            )}
+                          >
+                            {day}
+                            {!isSelected && hasBlocks && !allBlocked && (
+                              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-400" />
+                            )}
+                            {!isSelected && allBlocked && (
+                              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-400" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100">
+                      <span className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />{' '}
+                        Частично
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" /> Закрыт
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Slot panel */}
+                  <div className="flex-1 min-w-0">
+                    {!selectedDate ? (
+                      <div className="flex flex-col items-center justify-center h-full min-h-[180px] rounded-2xl border-2 border-dashed border-gray-100 text-center px-6">
+                        <Calendar className="w-8 h-8 text-gray-200 mb-2" />
+                        <p className="text-sm font-semibold text-gray-400">Выберите дату</p>
+                        <p className="text-xs text-gray-300 mt-1">Нажмите на рабочий день</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 capitalize">
+                              {selectedDayLabel}
+                            </p>
+                            {selectedSlots !== null && (
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {selectedSlots.length} слот{selectedSlots.length !== 1 ? 'ов' : ''}
+                                {blockedCountOnDay > 0 && (
+                                  <span className="text-red-400 ml-1">
+                                    · {blockedCountOnDay} закрыт{blockedCountOnDay !== 1 ? 'о' : ''}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+                          </div>
+                          {selectedSlots !== null &&
+                            selectedSlots.length > 0 &&
+                            (blockedCountOnDay < selectedSlots.length ? (
+                              <button
+                                onClick={async () => {
+                                  for (const slot of selectedSlots) {
+                                    if (
+                                      !findBlockForSlot(selectedDate, slot.start, slot.end, blocks)
+                                    )
+                                      await toggleSlot(selectedDate, slot.start, slot.end)
+                                  }
+                                }}
+                                className="text-xs font-semibold text-red-500 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"
+                              >
+                                Закрыть всё
+                              </button>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  for (const slot of selectedSlots) {
+                                    const ex = findBlockForSlot(
+                                      selectedDate,
+                                      slot.start,
+                                      slot.end,
+                                      blocks
+                                    )
+                                    if (ex) await toggleSlot(selectedDate, slot.start, slot.end)
+                                  }
+                                }}
+                                className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-all"
+                              >
+                                Открыть всё
+                              </button>
+                            ))}
+                        </div>
+
+                        {selectedSlots === null ? (
+                          <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-400">
+                            <Ban className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                            Выходной день
+                          </div>
+                        ) : selectedSlots.length === 0 ? (
+                          <p className="text-sm text-gray-400">Нет слотов</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedSlots.map((slot) => {
+                              const slotKey = `${selectedDate}|${slot.start}`
+                              const blocked = !!findBlockForSlot(
+                                selectedDate,
+                                slot.start,
+                                slot.end,
+                                blocks
+                              )
+                              const isToggling = toggling === slotKey
+                              return (
+                                <button
+                                  key={slotKey}
+                                  onClick={() => toggleSlot(selectedDate, slot.start, slot.end)}
+                                  disabled={isToggling}
+                                  className={clsx(
+                                    'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-all',
+                                    blocked
+                                      ? 'bg-red-50 border-red-200 text-red-500 hover:bg-red-100'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700',
+                                    isToggling && 'opacity-50 cursor-wait'
+                                  )}
+                                >
+                                  {isToggling ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : blocked ? (
+                                    <Ban className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Clock className="w-3.5 h-3.5 text-gray-300" />
+                                  )}
+                                  <span
+                                    className={clsx(
+                                      'tabular-nums',
+                                      blocked && 'line-through opacity-70'
+                                    )}
+                                  >
+                                    {slot.start}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {blockError && (
+                          <p className="text-xs text-red-500 flex items-center gap-1.5">
+                            <Ban className="w-3 h-3" /> {blockError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

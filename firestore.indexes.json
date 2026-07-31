@@ -68,6 +68,66 @@
         { "fieldPath": "visibility", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+
+    {
+      "collectionGroup": "specialistBlocking",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "specialistId", "order": "ASCENDING" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "specialistBlocking",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "specialistId", "order": "ASCENDING" },
+        { "fieldPath": "endDate", "order": "ASCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "cohorts",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "cohorts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "childId", "order": "ASCENDING" }]
+    },
+
+    {
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "enrolledAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

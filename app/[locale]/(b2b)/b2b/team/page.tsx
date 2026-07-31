@@ -191,7 +191,13 @@ export default function TeamPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-gray-900">{member.name}</p>
+                          <p className="font-medium text-gray-900">
+                            {member.name && member.name.trim() ? (
+                              member.name
+                            ) : (
+                              <span className="text-amber-600 italic">{t('unnamedMember')}</span>
+                            )}
+                          </p>
                           {member.role === 'admin' && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
                               {t('admin')}

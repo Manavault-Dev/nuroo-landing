@@ -724,7 +724,30 @@
         "errorSpecialistRequired": "Выберите специалиста",
         "errorSaveService": "Ошибка сохранения",
         "confirmDeleteService": "Удалить услугу?",
-        "errorDeleteService": "Не удалось удалить услугу"
+        "errorDeleteService": "Не удалось удалить услугу",
+        "blockingTitle": "Блокировки в расписании",
+        "blockingHint": "Заблокируйте даты, когда вы недоступны — клиенты не смогут записаться на это время",
+        "addBlock": "Добавить блокировку",
+        "blockDateRange": "Диапазон дат",
+        "blockFrom": "С",
+        "blockTo": "По",
+        "blockTimeRange": "Ограничить по времени",
+        "blockTimeRangeHint": "Только часть дня — остальное время останется доступным",
+        "blockStartTime": "Начало",
+        "blockEndTime": "Конец",
+        "blockReason": "Причина (необязательно)",
+        "blockReasonPlaceholder": "Ранний уход, болезнь, командировка...",
+        "blockSave": "Заблокировать",
+        "blockCancel": "Отмена",
+        "blockFullDay": "Весь день",
+        "blockEmptyTitle": "Нет активных блокировок",
+        "blockEmptyDescription": "Добавьте блокировку, чтобы закрыть недоступное время",
+        "blockDeleteConfirm": "Удалить блокировку?",
+        "blockDeleteError": "Не удалось удалить блокировку",
+        "blockSaveError": "Не удалось сохранить блокировку",
+        "blockInvalidDates": "Дата начала не может быть позже даты окончания",
+        "blockInvalidTimes": "Укажите оба времени: начало и конец",
+        "unnamedSpecialist": "Имя не указано"
       },
       "children": {
         "title": "Ваши дети",
@@ -1143,7 +1166,8 @@
         "removeFromOrg": "Удалить из организации",
         "removeConfirm": "Удалить этого участника из организации?",
         "failedRemove": "Не удалось удалить участника",
-        "failedUpdateRole": "Не удалось изменить роль"
+        "failedUpdateRole": "Не удалось изменить роль",
+        "unnamedMember": "Имя не указано"
       },
       "invites": {
         "title": "Создание и управление приглашениями",
@@ -1245,7 +1269,8 @@
         "csvFilePrefix": "nuroo-report",
         "daysFileSuffix": "d",
         "last7Compact": "7 дн.",
-        "last30Compact": "30 дн."
+        "last30Compact": "30 дн.",
+        "unnamed": "Имя не указано"
       },
       "assignments": {
         "title": "Задания и дорожные карты",
@@ -1836,14 +1861,14 @@
           "uploading": "Загрузка..."
         },
         "list": {
-          "title": "Курсы",
-          "subtitle": "Создавайте и публикуйте учебные материалы",
-          "newCourse": "Новый курс",
-          "coursesTab": "Курсы",
+          "title": "Группы / Курсы",
+          "subtitle": "Управляйте группами, расписанием и участниками",
+          "newCourse": "Новая группа",
+          "coursesTab": "Группы",
           "verificationsTab": "Заявки на льготный доступ",
-          "emptyTitle": "Курсов пока нет",
-          "emptyDescription": "Создайте первый курс и поделитесь знаниями с родителями",
-          "createCourse": "Создать курс"
+          "emptyTitle": "Групп пока нет",
+          "emptyDescription": "Создайте первую группу и начните набор участников",
+          "createCourse": "Создать группу"
         },
         "status": {
           "draft": "Черновик",

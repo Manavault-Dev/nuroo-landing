@@ -70,20 +70,52 @@ async function getChildName(
 
   try {
     const user = await admin.auth().getUser(uid)
-    if (user.displayName) return user.displayName
-    if (user.email) return user.email.split('@')[0]
+    if (user.displayName?.trim()) return user.displayName.trim()
   } catch {}
 
-  return childId
+  return ''
 }
 
 async function getParentDisplayName(uid: string): Promise<string> {
+  const db = getFirestore()
+
+  // 1. Check parents collection (set during onboarding)
+  try {
+    const parentSnap = await db.doc(`parents/${uid}`).get()
+    if (parentSnap.exists) {
+      const d = parentSnap.data()
+      const name = d?.fullName?.trim() || d?.name?.trim()
+      if (name) return name
+    }
+  } catch {}
+
+  // 2. Check users collection (parentFullName saved during onboarding)
+  try {
+    const userSnap = await db.doc(`users/${uid}`).get()
+    if (userSnap.exists) {
+      const d = userSnap.data()
+      const name = d?.parentFullName?.trim() || d?.fullName?.trim()
+      if (name) return name
+    }
+  } catch {}
+
+  // 3. Check specialists collection (for specialist names)
+  try {
+    const specSnap = await db.doc(`specialists/${uid}`).get()
+    if (specSnap.exists) {
+      const d = specSnap.data()
+      const name = d?.fullName?.trim() || d?.name?.trim()
+      if (name) return name
+    }
+  } catch {}
+
+  // 4. Firebase Auth displayName (set by Google Sign-In)
   try {
     const user = await admin.auth().getUser(uid)
-    return user.displayName || user.email?.split('@')[0] || uid.slice(0, 8)
-  } catch {
-    return uid.slice(0, 8)
-  }
+    if (user.displayName?.trim()) return user.displayName.trim()
+  } catch {}
+
+  return ''
 }
 
 async function getOrgContentCompletions(

@@ -724,7 +724,30 @@
         "errorSpecialistRequired": "Select a specialist",
         "errorSaveService": "Could not save the service",
         "confirmDeleteService": "Delete this service?",
-        "errorDeleteService": "Could not delete the service"
+        "errorDeleteService": "Could not delete the service",
+        "blockingTitle": "Schedule Blocks",
+        "blockingHint": "Block dates when you're unavailable — clients won't be able to book during these times",
+        "addBlock": "Add Block",
+        "blockDateRange": "Date Range",
+        "blockFrom": "From",
+        "blockTo": "To",
+        "blockTimeRange": "Restrict by time",
+        "blockTimeRangeHint": "Only part of the day — the rest stays available",
+        "blockStartTime": "Start",
+        "blockEndTime": "End",
+        "blockReason": "Reason (optional)",
+        "blockReasonPlaceholder": "Early leave, sick day, travel...",
+        "blockSave": "Block Time",
+        "blockCancel": "Cancel",
+        "blockFullDay": "Full day",
+        "blockEmptyTitle": "No active blocks",
+        "blockEmptyDescription": "Add a block to close unavailable time",
+        "blockDeleteConfirm": "Delete this block?",
+        "blockDeleteError": "Could not delete block",
+        "blockSaveError": "Could not save block",
+        "blockInvalidDates": "Start date cannot be after end date",
+        "blockInvalidTimes": "Provide both start and end times",
+        "unnamedSpecialist": "Name not set"
       },
       "children": {
         "title": "Your children",
@@ -1143,7 +1166,8 @@
         "removeFromOrg": "Remove from organization",
         "removeConfirm": "Remove this member from the organization?",
         "failedRemove": "Failed to remove member",
-        "failedUpdateRole": "Failed to update role"
+        "failedUpdateRole": "Failed to update role",
+        "unnamedMember": "Name not set"
       },
       "invites": {
         "title": "Create and manage invites",
@@ -1245,7 +1269,8 @@
         "csvFilePrefix": "nuroo-report",
         "daysFileSuffix": "d",
         "last7Compact": "7d",
-        "last30Compact": "30d"
+        "last30Compact": "30d",
+        "unnamed": "Name not set"
       },
       "assignments": {
         "title": "Tasks and roadmaps",
@@ -1836,14 +1861,14 @@
           "uploading": "Uploading..."
         },
         "list": {
-          "title": "Courses",
-          "subtitle": "Create and publish learning materials",
-          "newCourse": "New course",
-          "coursesTab": "Courses",
+          "title": "Groups / Courses",
+          "subtitle": "Manage groups, schedules and participants",
+          "newCourse": "New group",
+          "coursesTab": "Groups",
           "verificationsTab": "Special access requests",
-          "emptyTitle": "No courses yet",
-          "emptyDescription": "Create your first course and share knowledge with parents",
-          "createCourse": "Create course"
+          "emptyTitle": "No groups yet",
+          "emptyDescription": "Create your first group and start enrolling participants",
+          "createCourse": "Create group"
         },
         "status": {
           "draft": "Draft",

@@ -82,10 +82,8 @@ export async function getConnectionsForSpecialist(
             childName = authUser.displayName
             break
           }
-          if (authUser.email) {
-            childName = authUser.email.split('@')[0]
-            break
-          }
+          // no email fallback — leave childName as empty
+          break
         } catch {}
       }
     }

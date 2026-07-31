@@ -720,7 +720,30 @@
         "errorSpecialistRequired": "Адисти тандаңыз",
         "errorSaveService": "Кызматты сактоо мүмкүн болгон жок",
         "confirmDeleteService": "Кызматты өчүрөсүзбү?",
-        "errorDeleteService": "Кызматты өчүрүү мүмкүн болгон жок"
+        "errorDeleteService": "Кызматты өчүрүү мүмкүн болгон жок",
+        "blockingTitle": "Жадвалдагы бөгөттөөлөр",
+        "blockingHint": "Жеткиликсиз болгон күндөрдү бөгөттөңүз — кардарлар ал убакытка жазыла алышпайт",
+        "addBlock": "Бөгөттөөнү кошуу",
+        "blockDateRange": "Дата аралыгы",
+        "blockFrom": "Баштан",
+        "blockTo": "Чейин",
+        "blockTimeRange": "Убакыт боюнча чектөө",
+        "blockTimeRangeHint": "Күндүн бир бөлүгү гана — калган убакыт жеткиликтүү болот",
+        "blockStartTime": "Башталуу",
+        "blockEndTime": "Аяктоо",
+        "blockReason": "Себеп (каалоо боюнча)",
+        "blockReasonPlaceholder": "Эрте кетүү, ооруу, сапар...",
+        "blockSave": "Бөгөттөө",
+        "blockCancel": "Жокко чыгаруу",
+        "blockFullDay": "Бүтүн күн",
+        "blockEmptyTitle": "Активдүү бөгөттөөлөр жок",
+        "blockEmptyDescription": "Жеткиликсиз убакытты жабуу үчүн бөгөттөөнү кошуңуз",
+        "blockDeleteConfirm": "Бөгөттөөнү жок кылуу?",
+        "blockDeleteError": "Бөгөттөөнү жок кылуу мүмкүн болгон жок",
+        "blockSaveError": "Бөгөттөөнү сактоо мүмкүн болгон жок",
+        "blockInvalidDates": "Башталуу датасы аяктоо датасынан кеч болушу мүмкүн эмес",
+        "blockInvalidTimes": "Башталуу жана аяктоо убакытын экөөнү тең көрсөтүңүз",
+        "unnamedSpecialist": "Аты белгисиз"
       },
       "children": {
         "title": "Сиздин балдарыңыз",
@@ -1139,7 +1162,8 @@
         "removeFromOrg": "Уюмдан чыгаруу",
         "removeConfirm": "Бул мүчөнү уюмдан чыгарабы?",
         "failedRemove": "Мүчөнү чыгаруу мүмкүн болбоду",
-        "failedUpdateRole": "Ролду өзгөртүү мүмкүн болбоду"
+        "failedUpdateRole": "Ролду өзгөртүү мүмкүн болбоду",
+        "unnamedMember": "Аты белгисиз"
       },
       "invites": {
         "title": "Чакыруу түзүү жана башкаруу",
@@ -1241,7 +1265,8 @@
         "csvFilePrefix": "nuroo-report",
         "daysFileSuffix": "d",
         "last7Compact": "7 күн",
-        "last30Compact": "30 күн"
+        "last30Compact": "30 күн",
+        "unnamed": "Аты белгисиз"
       },
       "assignments": {
         "title": "Тапшырмалар жана жол карталары",
@@ -1832,14 +1857,14 @@
           "uploading": "Жүктөлүүдө..."
         },
         "list": {
-          "title": "Курстар",
-          "subtitle": "Окуу материалдарын түзүңүз жана жарыялаңыз",
-          "newCourse": "Жаңы курс",
-          "coursesTab": "Курстар",
+          "title": "Группалар / Курстар",
+          "subtitle": "Группаларды, сабак программасын жана катышуучуларды башкаруу",
+          "newCourse": "Жаңы группа",
+          "coursesTab": "Группалар",
           "verificationsTab": "Жеңилдетилген доступ заявкалары",
-          "emptyTitle": "Азырынча курс жок",
-          "emptyDescription": "Биринчи курсту түзүп, ата-энелер менен билим бөлүшүңүз",
-          "createCourse": "Курс түзүү"
+          "emptyTitle": "Азырынча группа жок",
+          "emptyDescription": "Биринчи группаны түзүп, катышуучуларды катталуу баштаңыз",
+          "createCourse": "Группа түзүү"
         },
         "status": {
           "draft": "Черновик",

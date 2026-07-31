@@ -58,7 +58,7 @@ function buildSpecialistData(
   return {
     uid,
     email: email || '',
-    fullName: email?.split('@')[0] || 'Specialist',
+    fullName: '',
     orgId,
     role: normalizeRole(role),
     createdAt: admin.firestore.Timestamp.fromDate(now),
@@ -189,9 +189,7 @@ export const invitesAcceptRoute: FastifyPluginAsync = async (fastify) => {
 
       // Notify org admins that a specialist joined (fire-and-forget)
       const specialistDisplayName =
-        (await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()).data()?.fullName ||
-        email?.split('@')[0] ||
-        'A specialist'
+        (await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()).data()?.fullName || ''
       db.collection(`${COLLECTIONS.ORG_MEMBERS(orgId)}`)
         .where('role', '==', 'org_admin')
         .get()

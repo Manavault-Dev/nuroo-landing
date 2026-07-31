@@ -1,292 +1,422 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
-import { useTranslations } from 'next-intl'
+import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
-import { Select } from '@/components/ui/Select'
-import { BookOpen, Loader2, ArrowLeft, Upload, Image as ImageIcon, X } from 'lucide-react'
+import { ArrowLeft, Loader2, BookOpen, Plus } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 
-export default function NewCoursePage() {
-  const t = useTranslations('b2b.pages.courses')
-  const router = useRouter()
-  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
+interface FormData {
+  title: string
+  description: string
+  category: string
+  format: 'online' | 'offline'
+  startDate: string
+  endDate: string
+  price: string
+  currency: string
+  maxParticipants: string
+  ageMin: string
+  ageMax: string
+  scheduleType: 'manual' | 'recurring'
+  // Recurring template
+  weekdays: number[]
+  recStartTime: string
+  recEndTime: string
+  repeatUntil: string
+}
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('0')
-  const [visibility, setVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE')
-  const [accessPolicy, setAccessPolicy] = useState<
-    'FREE' | 'PAID' | 'VERIFIED_SPECIAL_NEEDS' | 'INVITATION_ONLY'
-  >('FREE')
-  const [tags, setTags] = useState('')
-  const [coverImageUrl, setCoverImageUrl] = useState('')
-  const [ageRange, setAgeRange] = useState('')
+const WEEKDAYS = [
+  { n: 1, short: 'Пн' },
+  { n: 2, short: 'Вт' },
+  { n: 3, short: 'Ср' },
+  { n: 4, short: 'Чт' },
+  { n: 5, short: 'Пт' },
+  { n: 6, short: 'Сб' },
+  { n: 0, short: 'Вс' },
+]
+
+export default function NewCohortPage() {
+  const searchParams = useSearchParams()
+  const orgId = searchParams.get('orgId') ?? ''
+  const router = useRouter()
+  const { isAdmin, isLoading: authLoading } = usePageAuth()
+
+  const [form, setForm] = useState<FormData>({
+    title: '',
+    description: '',
+    category: '',
+    format: 'offline',
+    startDate: '',
+    endDate: '',
+    price: '0',
+    currency: 'KGS',
+    maxParticipants: '20',
+    ageMin: '',
+    ageMax: '',
+    scheduleType: 'manual',
+    weekdays: [1, 3, 5],
+    recStartTime: '09:00',
+    recEndTime: '10:00',
+    repeatUntil: '',
+  })
   const [saving, setSaving] = useState(false)
-  const [uploadingCover, setUploadingCover] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const coverInputRef = useRef<HTMLInputElement | null>(null)
-  const visibilityOptions = [
-    { value: 'PRIVATE', label: t('visibilityOptions.private') },
-    { value: 'PUBLIC', label: t('visibilityOptions.public') },
-  ]
-  const accessPolicyOptions = [
-    { value: 'FREE', label: t('accessPolicyOptions.free') },
-    { value: 'PAID', label: t('accessPolicyOptions.paid') },
-    {
-      value: 'VERIFIED_SPECIAL_NEEDS',
-      label: t('accessPolicyOptions.verifiedSpecialNeeds'),
-    },
-    { value: 'INVITATION_ONLY', label: t('accessPolicyOptions.invitationOnly') },
-  ]
+
+  const set =
+    (key: keyof FormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((prev) => ({ ...prev, [key]: e.target.value }))
+
+  const toggleWeekday = (n: number) => {
+    setForm((prev) => ({
+      ...prev,
+      weekdays: prev.weekdays.includes(n)
+        ? prev.weekdays.filter((d) => d !== n)
+        : [...prev.weekdays, n],
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!orgId) return
+    setError(null)
+    setSaving(true)
+
+    try {
+      const body: Record<string, unknown> = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        category: form.category.trim() || null,
+        format: form.format,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        price: parseFloat(form.price) || 0,
+        currency: form.currency,
+        maxParticipants: parseInt(form.maxParticipants) || 20,
+        ageMin: form.ageMin ? parseInt(form.ageMin) : null,
+        ageMax: form.ageMax ? parseInt(form.ageMax) : null,
+        scheduleType: form.scheduleType,
+      }
+
+      if (form.scheduleType === 'recurring') {
+        if (form.weekdays.length === 0) {
+          setError('Выберите хотя бы один день недели')
+          setSaving(false)
+          return
+        }
+        if (!form.repeatUntil) {
+          setError('Укажите дату окончания расписания')
+          setSaving(false)
+          return
+        }
+        body.recurringTemplate = {
+          weekdays: form.weekdays,
+          startTime: form.recStartTime,
+          endTime: form.recEndTime,
+          repeatUntil: form.repeatUntil,
+        }
+      }
+
+      const res = await apiClient.createCohort(orgId, body)
+      router.push(`/b2b/courses/${res.cohort.id}?orgId=${orgId}`)
+    } catch (e: any) {
+      setError(e.message || 'Не удалось создать группу')
+      setSaving(false)
+    }
+  }
 
   if (authLoading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
       </div>
     )
   }
 
   if (!isAdmin) {
-    return <div className="p-6 text-center text-gray-500">{t('new.adminOnly')}</div>
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!orgId) return
-    setSaving(true)
-    setError(null)
-
-    try {
-      const res = await apiClient.createCourse(orgId, {
-        title,
-        description,
-        price: accessPolicy === 'FREE' ? 0 : parseFloat(price) || 0,
-        visibility,
-        accessPolicy,
-        tags: tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
-        coverImageUrl: coverImageUrl || undefined,
-        ageRange: ageRange || undefined,
-      })
-      router.push(`/b2b/courses/${res.course.id}?orgId=${orgId}`)
-    } catch (e: any) {
-      setError(e.message || t('new.createError'))
-      setSaving(false)
-    }
-  }
-
-  async function handleCoverUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file || !orgId) return
-
-    setUploadingCover(true)
-    setError(null)
-
-    try {
-      const { url } = await apiClient.uploadCourseCoverImage(orgId, file)
-      setCoverImageUrl(url)
-    } catch (e: any) {
-      setError(e.message || t('new.coverUploadError'))
-    } finally {
-      setUploadingCover(false)
-      if (coverInputRef.current) coverInputRef.current.value = ''
-    }
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Только администраторы могут создавать группы
+      </div>
+    )
   }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
+      <Link
+        href={`/b2b/courses${orgId ? `?orgId=${orgId}` : ''}`}
+        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-5 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Все группы
+      </Link>
+
       <div className="flex items-center gap-3 mb-6">
-        <Link
-          href={`/b2b/courses${orgId ? `?orgId=${orgId}` : ''}`}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <BookOpen className="w-5 h-5 text-primary-600" />
-        <h1 className="text-xl font-bold text-gray-900">{t('new.title')}</h1>
+        <BookOpen className="w-6 h-6 text-primary-600" />
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Новая группа (курс)</h1>
+          <p className="text-sm text-gray-500">Создайте группу для записи детей</p>
+        </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-xl border border-gray-100 p-6 space-y-5"
-      >
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Basic info */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Основная информация
+          </h2>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t('fields.title')} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('new.titlePlaceholder')}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t('fields.description')} <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            required
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            placeholder={t('new.descriptionPlaceholder')}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 resize-none"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('fields.priceKgs')}
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Название группы *
             </label>
             <input
-              type="number"
-              min="0"
-              step="100"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+              type="text"
+              required
+              value={form.title}
+              onChange={set('title')}
+              placeholder="Логопедия — группа A, осень 2025"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <p className="text-xs text-gray-400 mt-1">{t('new.freeHint')}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('fields.visibility')}
-            </label>
-            <Select
-              value={visibility}
-              onChange={(value) => setVisibility(value as 'PRIVATE' | 'PUBLIC')}
-              options={visibilityOptions}
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Описание</label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={set('description')}
+              placeholder="Краткое описание для родителей..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t('fields.access')}
-          </label>
-          <Select
-            value={accessPolicy}
-            onChange={(value) =>
-              setAccessPolicy(
-                value as 'FREE' | 'PAID' | 'VERIFIED_SPECIAL_NEEDS' | 'INVITATION_ONLY'
-              )
-            }
-            options={accessPolicyOptions}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t('fields.ageRange')}
-          </label>
-          <input
-            type="text"
-            value={ageRange}
-            onChange={(e) => setAgeRange(e.target.value)}
-            placeholder={t('new.agePlaceholder')}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('fields.tags')}</label>
-          <input
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder={t('new.tagsPlaceholder')}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t('fields.coverOptional')}
-          </label>
-          <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-            {coverImageUrl ? (
-              <div className="relative aspect-[16/9] bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={coverImageUrl} alt="" className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setCoverImageUrl('')}
-                  className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm hover:bg-white"
-                  aria-label={t('new.removeCover')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex aspect-[16/9] flex-col items-center justify-center gap-3 text-gray-400">
-                <ImageIcon className="h-8 w-8" />
-                <span className="text-sm">{t('new.coverHint')}</span>
-              </div>
-            )}
-            <div className="flex flex-col gap-3 border-t border-gray-200 bg-white p-3 sm:flex-row">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Категория</label>
               <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                type="text"
+                value={form.category}
+                onChange={set('category')}
+                placeholder="Логопедия, АВА, ..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
-              <button
-                type="button"
-                onClick={() => coverInputRef.current?.click()}
-                disabled={uploadingCover || saving}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Формат</label>
+              <select
+                value={form.format}
+                onChange={set('format')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
               >
-                {uploadingCover ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                {uploadingCover ? t('actions.uploading') : t('actions.upload')}
-              </button>
+                <option value="offline">Офлайн</option>
+                <option value="online">Онлайн</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Возраст от</label>
               <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCoverUpload}
+                type="number"
+                min="0"
+                max="18"
+                value={form.ageMin}
+                onChange={set('ageMin')}
+                placeholder="3"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">до</label>
+              <input
+                type="number"
+                min="0"
+                max="18"
+                value={form.ageMax}
+                onChange={set('ageMax')}
+                placeholder="7"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
+        {/* Dates & Capacity */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Сроки и вместимость
+          </h2>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Дата начала *</label>
+              <input
+                type="date"
+                required
+                value={form.startDate}
+                onChange={set('startDate')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Дата окончания *
+              </label>
+              <input
+                type="date"
+                required
+                value={form.endDate}
+                onChange={set('endDate')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Макс. участников
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                required
+                value={form.maxParticipants}
+                onChange={set('maxParticipants')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Стоимость ({form.currency})
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={form.price}
+                onChange={set('price')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Schedule */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Расписание
+          </h2>
+
+          <div className="flex gap-3">
+            {(['manual', 'recurring'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, scheduleType: type }))}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium border transition-colors ${
+                  form.scheduleType === type
+                    ? 'bg-primary-50 border-primary-400 text-primary-700'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {type === 'manual' ? 'Вручную' : 'По расписанию'}
+              </button>
+            ))}
+          </div>
+
+          {form.scheduleType === 'manual' && (
+            <p className="text-sm text-gray-500">
+              Занятия добавляете по одному после создания группы.
+            </p>
+          )}
+
+          {form.scheduleType === 'recurring' && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Дни недели</label>
+                <div className="flex gap-2 flex-wrap">
+                  {WEEKDAYS.map(({ n, short }) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => toggleWeekday(n)}
+                      className={`w-11 h-11 rounded-xl text-sm font-semibold border transition-colors ${
+                        form.weekdays.includes(n)
+                          ? 'bg-primary-500 border-primary-500 text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                      }`}
+                    >
+                      {short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Начало</label>
+                  <input
+                    type="time"
+                    value={form.recStartTime}
+                    onChange={set('recStartTime')}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Конец</label>
+                  <input
+                    type="time"
+                    value={form.recEndTime}
+                    onChange={set('recEndTime')}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Создавать занятия до
+                </label>
+                <input
+                  type="date"
+                  value={form.repeatUntil}
+                  onChange={set('repeatUntil')}
+                  min={form.startDate || undefined}
+                  max={form.endDate || undefined}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Система автоматически создаст занятия по выбранным дням
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
           <Link
             href={`/b2b/courses${orgId ? `?orgId=${orgId}` : ''}`}
-            className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 text-center transition-colors"
           >
-            {t('actions.cancel')}
+            Отмена
           </Link>
           <button
             type="submit"
-            disabled={saving || uploadingCover}
-            className="btn-primary flex items-center gap-2 text-sm px-4 py-2 disabled:opacity-60"
+            disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
           >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t('list.createCourse')}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Создать группу
           </button>
         </div>
       </form>
