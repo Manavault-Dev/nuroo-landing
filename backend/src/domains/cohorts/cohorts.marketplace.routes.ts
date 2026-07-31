@@ -48,17 +48,36 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/marketplace/cohorts', { config: { rateLimit: RATE } }, async (request) => {
     const query = listQuerySchema.parse(request.query)
 
-    const collRef = query.orgId
-      ? db.collection(`organizations/${query.orgId}/cohorts`)
-      : db.collectionGroup('cohorts')
+    let cohorts: PublicCohort[] = []
 
-    // No orderBy here — avoids composite index requirement (sort in memory below)
-    const snap = await collRef
-      .where('status', 'in', ['open', 'in_progress'])
-      .limit(query.limit)
-      .get()
+    if (query.orgId) {
+      // Single-org query — no index needed
+      const snap = await db
+        .collection(`organizations/${query.orgId}/cohorts`)
+        .where('status', 'in', ['open', 'in_progress'])
+        .limit(query.limit)
+        .get()
+      cohorts = snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc))
+    } else {
+      // Cross-org: fetch all org IDs first, then query each sub-collection individually.
+      // Avoids collectionGroup indexes (which require firebase deploy --only firestore:indexes).
+      const orgsSnap = await db.collection('organizations').select().get()
+      const orgIds = orgsSnap.docs.map((d) => d.id)
 
-    let cohorts = snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc))
+      const perOrgLimit = Math.min(query.limit, 20)
+      const results = await Promise.all(
+        orgIds.map((orgId) =>
+          db
+            .collection(`organizations/${orgId}/cohorts`)
+            .where('status', 'in', ['open', 'in_progress'])
+            .limit(perOrgLimit)
+            .get()
+            .then((snap) => snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc)))
+            .catch(() => [] as PublicCohort[])
+        )
+      )
+      cohorts = results.flat()
+    }
 
     if (query.category) cohorts = cohorts.filter((c) => c.category === query.category)
     if (query.format) cohorts = cohorts.filter((c) => c.format === query.format)
