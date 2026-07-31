@@ -72,11 +72,9 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
             .where('status', 'in', ['open', 'in_progress'])
             .limit(perOrgLimit)
             .get()
-            .then((snap) =>
-              snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc)),
-            )
-            .catch(() => [] as PublicCohort[]),
-        ),
+            .then((snap) => snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc)))
+            .catch(() => [] as PublicCohort[])
+        )
       )
       cohorts = results.flat()
     }
