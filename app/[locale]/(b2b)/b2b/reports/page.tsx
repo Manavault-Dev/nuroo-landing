@@ -545,8 +545,18 @@ function ReportsContent() {
                   <tbody>
                     {data.childCompletion.map((row) => (
                       <tr key={row.childId} className="border-b border-gray-100">
-                        <td className="py-3 font-medium text-gray-900">{row.childName}</td>
-                        <td className="py-3 text-gray-600">{row.parentName ?? '—'}</td>
+                        <td className="py-3 font-medium text-gray-900">
+                          {row.childName || (
+                            <span className="text-amber-500 italic">{t('unnamed')}</span>
+                          )}
+                        </td>
+                        <td className="py-3 text-gray-600">
+                          {row.parentName && row.parentName.trim() ? (
+                            row.parentName
+                          ) : (
+                            <span className="text-amber-500 italic">{t('unnamed')}</span>
+                          )}
+                        </td>
                         <td className="py-3 text-right text-gray-600">
                           {row.completedTasks} / {row.totalTasks}
                         </td>
@@ -637,7 +647,13 @@ function ReportsContent() {
                       <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold">
                         {i + 1}
                       </span>
-                      <span className="font-medium text-gray-900">{p.parentName}</span>
+                      <span className="font-medium text-gray-900">
+                        {p.parentName && p.parentName.trim() ? (
+                          p.parentName
+                        ) : (
+                          <span className="text-amber-500 italic">{t('unnamed')}</span>
+                        )}
+                      </span>
                     </span>
                     <span className="text-sm text-gray-600">
                       {t('completed')}: {p.completedLast7} ({t('last7Compact')}) /{' '}
@@ -665,7 +681,13 @@ function ReportsContent() {
                       key={p.parentUserId}
                       className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-50 border border-amber-100"
                     >
-                      <span className="font-medium text-gray-900">{p.parentName}</span>
+                      <span className="font-medium text-gray-900">
+                        {p.parentName && p.parentName.trim() ? (
+                          p.parentName
+                        ) : (
+                          <span className="text-amber-500 italic">{t('unnamed')}</span>
+                        )}
+                      </span>
                       <span className="text-sm text-amber-700">
                         {t('completed')}: 0 ({t('last7Compact')}) / {p.completedLast30} (
                         {t('last30Compact')})

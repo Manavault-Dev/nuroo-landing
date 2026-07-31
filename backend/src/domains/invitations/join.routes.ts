@@ -39,7 +39,7 @@ function buildSpecialistData(uid: string, email: string | undefined, orgId: stri
   return {
     uid,
     email: email || '',
-    name: email?.split('@')[0] || 'Specialist',
+    name: '',
     orgId,
     role: 'specialist',
     createdAt: admin.firestore.Timestamp.fromDate(now),

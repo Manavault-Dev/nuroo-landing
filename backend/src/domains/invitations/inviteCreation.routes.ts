@@ -128,9 +128,10 @@ export const inviteCreationRoute: FastifyPluginAsync = async (fastify) => {
       const specialistSnap = await specialistRef.get()
 
       const now = new Date()
-      let specialistName = email?.split('@')[0] || 'Specialist'
+      let specialistName = ''
       if (specialistSnap.exists) {
-        specialistName = specialistSnap.data()?.name || specialistName
+        const d = specialistSnap.data()
+        specialistName = d?.fullName || d?.name || ''
       } else {
         await specialistRef.set({
           uid,
