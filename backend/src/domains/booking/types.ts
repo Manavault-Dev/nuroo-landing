@@ -127,10 +127,10 @@ export interface BlockedPeriod {
   id: string
   specialistId: string
   orgId: string
-  startDate: string       // 'YYYY-MM-DD'
-  endDate: string         // 'YYYY-MM-DD' inclusive
+  startDate: string // 'YYYY-MM-DD'
+  endDate: string // 'YYYY-MM-DD' inclusive
   startTime: string | null // 'HH:MM' — null means full-day block
-  endTime: string | null   // 'HH:MM' — null means full-day block
+  endTime: string | null // 'HH:MM' — null means full-day block
   reason: string | null
   createdAt: string
 }

@@ -76,7 +76,11 @@ const sessionCreateSchema = z.object({
 const sessionUpdateSchema = sessionCreateSchema.partial().extend({
   status: z.enum(['scheduled', 'completed', 'cancelled', 'postponed']).optional(),
   meetingUrl: z.string().url().nullable().optional(),
-  postponedFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  postponedFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 })
 
 const participantCreateSchema = z.object({
@@ -90,12 +94,14 @@ const participantCreateSchema = z.object({
 })
 
 const attendanceSchema = z.object({
-  records: z.array(
-    z.object({
-      childId: z.string().min(1),
-      status: z.enum(['present', 'absent', 'late']),
-    })
-  ).min(1),
+  records: z
+    .array(
+      z.object({
+        childId: z.string().min(1),
+        status: z.enum(['present', 'absent', 'late']),
+      })
+    )
+    .min(1),
 })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,7 +114,7 @@ function nowIso() {
 function generateSessionDates(template: RecurringTemplate, cohortStartDate: string): string[] {
   const dates: string[] = []
   const until = new Date(template.repeatUntil + 'T00:00:00Z')
-  let current = new Date(cohortStartDate + 'T00:00:00Z')
+  const current = new Date(cohortStartDate + 'T00:00:00Z')
 
   let safety = 0
   while (current <= until && safety < 500) {
@@ -229,7 +235,10 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
 
       // Auto-generate sessions from recurring template
       if (body.scheduleType === 'recurring' && body.recurringTemplate) {
-        const dates = generateSessionDates(body.recurringTemplate as RecurringTemplate, body.startDate)
+        const dates = generateSessionDates(
+          body.recurringTemplate as RecurringTemplate,
+          body.startDate
+        )
         const sessionBatch = db.batch()
         for (const date of dates) {
           const sessionId = randomUUID()
@@ -526,12 +535,14 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Participant not found' })
 
-      const body = z.object({
-        status: z.enum(['active', 'dropped', 'completed']).optional(),
-        paymentStatus: z.enum(['paid', 'partial', 'pending']).optional(),
-        amountPaid: z.number().min(0).optional(),
-        parentPhone: z.string().max(30).nullable().optional(),
-      }).parse(request.body)
+      const body = z
+        .object({
+          status: z.enum(['active', 'dropped', 'completed']).optional(),
+          paymentStatus: z.enum(['paid', 'partial', 'pending']).optional(),
+          amountPaid: z.number().min(0).optional(),
+          parentPhone: z.string().max(30).nullable().optional(),
+        })
+        .parse(request.body)
 
       await ref.update({ ...body, updatedAt: nowIso() })
       return { ok: true, participant: { id: participantId, ...snap.data(), ...body } }
@@ -563,10 +574,7 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
           markedAt: now,
           markedBy,
         }
-        batch.set(
-          db.doc(`${COL.attendance(orgId, cohortId, sessionId)}/${record.childId}`),
-          doc
-        )
+        batch.set(db.doc(`${COL.attendance(orgId, cohortId, sessionId)}/${record.childId}`), doc)
       }
       // Mark session as completed
       await db.doc(COL.session(orgId, cohortId, sessionId)).update({

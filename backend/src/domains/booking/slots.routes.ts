@@ -102,7 +102,8 @@ export const slotsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const available = generated.filter(
-        (s) => !bookedKeys.has(`${s.date}|${s.startTime}`) && !isBlocked(s.date, s.startTime, s.endTime)
+        (s) =>
+          !bookedKeys.has(`${s.date}|${s.startTime}`) && !isBlocked(s.date, s.startTime, s.endTime)
       )
 
       return {

@@ -17,9 +17,7 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 })
 
-function extractName(
-  specialistData: admin.firestore.DocumentData | null | undefined
-): string {
+function extractName(specialistData: admin.firestore.DocumentData | null | undefined): string {
   return specialistData?.fullName || specialistData?.name || ''
 }
 

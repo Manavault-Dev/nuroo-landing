@@ -45,34 +45,34 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
     limit: z.coerce.number().int().min(1).max(100).default(24),
   })
 
-  fastify.get(
-    '/marketplace/cohorts',
-    { config: { rateLimit: RATE } },
-    async (request) => {
-      const query = listQuerySchema.parse(request.query)
+  fastify.get('/marketplace/cohorts', { config: { rateLimit: RATE } }, async (request) => {
+    const query = listQuerySchema.parse(request.query)
 
-      const collRef = query.orgId
-        ? db.collection(`organizations/${query.orgId}/cohorts`)
-        : db.collectionGroup('cohorts')
+    const collRef = query.orgId
+      ? db.collection(`organizations/${query.orgId}/cohorts`)
+      : db.collectionGroup('cohorts')
 
-      // No orderBy here — avoids composite index requirement (sort in memory below)
-      const snap = await collRef
-        .where('status', 'in', ['open', 'in_progress'])
-        .limit(query.limit)
-        .get()
+    // No orderBy here — avoids composite index requirement (sort in memory below)
+    const snap = await collRef
+      .where('status', 'in', ['open', 'in_progress'])
+      .limit(query.limit)
+      .get()
 
-      let cohorts = snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc))
+    let cohorts = snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc))
 
-      if (query.category) cohorts = cohorts.filter((c) => c.category === query.category)
-      if (query.format) cohorts = cohorts.filter((c) => c.format === query.format)
-      if (query.ageMin != null) cohorts = cohorts.filter((c) => (c.ageMax ?? 99) >= query.ageMin!)
-      if (query.ageMax != null) cohorts = cohorts.filter((c) => (c.ageMin ?? 0) <= query.ageMax!)
-
-      cohorts.sort((a, b) => a.startDate.localeCompare(b.startDate))
-
-      return { ok: true, cohorts }
+    if (query.category) cohorts = cohorts.filter((c) => c.category === query.category)
+    if (query.format) cohorts = cohorts.filter((c) => c.format === query.format)
+    if (query.ageMin !== null && query.ageMin !== undefined) {
+      cohorts = cohorts.filter((c) => (c.ageMax ?? 99) >= query.ageMin!)
     }
-  )
+    if (query.ageMax !== null && query.ageMax !== undefined) {
+      cohorts = cohorts.filter((c) => (c.ageMin ?? 0) <= query.ageMax!)
+    }
+
+    cohorts.sort((a, b) => a.startDate.localeCompare(b.startDate))
+
+    return { ok: true, cohorts }
+  })
 
   // ── GET /marketplace/cohorts/:orgId/:cohortId ─────────────────────────────
   // Public detail page — no auth required
@@ -141,11 +141,13 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
 
       const { orgId, cohortId } = request.params
-      const body = z.object({
-        childId: z.string().min(1),
-        childName: z.string().min(1).max(200),
-        parentPhone: z.string().max(30).nullable().optional(),
-      }).parse(request.body)
+      const body = z
+        .object({
+          childId: z.string().min(1),
+          childName: z.string().min(1).max(200),
+          parentPhone: z.string().max(30).nullable().optional(),
+        })
+        .parse(request.body)
 
       const db2 = getFirestore()
       const cohortRef = db2.doc(`organizations/${orgId}/cohorts/${cohortId}`)

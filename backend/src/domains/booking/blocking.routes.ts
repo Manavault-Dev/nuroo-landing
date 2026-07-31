@@ -27,7 +27,9 @@ export const blockingRoute: FastifyPluginAsync = async (fastify) => {
   const db = getFirestore()
 
   const col = (orgId: string, specialistId: string) =>
-    db.collection(`organizations/${orgId}/specialistBlocking`).where('specialistId', '==', specialistId)
+    db
+      .collection(`organizations/${orgId}/specialistBlocking`)
+      .where('specialistId', '==', specialistId)
 
   /** GET /orgs/:orgId/specialists/:specialistId/blocking */
   fastify.get<{ Params: { orgId: string; specialistId: string } }>(

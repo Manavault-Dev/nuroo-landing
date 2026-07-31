@@ -15,7 +15,7 @@ export interface RecurringTemplate {
   /** 0=Sun,1=Mon,...,6=Sat */
   weekdays: number[]
   startTime: string // "HH:MM"
-  endTime: string   // "HH:MM"
+  endTime: string // "HH:MM"
   repeatUntil: string // ISO date "YYYY-MM-DD"
 }
 
@@ -24,16 +24,16 @@ export interface CohortDoc {
   orgId: string
   title: string
   description: string
-  instructorId: string | null   // specialist uid
+  instructorId: string | null // specialist uid
   instructorName: string | null
   category: string | null
   ageMin: number | null
   ageMax: number | null
   format: CohortFormat
-  startDate: string  // ISO date
-  endDate: string    // ISO date
+  startDate: string // ISO date
+  endDate: string // ISO date
   price: number
-  currency: string   // 'KGS'
+  currency: string // 'KGS'
   maxParticipants: number
   enrolledCount: number
   status: CohortStatus
@@ -43,7 +43,7 @@ export interface CohortDoc {
   // denormalized for marketplace
   orgName: string | null
   orgLogoUrl: string | null
-  createdBy: string  // uid
+  createdBy: string // uid
   createdAt: string
   updatedAt: string
   publishedAt: string | null
@@ -55,11 +55,11 @@ export interface SessionDoc {
   id: string
   cohortId: string
   orgId: string
-  date: string       // "YYYY-MM-DD"
-  startTime: string  // "HH:MM"
-  endTime: string    // "HH:MM"
+  date: string // "YYYY-MM-DD"
+  startTime: string // "HH:MM"
+  endTime: string // "HH:MM"
   format: CohortFormat
-  meetingUrl: string | null   // Google Meet / Zoom link
+  meetingUrl: string | null // Google Meet / Zoom link
   status: SessionStatus
   topic: string | null
   notes: string | null
@@ -97,7 +97,7 @@ export interface AttendanceDoc {
   cohortId: string
   status: AttendanceStatus
   markedAt: string
-  markedBy: string  // specialist uid
+  markedBy: string // specialist uid
 }
 
 // ─── Public marketplace payload ───────────────────────────────────────────────
