@@ -3,6 +3,7 @@
 
 export type CohortStatus = 'draft' | 'open' | 'full' | 'in_progress' | 'completed' | 'cancelled'
 export type CohortFormat = 'online' | 'offline'
+export type CohortAudience = 'children' | 'parents' | 'specialists' | 'all'
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'postponed'
 export type ParticipantStatus = 'active' | 'dropped' | 'completed'
 export type PaymentStatus = 'paid' | 'partial' | 'pending'
@@ -30,6 +31,7 @@ export interface CohortDoc {
   ageMin: number | null
   ageMax: number | null
   format: CohortFormat
+  targetAudience: CohortAudience
   startDate: string // ISO date
   endDate: string // ISO date
   price: number
@@ -114,6 +116,7 @@ export interface PublicCohort {
   ageMin: number | null
   ageMax: number | null
   format: CohortFormat
+  targetAudience: CohortAudience
   startDate: string
   endDate: string
   price: number

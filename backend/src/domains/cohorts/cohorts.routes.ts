@@ -10,7 +10,6 @@ import type {
   ParticipantDoc,
   AttendanceDoc,
   RecurringTemplate,
-  CohortFormat,
   CohortStatus,
 } from './cohorts.types.js'
 
@@ -50,6 +49,7 @@ const cohortCreateSchema = z.object({
   ageMin: z.number().int().min(0).max(18).nullable().optional(),
   ageMax: z.number().int().min(0).max(18).nullable().optional(),
   format: z.enum(['online', 'offline']).default('offline'),
+  targetAudience: z.enum(['children', 'parents', 'specialists', 'all']).default('children'),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   price: z.number().min(0).default(0),
@@ -108,6 +108,14 @@ const attendanceSchema = z.object({
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function sortSessionsBySchedule<T extends Pick<SessionDoc, 'date' | 'startTime'>>(
+  sessions: T[]
+): T[] {
+  return [...sessions].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+  )
 }
 
 /** Generate session dates from recurring template */
@@ -213,6 +221,7 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
         ageMin: body.ageMin ?? null,
         ageMax: body.ageMax ?? null,
         format: body.format,
+        targetAudience: body.targetAudience ?? 'children',
         startDate: body.startDate,
         endDate: body.endDate,
         price: body.price,
@@ -349,13 +358,11 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (reply.sent) return
 
       const { orgId, cohortId } = request.params
-      const snap = await db
-        .collection(COL.sessions(orgId, cohortId))
-        .orderBy('date', 'asc')
-        .orderBy('startTime', 'asc')
-        .get()
+      const snap = await db.collection(COL.sessions(orgId, cohortId)).get()
 
-      const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[]
+      const sessions = sortSessionsBySchedule(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[]
+      )
       return { ok: true, sessions }
     }
   )

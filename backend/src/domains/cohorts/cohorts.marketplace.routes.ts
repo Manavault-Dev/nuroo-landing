@@ -18,6 +18,7 @@ function toPublic(doc: CohortDoc): PublicCohort {
     ageMin: doc.ageMin,
     ageMax: doc.ageMax,
     format: doc.format,
+    targetAudience: doc.targetAudience ?? 'children',
     startDate: doc.startDate,
     endDate: doc.endDate,
     price: doc.price,
@@ -28,6 +29,12 @@ function toPublic(doc: CohortDoc): PublicCohort {
     status: doc.status,
     coverUrl: doc.coverUrl,
   }
+}
+
+function sortSessionsBySchedule<T extends { date: string; startTime: string }>(sessions: T[]): T[] {
+  return [...sessions].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+  )
 }
 
 export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
@@ -127,24 +134,23 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await db
         .collection(`organizations/${orgId}/cohorts/${cohortId}/sessions`)
         .where('status', '==', 'scheduled')
-        .orderBy('date', 'asc')
-        .orderBy('startTime', 'asc')
-        .limit(20)
         .get()
 
-      const sessions = snap.docs.map((d) => {
-        const s = d.data()
-        return {
-          id: d.id,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          format: s.format,
-          status: s.status,
-          topic: s.topic ?? null,
-          meetingUrl: null, // don't expose meeting URLs publicly
-        }
-      })
+      const sessions = sortSessionsBySchedule(
+        snap.docs.map((d) => {
+          const s = d.data()
+          return {
+            id: d.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            format: s.format,
+            status: s.status,
+            topic: s.topic ?? null,
+            meetingUrl: null, // don't expose meeting URLs publicly
+          }
+        })
+      ).slice(0, 20)
 
       return { ok: true, sessions }
     }

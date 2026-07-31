@@ -13,6 +13,7 @@ interface FormData {
   description: string
   category: string
   format: 'online' | 'offline'
+  targetAudience: 'children' | 'parents' | 'specialists' | 'all'
   startDate: string
   endDate: string
   price: string
@@ -49,6 +50,7 @@ export default function NewCohortPage() {
     description: '',
     category: '',
     format: 'offline',
+    targetAudience: 'children',
     startDate: '',
     endDate: '',
     price: '0',
@@ -91,6 +93,7 @@ export default function NewCohortPage() {
         description: form.description.trim(),
         category: form.category.trim() || null,
         format: form.format,
+        targetAudience: form.targetAudience,
         startDate: form.startDate,
         endDate: form.endDate,
         price: parseFloat(form.price) || 0,
@@ -214,6 +217,19 @@ export default function NewCohortPage() {
               >
                 <option value="offline">Офлайн</option>
                 <option value="online">Онлайн</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Для кого</label>
+              <select
+                value={form.targetAudience}
+                onChange={set('targetAudience')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+              >
+                <option value="children">Дети</option>
+                <option value="parents">Родители</option>
+                <option value="specialists">Специалисты</option>
+                <option value="all">Все</option>
               </select>
             </div>
           </div>
