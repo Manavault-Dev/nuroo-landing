@@ -17,6 +17,7 @@ import {
   ChevronRight,
   AlertCircle,
   Ban,
+  Rocket,
 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
@@ -56,11 +57,13 @@ function CohortCard({
   orgId,
   isAdmin,
   onCancel,
+  onPublish,
 }: {
   cohort: Cohort
   orgId: string
   isAdmin: boolean
   onCancel: (c: Cohort) => void
+  onPublish: (c: Cohort) => void
 }) {
   const st = STATUS_STYLE[cohort.status]
   const spots = cohort.maxParticipants - cohort.enrolledCount
@@ -140,17 +143,33 @@ function CohortCard({
           <span className="text-sm font-semibold text-gray-900">
             {cohort.price > 0 ? `${cohort.price.toLocaleString()} ${cohort.currency}` : 'Бесплатно'}
           </span>
-          {isAdmin && cohort.status !== 'cancelled' && (
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                onCancel(cohort)
-              }}
-              className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              Отменить
-            </button>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              {cohort.status === 'draft' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onPublish(cohort)
+                  }}
+                  className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1 transition-colors font-medium"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  Открыть набор
+                </button>
+              )}
+              {cohort.status !== 'cancelled' && cohort.status !== 'completed' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onCancel(cohort)
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  Отменить
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -166,6 +185,7 @@ export default function CoursesPage() {
   const [error, setError] = useState<string | null>(null)
   const [cancelModal, setCancelModal] = useState<Cohort | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [publishing, setPublishing] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading || !orgId) return
@@ -176,6 +196,21 @@ export default function CoursesPage() {
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false))
   }, [authLoading, orgId])
+
+  const handlePublish = async (cohort: Cohort) => {
+    if (!orgId) return
+    setPublishing(cohort.id)
+    try {
+      await apiClient.updateCohort(orgId, cohort.id, { status: 'open' })
+      setCohorts((prev) =>
+        prev.map((c) => (c.id === cohort.id ? { ...c, status: 'open' as const } : c))
+      )
+    } catch {
+      alert('Не удалось открыть набор. Попробуйте ещё раз.')
+    } finally {
+      setPublishing(null)
+    }
+  }
 
   const handleCancel = async () => {
     if (!cancelModal || !orgId) return
@@ -260,6 +295,7 @@ export default function CoursesPage() {
                     orgId={orgId ?? ''}
                     isAdmin={isAdmin}
                     onCancel={setCancelModal}
+                    onPublish={handlePublish}
                   />
                 ))}
               </div>
@@ -279,6 +315,7 @@ export default function CoursesPage() {
                     orgId={orgId ?? ''}
                     isAdmin={isAdmin}
                     onCancel={setCancelModal}
+                    onPublish={handlePublish}
                   />
                 ))}
               </div>
