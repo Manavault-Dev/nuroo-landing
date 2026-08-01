@@ -27,6 +27,13 @@ export const envSchema = z.object({
 
   BACKEND_PUBLIC_URL: z.string().optional(),
 
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.string().default('587'),
+  SMTP_SECURE: z.string().default('false'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+
   FINIK_API_KEY: z.string().optional(),
   FINIK_API_URL: z.string().optional(),
   FINIK_ACCOUNT_ID: z.string().optional(),
