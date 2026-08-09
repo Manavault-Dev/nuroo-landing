@@ -31,6 +31,7 @@ import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 import { bookingDomain } from './domains/booking/index.js'
 import { cohortsDomain } from './domains/cohorts/index.js'
+import { calendarRoutes } from './domains/calendar/calendar.routes.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -120,6 +121,7 @@ async function buildServer() {
     if (url === '/health' || method === 'OPTIONS') return
     if (url.startsWith('/bootstrap/')) return
     if (url.startsWith('/public/')) return
+    if (url.startsWith('/calendar/callback')) return // Google OAuth redirect — no Bearer token
     if (url.startsWith('/api/organizations/public')) return
     if (url.startsWith('/api/parent/content/')) return
     if (url.startsWith('/api/parent/alphakids/')) return
@@ -178,6 +180,7 @@ async function buildServer() {
     verificationsDomain,
     bookingDomain,
     cohortsDomain,
+    calendarRoutes,
     // External modules (parent-api, ai-assistant)
     parentApiRoutes,
     aiAssistantRoutes,

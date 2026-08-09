@@ -9,6 +9,16 @@ export const envSchema = z.object({
   FIREBASE_PRIVATE_KEY: z.string().optional(),
   FIREBASE_STORAGE_BUCKET: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  // Google Meet / Calendar OAuth (reuses same client as mobile sign-in)
+  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().optional(),
+  NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().optional(),
+  NEXT_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI: z.string().optional(),
+  // Optional: Service Account fallback (if no user OAuth)
+  GOOGLE_CLIENT_EMAIL: z.string().optional(),
+  GOOGLE_PRIVATE_KEY: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
 
   FIREBASE_DEV_PROJECT_ID: z.string().optional(),

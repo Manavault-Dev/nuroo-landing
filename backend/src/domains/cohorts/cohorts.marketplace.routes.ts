@@ -131,6 +131,18 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
       const cohortSnap = await db.doc(`organizations/${orgId}/cohorts/${cohortId}`).get()
       if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
 
+      // Only enrolled participants (authenticated) see meeting URLs
+      let isEnrolled = false
+      if (request.user) {
+        const enrollSnap = await db
+          .collection(`organizations/${orgId}/cohorts/${cohortId}/participants`)
+          .where('parentId', '==', request.user.uid)
+          .where('status', '==', 'active')
+          .limit(1)
+          .get()
+        isEnrolled = !enrollSnap.empty
+      }
+
       const snap = await db
         .collection(`organizations/${orgId}/cohorts/${cohortId}/sessions`)
         .where('status', '==', 'scheduled')
@@ -147,7 +159,7 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
             format: s.format,
             status: s.status,
             topic: s.topic ?? null,
-            meetingUrl: null, // don't expose meeting URLs publicly
+            meetingUrl: isEnrolled ? (s.meetingUrl ?? null) : null,
           }
         })
       ).slice(0, 20)
