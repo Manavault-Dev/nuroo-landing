@@ -2367,6 +2367,26 @@ export class ApiClient {
     })
   }
 
+  async uploadCohortCover(orgId: string, cohortId: string, file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('cover', file)
+
+    const headers = new Headers()
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`)
+
+    const response = await fetch(`${this.baseUrl}/orgs/${orgId}/cohorts/${cohortId}/cover`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(err.error || 'Upload failed')
+    }
+    const data = (await response.json()) as { ok: boolean; coverUrl: string }
+    return data.coverUrl
+  }
+
   async deleteCohort(orgId: string, cohortId: string) {
     return this.request<{ ok: boolean }>(`/orgs/${orgId}/cohorts/${cohortId}`, {
       method: 'DELETE',
@@ -2486,6 +2506,25 @@ export class ApiClient {
       `/orgs/${orgId}/specialists/${specialistId}/blocking/${blockId}`,
       { method: 'DELETE' }
     )
+  }
+
+  // ── Google Calendar integration ──────────────────────────────────────────
+
+  async getCalendarConnectUrl() {
+    return this.request<{ ok: boolean; url: string }>('/calendar/connect')
+  }
+
+  async getCalendarStatus() {
+    return this.request<{
+      ok: boolean
+      connected: boolean
+      googleEmail?: string
+      connectedAt?: string
+    }>('/calendar/status')
+  }
+
+  async disconnectCalendar() {
+    return this.request<{ ok: boolean }>('/calendar/disconnect', { method: 'DELETE' })
   }
 
   // Clear all cache (useful for logout)

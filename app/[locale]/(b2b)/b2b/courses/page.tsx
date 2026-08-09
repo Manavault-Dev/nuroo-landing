@@ -179,7 +179,7 @@ function CohortCard({
 
 export default function CoursesPage() {
   const t = useTranslations('b2b.pages.courses')
-  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
+  const { orgId, isAdmin, isSpecialist, isLoading: authLoading } = usePageAuth()
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -250,7 +250,7 @@ export default function CoursesPage() {
             <p className="text-sm text-gray-500">{t('list.subtitle')}</p>
           </div>
         </div>
-        {isAdmin && (
+        {(isAdmin || isSpecialist) && (
           <Link
             href={`/b2b/courses/new${orgId ? `?orgId=${orgId}` : ''}`}
             className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
@@ -273,7 +273,7 @@ export default function CoursesPage() {
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-gray-600 font-medium mb-1">{t('list.emptyTitle')}</h3>
           <p className="text-sm text-gray-400 mb-4">{t('list.emptyDescription')}</p>
-          {isAdmin && (
+          {(isAdmin || isSpecialist) && (
             <Link
               href={`/b2b/courses/new${orgId ? `?orgId=${orgId}` : ''}`}
               className="btn-primary inline-flex items-center gap-2 text-sm px-4 py-2"

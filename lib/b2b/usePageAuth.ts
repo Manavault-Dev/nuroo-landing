@@ -6,6 +6,7 @@ export interface PageAuth {
   profile: SpecialistProfile | null
   orgId: string | undefined
   isAdmin: boolean
+  isSpecialist: boolean
   isLoading: boolean
 }
 
@@ -27,6 +28,7 @@ export function usePageAuth(): PageAuth {
   const currentOrg =
     profile?.organizations.find((o) => o.orgId === orgId) ?? profile?.organizations[0]
   const isAdmin = currentOrg?.role === 'admin'
+  const isSpecialist = currentOrg?.role === 'specialist'
 
-  return { profile, orgId, isAdmin, isLoading }
+  return { profile, orgId, isAdmin, isSpecialist, isLoading }
 }

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { apiClient } from '@/lib/b2b/api'
-import { ArrowLeft, Loader2, BookOpen, Plus } from 'lucide-react'
+import { ArrowLeft, ImagePlus, Loader2, BookOpen, X, Plus } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 
 interface FormData {
@@ -43,7 +43,7 @@ export default function NewCohortPage() {
   const searchParams = useSearchParams()
   const orgId = searchParams.get('orgId') ?? ''
   const router = useRouter()
-  const { isAdmin, isLoading: authLoading } = usePageAuth()
+  const { isAdmin, isSpecialist, isLoading: authLoading } = usePageAuth()
 
   const [form, setForm] = useState<FormData>({
     title: '',
@@ -66,6 +66,30 @@ export default function NewCohortPage() {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Только изображения: JPG, PNG, WebP')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Файл слишком большой. Максимум 8 МБ')
+      return
+    }
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+  }
+
+  const removeCover = () => {
+    setCoverFile(null)
+    setCoverPreview(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
+  }
 
   const set =
     (key: keyof FormData) =>
@@ -124,7 +148,18 @@ export default function NewCohortPage() {
       }
 
       const res = await apiClient.createCohort(orgId, body)
-      router.push(`/b2b/courses/${res.cohort.id}?orgId=${orgId}`)
+      const cohortId = res.cohort.id
+
+      // Upload cover image if selected
+      if (coverFile) {
+        try {
+          await apiClient.uploadCohortCover(orgId, cohortId, coverFile)
+        } catch {
+          // Non-fatal: cohort created, cover failed — redirect anyway
+        }
+      }
+
+      router.push(`/b2b/courses/${cohortId}?orgId=${orgId}`)
     } catch (e: any) {
       setError(e.message || 'Не удалось создать группу')
       setSaving(false)
@@ -139,10 +174,10 @@ export default function NewCohortPage() {
     )
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSpecialist) {
     return (
       <div className="p-6 text-center text-gray-500">
-        Только администраторы могут создавать группы
+        Только администраторы и специалисты могут создавать группы
       </div>
     )
   }
@@ -166,6 +201,50 @@ export default function NewCohortPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Cover image */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Обложка группы
+          </h2>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverChange}
+          />
+          {coverPreview ? (
+            <div className="relative w-full h-44 rounded-xl overflow-hidden border border-gray-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={coverPreview} alt="Обложка" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={removeCover}
+                className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-lg shadow text-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                className="absolute bottom-2 right-2 px-3 py-1.5 bg-white/90 hover:bg-white rounded-lg shadow text-xs font-medium text-gray-700 transition-colors"
+              >
+                Заменить
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              className="w-full h-36 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-primary-400 hover:text-primary-500 transition-colors"
+            >
+              <ImagePlus className="w-7 h-7" />
+              <span className="text-sm">Добавить обложку</span>
+              <span className="text-xs">JPG, PNG, WebP — до 8 МБ</span>
+            </button>
+          )}
+        </div>
+
         {/* Basic info */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -240,7 +319,7 @@ export default function NewCohortPage() {
               <input
                 type="number"
                 min="0"
-                max="18"
+                max="100"
                 value={form.ageMin}
                 onChange={set('ageMin')}
                 placeholder="3"
@@ -252,7 +331,7 @@ export default function NewCohortPage() {
               <input
                 type="number"
                 min="0"
-                max="18"
+                max="100"
                 value={form.ageMax}
                 onChange={set('ageMax')}
                 placeholder="7"
