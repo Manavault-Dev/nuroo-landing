@@ -914,6 +914,7 @@ function findBlockForSlot(
 
 // ── Blocking section ──────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function BlockingSection({
   orgId,
   specialistId,
@@ -1039,7 +1040,15 @@ function BlockingSection({
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+  const DAY_NAMES = [
+    t('days.mon'),
+    t('days.tue'),
+    t('days.wed'),
+    t('days.thu'),
+    t('days.fri'),
+    t('days.sat'),
+    t('days.sun'),
+  ]
   const totalDays = daysInMonth(viewYear, viewMonth)
   const offset = firstWeekday(viewYear, viewMonth)
 
@@ -1161,10 +1170,8 @@ function BlockingSection({
             {!selectedDate ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center">
                 <Calendar className="w-8 h-8 text-gray-200 mb-3" />
-                <p className="text-sm font-semibold text-gray-400">Выберите дату</p>
-                <p className="text-xs text-gray-300 mt-1">
-                  Нажмите на день, чтобы управлять слотами
-                </p>
+                <p className="text-sm font-semibold text-gray-400">{t('selectDateHint')}</p>
+                <p className="text-xs text-gray-300 mt-1">{t('selectDateSubhint')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1175,16 +1182,14 @@ function BlockingSection({
                   // Non-working day
                   <div className="flex items-center gap-2 text-gray-400 text-sm">
                     <Ban className="w-4 h-4 text-gray-300" />
-                    Нерабочий день по расписанию
+                    {t('nonWorkingDay')}
                   </div>
                 ) : selectedSlots.length === 0 ? (
                   // No slots (schedule window too short for slot duration)
-                  <div className="text-sm text-gray-400">Нет доступных слотов</div>
+                  <div className="text-sm text-gray-400">{t('noSlotsAvailable')}</div>
                 ) : (
                   <>
-                    <p className="text-xs text-gray-400">
-                      Нажмите на слот, чтобы заблокировать или разблокировать его
-                    </p>
+                    <p className="text-xs text-gray-400">{t('slotToggleHint')}</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedSlots.map((slot) => {
                         const slotKey = `${selectedDate}|${slot.start}`
@@ -1225,8 +1230,10 @@ function BlockingSection({
                     {/* Summary for selected day */}
                     {blockedSlotsOnDate(selectedDate).length > 0 && (
                       <p className="text-xs text-red-400 font-medium pt-1">
-                        Заблокировано: {blockedSlotsOnDate(selectedDate).length} из{' '}
-                        {selectedSlots.length} слотов
+                        {t('slotsBlocked', {
+                          blocked: blockedSlotsOnDate(selectedDate).length,
+                          total: selectedSlots.length,
+                        })}
                       </p>
                     )}
                   </>
@@ -1457,7 +1464,15 @@ function ScheduleTab({
       </div>
     )
 
-  const CAL_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+  const CAL_DAYS = [
+    t('days.mon'),
+    t('days.tue'),
+    t('days.wed'),
+    t('days.thu'),
+    t('days.fri'),
+    t('days.sat'),
+    t('days.sun'),
+  ]
 
   return (
     <div className="space-y-4">
@@ -1725,10 +1740,10 @@ function ScheduleTab({
                             </p>
                             {selectedSlots !== null && (
                               <p className="text-xs text-gray-400 mt-0.5">
-                                {selectedSlots.length} слот{selectedSlots.length !== 1 ? 'ов' : ''}
+                                {t('slotsCount', { count: selectedSlots.length })}
                                 {blockedCountOnDay > 0 && (
                                   <span className="text-red-400 ml-1">
-                                    · {blockedCountOnDay} закрыт{blockedCountOnDay !== 1 ? 'о' : ''}
+                                    · {t('blockedCount', { count: blockedCountOnDay })}
                                   </span>
                                 )}
                               </p>
@@ -1748,7 +1763,7 @@ function ScheduleTab({
                                 }}
                                 className="text-xs font-semibold text-red-500 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"
                               >
-                                Закрыть всё
+                                {t('closeAll')}
                               </button>
                             ) : (
                               <button
@@ -1765,7 +1780,7 @@ function ScheduleTab({
                                 }}
                                 className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-all"
                               >
-                                Открыть всё
+                                {t('openAll')}
                               </button>
                             ))}
                         </div>
@@ -1773,10 +1788,10 @@ function ScheduleTab({
                         {selectedSlots === null ? (
                           <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-400">
                             <Ban className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                            Выходной день
+                            {t('dayOff')}
                           </div>
                         ) : selectedSlots.length === 0 ? (
-                          <p className="text-sm text-gray-400">Нет слотов</p>
+                          <p className="text-sm text-gray-400">{t('noSlots')}</p>
                         ) : (
                           <div className="flex flex-wrap gap-2">
                             {selectedSlots.map((slot) => {

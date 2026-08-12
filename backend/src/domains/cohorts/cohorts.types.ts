@@ -1,8 +1,17 @@
 // ─── Cohort (replaces pre-recorded Course) ────────────────────────────────────
 // UI shows "Курс", backend/DB uses "cohort"
 
-export type CohortStatus = 'draft' | 'open' | 'full' | 'in_progress' | 'completed' | 'cancelled'
+export type CohortStatus =
+  | 'draft'
+  | 'pending_approval'
+  | 'open'
+  | 'full'
+  | 'in_progress'
+  | 'completed'
+  | 'archived'
+  | 'cancelled'
 export type CohortFormat = 'online' | 'offline'
+export type CohortAudience = 'children' | 'parents' | 'specialists' | 'all'
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'postponed'
 export type ParticipantStatus = 'active' | 'dropped' | 'completed'
 export type PaymentStatus = 'paid' | 'partial' | 'pending'
@@ -30,6 +39,7 @@ export interface CohortDoc {
   ageMin: number | null
   ageMax: number | null
   format: CohortFormat
+  targetAudience: CohortAudience
   startDate: string // ISO date
   endDate: string // ISO date
   price: number
@@ -40,10 +50,22 @@ export interface CohortDoc {
   scheduleType: ScheduleType
   recurringTemplate: RecurringTemplate | null
   coverUrl: string | null
+  /** Google Meet persistent room URL (online cohorts only) */
+  meetingUrl: string | null
+  /** Google Calendar event ID for cleanup on cancel */
+  meetingEventId: string | null
+  // ── Approval flow (only active when org.requireGroupApproval === true) ──
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null
+  submittedForApprovalAt: string | null
+  submittedBy: string | null
+  approvedAt: string | null
+  approvedBy: string | null
+  rejectionComment: string | null
   // denormalized for marketplace
   orgName: string | null
   orgLogoUrl: string | null
   createdBy: string // uid
+  updatedBy: string | null
   createdAt: string
   updatedAt: string
   publishedAt: string | null
@@ -114,6 +136,7 @@ export interface PublicCohort {
   ageMin: number | null
   ageMax: number | null
   format: CohortFormat
+  targetAudience: CohortAudience
   startDate: string
   endDate: string
   price: number

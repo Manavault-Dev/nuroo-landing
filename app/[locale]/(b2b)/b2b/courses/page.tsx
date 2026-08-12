@@ -17,6 +17,7 @@ import {
   ChevronRight,
   AlertCircle,
   Ban,
+  Rocket,
 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
@@ -42,13 +43,13 @@ interface Cohort {
   scheduleType: 'manual' | 'recurring'
 }
 
-const STATUS_STYLE: Record<CohortStatus, { bg: string; label: string }> = {
-  draft: { bg: 'bg-gray-100 text-gray-500', label: 'Черновик' },
-  open: { bg: 'bg-emerald-100 text-emerald-700', label: 'Набор открыт' },
-  full: { bg: 'bg-amber-100 text-amber-700', label: 'Мест нет' },
-  in_progress: { bg: 'bg-blue-100 text-blue-700', label: 'Идут занятия' },
-  completed: { bg: 'bg-gray-100 text-gray-600', label: 'Завершён' },
-  cancelled: { bg: 'bg-red-100 text-red-600', label: 'Отменён' },
+const STATUS_BG: Record<CohortStatus, string> = {
+  draft: 'bg-gray-100 text-gray-500',
+  open: 'bg-emerald-100 text-emerald-700',
+  full: 'bg-amber-100 text-amber-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  completed: 'bg-gray-100 text-gray-600',
+  cancelled: 'bg-red-100 text-red-600',
 }
 
 function CohortCard({
@@ -56,13 +57,16 @@ function CohortCard({
   orgId,
   isAdmin,
   onCancel,
+  onPublish,
 }: {
   cohort: Cohort
   orgId: string
   isAdmin: boolean
   onCancel: (c: Cohort) => void
+  onPublish: (c: Cohort) => void
 }) {
-  const st = STATUS_STYLE[cohort.status]
+  const t = useTranslations('b2b.pages.courses')
+  const statusBg = STATUS_BG[cohort.status]
   const spots = cohort.maxParticipants - cohort.enrolledCount
   const spotsPercent = Math.round((cohort.enrolledCount / cohort.maxParticipants) * 100)
 
@@ -75,8 +79,8 @@ function CohortCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${st.bg}`}>
-                {st.label}
+              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusBg}`}>
+                {t(`cohortStatus.${cohort.status}`)}
               </span>
               {cohort.category && (
                 <span className="text-xs text-gray-400 border border-gray-200 px-2 py-0.5 rounded-full">
@@ -106,7 +110,7 @@ function CohortCard({
             ) : (
               <MapPin className="w-3.5 h-3.5 text-gray-400" />
             )}
-            {cohort.format === 'online' ? 'Онлайн' : 'Офлайн'}
+            {t(`cohortFormat.${cohort.format}`)}
           </span>
           <span className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-gray-400" />
@@ -114,7 +118,7 @@ function CohortCard({
           </span>
           <span className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-gray-400" />
-            {cohort.scheduleType === 'recurring' ? 'По расписанию' : 'Вручную'}
+            {t(`cohortSchedule.${cohort.scheduleType}`)}
           </span>
         </div>
 
@@ -125,7 +129,7 @@ function CohortCard({
               <Users className="w-3.5 h-3.5" />
               {cohort.enrolledCount} / {cohort.maxParticipants}
             </span>
-            <span>{spots > 0 ? `Свободно: ${spots}` : 'Мест нет'}</span>
+            <span>{spots > 0 ? t('spotsAvailable', { count: spots }) : t('spotsFull')}</span>
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -138,19 +142,35 @@ function CohortCard({
         {/* Price */}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-gray-900">
-            {cohort.price > 0 ? `${cohort.price.toLocaleString()} ${cohort.currency}` : 'Бесплатно'}
+            {cohort.price > 0 ? `${cohort.price.toLocaleString()} ${cohort.currency}` : t('free')}
           </span>
-          {isAdmin && cohort.status !== 'cancelled' && (
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                onCancel(cohort)
-              }}
-              className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              Отменить
-            </button>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              {cohort.status === 'draft' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onPublish(cohort)
+                  }}
+                  className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1 transition-colors font-medium"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  {t('openEnrollment')}
+                </button>
+              )}
+              {cohort.status !== 'cancelled' && cohort.status !== 'completed' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onCancel(cohort)
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  {t('cancelCohort.confirm')}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -160,12 +180,13 @@ function CohortCard({
 
 export default function CoursesPage() {
   const t = useTranslations('b2b.pages.courses')
-  const { orgId, isAdmin, isLoading: authLoading } = usePageAuth()
+  const { orgId, isAdmin, isSpecialist, isLoading: authLoading } = usePageAuth()
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cancelModal, setCancelModal] = useState<Cohort | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [_publishing, setPublishing] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading || !orgId) return
@@ -177,6 +198,21 @@ export default function CoursesPage() {
       .finally(() => setLoading(false))
   }, [authLoading, orgId])
 
+  const handlePublish = async (cohort: Cohort) => {
+    if (!orgId) return
+    setPublishing(cohort.id)
+    try {
+      await apiClient.updateCohort(orgId, cohort.id, { status: 'open' })
+      setCohorts((prev) =>
+        prev.map((c) => (c.id === cohort.id ? { ...c, status: 'open' as const } : c))
+      )
+    } catch {
+      setError(t('errorOpenEnrollment'))
+    } finally {
+      setPublishing(null)
+    }
+  }
+
   const handleCancel = async () => {
     if (!cancelModal || !orgId) return
     setCancelling(true)
@@ -187,7 +223,7 @@ export default function CoursesPage() {
       )
       setCancelModal(null)
     } catch {
-      alert('Не удалось отменить набор')
+      setError(t('errorCancelCohort'))
     } finally {
       setCancelling(false)
     }
@@ -215,7 +251,7 @@ export default function CoursesPage() {
             <p className="text-sm text-gray-500">{t('list.subtitle')}</p>
           </div>
         </div>
-        {isAdmin && (
+        {(isAdmin || isSpecialist) && (
           <Link
             href={`/b2b/courses/new${orgId ? `?orgId=${orgId}` : ''}`}
             className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
@@ -238,7 +274,7 @@ export default function CoursesPage() {
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-gray-600 font-medium mb-1">{t('list.emptyTitle')}</h3>
           <p className="text-sm text-gray-400 mb-4">{t('list.emptyDescription')}</p>
-          {isAdmin && (
+          {(isAdmin || isSpecialist) && (
             <Link
               href={`/b2b/courses/new${orgId ? `?orgId=${orgId}` : ''}`}
               className="btn-primary inline-flex items-center gap-2 text-sm px-4 py-2"
@@ -260,6 +296,7 @@ export default function CoursesPage() {
                     orgId={orgId ?? ''}
                     isAdmin={isAdmin}
                     onCancel={setCancelModal}
+                    onPublish={handlePublish}
                   />
                 ))}
               </div>
@@ -279,6 +316,7 @@ export default function CoursesPage() {
                     orgId={orgId ?? ''}
                     isAdmin={isAdmin}
                     onCancel={setCancelModal}
+                    onPublish={handlePublish}
                   />
                 ))}
               </div>
@@ -289,16 +327,16 @@ export default function CoursesPage() {
 
       {cancelModal && (
         <ConfirmModal
-          title="Отменить набор?"
-          subtitle="Это действие нельзя отменить"
+          title={t('cancelCohort.title')}
+          subtitle={t('cancelCohort.subtitle')}
           description={
             <span>
               Набор <span className="font-semibold text-gray-900">«{cancelModal.title}»</span> будет
               отмечен как отменённый. Участники останутся в системе.
             </span>
           }
-          confirmLabel="Отменить набор"
-          cancelLabel="Назад"
+          confirmLabel={t('cancelCohort.confirm')}
+          cancelLabel={t('cancelCohort.cancel')}
           loading={cancelling}
           onConfirm={handleCancel}
           onCancel={() => setCancelModal(null)}

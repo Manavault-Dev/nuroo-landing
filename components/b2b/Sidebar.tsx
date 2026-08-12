@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Palette,
   BookOpen,
+  Video,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
@@ -317,6 +318,11 @@ export function Sidebar({
             <NavLink
               item={settingsItem}
               active={isActive(settingsItem.href)}
+              onClick={onMobileClose}
+            />
+            <NavLink
+              item={{ href: '/b2b/settings/calendar', labelKey: 'Google Meet', icon: Video }}
+              active={isActive('/b2b/settings/calendar')}
               onClick={onMobileClose}
             />
           </div>

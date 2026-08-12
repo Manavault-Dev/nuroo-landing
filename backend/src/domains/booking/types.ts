@@ -1,4 +1,5 @@
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+export type AttendanceStatus = 'present' | 'no_show' | 'cancelled_late'
 export type IntakeStatus = 'not_required' | 'pending' | 'submitted' | 'reviewed'
 
 export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
@@ -63,11 +64,57 @@ export interface BookingDoc {
   intakeFormId: string | null
   notes: string | null
   cancelReason: string | null
+  attendanceStatus: AttendanceStatus | null
+  // Reschedule tracking
+  rescheduledAt: string | null
+  rescheduledFrom: string | null // previous slotId
+  rescheduledFromDate: string | null
+  rescheduledFromTime: string | null
+  rescheduledBy: string | null // uid who rescheduled
   createdAt: string
   updatedAt: string
   confirmedAt: string | null
   completedAt: string | null
   cancelledAt: string | null
+  noShowAt: string | null
+}
+
+/** A specialist saved to a parent's favorites list */
+export interface FavoriteDoc {
+  parentId: string
+  orgId: string
+  specialistId: string
+  specialistName: string
+  specialistAvatar: string | null
+  orgName: string
+  savedAt: string
+}
+
+/** Waitlist entry for a full cohort */
+export interface WaitlistDoc {
+  cohortId: string
+  orgId: string
+  parentId: string
+  parentName: string
+  childName: string
+  phone: string | null
+  addedAt: string
+  notifiedAt: string | null
+  status: 'waiting' | 'notified' | 'enrolled' | 'expired'
+}
+
+/** Audit log entry — immutable record of who changed what */
+export interface AuditEntry {
+  entityType: 'booking' | 'cohort' | 'participant' | 'recommendation'
+  entityId: string
+  orgId: string
+  action: string // e.g. 'reschedule', 'cancel', 'status_change', 'payment_update'
+  actorId: string
+  actorRole: 'parent' | 'specialist' | 'org_admin' | 'system'
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  reason: string | null
+  ts: string
 }
 
 export interface IntakeField {

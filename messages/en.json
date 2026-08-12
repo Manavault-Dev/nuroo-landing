@@ -276,7 +276,7 @@
       "privacy": "Privacy",
       "downloadApp": "Download",
       "logInB2b": "Log in (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© {year} Nuroo. All rights reserved.",
       "scrollToTop": "Scroll to top"
     },
     "forOrgs": {
@@ -747,7 +747,18 @@
         "blockSaveError": "Could not save block",
         "blockInvalidDates": "Start date cannot be after end date",
         "blockInvalidTimes": "Provide both start and end times",
-        "unnamedSpecialist": "Name not set"
+        "unnamedSpecialist": "Name not set",
+        "selectDateHint": "Select a date",
+        "selectDateSubhint": "Click a day to manage slots",
+        "nonWorkingDay": "Non-working day per schedule",
+        "noSlotsAvailable": "No slots available",
+        "slotToggleHint": "Click a slot to block or unblock it",
+        "slotsBlocked": "Blocked: {blocked} of {total} slots",
+        "slotsCount": "{count} slots",
+        "blockedCount": "{count} blocked",
+        "closeAll": "Close all",
+        "openAll": "Open all",
+        "noSlots": "No slots"
       },
       "children": {
         "title": "Your children",
@@ -1089,7 +1100,32 @@
         "role": "Role",
         "administrator": "Administrator",
         "specialist": "Specialist",
-        "notInOrg": "You are not a member of any organization."
+        "notInOrg": "You are not a member of any organization.",
+        "calendar": {
+          "connectGoogleCalendar": "Connect Google Calendar",
+          "redirecting": "Redirecting...",
+          "errorCancelled": "You cancelled access. Please try again.",
+          "errorConnect": "Connection error. Please try again.",
+          "errorGetLink": "Failed to get connection link",
+          "confirmDisconnect": "Disconnect Google Calendar? New meetings won't be created automatically.",
+          "errorDisconnect": "Disconnection error.",
+          "successConnected": "Google Calendar connected! When you publish an online group, a Google Meet link is created automatically.",
+          "disconnected": "Google Calendar disconnected.",
+          "checkingStatus": "Checking status...",
+          "connected": "Connected",
+          "notConnected": "Not connected",
+          "notConnectedHint": "Click the button below to authorize",
+          "meetHint": "When publishing an online group, a Google Meet link is created automatically",
+          "disconnect": "Disconnect",
+          "backToSettings": "Settings",
+          "pageTitle": "Google Calendar",
+          "pageDescription": "Connect your Google account so that when you publish an online group, a Google Meet room is automatically created and the event is added to your calendar.",
+          "howItWorks": "How it works",
+          "step1": "Connect your Google account above",
+          "step2": "Create an online group (format: Online)",
+          "step3": "Click \"Open enrollment\" — the Meet link is created automatically",
+          "connectedSince": "since"
+        }
       },
       "organization": {
         "title": "Settings",
@@ -2079,7 +2115,35 @@
         "publish": {
           "publish": "Publish",
           "unpublish": "Unpublish"
-        }
+        },
+        "cohortStatus": {
+          "draft": "Draft",
+          "open": "Enrollment open",
+          "full": "Full",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "cancelled": "Cancelled"
+        },
+        "cohortFormat": {
+          "online": "Online",
+          "offline": "Offline"
+        },
+        "cohortSchedule": {
+          "recurring": "Recurring",
+          "manual": "Manual"
+        },
+        "spotsAvailable": "Available: {count}",
+        "spotsFull": "No spots left",
+        "free": "Free",
+        "openEnrollment": "Open enrollment",
+        "cancelCohort": {
+          "title": "Cancel enrollment?",
+          "subtitle": "This action cannot be undone",
+          "confirm": "Cancel enrollment",
+          "cancel": "Back"
+        },
+        "errorOpenEnrollment": "Failed to open enrollment. Please try again.",
+        "errorCancelCohort": "Failed to cancel enrollment"
       },
       "brand": {
         "title": "Brand Settings",

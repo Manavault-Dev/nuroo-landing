@@ -45,11 +45,13 @@ interface Cohort {
   currency: string
   maxParticipants: number
   enrolledCount: number
+  instructorId: string | null
   instructorName: string | null
   category: string | null
   ageMin: number | null
   ageMax: number | null
   scheduleType: 'manual' | 'recurring'
+  meetingUrl: string | null
 }
 
 interface Session {
@@ -713,7 +715,7 @@ export default function CohortDetailPage() {
   const cohortId = params.courseId as string
   const orgId = searchParams.get('orgId') ?? ''
 
-  const { isAdmin, isLoading: authLoading } = usePageAuth()
+  const { isAdmin, isSpecialist, profile, isLoading: authLoading } = usePageAuth()
   const [cohort, setCohort] = useState<Cohort | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [participants, setParticipants] = useState<Participant[]>([])
@@ -780,6 +782,8 @@ export default function CohortDetailPage() {
   const st = COHORT_STATUS[cohort.status]
   const upcomingSessions = sessions.filter((s) => s.status === 'scheduled').length
   const completedSessions = sessions.filter((s) => s.status === 'completed').length
+  // canManage: admin OR specialist who is the instructor of this cohort
+  const canManage = isAdmin || (isSpecialist && cohort.instructorId === profile?.uid)
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -824,7 +828,7 @@ export default function CohortDetailPage() {
             )}
           </div>
 
-          {isAdmin && !['cancelled', 'completed'].includes(cohort.status) && (
+          {canManage && !['cancelled', 'completed'].includes(cohort.status) && (
             <div className="flex gap-2 flex-wrap shrink-0">
               {cohort.status === 'draft' && (
                 <button
@@ -890,6 +894,34 @@ export default function CohortDetailPage() {
             </span>
           )}
         </div>
+
+        {/* Google Meet / online link */}
+        {cohort.format === 'online' && cohort.meetingUrl && (
+          <a
+            href={cohort.meetingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-2 text-sm text-primary-600 font-medium hover:underline"
+          >
+            <Video className="w-4 h-4" />
+            Открыть Google Meet
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+        {cohort.format === 'online' && !cohort.meetingUrl && canManage && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-amber-600 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              Ссылка на Meet не создана
+            </span>
+            <Link
+              href="/b2b/settings/calendar"
+              className="text-xs text-primary-600 font-medium underline underline-offset-2 hover:text-primary-700"
+            >
+              Подключить Google Calendar →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -934,7 +966,7 @@ export default function CohortDetailPage() {
           participants={participants}
           orgId={orgId}
           cohortId={cohortId}
-          isAdmin={isAdmin}
+          isAdmin={canManage}
           cohortFormat={cohort.format}
           onSessionsChange={setSessions}
         />
@@ -943,7 +975,7 @@ export default function CohortDetailPage() {
           participants={participants}
           orgId={orgId}
           cohortId={cohortId}
-          isAdmin={isAdmin}
+          isAdmin={canManage}
           cohort={cohort}
           onParticipantsChange={setParticipants}
         />

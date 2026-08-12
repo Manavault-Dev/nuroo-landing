@@ -1,16 +1,32 @@
 import type { FastifyPluginAsync } from 'fastify'
+import multipart from '@fastify/multipart'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
 import admin from 'firebase-admin'
-import { getFirestore } from '../../infrastructure/database/firebase.js'
+import { getFirestore, getStorageBucket } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
+import { eventDispatcher } from '../../modules/notifications/event.dispatcher.js'
+import { writeAudit } from '../../infrastructure/audit/audit.js'
+import {
+  canCreateCohort,
+  canManageCohort,
+  canApproveCohort,
+  isAdmin,
+  validateStatusTransition,
+  validateImmutableFields,
+  denyNotInstructor,
+  denyForbidden,
+} from './cohorts.auth.js'
+import {
+  createPersistentRoom,
+  createUniqueLink,
+} from '../../infrastructure/meetings/google-meet.js'
 import type {
   CohortDoc,
   SessionDoc,
   ParticipantDoc,
   AttendanceDoc,
   RecurringTemplate,
-  CohortFormat,
   CohortStatus,
 } from './cohorts.types.js'
 
@@ -47,9 +63,10 @@ const cohortCreateSchema = z.object({
   description: z.string().max(2000).default(''),
   instructorId: z.string().nullable().optional(),
   category: z.string().max(100).nullable().optional(),
-  ageMin: z.number().int().min(0).max(18).nullable().optional(),
-  ageMax: z.number().int().min(0).max(18).nullable().optional(),
+  ageMin: z.number().int().min(0).max(100).nullable().optional(),
+  ageMax: z.number().int().min(0).max(100).nullable().optional(),
   format: z.enum(['online', 'offline']).default('offline'),
+  targetAudience: z.enum(['children', 'parents', 'specialists', 'all']).default('children'),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   price: z.number().min(0).default(0),
@@ -60,8 +77,20 @@ const cohortCreateSchema = z.object({
   coverUrl: z.string().url().nullable().optional(),
 })
 
+const COHORT_STATUSES = [
+  'draft',
+  'pending_approval',
+  'open',
+  'full',
+  'in_progress',
+  'completed',
+  'archived',
+  'cancelled',
+] as const
+
 const cohortUpdateSchema = cohortCreateSchema.partial().extend({
-  status: z.enum(['draft', 'open', 'full', 'in_progress', 'completed', 'cancelled']).optional(),
+  status: z.enum(COHORT_STATUSES).optional(),
+  rejectionComment: z.string().max(1000).nullable().optional(),
 })
 
 const sessionCreateSchema = z.object({
@@ -110,6 +139,14 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function sortSessionsBySchedule<T extends Pick<SessionDoc, 'date' | 'startTime'>>(
+  sessions: T[]
+): T[] {
+  return [...sessions].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+  )
+}
+
 /** Generate session dates from recurring template */
 function generateSessionDates(template: RecurringTemplate, cohortStartDate: string): string[] {
   const dates: string[] = []
@@ -133,6 +170,7 @@ async function getOrgMeta(db: admin.firestore.Firestore, orgId: string) {
   return {
     orgName: (d?.name as string) || null,
     orgLogoUrl: (d?.logoUrl as string) || null,
+    requireGroupApproval: (d?.requireGroupApproval as boolean) ?? false,
   }
 }
 
@@ -140,6 +178,18 @@ async function getSpecialistName(db: admin.firestore.Firestore, uid: string): Pr
   const snap = await db.doc(`specialists/${uid}`).get()
   const d = snap.data()
   return d?.fullName || d?.name || ''
+}
+
+/** Fetch specialist's Google Calendar refresh token (if connected) */
+async function getSpecialistRefreshToken(
+  db: admin.firestore.Firestore,
+  uid: string | null | undefined
+): Promise<string | null> {
+  if (!uid) return null
+  const snap = await db.doc(`specialists/${uid}/integrations/google_calendar`).get()
+  const d = snap.data()
+  if (!d?.connected || !d?.refreshToken) return null
+  return d.refreshToken as string
 }
 
 function computeStatus(cohort: CohortDoc): CohortStatus {
@@ -191,7 +241,8 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
+      if (!canCreateCohort(member))
+        return denyForbidden(reply, 'Only org members can create groups')
 
       const { orgId } = request.params
       const body = cohortCreateSchema.parse(request.body)
@@ -199,20 +250,23 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       const id = randomUUID()
 
       const { orgName, orgLogoUrl } = await getOrgMeta(db, orgId)
-      const instructorName = body.instructorId
-        ? await getSpecialistName(db, body.instructorId)
-        : null
+
+      // Specialist auto-becomes instructor; admin can assign explicitly
+      const resolvedInstructorId = isAdmin(member) ? (body.instructorId ?? member.uid) : member.uid
+
+      const instructorName = await getSpecialistName(db, resolvedInstructorId)
 
       const doc: Omit<CohortDoc, 'id'> = {
         orgId,
         title: body.title,
         description: body.description,
-        instructorId: body.instructorId ?? null,
+        instructorId: resolvedInstructorId,
         instructorName,
         category: body.category ?? null,
         ageMin: body.ageMin ?? null,
         ageMax: body.ageMax ?? null,
         format: body.format,
+        targetAudience: body.targetAudience ?? 'children',
         startDate: body.startDate,
         endDate: body.endDate,
         price: body.price,
@@ -223,9 +277,18 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
         scheduleType: body.scheduleType,
         recurringTemplate: (body.recurringTemplate as RecurringTemplate) ?? null,
         coverUrl: body.coverUrl ?? null,
+        meetingUrl: null,
+        meetingEventId: null,
+        approvalStatus: null,
+        submittedForApprovalAt: null,
+        submittedBy: null,
+        approvedAt: null,
+        approvedBy: null,
+        rejectionComment: null,
         orgName,
         orgLogoUrl,
         createdBy: request.user.uid,
+        updatedBy: null,
         createdAt: now,
         updatedAt: now,
         publishedAt: null,
@@ -294,21 +357,117 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId } = request.params
       const ref = db.doc(COL.cohort(orgId, cohortId))
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Cohort not found' })
 
-      const body = cohortUpdateSchema.parse(request.body)
-      const updates: Record<string, unknown> = { ...body, updatedAt: nowIso() }
+      const cohort = snap.data() as CohortDoc
 
-      if (body.status === 'open' && !snap.data()?.publishedAt) {
-        updates.publishedAt = nowIso()
+      // Permission: admin (any cohort) OR instructor (own cohort)
+      if (!canManageCohort(member, cohort)) return denyNotInstructor(reply)
+
+      const body = cohortUpdateSchema.parse(request.body)
+
+      // Immutable field check for specialists
+      if (!validateImmutableFields({ member, body: body as Record<string, unknown>, reply })) return
+
+      const { requireGroupApproval } = await getOrgMeta(db, orgId)
+      const updates: Record<string, unknown> = {
+        ...body,
+        updatedAt: nowIso(),
+        updatedBy: request.user.uid,
       }
-      if (body.instructorId) {
+
+      // ── Status transition handling ────────────────────────────────────────
+      if (body.status && body.status !== cohort.status) {
+        const valid = validateStatusTransition({
+          member,
+          cohort,
+          nextStatus: body.status,
+          requireGroupApproval,
+          reply,
+        })
+        if (!valid) return
+
+        // pending_approval: set approval metadata
+        if (body.status === 'pending_approval') {
+          updates.approvalStatus = 'pending'
+          updates.submittedForApprovalAt = nowIso()
+          updates.submittedBy = request.user.uid
+          updates.rejectionComment = null
+        }
+
+        // open (approve): set approval + published metadata
+        if (body.status === 'open' && cohort.status === 'pending_approval') {
+          if (!canApproveCohort(member))
+            return denyForbidden(reply, 'Only admins can approve groups')
+          updates.approvalStatus = 'approved'
+          updates.approvedAt = nowIso()
+          updates.approvedBy = request.user.uid
+        }
+
+        // draft (reject): store rejection comment
+        if (body.status === 'draft' && cohort.status === 'pending_approval') {
+          updates.approvalStatus = 'rejected'
+          updates.rejectionComment = body.rejectionComment ?? null
+        }
+
+        // open: set publishedAt on first publish
+        if (body.status === 'open' && !cohort.publishedAt) {
+          updates.publishedAt = nowIso()
+
+          // Auto-generate Google Meet room (online cohorts only)
+          if (cohort.format === 'online' && !cohort.meetingUrl) {
+            // Try: instructor's token → requesting user's token → skip
+            const instructorToken = await getSpecialistRefreshToken(db, cohort.instructorId)
+            const requesterToken =
+              request.user!.uid !== cohort.instructorId
+                ? await getSpecialistRefreshToken(db, request.user!.uid)
+                : null
+            const refreshToken = instructorToken ?? requesterToken
+
+            if (!refreshToken) {
+              fastify.log.info(
+                { instructorId: cohort.instructorId, requesterId: request.user!.uid },
+                'Google Meet skipped: no connected Google Calendar found for instructor or requester'
+              )
+            } else {
+              try {
+                const meet = await createPersistentRoom({
+                  title: cohort.title,
+                  description: cohort.description || undefined,
+                  startDate: cohort.startDate,
+                  endDate: cohort.endDate,
+                  orgName: cohort.orgName ?? undefined,
+                  refreshToken,
+                })
+                updates.meetingUrl = meet.meetingUrl
+                updates.meetingEventId = meet.eventId
+                fastify.log.info({ meetingUrl: meet.meetingUrl }, 'Google Meet room created ✅')
+
+                const sessionsSnap = await db.collection(COL.sessions(orgId, cohortId)).get()
+                if (!sessionsSnap.empty) {
+                  const batch = db.batch()
+                  for (const s of sessionsSnap.docs) {
+                    batch.update(s.ref, { meetingUrl: meet.meetingUrl, updatedAt: nowIso() })
+                  }
+                  await batch.commit()
+                }
+              } catch (err) {
+                fastify.log.warn({ err }, 'Google Meet room creation failed (non-fatal)')
+              }
+            }
+          }
+        }
+      }
+
+      // Only admin can reassign instructor
+      if (body.instructorId && isAdmin(member)) {
         updates.instructorName = await getSpecialistName(db, body.instructorId)
+      } else {
+        delete updates.instructorId
       }
 
       await ref.update(updates)
@@ -326,14 +485,16 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId } = request.params
       const ref = db.doc(COL.cohort(orgId, cohortId))
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Cohort not found' })
 
-      await ref.update({ status: 'cancelled', updatedAt: nowIso() })
+      const cohort = snap.data() as CohortDoc
+      if (!canManageCohort(member, cohort)) return denyNotInstructor(reply)
+
+      await ref.update({ status: 'cancelled', updatedAt: nowIso(), updatedBy: request.user!.uid })
       return { ok: true }
     }
   )
@@ -349,13 +510,11 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (reply.sent) return
 
       const { orgId, cohortId } = request.params
-      const snap = await db
-        .collection(COL.sessions(orgId, cohortId))
-        .orderBy('date', 'asc')
-        .orderBy('startTime', 'asc')
-        .get()
+      const snap = await db.collection(COL.sessions(orgId, cohortId)).get()
 
-      const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[]
+      const sessions = sortSessionsBySchedule(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[]
+      )
       return { ok: true, sessions }
     }
   )
@@ -369,16 +528,36 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId } = request.params
       const cohortSnap = await db.doc(COL.cohort(orgId, cohortId)).get()
       if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, cohortSnap.data() as CohortDoc)) return denyNotInstructor(reply)
 
       const body = sessionCreateSchema.parse(request.body)
       const now = nowIso()
       const id = randomUUID()
       const cohortData = cohortSnap.data() as CohortDoc
+
+      const sessionFormat = body.format ?? cohortData.format
+
+      // For online sessions: inherit cohort's persistent room, or generate a unique link
+      let meetingUrl: string | null = cohortData.meetingUrl ?? null
+      if (sessionFormat === 'online' && !meetingUrl) {
+        try {
+          const refreshToken = await getSpecialistRefreshToken(db, cohortData.instructorId)
+          const meet = await createUniqueLink({
+            title: `${cohortData.title} · ${body.date}`,
+            date: body.date,
+            startTime: body.startTime,
+            endTime: body.endTime,
+            refreshToken,
+          })
+          meetingUrl = meet.meetingUrl
+        } catch (err) {
+          fastify.log.warn({ err }, 'Google Meet unique link creation failed')
+        }
+      }
 
       const doc: Omit<SessionDoc, 'id'> = {
         cohortId,
@@ -386,8 +565,8 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
         date: body.date,
         startTime: body.startTime,
         endTime: body.endTime,
-        format: body.format ?? cohortData.format,
-        meetingUrl: null,
+        format: sessionFormat,
+        meetingUrl,
         status: 'scheduled',
         topic: body.topic ?? null,
         notes: body.notes ?? null,
@@ -410,9 +589,12 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId, sessionId } = request.params
+      const cohortSnap = await db.doc(COL.cohort(orgId, cohortId)).get()
+      if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, cohortSnap.data() as CohortDoc)) return denyNotInstructor(reply)
+
       const ref = db.doc(COL.session(orgId, cohortId, sessionId))
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Session not found' })
@@ -432,9 +614,12 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId, sessionId } = request.params
+      const cohortSnap = await db.doc(COL.cohort(orgId, cohortId)).get()
+      if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, cohortSnap.data() as CohortDoc)) return denyNotInstructor(reply)
+
       const ref = db.doc(COL.session(orgId, cohortId, sessionId))
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Session not found' })
@@ -474,7 +659,6 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId } = request.params
       const cohortRef = db.doc(COL.cohort(orgId, cohortId))
@@ -482,6 +666,8 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
 
       const cohortData = cohortSnap.data() as CohortDoc
+      if (!canManageCohort(member, cohortData)) return denyNotInstructor(reply)
+
       if (cohortData.enrolledCount >= cohortData.maxParticipants) {
         return reply.code(409).send({ error: 'Cohort is full' })
       }
@@ -515,6 +701,56 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
         })
       })
 
+      // Fire cohort_enrollment_confirmed event (push + email) — non-blocking
+      void (async () => {
+        try {
+          const [orgSnap, parentSnap] = await Promise.all([
+            db.doc(`organizations/${orgId}`).get(),
+            body.parentId ? db.doc(`users/${body.parentId}`).get() : Promise.resolve(null),
+          ])
+          const orgName: string = (orgSnap.data() as { name?: string } | undefined)?.name ?? orgId
+          const parentEmail: string =
+            (parentSnap?.data() as { email?: string } | undefined)?.email ?? ''
+          const specialistName: string = cohortData.instructorId
+            ? ((
+                (await db.doc(`users/${cohortData.instructorId}`).get()).data() as
+                  | { fullName?: string }
+                  | undefined
+              )?.fullName ?? 'Специалист')
+            : 'Специалист'
+
+          if (parentEmail && body.parentId) {
+            eventDispatcher.dispatch({
+              type: 'cohort_enrollment_confirmed',
+              orgId,
+              cohortId,
+              cohortTitle: cohortData.title,
+              parentId: body.parentId,
+              parentName: body.parentName,
+              parentEmail,
+              specialistName,
+              orgName,
+              startDate: cohortData.startDate,
+              meetingUrl: cohortData.meetingUrl ?? null,
+            })
+          }
+        } catch {
+          // notification failure must never affect enrollment response
+        }
+      })()
+
+      writeAudit({
+        db,
+        orgId,
+        entityType: 'participant',
+        entityId: id,
+        action: 'participant.enrolled',
+        actorId: request.user!.uid,
+        actorRole: member.role === 'org_admin' ? 'org_admin' : 'specialist',
+        before: {},
+        after: { cohortId, parentId: body.parentId, childName: body.childName },
+      })
+
       return reply.code(201).send({ ok: true, participant: { id, ...doc } })
     }
   )
@@ -528,9 +764,12 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Admins only' })
 
       const { orgId, cohortId, participantId } = request.params
+      const cohortSnap = await db.doc(COL.cohort(orgId, cohortId)).get()
+      if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, cohortSnap.data() as CohortDoc)) return denyNotInstructor(reply)
+
       const ref = db.doc(COL.participant(orgId, cohortId, participantId))
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Participant not found' })
@@ -556,10 +795,14 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: RATE } },
     async (request, reply) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
-      await requireOrgMember(request, reply, request.params.orgId)
+      const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
 
       const { orgId, cohortId, sessionId } = request.params
+      const cohortSnap = await db.doc(COL.cohort(orgId, cohortId)).get()
+      if (!cohortSnap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, cohortSnap.data() as CohortDoc)) return denyNotInstructor(reply)
+
       const body = attendanceSchema.parse(request.body)
       const now = nowIso()
       const markedBy = request.user.uid
@@ -601,6 +844,65 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await db.collection(COL.attendance(orgId, cohortId, sessionId)).get()
       const attendance = snap.docs.map((d) => d.data()) as AttendanceDoc[]
       return { ok: true, attendance }
+    }
+  )
+
+  // ── POST /orgs/:orgId/cohorts/:cohortId/cover ─────────────────────────────
+  // Upload cohort cover image — admin only
+
+  await fastify.register(multipart, { limits: { fileSize: 8 * 1024 * 1024, files: 1 } })
+
+  fastify.post<{ Params: { orgId: string; cohortId: string } }>(
+    '/orgs/:orgId/cohorts/:cohortId/cover',
+    { config: { rateLimit: RATE } },
+    async (request, reply) => {
+      if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
+      const member = await requireOrgMember(request, reply, request.params.orgId)
+      if (reply.sent) return
+
+      const { orgId, cohortId } = request.params
+      const ref = db.doc(COL.cohort(orgId, cohortId))
+      const snap = await ref.get()
+      if (!snap.exists) return reply.code(404).send({ error: 'Cohort not found' })
+      if (!canManageCohort(member, snap.data() as CohortDoc)) return denyNotInstructor(reply)
+
+      let imageBuffer: Buffer | null = null
+      let imageMimetype = ''
+      let imageFilename = 'cover'
+
+      const parts = request.parts()
+      for await (const part of parts) {
+        if (part.type === 'file' && part.fieldname === 'cover') {
+          const chunks: Buffer[] = []
+          for await (const chunk of part.file) chunks.push(chunk)
+          imageBuffer = Buffer.concat(chunks)
+          imageMimetype = part.mimetype || ''
+          imageFilename = part.filename || 'cover'
+        }
+      }
+
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return reply.code(400).send({ error: 'Image file is required' })
+      }
+      if (!imageMimetype.startsWith('image/')) {
+        return reply.code(400).send({ error: 'Only image uploads are allowed' })
+      }
+
+      const bucket = await getStorageBucket()
+      const safeName = imageFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const storagePath = `orgs/${orgId}/cohorts/${cohortId}/cover/${Date.now()}-${safeName}`
+      const file = bucket.file(storagePath)
+
+      await file.save(imageBuffer, {
+        contentType: imageMimetype,
+        metadata: { cacheControl: 'public, max-age=31536000' },
+      })
+      await file.makePublic()
+
+      const coverUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+      await ref.update({ coverUrl, updatedAt: new Date().toISOString() })
+
+      return reply.code(200).send({ ok: true, coverUrl })
     }
   )
 }

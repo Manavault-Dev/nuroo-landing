@@ -4,6 +4,7 @@ import admin from 'firebase-admin'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import type { SpecialistProfile } from '../../shared/types/domain.js'
 import { z } from 'zod'
+import { eventDispatcher } from '../../modules/notifications/event.dispatcher.js'
 
 const COLLECTIONS = {
   SPECIALISTS: 'specialists',
@@ -121,16 +122,14 @@ async function findOrganizationsForUser(
     const now = admin.firestore.Timestamp.now()
     const denormRole = denormalizeRole(role)
 
-    // Never downgrade org_admin → specialist. Check existing member record first.
+    // Never downgrade an existing org_admin to specialist
     let finalRole = denormRole
     if (denormRole !== 'org_admin') {
       const existingMember = await db.doc(`${COLLECTIONS.ORG_MEMBERS(orgId)}/${uid}`).get()
       if (existingMember.exists && existingMember.data()?.role === 'org_admin') {
         finalRole = 'org_admin'
-      } else {
-        // Also check if this user created the org
-        const orgCreatedBy = orgData.createdBy
-        if (orgCreatedBy === uid) finalRole = 'org_admin'
+      } else if (orgData.createdBy === uid) {
+        finalRole = 'org_admin'
       }
     }
 
@@ -169,7 +168,7 @@ async function findOrganizationsForUser(
     }
   }
 
-  // Strategy 0: fast per-user membership index. Avoids collectionGroup and org scans.
+  // Strategy 0: per-user membership index — fastest path, no collectionGroup scan
   try {
     const indexedSnapshot = await db
       .collection(COLLECTIONS.USER_ORGS(uid))
@@ -203,7 +202,7 @@ async function findOrganizationsForUser(
     console.warn('[me] Strategy 0 (user org index) failed:', err)
   }
 
-  // Strategy 1: direct pointer on specialist profile. No collection-group index required.
+  // Strategy 1: orgId pointer on specialist profile
   try {
     const specialistSnap = await db.doc(`${COLLECTIONS.SPECIALISTS}/${uid}`).get()
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
@@ -235,8 +234,7 @@ async function findOrganizationsForUser(
     console.warn('[me] Strategy 1 (specialist org pointer) failed:', err)
   }
 
-  // Strategy 2: legacy fallback. Only for users who have a specialist profile but
-  // no orgId pointer and no membership index — skip entirely for brand-new users.
+  // Strategy 2: legacy fallback — full org scan, skipped for brand-new users
   if (!hasSpecialistProfile) {
     return organizations
   }
@@ -312,11 +310,20 @@ export const meRoute: FastifyPluginAsync = async (fastify) => {
       specialistSnap.exists
     )
 
-    // Parent-only accounts (no specialist profile, no org access) get an empty
-    // organizations list. Clients derive the "parent" role from orgs.length === 0.
-    // Returning 403 here broke the mobile app role gate — 200 is the right response.
+    // Parent-only accounts return empty orgs — clients derive role from orgs.length === 0
     const specialistData = specialistSnap.exists ? specialistSnap.data() : null
     const name = extractName(specialistData)
+
+    // Welcome email on first login
+    const isNewUser = !specialistSnap.exists && !parentSnap.exists
+    if (isNewUser && email) {
+      eventDispatcher.dispatch({
+        type: 'welcome',
+        userId: uid,
+        name: name || email.split('@')[0],
+        email,
+      })
+    }
 
     const profile: SpecialistProfile = {
       uid,
