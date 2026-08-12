@@ -5,6 +5,8 @@ import { randomUUID } from 'crypto'
 import admin from 'firebase-admin'
 import { getFirestore, getStorageBucket } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
+import { eventDispatcher } from '../../modules/notifications/event.dispatcher.js'
+import { writeAudit } from '../../infrastructure/audit/audit.js'
 import {
   canCreateCohort,
   canManageCohort,
@@ -697,6 +699,56 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
           enrolledCount: admin.firestore.FieldValue.increment(1),
           updatedAt: now,
         })
+      })
+
+      // Fire cohort_enrollment_confirmed event (push + email) — non-blocking
+      void (async () => {
+        try {
+          const [orgSnap, parentSnap] = await Promise.all([
+            db.doc(`organizations/${orgId}`).get(),
+            body.parentId ? db.doc(`users/${body.parentId}`).get() : Promise.resolve(null),
+          ])
+          const orgName: string = (orgSnap.data() as { name?: string } | undefined)?.name ?? orgId
+          const parentEmail: string =
+            (parentSnap?.data() as { email?: string } | undefined)?.email ?? ''
+          const specialistName: string = cohortData.instructorId
+            ? ((
+                (await db.doc(`users/${cohortData.instructorId}`).get()).data() as
+                  | { fullName?: string }
+                  | undefined
+              )?.fullName ?? 'Специалист')
+            : 'Специалист'
+
+          if (parentEmail && body.parentId) {
+            eventDispatcher.dispatch({
+              type: 'cohort_enrollment_confirmed',
+              orgId,
+              cohortId,
+              cohortTitle: cohortData.title,
+              parentId: body.parentId,
+              parentName: body.parentName,
+              parentEmail,
+              specialistName,
+              orgName,
+              startDate: cohortData.startDate,
+              meetingUrl: cohortData.meetingUrl ?? null,
+            })
+          }
+        } catch {
+          // notification failure must never affect enrollment response
+        }
+      })()
+
+      writeAudit({
+        db,
+        orgId,
+        entityType: 'participant',
+        entityId: id,
+        action: 'participant.enrolled',
+        actorId: request.user!.uid,
+        actorRole: member.role === 'org_admin' ? 'org_admin' : 'specialist',
+        before: {},
+        after: { cohortId, parentId: body.parentId, childName: body.childName },
       })
 
       return reply.code(201).send({ ok: true, participant: { id, ...doc } })

@@ -31,6 +31,8 @@ import { parentApiRoutes } from './modules/parent-api/index.js'
 import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 import { bookingDomain } from './domains/booking/index.js'
 import { cohortsDomain } from './domains/cohorts/index.js'
+import { favoritesDomain } from './domains/favorites/index.js'
+import { auditRoutes } from './infrastructure/audit/audit.routes.js'
 import { calendarRoutes } from './domains/calendar/calendar.routes.js'
 
 declare module 'fastify' {
@@ -91,10 +93,27 @@ async function buildServer() {
     ? config.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     : ['https://usenuroo.com']
 
-  const corsOrigins = isProduction ? productionOrigins : defaultOrigins
+  const isAllowedDevOrigin = (origin: string) => {
+    if (defaultOrigins.includes(origin)) return true
+
+    try {
+      const { hostname } = new URL(origin)
+      return hostname === 'localhost' || hostname === '127.0.0.1'
+    } catch {
+      return false
+    }
+  }
 
   await fastify.register(cors, {
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true)
+        return
+      }
+
+      const allowed = isProduction ? productionOrigins.includes(origin) : isAllowedDevOrigin(origin)
+      callback(null, allowed)
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -180,6 +199,8 @@ async function buildServer() {
     verificationsDomain,
     bookingDomain,
     cohortsDomain,
+    favoritesDomain,
+    auditRoutes,
     calendarRoutes,
     // External modules (parent-api, ai-assistant)
     parentApiRoutes,
