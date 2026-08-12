@@ -54,6 +54,10 @@ export const envSchema = z.object({
 
   BILLING_MODE: z.enum(['manual', 'stripe_test', 'stripe_live']).default('manual'),
   PLATFORM_ADMIN_SECRET: z.string().optional(),
+
+  // Email (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -4,6 +4,8 @@ import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import { canTransition, buildStatusUpdate, validateBookingInput } from './booking.service.js'
 import type { BookingDoc, Slot } from './types.js'
+import { eventDispatcher } from '../../modules/notifications/event.dispatcher.js'
+import { writeAudit } from '../../infrastructure/audit/audit.js'
 
 const RATE = { max: 30, timeWindow: '1 minute' }
 const RATE_READ = { max: 120, timeWindow: '1 minute' }
@@ -20,7 +22,7 @@ const createBookingSchema = z.object({
 })
 
 const statusUpdateSchema = z.object({
-  status: z.enum(['confirmed', 'completed', 'cancelled']),
+  status: z.enum(['confirmed', 'completed', 'cancelled', 'no_show']),
   cancelReason: z.string().trim().max(500).optional(),
 })
 
@@ -33,11 +35,7 @@ function sortBookingsByDateDesc<T extends Pick<BookingDoc, 'date' | 'startTime'>
   })
 }
 
-/**
- * Read the index from userBookings (to avoid collectionGroup), then fetch fresh
- * data from the canonical location (organizations/.../bookings/...) so status
- * is always up to date without needing mirror sync.
- */
+// Reads from userBookings index, then fetches fresh canonical data to avoid stale status
 async function listParentBookings(db: FirebaseFirestore.Firestore, parentId: string) {
   const indexSnap = await db.collection(`userBookings/${parentId}/items`).limit(50).get()
   if (indexSnap.empty) return []
@@ -59,10 +57,7 @@ async function listParentBookings(db: FirebaseFirestore.Firestore, parentId: str
 export const bookingRoute: FastifyPluginAsync = async (fastify) => {
   const db = getFirestore()
 
-  /**
-   * POST /marketplace/organizations/:orgId/bookings
-   * Parent creates a booking — atomically claims a slot via Firestore transaction.
-   */
+  // POST /marketplace/organizations/:orgId/bookings — parent creates a booking
   fastify.post<{ Params: { orgId: string } }>(
     '/marketplace/organizations/:orgId/bookings',
     { config: { rateLimit: RATE } },
@@ -83,11 +78,8 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
       if (inputError) return reply.code(400).send({ error: inputError })
 
       const orgSnap = await db.doc(`organizations/${orgId}`).get()
-      if (!orgSnap.exists) {
-        return reply.code(404).send({ error: 'Organization not found' })
-      }
+      if (!orgSnap.exists) return reply.code(404).send({ error: 'Organization not found' })
 
-      // Determine intake status based on service's intake form configuration
       let intakeFormId: string | null = null
       if (serviceId) {
         const svcSnap = await db.doc(`organizations/${orgId}/specialistServices/${serviceId}`).get()
@@ -101,17 +93,14 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
       const bookingRef = db.collection(`organizations/${orgId}/bookings`).doc()
       const slotRef = db.doc(`organizations/${orgId}/slots/${slotId}`)
 
-      // Double-booking protection via Firestore transaction
       try {
         await db.runTransaction(async (tx) => {
           const slotSnap = await tx.get(slotRef)
 
-          // If slot doc exists and is already booked — reject
           if (slotSnap.exists && slotSnap.data()?.status === 'booked') {
             throw Object.assign(new Error('Slot already booked'), { code: 'SLOT_TAKEN' })
           }
 
-          // Check for existing booking from this parent for same specialist+date+time
           const conflictSnap = await db
             .collection(`organizations/${orgId}/bookings`)
             .where('parentId', '==', parentId)
@@ -146,21 +135,25 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
             intakeFormId,
             notes: notes ?? null,
             cancelReason: null,
+            attendanceStatus: null,
+            rescheduledAt: null,
+            rescheduledFrom: null,
+            rescheduledFromDate: null,
+            rescheduledFromTime: null,
+            rescheduledBy: null,
             createdAt: now,
             updatedAt: now,
             confirmedAt: null,
             completedAt: null,
             cancelledAt: null,
+            noShowAt: null,
           }
 
           tx.set(bookingRef, bookingDoc)
-
-          // Mirror to userBookings for fast parent-facing queries (no collectionGroup index needed)
-          const userBookingRef = db.doc(`userBookings/${parentId}/items/${bookingRef.id}`)
-          tx.set(userBookingRef, bookingDoc)
-
-          // Mark slot as booked (upsert)
-          const slotDoc: Slot = {
+          // Mirror to userBookings for fast parent-facing queries
+          tx.set(db.doc(`userBookings/${parentId}/items/${bookingRef.id}`), bookingDoc)
+          // Mark slot as booked
+          tx.set(slotRef, {
             id: slotId,
             orgId,
             specialistId,
@@ -171,8 +164,7 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
             status: 'booked',
             bookingId: bookingRef.id,
             createdAt: now,
-          }
-          tx.set(slotRef, slotDoc)
+          } as Slot)
         })
       } catch (err: any) {
         if (err.code === 'SLOT_TAKEN')
@@ -182,44 +174,72 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
         throw err
       }
 
+      // Fire push + email notification in background — non-blocking
+      const orgData = orgSnap.data() as { name?: string } | undefined
+      const parentUser = request.user
+      void (async () => {
+        try {
+          const [specialistSnap, parentSnap] = await Promise.all([
+            db.doc(`users/${specialistId}`).get(),
+            db.doc(`users/${parentId}`).get(),
+          ])
+          const specialistName: string =
+            (specialistSnap.data() as { fullName?: string } | undefined)?.fullName ?? 'Специалист'
+          const parentEmail: string =
+            (parentSnap.data() as { email?: string } | undefined)?.email ?? parentUser?.email ?? ''
+          const parentName: string =
+            (parentSnap.data() as { fullName?: string } | undefined)?.fullName ?? 'Родитель'
+
+          console.log(`[Booking] Sending booking_confirmed email to: "${parentEmail}"`)
+          if (parentEmail) {
+            eventDispatcher.dispatch({
+              type: 'booking_confirmed',
+              bookingId: bookingRef.id,
+              orgId,
+              orgName: orgData?.name ?? orgId,
+              parentId,
+              parentName,
+              parentEmail,
+              specialistName,
+              date,
+              startTime,
+              endTime,
+            })
+          }
+        } catch (err) {
+          console.error('[Booking] Notification dispatch failed:', err)
+        }
+      })()
+
       return reply
         .code(201)
         .send({ ok: true, bookingId: bookingRef.id, intakeStatus, intakeFormId })
     }
   )
 
-  /**
-   * GET /marketplace/bookings — authenticated parent's own bookings
-   * Reads from userBookings/{parentId}/items — no collectionGroup index required.
-   */
+  // GET /marketplace/bookings — parent's own bookings
   fastify.get(
     '/marketplace/bookings',
     { config: { rateLimit: RATE_READ } },
     async (request, reply) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const bookings = await listParentBookings(db, request.user.uid)
-
       return { ok: true, bookings }
     }
   )
 
-  /**
-   * GET /marketplace/my/bookings — backwards-compatible parent bookings endpoint.
-   */
+  // GET /marketplace/my/bookings — backwards-compatible alias
   fastify.get(
     '/marketplace/my/bookings',
     { config: { rateLimit: RATE_READ } },
     async (request, reply) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const bookings = await listParentBookings(db, request.user.uid)
-
       return { ok: true, bookings }
     }
   )
 
-  /**
-   * GET /marketplace/organizations/:orgId/bookings/:bookingId — parent views own booking
-   */
+  // GET /marketplace/organizations/:orgId/bookings/:bookingId — parent views own booking
   fastify.get<{ Params: { orgId: string; bookingId: string } }>(
     '/marketplace/organizations/:orgId/bookings/:bookingId',
     { config: { rateLimit: RATE_READ } },
@@ -231,17 +251,13 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
       if (!snap.exists) return reply.code(404).send({ error: 'Booking not found' })
 
       const booking = snap.data() as BookingDoc
-      if (booking.parentId !== request.user.uid) {
-        return reply.code(403).send({ error: 'Forbidden' })
-      }
+      if (booking.parentId !== request.user.uid) return reply.code(403).send({ error: 'Forbidden' })
 
       return { ok: true, booking: { id: snap.id, ...booking } }
     }
   )
 
-  /**
-   * PUT /marketplace/organizations/:orgId/bookings/:bookingId/cancel — parent cancels
-   */
+  // PUT /marketplace/organizations/:orgId/bookings/:bookingId/cancel — parent cancels
   fastify.put<{ Params: { orgId: string; bookingId: string } }>(
     '/marketplace/organizations/:orgId/bookings/:bookingId/cancel',
     { config: { rateLimit: RATE } },
@@ -266,25 +282,69 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
         .object({ reason: z.string().trim().max(500).optional() })
         .safeParse(request.body)
       const update = buildStatusUpdate('cancelled', body.data?.reason)
-
       const parentId = booking.parentId
+
       await db.runTransaction(async (tx) => {
         tx.update(ref, update)
-        const userRef = db.doc(`userBookings/${parentId}/items/${bookingId}`)
-        tx.update(userRef, update)
+        tx.update(db.doc(`userBookings/${parentId}/items/${bookingId}`), update)
         if (booking.slotId) {
-          const slotRef = db.doc(`organizations/${orgId}/slots/${booking.slotId}`)
-          tx.update(slotRef, { status: 'available', bookingId: null })
+          tx.update(db.doc(`organizations/${orgId}/slots/${booking.slotId}`), {
+            status: 'available',
+            bookingId: null,
+          })
         }
       })
+
+      writeAudit({
+        db,
+        orgId,
+        entityType: 'booking',
+        entityId: bookingId,
+        action: 'booking.cancelled',
+        actorId: request.user.uid,
+        actorRole: 'parent',
+        before: { status: booking.status },
+        after: { status: 'cancelled' },
+        reason: body.data?.reason ?? null,
+      })
+
+      // Notify parent of cancellation (fire-and-forget)
+      void (async () => {
+        try {
+          const [parentSnap, specialistSnap] = await Promise.all([
+            db.doc(`users/${parentId}`).get(),
+            db.doc(`users/${booking.specialistId}`).get(),
+          ])
+          const parentEmail: string =
+            (parentSnap.data() as { email?: string } | undefined)?.email ??
+            request.user?.email ??
+            ''
+          const parentName: string =
+            (parentSnap.data() as { fullName?: string } | undefined)?.fullName ?? 'Родитель'
+          const specialistName: string =
+            (specialistSnap.data() as { fullName?: string } | undefined)?.fullName ?? 'Специалист'
+          eventDispatcher.dispatch({
+            type: 'booking_cancelled',
+            bookingId,
+            orgId,
+            parentId,
+            parentName,
+            parentEmail,
+            specialistName,
+            date: booking.date,
+            startTime: booking.startTime,
+            reason: body.data?.reason ?? null,
+          })
+        } catch (err) {
+          console.error('[Booking] Cancellation notification failed:', err)
+        }
+      })()
 
       return { ok: true }
     }
   )
 
-  /**
-   * GET /orgs/:orgId/bookings — org admin views all bookings
-   */
+  // GET /orgs/:orgId/bookings — org admin views all bookings
   fastify.get<{
     Params: { orgId: string }
     Querystring: { status?: string; specialistId?: string; date?: string }
@@ -296,7 +356,6 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
     if (member.role !== 'org_admin') return reply.code(403).send({ error: 'Forbidden' })
 
     const snap = await db.collection(`organizations/${orgId}/bookings`).limit(250).get()
-
     const { status, specialistId, date } = request.query as Record<string, string>
 
     let bookings = snap.docs.map((d) => ({ id: d.id, ...(d.data() as BookingDoc) }))
@@ -308,9 +367,7 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
     return { ok: true, bookings }
   })
 
-  /**
-   * PUT /orgs/:orgId/bookings/:bookingId/status — org admin updates booking status
-   */
+  // PUT /orgs/:orgId/bookings/:bookingId/status — org admin updates booking status
   fastify.put<{ Params: { orgId: string; bookingId: string } }>(
     '/orgs/:orgId/bookings/:bookingId/status',
     { config: { rateLimit: RATE } },
@@ -338,19 +395,35 @@ export const bookingRoute: FastifyPluginAsync = async (fastify) => {
       const update = buildStatusUpdate(parse.data.status, parse.data.cancelReason)
       await ref.update(update)
 
-      // Keep userBookings mirror in sync (best-effort — doc may not exist for old bookings)
+      // Keep userBookings mirror in sync (best-effort)
       await db
         .doc(`userBookings/${booking.parentId}/items/${bookingId}`)
         .update(update)
         .catch(() => {})
 
-      // If cancelling, free the slot
-      if (parse.data.status === 'cancelled' && booking.slotId) {
+      // Free the slot on cancellation or no-show
+      if (
+        (parse.data.status === 'cancelled' || parse.data.status === 'no_show') &&
+        booking.slotId
+      ) {
         await db
           .doc(`organizations/${orgId}/slots/${booking.slotId}`)
           .update({ status: 'available', bookingId: null })
           .catch(() => {})
       }
+
+      writeAudit({
+        db,
+        orgId,
+        entityType: 'booking',
+        entityId: bookingId,
+        action: `booking.${parse.data.status}` as any,
+        actorId: request.user.uid,
+        actorRole: 'org_admin',
+        before: { status: booking.status },
+        after: { status: parse.data.status },
+        reason: parse.data.cancelReason ?? null,
+      })
 
       return { ok: true }
     }

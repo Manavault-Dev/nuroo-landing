@@ -95,9 +95,10 @@ export function generateSlotsForRange(
 export function canTransition(current: BookingStatus, next: BookingStatus): boolean {
   const allowed: Record<BookingStatus, BookingStatus[]> = {
     pending: ['confirmed', 'cancelled'],
-    confirmed: ['completed', 'cancelled'],
+    confirmed: ['completed', 'cancelled', 'no_show'],
     completed: [],
     cancelled: [],
+    no_show: [],
   }
   return allowed[current].includes(next)
 }
@@ -107,12 +108,25 @@ export function buildStatusUpdate(next: BookingStatus, reason?: string): Partial
   const now = new Date().toISOString()
   const base: Partial<BookingDoc> = { status: next, updatedAt: now }
   if (next === 'confirmed') base.confirmedAt = now
-  if (next === 'completed') base.completedAt = now
+  if (next === 'completed') {
+    base.completedAt = now
+    base.attendanceStatus = 'present'
+  }
   if (next === 'cancelled') {
     base.cancelledAt = now
     base.cancelReason = reason ?? null
   }
+  if (next === 'no_show') {
+    base.noShowAt = now
+    base.attendanceStatus = 'no_show'
+    base.cancelReason = reason ?? null
+  }
   return base
+}
+
+/** Check if two time ranges on the same date overlap */
+export function timesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart < bEnd && bStart < aEnd
 }
 
 /** Validate booking input from the client */

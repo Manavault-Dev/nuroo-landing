@@ -15,6 +15,19 @@ export type NotificationType =
   | 'subscription_update' // admin ← billing / trial status
   | 'invoice_due' // parent ← invoice is now due / payment link ready
   | 'invoice_overdue' // parent ← invoice is overdue
+  // ── Booking & Cohort ──────────────────────────────────────────────────────
+  | 'booking_confirmed' // parent ← booking confirmed (push + email)
+  | 'booking_cancelled' // parent ← booking cancelled by specialist/admin
+  | 'booking_reminder_24h' // parent ← reminder 24h before session
+  | 'booking_reminder_1h' // parent ← reminder 1h before session
+  | 'cohort_enrollment_confirmed' // parent ← enrolled in cohort group
+  | 'cohort_session_reminder' // parent ← next cohort session reminder
+  | 'cohort_new_session' // cohort participants ← new session added
+  | 'report_ready' // parent ← specialist submitted progress report
+  | 'payment_succeeded' // org admin ← subscription payment successful
+  | 'payment_failed' // org admin ← payment failed, action needed
+  | 'consultation_reminder_24h' // parent ← 1:1 consultation tomorrow
+  | 'consultation_reminder_1h' // parent ← 1:1 consultation in 1 hour
 
 export type NotificationCategory =
   | 'assignments'
@@ -103,4 +116,17 @@ export const TYPE_TO_CATEGORY: Record<NotificationType, NotificationCategory> = 
   subscription_update: 'billingUpdates',
   invoice_due: 'billingUpdates',
   invoice_overdue: 'billingUpdates',
+  // Booking & Cohort
+  booking_confirmed: 'reminders',
+  booking_cancelled: 'reminders',
+  booking_reminder_24h: 'reminders',
+  booking_reminder_1h: 'reminders',
+  cohort_enrollment_confirmed: 'reminders',
+  cohort_session_reminder: 'reminders',
+  cohort_new_session: 'reminders',
+  report_ready: 'progressUpdates',
+  payment_succeeded: 'billingUpdates',
+  payment_failed: 'billingUpdates',
+  consultation_reminder_24h: 'reminders',
+  consultation_reminder_1h: 'reminders',
 }
