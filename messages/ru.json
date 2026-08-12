@@ -276,7 +276,7 @@
       "privacy": "Приватность",
       "downloadApp": "Скачать приложение",
       "logInB2b": "Войти (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© {year} Nuroo. Все права защищены.",
       "scrollToTop": "Наверх"
     },
     "forOrgs": {
@@ -708,7 +708,7 @@
         "breakBetweenSlotsLabel": "Перерыв между слотами (мин)",
         "noBreak": "Без перерыва",
         "workingHoursTitle": "Рабочие дни и часы",
-        "dayOff": "Выходной",
+        "dayOff": "Выходной день",
         "saveSchedule": "Сохранить расписание",
         "saved": "Сохранено",
         "days": {
@@ -747,7 +747,18 @@
         "blockSaveError": "Не удалось сохранить блокировку",
         "blockInvalidDates": "Дата начала не может быть позже даты окончания",
         "blockInvalidTimes": "Укажите оба времени: начало и конец",
-        "unnamedSpecialist": "Имя не указано"
+        "unnamedSpecialist": "Имя не указано",
+        "selectDateHint": "Выберите дату",
+        "selectDateSubhint": "Нажмите на день, чтобы управлять слотами",
+        "nonWorkingDay": "Нерабочий день по расписанию",
+        "noSlotsAvailable": "Нет доступных слотов",
+        "slotToggleHint": "Нажмите на слот, чтобы заблокировать или разблокировать его",
+        "slotsBlocked": "Заблокировано: {blocked} из {total} слотов",
+        "slotsCount": "{count} слотов",
+        "blockedCount": "{count} закрыто",
+        "closeAll": "Закрыть всё",
+        "openAll": "Открыть всё",
+        "noSlots": "Нет слотов"
       },
       "children": {
         "title": "Ваши дети",
@@ -1089,7 +1100,32 @@
         "role": "Роль",
         "administrator": "Администратор",
         "specialist": "Специалист",
-        "notInOrg": "Вы не состоите ни в одной организации."
+        "notInOrg": "Вы не состоите ни в одной организации.",
+        "calendar": {
+          "connectGoogleCalendar": "Подключить Google Calendar",
+          "redirecting": "Перенаправляем...",
+          "errorCancelled": "Вы отменили доступ. Попробуйте снова.",
+          "errorConnect": "Ошибка при подключении. Попробуйте снова.",
+          "errorGetLink": "Не удалось получить ссылку для подключения",
+          "confirmDisconnect": "Отключить Google Calendar? Новые встречи не будут создаваться автоматически.",
+          "errorDisconnect": "Ошибка при отключении.",
+          "successConnected": "Google Calendar успешно подключён! Теперь при публикации онлайн-группы ссылка на Meet создаётся автоматически.",
+          "disconnected": "Google Calendar отключён.",
+          "checkingStatus": "Проверяем статус...",
+          "connected": "Подключено",
+          "notConnected": "Не подключено",
+          "notConnectedHint": "Нажмите кнопку ниже для авторизации",
+          "meetHint": "При публикации онлайн-группы ссылка Google Meet создаётся автоматически",
+          "disconnect": "Отключить",
+          "backToSettings": "Настройки",
+          "pageTitle": "Google Calendar",
+          "pageDescription": "Подключите свой Google аккаунт, чтобы при публикации онлайн-группы автоматически создавалась комната Google Meet и событие добавлялось в ваш календарь.",
+          "howItWorks": "Как это работает",
+          "step1": "Подключите Google аккаунт выше",
+          "step2": "Создайте онлайн-группу (формат: Онлайн)",
+          "step3": "Нажмите «Открыть набор» — ссылка Meet создастся автоматически",
+          "connectedSince": "с"
+        }
       },
       "organization": {
         "title": "Настройки",
@@ -2079,7 +2115,35 @@
         "publish": {
           "publish": "Опубликовать",
           "unpublish": "Снять с публикации"
-        }
+        },
+        "cohortStatus": {
+          "draft": "Черновик",
+          "open": "Набор открыт",
+          "full": "Мест нет",
+          "in_progress": "Идут занятия",
+          "completed": "Завершён",
+          "cancelled": "Отменён"
+        },
+        "cohortFormat": {
+          "online": "Онлайн",
+          "offline": "Офлайн"
+        },
+        "cohortSchedule": {
+          "recurring": "По расписанию",
+          "manual": "Вручную"
+        },
+        "spotsAvailable": "Свободно: {count}",
+        "spotsFull": "Мест нет",
+        "free": "Бесплатно",
+        "openEnrollment": "Открыть набор",
+        "cancelCohort": {
+          "title": "Отменить набор?",
+          "subtitle": "Это действие нельзя отменить",
+          "confirm": "Отменить набор",
+          "cancel": "Назад"
+        },
+        "errorOpenEnrollment": "Не удалось открыть набор. Попробуйте ещё раз.",
+        "errorCancelCohort": "Не удалось отменить набор"
       },
       "brand": {
         "title": "Настройки бренда",

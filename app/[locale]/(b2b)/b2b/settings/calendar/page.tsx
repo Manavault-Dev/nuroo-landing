@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { apiClient } from '@/lib/b2b/api'
 import {
   Calendar,
@@ -22,6 +23,7 @@ interface CalendarStatus {
 }
 
 export default function CalendarSettingsPage() {
+  const t = useTranslations('b2b.pages.settings.calendar')
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<CalendarStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -29,19 +31,17 @@ export default function CalendarSettingsPage() {
   const [disconnecting, setDisconnecting] = useState(false)
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs once on mount
   useEffect(() => {
     // Handle redirect back from Google OAuth
     const success = searchParams.get('success')
     const error = searchParams.get('error')
     if (success === '1') {
-      setNotice({
-        type: 'success',
-        text: 'Google Calendar успешно подключён! Теперь при публикации онлайн-группы ссылка на Meet создаётся автоматически.',
-      })
+      setNotice({ type: 'success', text: t('successConnected') })
     } else if (error === 'access_denied') {
-      setNotice({ type: 'error', text: 'Вы отменили доступ. Попробуйте снова.' })
+      setNotice({ type: 'error', text: t('errorCancelled') })
     } else if (error) {
-      setNotice({ type: 'error', text: 'Ошибка при подключении. Попробуйте снова.' })
+      setNotice({ type: 'error', text: t('errorConnect') })
     }
     loadStatus()
   }, [])
@@ -69,21 +69,20 @@ export default function CalendarSettingsPage() {
       // Redirect to Google OAuth consent page
       window.location.href = res.url
     } catch (e: any) {
-      setNotice({ type: 'error', text: e.message ?? 'Не удалось получить ссылку для подключения' })
+      setNotice({ type: 'error', text: e.message ?? t('errorGetLink') })
       setConnecting(false)
     }
   }
 
   async function disconnect() {
-    if (!confirm('Отключить Google Calendar? Новые встречи не будут создаваться автоматически.'))
-      return
+    if (!confirm(t('confirmDisconnect'))) return
     setDisconnecting(true)
     try {
       await apiClient.disconnectCalendar()
       setStatus({ connected: false })
-      setNotice({ type: 'success', text: 'Google Calendar отключён.' })
+      setNotice({ type: 'success', text: t('disconnected') })
     } catch {
-      setNotice({ type: 'error', text: 'Ошибка при отключении.' })
+      setNotice({ type: 'error', text: t('errorDisconnect') })
     } finally {
       setDisconnecting(false)
     }
@@ -96,14 +95,11 @@ export default function CalendarSettingsPage() {
         className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Настройки
+        {t('backToSettings')}
       </Link>
 
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Google Calendar</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Подключите свой Google аккаунт, чтобы при публикации онлайн-группы автоматически создавалась
-        комната Google Meet и событие добавлялось в ваш календарь.
-      </p>
+      <h1 className="text-xl font-bold text-gray-900 mb-1">{t('pageTitle')}</h1>
+      <p className="text-sm text-gray-500 mb-6">{t('pageDescription')}</p>
 
       {/* Notice */}
       {notice && (
@@ -128,7 +124,7 @@ export default function CalendarSettingsPage() {
         {loading ? (
           <div className="flex items-center gap-3 text-gray-500">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Проверяем статус...</span>
+            <span className="text-sm">{t('checkingStatus')}</span>
           </div>
         ) : status?.connected ? (
           <div>
@@ -137,13 +133,13 @@ export default function CalendarSettingsPage() {
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Подключено</p>
+                <p className="font-semibold text-gray-900 text-sm">{t('connected')}</p>
                 {status.googleEmail && (
                   <p className="text-xs text-gray-500">{status.googleEmail}</p>
                 )}
                 {status.connectedAt && (
                   <p className="text-xs text-gray-400">
-                    с{' '}
+                    {t('connectedSince')}{' '}
                     {new Date(status.connectedAt).toLocaleDateString('ru-RU', {
                       day: 'numeric',
                       month: 'long',
@@ -156,7 +152,7 @@ export default function CalendarSettingsPage() {
 
             <div className="bg-emerald-50 rounded-xl p-3 mb-4 text-xs text-emerald-700 flex items-start gap-2">
               <Video className="w-4 h-4 shrink-0 mt-0.5" />
-              При публикации онлайн-группы ссылка Google Meet создаётся автоматически
+              {t('meetHint')}
             </div>
 
             <button
@@ -169,7 +165,7 @@ export default function CalendarSettingsPage() {
               ) : (
                 <Unlink className="w-4 h-4" />
               )}
-              Отключить
+              {t('disconnect')}
             </button>
           </div>
         ) : (
@@ -179,8 +175,8 @@ export default function CalendarSettingsPage() {
                 <Calendar className="w-5 h-5 text-gray-400" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Не подключено</p>
-                <p className="text-xs text-gray-400">Нажмите кнопку ниже для авторизации</p>
+                <p className="font-semibold text-gray-900 text-sm">{t('notConnected')}</p>
+                <p className="text-xs text-gray-400">{t('notConnectedHint')}</p>
               </div>
             </div>
 
@@ -194,7 +190,7 @@ export default function CalendarSettingsPage() {
               ) : (
                 <ExternalLink className="w-4 h-4" />
               )}
-              {connecting ? 'Перенаправляем...' : 'Подключить Google Calendar'}
+              {connecting ? t('redirecting') : t('connectGoogleCalendar')}
             </button>
           </div>
         )}
@@ -203,24 +199,20 @@ export default function CalendarSettingsPage() {
       {/* How it works */}
       <div className="mt-6 bg-gray-50 rounded-2xl p-5">
         <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-          Как это работает
+          {t('howItWorks')}
         </p>
         <ol className="space-y-2 text-sm text-gray-600">
           <li className="flex gap-2">
-            <span className="font-bold text-primary-600 shrink-0">1.</span>Подключите Google аккаунт
-            выше
+            <span className="font-bold text-primary-600 shrink-0">1.</span>
+            {t('step1')}
           </li>
           <li className="flex gap-2">
-            <span className="font-bold text-primary-600 shrink-0">2.</span>Создайте онлайн-группу
-            (формат: Онлайн)
+            <span className="font-bold text-primary-600 shrink-0">2.</span>
+            {t('step2')}
           </li>
           <li className="flex gap-2">
-            <span className="font-bold text-primary-600 shrink-0">3.</span>Нажмите «Открыть набор» —
-            ссылка Meet создастся автоматически
-          </li>
-          <li className="flex gap-2">
-            <span className="font-bold text-primary-600 shrink-0">4.</span>Ссылка появится на
-            странице группы и будет видна всем участникам
+            <span className="font-bold text-primary-600 shrink-0">3.</span>
+            {t('step3')}
           </li>
         </ol>
       </div>

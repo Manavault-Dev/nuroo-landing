@@ -272,7 +272,7 @@
       "privacy": "Купуялуулук",
       "downloadApp": "Жүктөө",
       "logInB2b": "Кирүү (B2B)",
-      "copyright": "© 2026 Nuroo by Manavault Studio",
+      "copyright": "© {year} Nuroo. Бардык укуктар корголгон.",
       "scrollToTop": "Жогору"
     },
     "forOrgs": {
@@ -704,7 +704,7 @@
         "breakBetweenSlotsLabel": "Слоттор ортосундагы тыныгуу (мүн)",
         "noBreak": "Тыныгуу жок",
         "workingHoursTitle": "Жумуш күндөрү жана сааттары",
-        "dayOff": "Дем алыш",
+        "dayOff": "Эс алуу күнү",
         "saveSchedule": "Расписаниени сактоо",
         "saved": "Сакталды",
         "days": {
@@ -743,7 +743,18 @@
         "blockSaveError": "Бөгөттөөнү сактоо мүмкүн болгон жок",
         "blockInvalidDates": "Башталуу датасы аяктоо датасынан кеч болушу мүмкүн эмес",
         "blockInvalidTimes": "Башталуу жана аяктоо убакытын экөөнү тең көрсөтүңүз",
-        "unnamedSpecialist": "Аты белгисиз"
+        "unnamedSpecialist": "Аты белгисиз",
+        "selectDateHint": "Күн тандаңыз",
+        "selectDateSubhint": "Слотторду башкаруу үчүн күнгө басыңыз",
+        "nonWorkingDay": "Расписание боюнча иш күнү эмес",
+        "noSlotsAvailable": "Бош слоттор жок",
+        "slotToggleHint": "Слотту бөгөттөө же ачуу үчүн басыңыз",
+        "slotsBlocked": "Жабылды: {blocked} / {total} слот",
+        "slotsCount": "{count} слот",
+        "blockedCount": "{count} жабык",
+        "closeAll": "Баарын жабуу",
+        "openAll": "Баарын ачуу",
+        "noSlots": "Слоттор жок"
       },
       "children": {
         "title": "Сиздин балдарыңыз",
@@ -1085,7 +1096,32 @@
         "role": "Роль",
         "administrator": "Администратор",
         "specialist": "Адис",
-        "notInOrg": "Сиз эч кайсы уюмда эмессиз."
+        "notInOrg": "Сиз эч кайсы уюмда эмессиз.",
+        "calendar": {
+          "connectGoogleCalendar": "Google Calendar'ды туташтыруу",
+          "redirecting": "Багыттоодо...",
+          "errorCancelled": "Сиз кирүүдөн баш тарттыңыз. Кайра аракет кылыңыз.",
+          "errorConnect": "Туташуу катасы. Кайра аракет кылыңыз.",
+          "errorGetLink": "Туташуу шилтемесин алуу мүмкүн болгон жок",
+          "confirmDisconnect": "Google Calendar'ды ажыратуу? Жаңы жолугушуулар автоматтык түрдө түзүлбөйт.",
+          "errorDisconnect": "Ажыратуу катасы.",
+          "successConnected": "Google Calendar ийгиликтүү туташты! Онлайн топту жарыялаганда Meet шилтемеси автоматтык түрдө түзүлөт.",
+          "disconnected": "Google Calendar ажыратылды.",
+          "checkingStatus": "Статусту текшерүүдө...",
+          "connected": "Туташкан",
+          "notConnected": "Туташпаган",
+          "notConnectedHint": "Авторизациялоо үчүн төмөндөгү баскычты басыңыз",
+          "meetHint": "Онлайн топту жарыялаганда Google Meet шилтемеси автоматтык түрдө түзүлөт",
+          "disconnect": "Ажыратуу",
+          "backToSettings": "Жөндөөлөр",
+          "pageTitle": "Google Calendar",
+          "pageDescription": "Google аккаунтуңузду туташтырыңыз, онлайн топту жарыялаганда Google Meet бөлмөсү автоматтык түрдө түзүлсүн.",
+          "howItWorks": "Кантип иштейт",
+          "step1": "Жогоруда Google аккаунтуңузду туташтырыңыз",
+          "step2": "Онлайн топ түзүңүз (формат: Онлайн)",
+          "step3": "«Топтоону ачуу» баскычын басыңыз — Meet шилтемеси автоматтык түрдө түзүлөт",
+          "connectedSince": "дан бери"
+        }
       },
       "organization": {
         "title": "Түзүмдөр",
@@ -2075,7 +2111,35 @@
         "publish": {
           "publish": "Опубликовать",
           "unpublish": "Снять с публикации"
-        }
+        },
+        "cohortStatus": {
+          "draft": "Долбоор",
+          "open": "Топтоо ачык",
+          "full": "Орун жок",
+          "in_progress": "Сабак жүрүп жатат",
+          "completed": "Аяктады",
+          "cancelled": "Жокко чыгарылды"
+        },
+        "cohortFormat": {
+          "online": "Онлайн",
+          "offline": "Офлайн"
+        },
+        "cohortSchedule": {
+          "recurring": "Расписание боюнча",
+          "manual": "Кол менен"
+        },
+        "spotsAvailable": "Бош: {count}",
+        "spotsFull": "Орун жок",
+        "free": "Акысыз",
+        "openEnrollment": "Топтоону ачуу",
+        "cancelCohort": {
+          "title": "Топтоону жокко чыгаруу?",
+          "subtitle": "Бул аракетти жокко чыгарууга болбойт",
+          "confirm": "Жокко чыгаруу",
+          "cancel": "Артка"
+        },
+        "errorOpenEnrollment": "Топтоону ачуу мүмкүн болгон жок. Кайра аракет кылыңыз.",
+        "errorCancelCohort": "Топтоону жокко чыгаруу мүмкүн болгон жок"
       },
       "brand": {
         "title": "Бренд жөндөөлөр",
