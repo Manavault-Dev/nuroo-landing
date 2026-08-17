@@ -23,14 +23,14 @@ describe('PLAN_PRICES', () => {
     PLAN_PRICES.forEach((p) => expect(p.currency).toBe('USD'))
   })
 
-  it('starter monthly price is $59', () => {
+  it('starter monthly price is $15', () => {
     const starter = PLAN_PRICES.find((p) => p.id === 'starter')!
-    expect(starter.monthlyPrice).toBe(59)
+    expect(starter.monthlyPrice).toBe(15)
   })
 
-  it('growth monthly price is $99', () => {
+  it('growth monthly price is $50', () => {
     const growth = PLAN_PRICES.find((p) => p.id === 'growth')!
-    expect(growth.monthlyPrice).toBe(99)
+    expect(growth.monthlyPrice).toBe(50)
   })
 
   it('enterprise monthly price is $199', () => {
@@ -38,14 +38,14 @@ describe('PLAN_PRICES', () => {
     expect(enterprise.monthlyPrice).toBe(199)
   })
 
-  it('starter yearly price is $590', () => {
+  it('starter yearly price is $150', () => {
     const starter = PLAN_PRICES.find((p) => p.id === 'starter')!
-    expect(starter.yearlyPrice).toBe(590)
+    expect(starter.yearlyPrice).toBe(150)
   })
 
-  it('growth yearly price is $990', () => {
+  it('growth yearly price is $500', () => {
     const growth = PLAN_PRICES.find((p) => p.id === 'growth')!
-    expect(growth.yearlyPrice).toBe(990)
+    expect(growth.yearlyPrice).toBe(500)
   })
 
   it('enterprise yearly price is $1990', () => {
@@ -63,20 +63,20 @@ describe('PLAN_PRICES', () => {
 
 describe('getPlanPrice', () => {
   it('returns monthly price for monthly period', () => {
-    expect(getPlanPrice('starter', 'monthly')).toBe(59)
-    expect(getPlanPrice('growth', 'monthly')).toBe(99)
+    expect(getPlanPrice('starter', 'monthly')).toBe(15)
+    expect(getPlanPrice('growth', 'monthly')).toBe(50)
     expect(getPlanPrice('enterprise', 'monthly')).toBe(199)
   })
 
   it('returns yearly price for yearly period', () => {
-    expect(getPlanPrice('starter', 'yearly')).toBe(590)
-    expect(getPlanPrice('growth', 'yearly')).toBe(990)
+    expect(getPlanPrice('starter', 'yearly')).toBe(150)
+    expect(getPlanPrice('growth', 'yearly')).toBe(500)
     expect(getPlanPrice('enterprise', 'yearly')).toBe(1990)
   })
 
   it('BillingPeriod toggle changes price', () => {
     const period: BillingPeriod = 'yearly'
-    expect(getPlanPrice('growth', period)).toBe(990)
+    expect(getPlanPrice('growth', period)).toBe(500)
   })
 })
 
@@ -87,12 +87,12 @@ describe('YEARLY_DISCOUNT_LABEL', () => {
 })
 
 describe('getMonthlyAnnualTotal', () => {
-  it('starter: 59 × 12 = 708', () => {
-    expect(getMonthlyAnnualTotal('starter')).toBe(708)
+  it('starter: 15 × 12 = 180', () => {
+    expect(getMonthlyAnnualTotal('starter')).toBe(180)
   })
 
-  it('growth: 99 × 12 = 1188', () => {
-    expect(getMonthlyAnnualTotal('growth')).toBe(1188)
+  it('growth: 50 × 12 = 600', () => {
+    expect(getMonthlyAnnualTotal('growth')).toBe(600)
   })
 
   it('enterprise: 199 × 12 = 2388', () => {
@@ -106,12 +106,12 @@ describe('getMonthlyAnnualTotal', () => {
 })
 
 describe('getYearlySavings', () => {
-  it('starter saves $118 with yearly plan', () => {
-    expect(getYearlySavings('starter')).toBe(118)
+  it('starter saves $30 with yearly plan', () => {
+    expect(getYearlySavings('starter')).toBe(30)
   })
 
-  it('growth saves $198 with yearly plan', () => {
-    expect(getYearlySavings('growth')).toBe(198)
+  it('growth saves $100 with yearly plan', () => {
+    expect(getYearlySavings('growth')).toBe(100)
   })
 
   it('enterprise saves $398 with yearly plan', () => {
@@ -131,14 +131,14 @@ describe('getYearlySavings', () => {
 })
 
 describe('getMonthlyEquivalent', () => {
-  it('starter yearly ≈ $49/month', () => {
-    // floor(590 / 12) = floor(49.16) = 49
-    expect(getMonthlyEquivalent('starter')).toBe(49)
+  it('starter yearly ≈ $12/month', () => {
+    // floor(150 / 12) = floor(12.5) = 12
+    expect(getMonthlyEquivalent('starter')).toBe(12)
   })
 
-  it('growth yearly ≈ $82/month', () => {
-    // floor(990 / 12) = floor(82.5) = 82
-    expect(getMonthlyEquivalent('growth')).toBe(82)
+  it('growth yearly ≈ $41/month', () => {
+    // floor(500 / 12) = floor(41.66) = 41
+    expect(getMonthlyEquivalent('growth')).toBe(41)
   })
 
   it('enterprise yearly ≈ $165/month', () => {

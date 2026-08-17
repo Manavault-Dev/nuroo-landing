@@ -57,4 +57,9 @@ export const Analytics = {
   paymentStarted: (params: { planId: string }) => track('payment_started', params),
   paymentSuccess: (params: { planId: string; amount?: number }) => track('payment_success', params),
   paymentFailed: (params?: { errorCode?: string }) => track('payment_failed', params),
+
+  // Landing pricing CTAs
+  pricingNurooCta: () => track('pricing_nuroo_cta_clicked'),
+  pricingBusinessCta: () => track('pricing_business_cta_clicked'),
+  pricingEnterpriseCta: () => track('pricing_enterprise_clicked'),
 }

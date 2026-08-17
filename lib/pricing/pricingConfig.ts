@@ -18,8 +18,8 @@ export interface PlanPrice {
 export const YEARLY_DISCOUNT_LABEL = '~17%'
 
 export const PLAN_PRICES: PlanPrice[] = [
-  { id: 'starter', monthlyPrice: 59, yearlyPrice: 590, currency: 'USD' },
-  { id: 'growth', monthlyPrice: 99, yearlyPrice: 990, currency: 'USD' },
+  { id: 'starter', monthlyPrice: 15, yearlyPrice: 150, currency: 'USD' },
+  { id: 'growth', monthlyPrice: 50, yearlyPrice: 500, currency: 'USD' },
   { id: 'enterprise', monthlyPrice: 199, yearlyPrice: 1990, currency: 'USD' },
 ]
 
