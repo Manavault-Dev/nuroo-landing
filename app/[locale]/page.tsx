@@ -19,16 +19,22 @@ function SectionSkeleton() {
   )
 }
 
-const Solution = dynamic(() => import('@/components/landing/Solution').then((m) => m.Solution), {
-  loading: () => <SectionSkeleton />,
-})
-const IndependentPath = dynamic(
-  () => import('@/components/landing/IndependentPath').then((m) => m.IndependentPath),
+const ProductShowcase = dynamic(
+  () => import('@/components/landing/ProductShowcase').then((m) => m.ProductShowcase),
   { loading: () => <SectionSkeleton /> }
 )
-const Platform = dynamic(() => import('@/components/landing/Platform').then((m) => m.Platform), {
-  loading: () => <SectionSkeleton />,
-})
+const BusinessDashboard = dynamic(
+  () => import('@/components/landing/BusinessDashboard').then((m) => m.BusinessDashboard),
+  { loading: () => <SectionSkeleton /> }
+)
+const SocialBooking = dynamic(
+  () => import('@/components/landing/SocialBooking').then((m) => m.SocialBooking),
+  { loading: () => <SectionSkeleton /> }
+)
+const HowItWorks = dynamic(
+  () => import('@/components/landing/HowItWorks').then((m) => m.HowItWorks),
+  { loading: () => <SectionSkeleton /> }
+)
 const Pricing = dynamic(() => import('@/components/landing/Pricing').then((m) => m.Pricing), {
   loading: () => <SectionSkeleton />,
 })
@@ -40,69 +46,46 @@ const BASE = 'https://usenuroo.com'
 
 const LOCALE_META = {
   ru: {
-    title: 'Nuroo — ИИ-поддержка для детей с особыми потребностями',
+    title: 'Nuroo — Маркетплейс детского развития',
     description:
-      'Nuroo — персонализированные упражнения, ИИ-чат и трекинг прогресса для детей с аутизмом, ЗПР, СДВГ. Платформа для семей, реабилитационных центров и специалистов в Кыргызстане и СНГ.',
+      'Найдите логопеда, психолога, дефектолога, детский центр или программу развития. Записывайтесь онлайн, управляйте занятиями и следите за прогрессом ребёнка — всё в Nuroo.',
     keywords: [
-      'Nuroo',
-      'приложение для детей с особыми потребностями',
-      'аутизм приложение',
-      'ЗПР упражнения',
-      'СДВГ ребёнок',
-      'логопед онлайн',
-      'ABA терапия',
-      'детская реабилитация',
-      'особые дети',
-      'ИИ помощник ребёнку',
-      'прогресс ребёнка',
-      'центр для детей',
-      'дети с особыми потребностями Кыргызстан',
-      'коррекционная педагогика',
+      'маркетплейс детского развития',
+      'логопед онлайн запись',
+      'детский центр Бишкек',
+      'психолог для ребёнка',
       'дефектолог онлайн',
-      'ранняя интервенция',
-      'нейроразнообразие',
-      'инклюзивное образование',
+      'записать ребёнка к специалисту',
+      'детские программы развития',
+      'групповые занятия дети',
+      'Nuroo',
+      'развитие ребёнка',
+      'детские мастер-классы',
+      'онлайн запись специалист',
     ],
     ogLocale: 'ru_RU',
   },
   en: {
-    title: 'Nuroo — AI Support for Children with Special Needs',
+    title: 'Nuroo — Child Development Marketplace',
     description:
-      'Nuroo delivers AI-powered exercises, 24/7 chat support, and real-time progress tracking for children with autism, ADHD, and developmental delays. Trusted by families, specialists and child development centers.',
+      'Find speech therapists, psychologists, child development centers and programs. Book consultations and group sessions online — all through Nuroo.',
     keywords: [
+      'child development marketplace',
+      'book speech therapist online',
+      'child development center',
+      'find psychologist for child',
+      'kids programs booking',
       'Nuroo',
-      'special needs app',
-      'AI therapy children',
-      'autism support app',
-      'ADHD children app',
-      'developmental delays support',
-      'ABA therapy online',
-      'child development platform',
-      'special education technology',
-      'therapy at home',
-      'neurodiversity app',
-      'early intervention',
-      'inclusive education',
-      'speech therapy app',
-      'occupational therapy app',
+      'child specialist booking',
+      'group classes children',
     ],
     ogLocale: 'en_US',
   },
   ky: {
-    title: 'Nuroo — Атайын муктаждыктары бар балдар үчүн ЖИ колдоосу',
+    title: 'Nuroo — Балдарды өнүктүрүү маркетплейси',
     description:
-      'Nuroo — аутизм, ДДДС жана өнүгүү кечигүүлөрү бар балдар үчүн жекелештирилген көнүгүүлөр, ЖИ чат жана жетишкендиктерди байкоо. Үй-бүлөлөр, адистер жана борборлор үчүн платформа.',
-    keywords: [
-      'Nuroo',
-      'атайын муктаждыктары бар балдар',
-      'аутизм колдонмосу',
-      'балдар үчүн ЖИ',
-      'балдарды өнүктүрүү',
-      'ДДДС балдар',
-      'логопед онлайн',
-      'реабилитация борбору',
-      'инклюзивдүү билим берүү',
-    ],
+      'Логопед, психолог, дефектолог, балдар борборун жана өнүктүрүү программаларын табыңыз. Nuroo аркылуу онлайн жазылыңыз.',
+    keywords: ['балдарды өнүктүрүү', 'логопед онлайн', 'балдар борбору', 'Nuroo маркетплейс'],
     ogLocale: 'ky_KG',
   },
 } as const
@@ -133,14 +116,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${BASE}/${locale}`,
       locale: meta.ogLocale,
       alternateLocale: alternateLocales,
-      images: [
-        {
-          url: `${BASE}/mother-and-child.png`,
-          width: 1200,
-          height: 630,
-          alt: meta.title,
-        },
-      ],
     },
     twitter: {
       title: meta.title,
@@ -156,19 +131,12 @@ const jsonLd = {
       '@type': 'Organization',
       '@id': `${BASE}/#organization`,
       name: 'Nuroo',
-      alternateName: 'Nuroo by Manavault Studio',
       url: BASE,
-      logo: {
-        '@type': 'ImageObject',
-        url: `${BASE}/logo.png`,
-        width: 512,
-        height: 512,
-      },
+      logo: { '@type': 'ImageObject', url: `${BASE}/logo.png`, width: 512, height: 512 },
       description:
-        'AI-powered platform for supporting children with special needs — autism, ADHD, developmental delays.',
+        'Marketplace connecting parents with child development specialists, centers and programs.',
       foundingDate: '2024',
       areaServed: ['KG', 'RU', 'KZ', 'UZ'],
-      sameAs: ['https://apps.apple.com/us/app/nuroo-ai/id6753772410'],
     },
     {
       '@type': 'WebSite',
@@ -177,96 +145,16 @@ const jsonLd = {
       name: 'Nuroo',
       inLanguage: ['ru', 'en', 'ky'],
       publisher: { '@id': `${BASE}/#organization` },
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: {
-          '@type': 'EntryPoint',
-          urlTemplate: `${BASE}/ru/help?q={search_term_string}`,
-        },
-        'query-input': 'required name=search_term_string',
-      },
     },
     {
-      '@type': 'MobileApplication',
-      '@id': `${BASE}/#app`,
-      name: 'Nuroo',
-      operatingSystem: 'iOS, Android',
-      applicationCategory: 'EducationApplication',
-      applicationSubCategory: 'Special Education',
-      offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: 'USD',
-      },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '120',
-      },
+      '@type': 'Service',
+      '@id': `${BASE}/#marketplace`,
+      name: 'Nuroo Marketplace',
+      serviceType: 'Child Development Marketplace',
       description:
-        'AI-powered exercises, progress tracking and Nuroo chat support for children with special needs.',
-      url: 'https://apps.apple.com/us/app/nuroo-ai/id6753772410',
-      publisher: { '@id': `${BASE}/#organization` },
-    },
-    {
-      '@type': 'SoftwareApplication',
-      '@id': `${BASE}/#b2b`,
-      name: 'Nuroo Platform for Organizations',
-      applicationCategory: 'BusinessApplication',
-      offers: [
-        { '@type': 'Offer', name: 'Starter', price: '1500', priceCurrency: 'KGS' },
-        { '@type': 'Offer', name: 'Growth', price: '3500', priceCurrency: 'KGS' },
-        { '@type': 'Offer', name: 'Enterprise', price: '10000', priceCurrency: 'KGS' },
-      ],
-      description:
-        'B2B platform for child development centers and specialists to manage children, assign content, and track attendance.',
-      publisher: { '@id': `${BASE}/#organization` },
-    },
-    {
-      '@type': 'FAQPage',
-      '@id': `${BASE}/#faq`,
-      mainEntity: [
-        {
-          '@type': 'Question',
-          name: 'What is Nuroo?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Nuroo is an AI-powered platform for children with special needs — autism, ADHD, developmental delays. It provides personalized exercises, 24/7 AI chat support, and real-time progress tracking for families, specialists and organizations.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'How does Nuroo work?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: "Nuroo uses AI to deliver personalized developmental exercises and 24/7 chat support tailored to each child's unique needs and learning style. Parents and specialists track progress in real time.",
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Where can I download Nuroo?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: "Nuroo is available on the App Store and Google Play. Download the app to start personalized exercises and AI support for your child's development.",
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'What special needs does Nuroo support?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: "Nuroo supports children with autism, ADHD, learning difficulties, developmental delays, speech delays, and other special needs. The AI adapts to each child's unique needs and learning style.",
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Can Nuroo be used alongside traditional therapy?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Yes! Nuroo complements traditional therapy rather than replacing it. Use the platform alongside existing therapy sessions for additional support and practice at home.',
-          },
-        },
-      ],
+        'Online platform for discovering and booking child development specialists, centers, programs and group sessions.',
+      provider: { '@id': `${BASE}/#organization` },
+      areaServed: ['KG', 'RU', 'KZ', 'UZ'],
     },
   ],
 }
@@ -279,11 +167,12 @@ export default function Home({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="min-h-screen bg-white dark:bg-gray-900 min-w-0 overflow-x-hidden">
+      <div className="bg-white dark:bg-gray-900 min-w-0 overflow-x-hidden">
         <Hero />
-        <Solution />
-        <IndependentPath />
-        <Platform />
+        <ProductShowcase />
+        <BusinessDashboard />
+        <SocialBooking />
+        <HowItWorks />
         <Pricing />
         <Footer />
       </div>
