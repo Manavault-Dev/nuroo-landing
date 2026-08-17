@@ -147,6 +147,15 @@ async function buildServer() {
     if (url.startsWith('/api/parent/access/')) return
     if (url.startsWith('/webhooks/')) return
     if (url === '/marketplace/courses' || url.startsWith('/marketplace/courses?')) return
+    if (url === '/marketplace/cohorts' || url.startsWith('/marketplace/cohorts?')) return
+    // Public marketplace routes — specialists, services, slots (read-only, no auth)
+    if (
+      method === 'GET' &&
+      /^\/marketplace\/organizations\/[^/]+(\/specialists(\/[^/]+\/(services|slots)(\?.*)?)?)?(\?.*)?$/.test(
+        url
+      )
+    )
+      return
     // Public read routes — explicit list to avoid accidentally exposing future endpoints
     if (
       method === 'GET' &&
