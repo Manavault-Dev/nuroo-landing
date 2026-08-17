@@ -178,6 +178,41 @@
   animation: hero-fade-up 0.6s ease 0.7s both;
 }
 
+/* Hero marketplace mockup — floating notification */
+.hero-float-card {
+  animation: float-card 5s ease-in-out infinite;
+}
+
+/* Dashboard floating state animation */
+@keyframes dashboard-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.dashboard-float-in {
+  animation: dashboard-float-in 0.4s ease both;
+}
+
+/* Booking success screen enter */
+@keyframes booking-success-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.booking-success-enter {
+  animation: booking-success-enter 0.3s ease both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-orb-1,
   .hero-orb-2,
@@ -185,6 +220,7 @@
   .hero-float-0,
   .hero-float-1,
   .hero-float-2,
+  .hero-float-card,
   .hero-scroll-dot,
   .hero-pulse-dot,
   .hero-gradient-text,
@@ -194,7 +230,9 @@
   .hero-enter-2,
   .hero-enter-3,
   .hero-enter-4,
-  .hero-enter-5 {
+  .hero-enter-5,
+  .dashboard-float-in,
+  .booking-success-enter {
     animation: none;
   }
 }

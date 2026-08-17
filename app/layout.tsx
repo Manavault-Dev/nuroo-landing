@@ -4,36 +4,23 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Nuroo — AI Support for Children with Special Needs',
+    default: 'Nuroo — Маркетплейс детского развития',
     template: '%s | Nuroo',
   },
   description:
-    'Nuroo — AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays. Platform for families, specialists and organizations.',
+    'Nuroo — маркетплейс для поиска логопедов, психологов, дефектологов, детских центров и программ развития. Онлайн-запись, управление занятиями и прогресс ребёнка в одном приложении.',
   keywords: [
     'Nuroo',
-    // English
-    'special needs app',
-    'AI therapy children',
-    'autism app',
-    'ADHD children',
-    'child development platform',
-    'therapy at home',
-    'neurodiversity',
-    'early intervention',
-    'speech therapy',
-    'ABA therapy',
-    'special education',
-    // Russian (high search volume in CIS)
-    'приложение для детей с особыми потребностями',
-    'аутизм приложение',
-    'ЗПР упражнения',
-    'СДВГ ребёнок',
-    'детская реабилитация',
-    'логопед онлайн',
-    'коррекционная педагогика',
-    'нейроразнообразие',
-    // Kyrgyz
-    'атайын муктаждыктары бар балдар',
+    'маркетплейс детского развития',
+    'логопед онлайн запись',
+    'детский центр Бишкек',
+    'психолог для ребёнка',
+    'дефектолог онлайн',
+    'детские программы развития',
+    'child development marketplace',
+    'speech therapist online booking',
+    'child development center',
+    'балдарды өнүктүрүү',
   ],
   authors: [{ name: 'Nuroo by Manavault Studio' }],
   creator: 'Nuroo',
@@ -51,24 +38,15 @@ export const metadata: Metadata = {
     alternateLocale: ['en_US', 'ky_KG'],
     url: 'https://usenuroo.com',
     siteName: 'Nuroo',
-    title: 'Nuroo — AI Support for Children with Special Needs',
+    title: 'Nuroo — Маркетплейс детского развития',
     description:
-      'AI-powered exercises, Nuroo chat and progress tracking for children with autism, ADHD and developmental delays.',
-    images: [
-      {
-        url: '/mother-and-child.png',
-        width: 1200,
-        height: 630,
-        alt: 'Nuroo — AI Support for Children with Special Needs',
-      },
-    ],
+      'Найдите логопеда, психолога, дефектолога, детский центр или программу развития. Онлайн-запись и управление занятиями в Nuroo.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nuroo — AI Support for Children with Special Needs',
+    title: 'Nuroo — Маркетплейс детского развития',
     description:
-      'AI-powered exercises and support for children with autism, ADHD and developmental delays.',
-    images: ['/mother-and-child.png'],
+      'Найдите логопеда, психолога, детский центр или программу развития. Онлайн-запись в Nuroo.',
     creator: '@nuroo',
   },
   robots: {
@@ -88,6 +66,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var path = window.location.pathname || '/';
+                var publicPath = !/^\\/(en|ru|ky)\\/b2b(\\/|$)/.test(path);
+                if (!publicPath) return;
+                var root = document.documentElement;
+                root.classList.remove('dark');
+                root.classList.add('light');
+                root.style.colorScheme = 'light';
+              })();
+            `,
+          }}
+        />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />

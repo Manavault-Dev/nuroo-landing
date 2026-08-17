@@ -2,70 +2,33 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/navigation'
-import { useTranslations, useLocale } from 'next-intl'
-import { Sparkles, ArrowRight, Check } from 'lucide-react'
-import { PLAN_FEATURE_KEYS } from '@/lib/pricing/planFeatureKeys'
-import {
-  PLAN_PRICES,
-  getMonthlyAnnualTotal,
-  getYearlySavings,
-  getMonthlyEquivalent,
-  type BillingPeriod,
-} from '@/lib/pricing/pricingConfig'
+import { useTranslations } from 'next-intl'
+import { Check, Shield, RotateCcw, TrendingUp, ArrowRight } from 'lucide-react'
+import { Analytics } from '@/lib/analytics'
 
-const PLAN_META = [
-  {
-    id: 'starter' as const,
-    titleKey: 'starterName',
-    subtitleKey: 'starterSubtitle',
-    priceFrom: false,
-    popular: false,
-    ctaKey: 'ctaStartTrial' as const,
-    ctaHref: '/b2b/register',
-  },
-  {
-    id: 'growth' as const,
-    titleKey: 'growthName',
-    subtitleKey: 'growthSubtitle',
-    priceFrom: false,
-    popular: true,
-    ctaKey: 'ctaStartTrial' as const,
-    ctaHref: '/b2b/register',
-  },
-  {
-    id: 'enterprise' as const,
-    titleKey: 'enterpriseName',
-    subtitleKey: 'enterpriseSubtitle',
-    priceFrom: true,
-    popular: false,
-    ctaKey: 'ctaContactUs' as const,
-    ctaHref: 'mailto:tilek.dzenisev@gmail.com',
-  },
+const NUROO_FEATURE_KEYS = ['nF1', 'nF2', 'nF3', 'nF4', 'nF5', 'nF6', 'nF7', 'nF8', 'nF9'] as const
+
+const BUSINESS_FEATURE_KEYS = [
+  'bF1',
+  'bF2',
+  'bF3',
+  'bF4',
+  'bF5',
+  'bF6',
+  'bF7',
+  'bF8',
+  'bF9',
+  'bF10',
 ] as const
 
 export function Pricing() {
   const t = useTranslations('landing.pricing')
-  const locale = useLocale()
   const [isVisible, setIsVisible] = useState(false)
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly')
-
-  const numberLocale = locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'ky-KG'
-  const formatPrice = (n: number) => n.toLocaleString(numberLocale)
-
-  type DisplayId = 'starter' | 'growth' | 'enterprise'
-  const toPriceId = (planId: DisplayId): 'starter' | 'growth' | 'enterprise' => planId
-
-  const getPlanPriceForDisplay = (planId: DisplayId) => {
-    const priceId = toPriceId(planId)
-    const found = PLAN_PRICES.find((p) => p.id === priceId)
-    if (!found) return 0
-    return billingPeriod === 'yearly' ? found.yearlyPrice : found.monthlyPrice
-  }
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => entry.isIntersecting && setIsVisible(true),
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     )
     const el = document.getElementById('pricing')
     if (el) observer.observe(el)
@@ -73,240 +36,254 @@ export function Pricing() {
   }, [])
 
   return (
-    <section
-      id="pricing"
-      className="section-padding bg-gradient-to-b from-primary-50/30 to-white dark:from-primary-950/20 dark:to-gray-900 min-w-0"
-    >
+    <section id="pricing" className="py-20 lg:py-28 bg-white dark:bg-gray-900 min-w-0">
+      <style>{`
+        @keyframes nuri-float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-10px); }
+        }
+        .nuri-float { animation: nuri-float 3.8s ease-in-out infinite; }
+      `}</style>
+
       <div className="container-custom min-w-0">
-        {/* Header */}
-        <div className="max-w-4xl mx-auto text-center mb-10 sm:mb-14">
-          <div
-            className={`inline-flex items-center px-3 sm:px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 text-xs sm:text-sm font-medium mb-4 sm:mb-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-          >
-            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            {t('badge')}
-          </div>
-          <h2
-            className={`text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 break-words transition-all duration-700 delay-100 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          >
-            {t('title')}
-          </h2>
-          <p
-            className={`text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto break-words transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          >
-            {t('subtitle')}
-          </p>
-
-          {/* Billing period toggle */}
-          <div
-            className={`mt-6 flex flex-col items-center gap-2 transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          >
-            <div className="inline-flex items-center gap-0 rounded-full border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 p-1 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setBillingPeriod('monthly')}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  billingPeriod === 'monthly'
-                    ? 'bg-primary-600 text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                {t('billingMonthly')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingPeriod('yearly')}
-                className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  billingPeriod === 'yearly'
-                    ? 'bg-primary-600 text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                {t('billingYearly')}
-                <span className="absolute -top-2.5 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
-                  🔥 {t('savePercent')}
-                </span>
-              </button>
-            </div>
-            {billingPeriod === 'yearly' && (
-              <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-                {t('annualBillingNote')}
+        {/* ── HEADER: текст слева + Нури справа (lg+) ── */}
+        <div
+          className={`max-w-4xl mx-auto mb-14 transition-all duration-700 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
+        >
+          <div className="flex flex-col lg:flex-row lg:items-end gap-8 lg:gap-6">
+            {/* Текст */}
+            <div className="flex-1 text-center lg:text-left">
+              <span className="inline-block text-xs font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-4">
+                {t('badge')}
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
+                {t('title')}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-lg leading-relaxed max-w-xl">
+                {t('subtitle')}
               </p>
-            )}
+            </div>
+
+            {/* Нури с речевым пузырём — только lg+ */}
+            <div className="hidden lg:flex flex-col items-center flex-shrink-0 w-52 pb-2">
+              {/* Речевой пузырь */}
+              <div className="relative bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-700 rounded-2xl px-4 py-3 mb-3 text-sm font-medium text-teal-700 dark:text-teal-300 text-center leading-snug shadow-sm">
+                {t('mascotSpeech')}
+                {/* Стрелочка вниз */}
+                <span
+                  className="absolute -bottom-[9px] left-1/2 -translate-x-1/2 block w-0 h-0"
+                  style={{
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: '9px solid',
+                    borderTopColor: 'rgb(204 251 241)', // teal-100 equivalent
+                  }}
+                />
+              </div>
+              {/* Маскот */}
+              <img
+                src="/mascot-3.svg"
+                alt="Нури — ваш помощник"
+                width={200}
+                height={280}
+                className="nuri-float drop-shadow-sm"
+                style={{ transform: 'scaleX(-1)' }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* 3-column plan grid */}
+        {/* ── 2 КАРТОЧКИ ТАРИФОВ ── */}
         <div
-          className={`grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto mb-6 transition-all duration-700 delay-150 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
         >
-          {PLAN_META.map((plan) => {
-            const featureKeys = PLAN_FEATURE_KEYS[plan.id]
-            const isPro = plan.popular
-            const isEnt = plan.id === 'enterprise'
+          {/* Nuroo */}
+          <div className="flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                {t('nurooName')}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('nurooSubtitle')}</p>
+            </div>
 
-            return (
-              <div
-                key={plan.id}
-                className={`relative flex flex-col rounded-3xl border ${
-                  isPro
-                    ? 'border-primary-400 bg-gradient-to-br from-primary-600 to-primary-800 text-white shadow-2xl shadow-primary-500/25 scale-[1.03]'
-                    : isEnt
-                      ? 'border-gray-800 bg-gray-900 dark:bg-gray-950 text-white shadow-xl'
-                      : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                }`}
-              >
-                {/* Popular badge */}
-                {isPro && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1.5 bg-white text-primary-700 text-xs font-bold px-4 py-1.5 rounded-full shadow-md">
-                      <Sparkles className="w-3 h-3" />
-                      {t('popular')}
-                    </span>
-                  </div>
-                )}
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+              {t('nurooValueProp')}
+            </p>
 
-                <div className="p-6 sm:p-8 flex flex-col h-full">
-                  {/* Plan name & subtitle */}
-                  <div className="mb-6">
-                    <h3
-                      className={`text-xl font-bold mb-1 ${isPro ? 'text-white' : isEnt ? 'text-white' : 'text-gray-900 dark:text-white'}`}
-                    >
-                      {t(plan.titleKey)}
-                    </h3>
-                    <p
-                      className={`text-sm leading-5 ${isPro ? 'text-primary-100/90' : isEnt ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}
-                    >
-                      {t(plan.subtitleKey)}
-                    </p>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    {/* Main price row */}
-                    <div className="flex items-end gap-1.5 flex-wrap">
-                      {plan.priceFrom && (
-                        <span
-                          className={`pb-1 text-sm font-medium ${isPro ? 'text-primary-100/80' : isEnt ? 'text-gray-400' : 'text-gray-400'}`}
-                        >
-                          {t('from')}
-                        </span>
-                      )}
-                      <span
-                        className={`pb-1 text-sm font-medium ${isPro ? 'text-primary-100/80' : isEnt ? 'text-gray-400' : 'text-gray-400'}`}
-                      >
-                        $
-                      </span>
-                      <span
-                        className={`text-4xl font-bold tracking-tight ${isPro ? 'text-white' : isEnt ? 'text-white' : 'text-gray-900 dark:text-white'}`}
-                      >
-                        {formatPrice(getPlanPriceForDisplay(plan.id))}
-                      </span>
-                      <span
-                        className={`pb-1 text-sm font-medium ${isPro ? 'text-primary-100/80' : isEnt ? 'text-gray-400' : 'text-gray-400 dark:text-gray-400'}`}
-                      >
-                        / {billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}
-                      </span>
-                    </div>
-
-                    {/* Yearly: savings breakdown + monthly equivalent */}
-                    {billingPeriod === 'yearly' && (
-                      <div className="mt-2 space-y-1">
-                        {/* Crossed-out monthly total + save badge */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`text-sm line-through ${isPro ? 'text-primary-200/60' : isEnt ? 'text-gray-600' : 'text-gray-400 dark:text-gray-500'}`}
-                          >
-                            ${formatPrice(getMonthlyAnnualTotal(toPriceId(plan.id)))}
-                          </span>
-                          <span
-                            className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                              isPro
-                                ? 'bg-white/15 text-white'
-                                : isEnt
-                                  ? 'bg-green-900/40 text-green-400'
-                                  : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            }`}
-                          >
-                            {t('saveLabel')} ${formatPrice(getYearlySavings(toPriceId(plan.id)))}
-                          </span>
-                        </div>
-                        {/* Monthly equivalent */}
-                        <p
-                          className={`text-xs ${isPro ? 'text-primary-100/70' : isEnt ? 'text-gray-500' : 'text-gray-400 dark:text-gray-500'}`}
-                        >
-                          ≈ ${formatPrice(getMonthlyEquivalent(toPriceId(plan.id)))} /{' '}
-                          {t('perMonth')} · {t('billedAnnually')}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Monthly: subtle note */}
-                    {billingPeriod === 'monthly' && (
-                      <p
-                        className={`mt-1 text-xs ${isPro ? 'text-primary-100/60' : isEnt ? 'text-gray-600' : 'text-gray-400 dark:text-gray-500'}`}
-                      >
-                        {t('billedMonthlyNote')}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-2.5 mb-8 flex-1">
-                    {featureKeys.map((key) => (
-                      <li key={key} className="flex items-start gap-2.5">
-                        <div
-                          className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                            isPro
-                              ? 'bg-white/20'
-                              : isEnt
-                                ? 'bg-white/10'
-                                : 'bg-primary-100 dark:bg-primary-900/40'
-                          }`}
-                        >
-                          <Check
-                            className={`w-2.5 h-2.5 ${isPro ? 'text-white' : isEnt ? 'text-gray-300' : 'text-primary-600 dark:text-primary-400'}`}
-                          />
-                        </div>
-                        <span
-                          className={`text-sm leading-5 ${isPro ? 'text-primary-50/95' : isEnt ? 'text-gray-300' : 'text-gray-600 dark:text-gray-300'}`}
-                        >
-                          {t(key as Parameters<typeof t>[0])}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA */}
-                  <Link
-                    href={plan.ctaHref}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-colors ${
-                      isPro
-                        ? 'bg-white text-primary-700 hover:bg-primary-50 shadow-lg shadow-primary-950/20'
-                        : isEnt
-                          ? 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
-                          : 'bg-primary-600 text-white hover:bg-primary-700'
-                    }`}
-                  >
-                    {t(plan.ctaKey)}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
+            {/* Цена */}
+            <div className="mb-7">
+              <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-semibold mb-3">
+                {t('trialBadge')}
               </div>
-            )
-          })}
+              <div className="flex items-end gap-1">
+                <span className="text-sm text-gray-400 dark:text-gray-500 pb-1.5">$</span>
+                <span className="text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
+                  15
+                </span>
+                <span className="text-sm text-gray-400 dark:text-gray-500 pb-1.5 ml-1">
+                  / {t('perMonth')}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                {t('afterTrialCaption')}
+              </p>
+            </div>
+
+            {/* Фичи */}
+            <ul className="space-y-2.5 mb-8 flex-1">
+              {NUROO_FEATURE_KEYS.map((key) => (
+                <li key={key} className="flex items-start gap-2.5">
+                  <div className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{t(key)}</span>
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/b2b/register"
+              onClick={() => Analytics.pricingNurooCta()}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors"
+            >
+              {t('nurooCta')}
+              <ArrowRight className="w-4 h-4 flex-shrink-0" />
+            </Link>
+            <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-gray-500">
+              {t('microCopy')}
+            </p>
+          </div>
+
+          {/* Nuroo Business */}
+          <div className="flex flex-col rounded-2xl border border-teal-200 dark:border-teal-700/50 bg-teal-50/40 dark:bg-teal-950/15 p-8 shadow-sm">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                {t('businessName')}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('businessSubtitle')}</p>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+              {t('businessValueProp')}
+            </p>
+
+            {/* Цена */}
+            <div className="mb-7">
+              <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-semibold mb-3">
+                {t('trialBadge')}
+              </div>
+              <div className="flex items-end gap-1">
+                <span className="text-sm text-gray-400 dark:text-gray-500 pb-1.5">$</span>
+                <span className="text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
+                  50
+                </span>
+                <span className="text-sm text-gray-400 dark:text-gray-500 pb-1.5 ml-1">
+                  / {t('perMonth')}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                {t('afterTrialCaption')}
+              </p>
+            </div>
+
+            {/* Фичи с вводной строкой */}
+            <ul className="space-y-2.5 mb-8 flex-1">
+              <li className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide pb-1">
+                {t('businessIntro')}
+              </li>
+              {BUSINESS_FEATURE_KEYS.map((key) => (
+                <li key={key} className="flex items-start gap-2.5">
+                  <div className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{t(key)}</span>
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/b2b/register"
+              onClick={() => Analytics.pricingBusinessCta()}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors"
+            >
+              {t('businessCta')}
+              <ArrowRight className="w-4 h-4 flex-shrink-0" />
+            </Link>
+            <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-gray-500">
+              {t('microCopy')}
+            </p>
+          </div>
         </div>
 
-        {/* Trial + footer notes */}
+        {/* ── ENTERPRISE STRIP ── */}
         <div
-          className={`mt-10 text-center space-y-2 transition-all duration-700 delay-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+          className={`max-w-4xl mx-auto mb-14 transition-all duration-700 delay-300 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
         >
-          <p className="inline-flex items-center gap-2 text-sm font-medium text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-4 py-2 rounded-full">
-            <span>🎁</span>
-            {t('trialNote')}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t('afterRegister')}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500">{t('paymentMethodInfo')}</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-6 py-5">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {t('enterpriseTitle')}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {t('enterpriseText')}
+              </p>
+            </div>
+            <a
+              href="mailto:tilek.dzenisev@gmail.com"
+              onClick={() => Analytics.pricingEnterpriseCta()}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors whitespace-nowrap"
+            >
+              {t('enterpriseCta')}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
+
+        {/* ── TRUST BLOCK ── */}
+        <div
+          className={`max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 text-center transition-all duration-700 delay-500 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-center mb-2.5">
+              <Shield className="w-5 h-5 text-teal-500" />
+            </div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {t('trust1Title')}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              {t('trust1Text')}
+            </p>
+          </div>
+          <div>
+            <div className="flex items-center justify-center mb-2.5">
+              <RotateCcw className="w-5 h-5 text-teal-500" />
+            </div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {t('trust2Title')}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              {t('trust2Text')}
+            </p>
+          </div>
+          <div>
+            <div className="flex items-center justify-center mb-2.5">
+              <TrendingUp className="w-5 h-5 text-teal-500" />
+            </div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {t('trust3Title')}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+              {t('trust3Text')}
+            </p>
+          </div>
         </div>
       </div>
     </section>
