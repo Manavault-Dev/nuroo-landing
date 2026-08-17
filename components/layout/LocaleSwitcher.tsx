@@ -14,7 +14,7 @@ const localeNames: Record<Locale, string> = {
   ky: 'KY',
 }
 
-export function LocaleSwitcher() {
+export function LocaleSwitcher({ inverse = false }: { inverse?: boolean }) {
   const t = useTranslations('common')
   const locale = useLocale() as Locale
   const router = useRouter()
@@ -99,7 +99,12 @@ export function LocaleSwitcher() {
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        className={clsx(
+          'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors',
+          inverse
+            ? 'bg-white/20 text-white ring-1 ring-white/25 hover:bg-white/30 hover:text-white'
+            : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700'
+        )}
         aria-label={t('locale')}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
