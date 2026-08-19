@@ -3,20 +3,54 @@ import { Link } from '@/i18n/navigation'
 import { ArrowLeft, MessageCircle, Mail, Clock } from 'lucide-react'
 import { setRequestLocale } from 'next-intl/server'
 import { getTranslations } from 'next-intl/server'
+import { getAbsoluteUrl } from '@/lib/seo/site'
 
 type Props = { params: { locale: string } }
+
+const LOCALE_OG: Record<string, string> = { ru: 'ru_RU', en: 'en_US', ky: 'ky_KG' }
+
+const HELP_KEYWORDS: Record<string, string[]> = {
+  ru: ['Nuroo поддержка', 'помощь Nuroo', 'центр помощи', 'контакт Nuroo', 'вопросы и ответы'],
+  en: ['Nuroo support', 'Nuroo help', 'help center', 'contact Nuroo', 'FAQ'],
+  ky: ['Nuroo жардам', 'колдоо борбору', 'байланыш Nuroo'],
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = params
   const t = await getTranslations({ locale, namespace: 'helpPage' })
+  const title = `${t('title')} | Nuroo`
+  const description = t('subtitle')
+  const ogLocale = LOCALE_OG[locale] ?? 'en_US'
+  const alternateLocales = Object.entries(LOCALE_OG)
+    .filter(([l]) => l !== locale)
+    .map(([, v]) => v)
+
   return {
-    title: `${t('title')} - Nuroo`,
-    description: t('subtitle'),
+    title,
+    description,
+    keywords: HELP_KEYWORDS[locale] ?? HELP_KEYWORDS.en,
+    alternates: {
+      canonical: getAbsoluteUrl(`/${locale}/help`),
+      languages: {
+        ru: getAbsoluteUrl('/ru/help'),
+        en: getAbsoluteUrl('/en/help'),
+        ky: getAbsoluteUrl('/ky/help'),
+        'x-default': getAbsoluteUrl('/ru/help'),
+      },
+    },
     openGraph: {
-      title: `${t('title')} - Nuroo`,
-      description: t('subtitle'),
+      title,
+      description,
       type: 'website',
-      locale: locale === 'ru' ? 'ru_RU' : locale === 'ky' ? 'ky_KG' : 'en_US',
+      siteName: 'Nuroo',
+      url: getAbsoluteUrl(`/${locale}/help`),
+      locale: ogLocale,
+      alternateLocale: alternateLocales,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
     },
   }
 }
