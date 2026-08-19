@@ -94,6 +94,8 @@ jobs:
   e2e-smoke:
     name: Frontend E2E Smoke
     runs-on: ubuntu-latest
+    # Only run on push to main/development — not on every PR to keep CI fast
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [lint, typecheck]
     steps:
       - name: Checkout
@@ -109,6 +111,7 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
@@ -116,8 +119,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-${{ env.NODE_VERSION }}-
 
+      # ubuntu-latest runners already have chromium system deps pre-installed.
+      # Skip --with-deps to avoid 20+ min apt-get on every run.
+      # Only install the browser binary itself; skip entirely on cache hit.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Run smoke E2E tests
         run: npm run test:e2e
@@ -149,6 +156,7 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
@@ -157,7 +165,8 @@ jobs:
             ${{ runner.os }}-playwright-${{ env.NODE_VERSION }}-
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Run product E2E tests
         run: npm run test:e2e:product
