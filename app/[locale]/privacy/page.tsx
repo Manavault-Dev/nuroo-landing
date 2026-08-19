@@ -3,20 +3,54 @@ import { Link } from '@/i18n/navigation'
 import { ArrowLeft, Shield, Lock, Eye, Database } from 'lucide-react'
 import { setRequestLocale } from 'next-intl/server'
 import { getTranslations } from 'next-intl/server'
+import { getAbsoluteUrl } from '@/lib/seo/site'
 
 type Props = { params: { locale: string } }
+
+const LOCALE_OG: Record<string, string> = { ru: 'ru_RU', en: 'en_US', ky: 'ky_KG' }
+
+const PRIVACY_KEYWORDS: Record<string, string[]> = {
+  ru: ['политика конфиденциальности Nuroo', 'персональные данные', 'защита данных', 'GDPR Nuroo'],
+  en: ['Nuroo privacy policy', 'personal data protection', 'data security', 'GDPR Nuroo'],
+  ky: ['Nuroo купуялык саясаты', 'жеке маалыматтар', 'маалымат коргоо'],
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = params
   const t = await getTranslations({ locale, namespace: 'privacyPage' })
+  const title = `${t('title')} | Nuroo`
+  const description = t('subtitle')
+  const ogLocale = LOCALE_OG[locale] ?? 'en_US'
+  const alternateLocales = Object.entries(LOCALE_OG)
+    .filter(([l]) => l !== locale)
+    .map(([, v]) => v)
+
   return {
-    title: `${t('title')} - Nuroo`,
-    description: t('subtitle'),
+    title,
+    description,
+    keywords: PRIVACY_KEYWORDS[locale] ?? PRIVACY_KEYWORDS.en,
+    alternates: {
+      canonical: getAbsoluteUrl(`/${locale}/privacy`),
+      languages: {
+        ru: getAbsoluteUrl('/ru/privacy'),
+        en: getAbsoluteUrl('/en/privacy'),
+        ky: getAbsoluteUrl('/ky/privacy'),
+        'x-default': getAbsoluteUrl('/ru/privacy'),
+      },
+    },
     openGraph: {
-      title: `${t('title')} - Nuroo`,
-      description: t('subtitle'),
+      title,
+      description,
       type: 'website',
-      locale: locale === 'ru' ? 'ru_RU' : locale === 'ky' ? 'ky_KG' : 'en_US',
+      siteName: 'Nuroo',
+      url: getAbsoluteUrl(`/${locale}/privacy`),
+      locale: ogLocale,
+      alternateLocale: alternateLocales,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
     },
   }
 }
