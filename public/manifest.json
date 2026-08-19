@@ -1,8 +1,9 @@
 {
-  "name": "Nuroo - AI-Powered Support for Children with Special Needs",
+  "name": "Nuroo | Маркетплейс детского развития",
   "short_name": "Nuroo",
-  "description": "AI-powered exercises, Nuroo chat support, and progress tracking for children with special needs.",
-  "start_url": "/",
+  "description": "Найдите логопеда, психолога, детский центр или программу развития. Онлайн-запись через Nuroo.",
+  "start_url": "/ru",
+  "lang": "ru",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#14b8a6",

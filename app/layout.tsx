@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
-import { AmplitudeProvider } from '@/components/providers/AmplitudeProvider'
+import { getSiteUrl } from '@/lib/seo/site'
 import './globals.css'
+
+const SITE_URL = getSiteUrl()
 
 export const metadata: Metadata = {
   title: {
-    default: 'Nuroo — Маркетплейс детского развития',
+    default: 'Nuroo | Маркетплейс детского развития',
     template: '%s | Nuroo',
   },
   description:
-    'Nuroo — маркетплейс для поиска логопедов, психологов, дефектологов, детских центров и программ развития. Онлайн-запись, управление занятиями и прогресс ребёнка в одном приложении.',
+    'Nuroo: маркетплейс для поиска логопедов, психологов, дефектологов, детских центров и программ развития. Онлайн-запись, управление занятиями и прогресс ребёнка в одном приложении.',
   keywords: [
     'Nuroo',
     'маркетплейс детского развития',
@@ -31,20 +33,20 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://usenuroo.com'),
+  metadataBase: new URL(SITE_URL),
   openGraph: {
     type: 'website',
     locale: 'ru_RU',
     alternateLocale: ['en_US', 'ky_KG'],
-    url: 'https://usenuroo.com',
+    url: SITE_URL,
     siteName: 'Nuroo',
-    title: 'Nuroo — Маркетплейс детского развития',
+    title: 'Nuroo | Маркетплейс детского развития',
     description:
       'Найдите логопеда, психолога, дефектолога, детский центр или программу развития. Онлайн-запись и управление занятиями в Nuroo.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nuroo — Маркетплейс детского развития',
+    title: 'Nuroo | Маркетплейс детского развития',
     description:
       'Найдите логопеда, психолога, детский центр или программу развития. Онлайн-запись в Nuroo.',
     creator: '@nuroo',
@@ -60,41 +62,13 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  verification: {
+    google: 'yxwxk4p78_GGey4ZCj-VaVm5BxvhEfRqk3IvBgbNq5A',
+  },
 }
 
+// The <html> tag with the correct lang attribute is rendered in app/[locale]/layout.tsx
+// so each locale page gets lang="ru" / lang="en" / lang="ky" properly.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                var path = window.location.pathname || '/';
-                var publicPath = !/^\\/(en|ru|ky)\\/b2b(\\/|$)/.test(path);
-                if (!publicPath) return;
-                var root = document.documentElement;
-                root.classList.remove('dark');
-                root.classList.add('light');
-                root.style.colorScheme = 'light';
-              })();
-            `,
-          }}
-        />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#14b8a6" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
-        <link rel="dns-prefetch" href="https://storage.googleapis.com" />
-      </head>
-      <body className="font-sans overflow-x-hidden">
-        <AmplitudeProvider />
-        {children}
-      </body>
-    </html>
-  )
+  return children
 }
