@@ -1,11 +1,14 @@
 import { ImageResponse } from 'next/og'
+import { getSiteHostname } from '@/lib/seo/site'
 
 export const runtime = 'edge'
-export const alt = 'Nuroo — Маркетплейс детского развития'
+export const alt = 'Nuroo | Маркетплейс детского развития'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 export default async function Image() {
+  const hostname = getSiteHostname()
+
   return new ImageResponse(
     <div
       style={{
@@ -49,7 +52,7 @@ export default async function Image() {
           maxWidth: '800px',
         }}
       >
-        Всё для развития ребёнка — в одном месте
+        Всё для развития ребёнка в одном месте
       </div>
 
       {/* Subtitle */}
@@ -96,7 +99,7 @@ export default async function Image() {
           fontWeight: 500,
         }}
       >
-        usenuroo.com
+        {hostname}
       </div>
     </div>,
     { ...size }

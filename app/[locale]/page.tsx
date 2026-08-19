@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { Hero } from '@/components/landing/Hero'
 import { setRequestLocale } from 'next-intl/server'
+import { getAbsoluteUrl, getSiteUrl } from '@/lib/seo/site'
 
 function SectionSkeleton() {
   return (
@@ -42,13 +43,13 @@ const Footer = dynamic(() => import('@/components/layout/Footer').then((m) => m.
 
 type Props = { params: { locale: string } }
 
-const BASE = 'https://usenuroo.com'
+const BASE = getSiteUrl()
 
 const LOCALE_META = {
   ru: {
-    title: 'Nuroo — Маркетплейс детского развития',
+    title: 'Nuroo | Маркетплейс детского развития',
     description:
-      'Найдите логопеда, психолога, дефектолога, детский центр или программу развития. Записывайтесь онлайн, управляйте занятиями и следите за прогрессом ребёнка — всё в Nuroo.',
+      'Найдите логопеда, психолога, дефектолога, детский центр или программу развития. Записывайтесь онлайн, управляйте занятиями и следите за прогрессом ребёнка. Всё в Nuroo.',
     keywords: [
       'маркетплейс детского развития',
       'логопед онлайн запись',
@@ -66,9 +67,9 @@ const LOCALE_META = {
     ogLocale: 'ru_RU',
   },
   en: {
-    title: 'Nuroo — Child Development Marketplace',
+    title: 'Nuroo | Child Development Marketplace',
     description:
-      'Find speech therapists, psychologists, child development centers and programs. Book consultations and group sessions online — all through Nuroo.',
+      'Find speech therapists, psychologists, child development centers and programs. Book consultations and group sessions online through Nuroo.',
     keywords: [
       'child development marketplace',
       'book speech therapist online',
@@ -82,7 +83,7 @@ const LOCALE_META = {
     ogLocale: 'en_US',
   },
   ky: {
-    title: 'Nuroo — Балдарды өнүктүрүү маркетплейси',
+    title: 'Nuroo | Балдарды өнүктүрүү маркетплейси',
     description:
       'Логопед, психолог, дефектолог, балдар борборун жана өнүктүрүү программаларын табыңыз. Nuroo аркылуу онлайн жазылыңыз.',
     keywords: ['балдарды өнүктүрүү', 'логопед онлайн', 'балдар борбору', 'Nuroo маркетплейс'],
@@ -104,10 +105,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: `${BASE}/${locale}`,
       languages: {
-        ru: `${BASE}/ru`,
-        en: `${BASE}/en`,
-        ky: `${BASE}/ky`,
-        'x-default': `${BASE}/ru`,
+        ru: getAbsoluteUrl('/ru'),
+        en: getAbsoluteUrl('/en'),
+        ky: getAbsoluteUrl('/ky'),
+        'x-default': getAbsoluteUrl('/ru'),
       },
     },
     openGraph: {
@@ -132,7 +133,7 @@ const jsonLd = {
       '@id': `${BASE}/#organization`,
       name: 'Nuroo',
       url: BASE,
-      logo: { '@type': 'ImageObject', url: `${BASE}/logo.png`, width: 512, height: 512 },
+      logo: { '@type': 'ImageObject', url: getAbsoluteUrl('/logo.png'), width: 512, height: 512 },
       description:
         'Marketplace connecting parents with child development specialists, centers and programs.',
       foundingDate: '2024',
