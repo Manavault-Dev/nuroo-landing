@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { getAbsoluteUrl } from '@/lib/seo/site'
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -7,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/private/', '/admin/', '/api/'],
     },
-    sitemap: 'https://usenuroo.com/sitemap.xml',
+    sitemap: getAbsoluteUrl('/sitemap.xml'),
   }
 }

@@ -7,8 +7,10 @@ import { useTranslations } from 'next-intl'
 import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { type PresetId } from '@/lib/b2b/types'
+import { getSiteUrl } from '@/lib/seo/site'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
+const SITE_URL = getSiteUrl()
 
 interface OrgBranding {
   logo?: string | null
@@ -235,7 +237,7 @@ function ConnectPageInner() {
                 style={{ background: color.base }}
                 onClick={() => {
                   // Opens App Store / Play Store or the Nuroo app
-                  window.location.href = 'https://usenuroo.com'
+                  window.location.href = SITE_URL
                 }}
               >
                 {t('openApp')}
