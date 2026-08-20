@@ -28,7 +28,6 @@ import { paymentsDomain } from './domains/payments/index.js'
 import { coursesDomain } from './domains/courses/index.js'
 import { verificationsDomain } from './domains/verifications/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
-import { aiAssistantRoutes, intentRoutes } from './modules/ai-assistant/index.js'
 import { bookingDomain } from './domains/booking/index.js'
 import { cohortsDomain } from './domains/cohorts/index.js'
 import { favoritesDomain } from './domains/favorites/index.js'
@@ -211,10 +210,8 @@ async function buildServer() {
     favoritesDomain,
     auditRoutes,
     calendarRoutes,
-    // External modules (parent-api, ai-assistant)
+    // External modules
     parentApiRoutes,
-    aiAssistantRoutes,
-    intentRoutes,
   ]
 
   for (const route of routes) {

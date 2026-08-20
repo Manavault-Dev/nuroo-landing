@@ -1858,24 +1858,6 @@ export class ApiClient {
     })
   }
 
-  async parseAssistantIntent(
-    orgId: string,
-    message: string,
-    context?: {
-      lastGroupName?: string
-      lastChildNames?: string[]
-      lastResultChildren?: string[]
-    }
-  ) {
-    return this.request<{ type: string; params: Record<string, unknown>; raw: string }>(
-      `/orgs/${orgId}/assistant/intent`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ message, context }),
-      }
-    )
-  }
-
   async improveInstruction(data: {
     roughText: string
     language: 'ru' | 'en' | 'ky'

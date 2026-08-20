@@ -18,18 +18,12 @@ import {
   Sparkles,
   Target,
   ChevronRight,
-  MessageCircle,
 } from 'lucide-react'
 import { InviteModal } from '@/components/b2b/InviteModal'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
 import { useLocale, useTranslations } from 'next-intl'
 import { useAlert } from '@/components/ui/AlertDialog'
-
-const Assistant = dynamic(() => import('./components/assistant'), {
-  ssr: false,
-  loading: () => null,
-})
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -331,7 +325,6 @@ export default function DashboardPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [showDeferredCover, setShowDeferredCover] = useState(false)
-  const [assistantRequested, setAssistantRequested] = useState(false)
   const { alert } = useAlert()
 
   useEffect(() => {
@@ -389,26 +382,6 @@ export default function DashboardPage() {
     y: branding?.coverPositionY,
     scale: branding?.coverScale,
   }
-  const handleAssistantCommandExecuted = () => undefined
-  const assistantLauncher = orgId ? (
-    assistantRequested ? (
-      <Assistant
-        orgId={orgId}
-        locale={locale}
-        defaultOpen
-        onCommandExecuted={handleAssistantCommandExecuted}
-      />
-    ) : (
-      <button
-        type="button"
-        onClick={() => setAssistantRequested(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary-600 shadow-lg transition-all hover:scale-105 hover:bg-primary-700"
-        aria-label="Open AI assistant"
-      >
-        <MessageCircle className="h-6 w-6 text-white" />
-      </button>
-    )
-  ) : null
 
   // ── Specialist action cards (derived from real operational data) ──────────
   const specialistActionCards: AdminActionCardData[] = []
@@ -806,8 +779,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
-        {assistantLauncher}
       </div>
     )
   }
@@ -1020,8 +991,6 @@ export default function DashboardPage() {
           orgId={orgId}
         />
       )}
-
-      {assistantLauncher}
     </div>
   )
 }
