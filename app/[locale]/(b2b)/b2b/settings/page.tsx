@@ -5,7 +5,8 @@ import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { apiClient } from '@/lib/b2b/api'
-import { Save, User, Mail, Loader2 } from 'lucide-react'
+import { Save, User, Mail, Loader2, Shield } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -162,6 +163,21 @@ export default function SettingsPage() {
           ) : (
             <p className="text-gray-500">{t('notInOrg')}</p>
           )}
+        </div>
+
+        {/* Privacy & Legal */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Конфиденциальность</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Управление согласиями и просмотр правовых документов
+          </p>
+          <Link
+            href="/b2b/settings/privacy"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium hover:bg-primary-100 transition-colors"
+          >
+            <Shield className="w-4 h-4" />
+            Настройки конфиденциальности
+          </Link>
         </div>
       </div>
     </div>

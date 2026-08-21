@@ -11,6 +11,8 @@ import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/lib/b2b/AuthContext'
 import { getWorkspacePath, type B2bOrgMembership } from '@/src/config/routes'
 
+const CURRENT_VERSIONS = { PUBLIC_OFFER: '1.0', PRIVACY_POLICY: '1.0', LEGAL_REPRESENTATIVE: '1.0' }
+
 /** Reusable Google "G" logo — inline SVG, no extra dependency */
 function GoogleLogo() {
   return (
@@ -47,14 +49,27 @@ function RegisterForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [inviteCode, setInviteCode] = useState(inviteCodeParam)
+  const [legalAccepted, setLegalAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  /** Record legal consent after successful auth */
+  const recordLegalConsent = async () => {
+    await Promise.allSettled([
+      apiClient.acceptConsent('PUBLIC_OFFER', CURRENT_VERSIONS.PUBLIC_OFFER, 'ru'),
+      apiClient.acceptConsent('PRIVACY_POLICY', CURRENT_VERSIONS.PRIVACY_POLICY, 'ru'),
+      apiClient.acceptConsent('LEGAL_REPRESENTATIVE', CURRENT_VERSIONS.LEGAL_REPRESENTATIVE, 'ru'),
+    ])
+  }
 
   /** Shared post-auth flow: accept invite if present, then redirect */
   const handlePostAuth = async (userCredential: Awaited<ReturnType<typeof register>>) => {
     const idToken = await userCredential.user.getIdToken()
     apiClient.setToken(idToken)
+
+    // Record legal consent — MUST happen before any workspace access
+    await recordLegalConsent()
 
     if (inviteCode.trim()) {
       try {
@@ -82,6 +97,10 @@ function RegisterForm() {
 
   const handleGoogleSignIn = async () => {
     if (googleLoading) return
+    if (!legalAccepted) {
+      setError('Необходимо принять Публичную оферту и Политику конфиденциальности')
+      return
+    }
     setError('')
     setGoogleLoading(true)
 
@@ -100,6 +119,11 @@ function RegisterForm() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (!legalAccepted) {
+      setError('Необходимо принять Публичную оферту и Политику конфиденциальности')
+      return
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
@@ -152,6 +176,7 @@ function RegisterForm() {
   }
 
   const isAnyLoading = loading || googleLoading
+  const canSubmit = legalAccepted && !isAnyLoading
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -282,9 +307,59 @@ function RegisterForm() {
               <p className="mt-1 text-xs text-gray-500">{t('inviteCodeHint')}</p>
             </div>
 
+            {/* Legal consent — required, not pre-checked */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Юридические условия
+              </p>
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  id="legalAccepted"
+                  checked={legalAccepted}
+                  onChange={(e) => setLegalAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500 shrink-0 cursor-pointer"
+                  aria-required="true"
+                  aria-label="Принять Публичную оферту и Политику конфиденциальности"
+                />
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  Я прочитал(а) и принимаю{' '}
+                  <a
+                    href="/legal/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Публичную оферту
+                  </a>
+                  ,{' '}
+                  <a
+                    href="/legal/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Политику конфиденциальности
+                  </a>{' '}
+                  и{' '}
+                  <a
+                    href="/legal/parental-consent"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Согласие законного представителя
+                  </a>
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={isAnyLoading}
+              disabled={isAnyLoading || !legalAccepted}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? t('creating') : t('createAccount')}
@@ -302,7 +377,7 @@ function RegisterForm() {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={isAnyLoading}
+            disabled={!canSubmit}
             className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {googleLoading ? (
