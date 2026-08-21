@@ -446,28 +446,26 @@ export default function BillingPage() {
     )
   }
 
+  // Two Nuroo product tiers mapped to billing plan IDs (starter=$15, growth=$50)
   const billingPlans: Array<{
     id: 'starter' | 'growth' | 'enterprise'
     name: string
     price: number
     currency: string
+    nurooPlanLabel?: string
   }> = [
     {
       id: 'starter',
-      name: tPricing('starterName'),
+      name: 'Nuroo',
+      nurooPlanLabel: 'Для независимых специалистов',
       price: getDisplayPrice('starter'),
       currency: 'USD',
     },
     {
       id: 'growth',
-      name: tPricing('growthName'),
+      name: 'Nuroo Business',
+      nurooPlanLabel: 'Для центров и организаций',
       price: getDisplayPrice('growth'),
-      currency: 'USD',
-    },
-    {
-      id: 'enterprise',
-      name: tPricing('enterpriseName'),
-      price: getDisplayPrice('enterprise'),
       currency: 'USD',
     },
   ]
@@ -860,7 +858,7 @@ export default function BillingPage() {
                   {tPricing('annualBillingNote')}
                 </p>
               )}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 max-w-2xl">
                 {billingPlans.map((plan) => {
                   const featureKeys = PLAN_FEATURE_KEYS[plan.id] ?? []
                   const isPopular = plan.id === 'growth'
@@ -940,7 +938,7 @@ export default function BillingPage() {
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 max-w-2xl">
               {billingPlans.map((plan) => {
                 const featureKeys = PLAN_FEATURE_KEYS[plan.id] ?? []
                 const isCurrent =
