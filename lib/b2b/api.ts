@@ -2513,6 +2513,61 @@ export class ApiClient {
     return this.request<{ ok: boolean }>('/calendar/disconnect', { method: 'DELETE' })
   }
 
+  // ── Legal / Consent ──────────────────────────────────────────────────────
+
+  /** Public — no auth required */
+  async getLegalDocuments() {
+    return this.request<{
+      documents: Array<{
+        type: string
+        version: string
+        effectiveAt: string
+        titleRu: string
+        requiresReacceptance: boolean
+        path: string
+      }>
+    }>('/legal/documents')
+  }
+
+  async getUserConsents() {
+    return this.request<{
+      consents: Array<{
+        consentType: string
+        isAccepted: boolean
+        needsReacceptance: boolean
+        documentVersion: string | null
+        currentVersion: string
+        acceptedAt: string | null
+        withdrawnAt: string | null
+      }>
+    }>('/legal/consents')
+  }
+
+  async acceptConsent(
+    consentType: string,
+    documentVersion: string,
+    locale = 'ru',
+    metadata?: Record<string, string>
+  ) {
+    return this.request<{ ok: boolean; id: string; acceptedAt: string }>('/legal/consents', {
+      method: 'POST',
+      body: JSON.stringify({ consentType, documentVersion, locale, metadata }),
+    })
+  }
+
+  async withdrawConsent(consentType: string) {
+    return this.request<{ ok: boolean; withdrawnAt: string }>('/legal/consents/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ consentType }),
+    })
+  }
+
+  async checkRequiredConsents() {
+    return this.request<{ allRequiredAccepted: boolean; missing: string[] }>(
+      '/legal/consents/check'
+    )
+  }
+
   // Clear all cache (useful for logout)
   clearCache() {
     cache.invalidate()

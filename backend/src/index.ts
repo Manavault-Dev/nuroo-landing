@@ -33,6 +33,7 @@ import { cohortsDomain } from './domains/cohorts/index.js'
 import { favoritesDomain } from './domains/favorites/index.js'
 import { auditRoutes } from './infrastructure/audit/audit.routes.js'
 import { calendarRoutes } from './domains/calendar/calendar.routes.js'
+import { legalRoutes } from './domains/legal/legal.routes.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -210,6 +211,7 @@ async function buildServer() {
     favoritesDomain,
     auditRoutes,
     calendarRoutes,
+    legalRoutes,
     // External modules
     parentApiRoutes,
   ]
