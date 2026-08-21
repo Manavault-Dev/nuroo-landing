@@ -2236,6 +2236,26 @@
     "ru": "Русский",
     "ky": "Кыргызча"
   },
+  "legalPage": {
+    "terms": {
+      "badge": "Public Offer",
+      "title": "Agreement on Access to the Nuroo Mobile Application and Web Service",
+      "version": "Version",
+      "effectiveDate": "Effective date",
+      "relatedDocs": "Related documents",
+      "privacy": "Privacy Policy",
+      "parentalConsent": "Legal Representative Consent"
+    },
+    "parentalConsent": {
+      "badge": "Annex No. 2 to the Privacy Policy",
+      "title": "Legal Representative Consent for Collection and Processing of Personal Data",
+      "version": "Version",
+      "scope": "Applies to personal data of the legal representative and child, including special categories",
+      "relatedDocs": "Related documents",
+      "terms": "Public Offer",
+      "privacy": "Privacy Policy"
+    }
+  },
   "privacyPage": {
     "backToHome": "Back to Home",
     "title": "Privacy Policy",

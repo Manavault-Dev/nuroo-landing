@@ -247,13 +247,14 @@ export default async function PrivacyPage({ params }: Props) {
                 <p>{t('contactIntro')}</p>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p>
-                    <strong>{t('email')}</strong> tilek.dzenisev@gmail.com
+                    <strong>{t('email')}</strong> support@usenuroo.com
                   </p>
                   <p>
-                    <strong>{t('support')}</strong> tilek.dzenisev@gmail.com
+                    <strong>{t('support')}</strong> support@usenuroo.com
                   </p>
                   <p>
-                    <strong>{t('address')}</strong> Manavault Studio
+                    <strong>{t('address')}</strong> ОсОО «Nuroo», Кыргызская Республика, г. Бишкек,
+                    Парк высоких технологий
                   </p>
                 </div>
               </div>
