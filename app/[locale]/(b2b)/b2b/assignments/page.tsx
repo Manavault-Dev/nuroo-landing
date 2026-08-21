@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { usePageAuth } from '@/lib/b2b/usePageAuth'
 import { ContentManagement } from '@/components/b2b/ContentManagement'
+import { PlanGate } from '@/components/b2b/PlanGate'
 
 export default function AssignmentsPage() {
   const router = useRouter()
@@ -29,11 +30,13 @@ export default function AssignmentsPage() {
   if (!orgId) return null
 
   return (
-    <ContentManagement
-      mode="org"
-      orgId={orgId}
-      pageTitle={t('title')}
-      pageSubtitle={t('subtitle')}
-    />
+    <PlanGate feature="assignments_progress">
+      <ContentManagement
+        mode="org"
+        orgId={orgId}
+        pageTitle={t('title')}
+        pageSubtitle={t('subtitle')}
+      />
+    </PlanGate>
   )
 }

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useBranding, type OrgBranding } from '@/lib/b2b/brandingContext'
 import { resolveBrandingAccent } from '@/lib/b2b/themePresets'
+import { PlanGate } from '@/components/b2b/PlanGate'
 
 type ReportData = Awaited<ReturnType<typeof apiClient.getReports>>
 type ReportsTranslator = ReturnType<typeof useTranslations>
@@ -753,8 +754,10 @@ function ReportsContent() {
 
 export default function ReportsPage() {
   return (
-    <Suspense fallback={<ReportsSpinner />}>
-      <ReportsContent />
-    </Suspense>
+    <PlanGate feature="reports">
+      <Suspense fallback={<ReportsSpinner />}>
+        <ReportsContent />
+      </Suspense>
+    </PlanGate>
   )
 }
