@@ -22,12 +22,18 @@ function extractName(specialistData: admin.firestore.DocumentData | null | undef
   return specialistData?.fullName || specialistData?.name || ''
 }
 
-function normalizeRole(role: string): 'admin' | 'specialist' {
-  return role === 'org_admin' || role === 'admin' ? 'admin' : 'specialist'
+function normalizeRole(role: string): 'admin' | 'specialist' | 'independent_specialist' {
+  if (role === 'org_admin' || role === 'admin') return 'admin'
+  if (role === 'independent_specialist') return 'independent_specialist'
+  return 'specialist'
 }
 
-function denormalizeRole(role: 'admin' | 'specialist'): 'org_admin' | 'specialist' {
-  return role === 'admin' ? 'org_admin' : 'specialist'
+function denormalizeRole(
+  role: 'admin' | 'specialist' | 'independent_specialist'
+): 'org_admin' | 'specialist' | 'independent_specialist' {
+  if (role === 'admin') return 'org_admin'
+  if (role === 'independent_specialist') return 'independent_specialist'
+  return 'specialist'
 }
 
 async function findOrganizationsForUser(
@@ -56,7 +62,8 @@ async function findOrganizationsForUser(
     coverPositionY?: number | null
     coverScale?: number | null
     isPublicMarketplaceEnabled?: boolean
-    role: 'admin' | 'specialist'
+    nurooPlan?: 'nuroo' | 'nuroo_business' | null
+    role: 'admin' | 'specialist' | 'independent_specialist'
   }>
 > {
   const organizations: Array<{
@@ -79,17 +86,21 @@ async function findOrganizationsForUser(
     coverPositionY?: number | null
     coverScale?: number | null
     isPublicMarketplaceEnabled?: boolean
-    role: 'admin' | 'specialist'
+    nurooPlan?: 'nuroo' | 'nuroo_business' | null
+    role: 'admin' | 'specialist' | 'independent_specialist'
   }> = []
   const seenOrgIds = new Set<string>()
 
   const addOrganization = (
     orgId: string,
     orgData: admin.firestore.DocumentData,
-    role: 'admin' | 'specialist'
+    role: 'admin' | 'specialist' | 'independent_specialist'
   ) => {
     if (seenOrgIds.has(orgId)) return
     seenOrgIds.add(orgId)
+    const rawPlan = orgData.nurooPlan
+    const nurooPlan: 'nuroo' | 'nuroo_business' | null =
+      rawPlan === 'nuroo' || rawPlan === 'nuroo_business' ? rawPlan : null
     organizations.push({
       orgId,
       orgName: orgData.name || orgId,
@@ -110,6 +121,7 @@ async function findOrganizationsForUser(
       coverPositionY: orgData.coverPositionY ?? null,
       coverScale: orgData.coverScale ?? null,
       isPublicMarketplaceEnabled: orgData.isPublicMarketplaceEnabled ?? false,
+      nurooPlan,
       role,
     })
   }
@@ -117,7 +129,7 @@ async function findOrganizationsForUser(
   const writeMembershipIndex = async (
     orgId: string,
     orgData: admin.firestore.DocumentData,
-    role: 'admin' | 'specialist'
+    role: 'admin' | 'specialist' | 'independent_specialist'
   ) => {
     const now = admin.firestore.Timestamp.now()
     const denormRole = denormalizeRole(role)

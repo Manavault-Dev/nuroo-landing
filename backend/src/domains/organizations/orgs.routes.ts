@@ -7,9 +7,13 @@ import { getFirestore, getStorageBucket } from '../../infrastructure/database/fi
 import { FREE_TRIAL_DAYS, FREE_TRIAL_PLAN_ID } from '../payments/planLimits.js'
 import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 
+const NUROO_PLAN_IDS = ['nuroo', 'nuroo_business'] as const
+type NurooPlanId = (typeof NUROO_PLAN_IDS)[number]
+
 const createOrgSchema = z.object({
   name: z.string().trim().min(1).max(200),
   country: z.string().trim().max(100).optional(),
+  plan: z.enum(NUROO_PLAN_IDS).optional(),
 })
 
 const imageSourceSchema = z
@@ -126,12 +130,17 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
     const orgRef = db.collection('organizations').doc()
     const orgId = orgRef.id
 
+    const chosenPlan: NurooPlanId = body.plan ?? 'nuroo_business'
+    // independent_specialist = solo Nuroo user; org_admin = team/org owner
+    const memberRole = chosenPlan === 'nuroo' ? 'independent_specialist' : 'org_admin'
+
     await orgRef.set({
       name: body.name,
       country: body.country || null,
       createdAt: admin.firestore.Timestamp.fromDate(now),
       createdBy: uid,
       isActive: true,
+      nurooPlan: chosenPlan, // 'nuroo' | 'nuroo_business'
       billingPlan: null,
       billing: {
         provider: 'manual',
@@ -153,7 +162,7 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       .doc(uid)
       .set({
         uid,
-        role: 'org_admin',
+        role: memberRole, // 'independent_specialist' | 'org_admin'
         status: 'active',
         joinedAt: admin.firestore.Timestamp.fromDate(now),
       })

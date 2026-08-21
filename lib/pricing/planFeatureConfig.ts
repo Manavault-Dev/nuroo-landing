@@ -52,6 +52,9 @@ export function normalizePlanIdFE(raw: string | null | undefined): PlanId {
   if (value === 'basic') return 'starter'
   if (value === 'corporate' || value === 'corp' || value === 'корпоративный') return 'enterprise'
   if (value === 'starter' || value === 'growth' || value === 'enterprise') return value as PlanId
+  // Nuroo product plan aliases → billing plan equivalents
+  if (value === 'nuroo') return 'starter'
+  if (value === 'nuroo_business') return 'enterprise'
   return 'starter'
 }
 

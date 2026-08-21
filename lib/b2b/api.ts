@@ -31,7 +31,9 @@ export interface SpecialistProfile {
     coverPositionY?: number | null
     coverScale?: number | null
     isPublicMarketplaceEnabled?: boolean
-    role: 'admin' | 'specialist'
+    role: 'admin' | 'specialist' | 'independent_specialist'
+    /** Product tier: 'nuroo' ($15) | 'nuroo_business' ($50). Null = legacy (treat as business) */
+    nurooPlan?: 'nuroo' | 'nuroo_business' | null
   }>
 }
 
@@ -263,6 +265,8 @@ export interface BillingStatusResponse {
   stripeCustomerId?: string
   /** Billing mode returned by backend — drives UI branching */
   billingMode?: BillingMode
+  /** Product tier chosen at onboarding: 'nuroo' ($15) | 'nuroo_business' ($50) */
+  nurooPlan?: 'nuroo' | 'nuroo_business' | null
   billing?: {
     status?: string | null
     plan?: string | null
@@ -1041,14 +1045,14 @@ export class ApiClient {
   }
 
   // Self-serve: create org and become org admin
-  async createMyOrganization(name: string, country?: string) {
+  async createMyOrganization(name: string, country?: string, plan?: 'nuroo' | 'nuroo_business') {
     cache.invalidate('profile')
     cache.invalidate('organizations')
     return this.request<{ ok: boolean; orgId: string; name: string; country: string | null }>(
       '/orgs',
       {
         method: 'POST',
-        body: JSON.stringify({ name, country }),
+        body: JSON.stringify({ name, country, plan }),
       }
     )
   }
