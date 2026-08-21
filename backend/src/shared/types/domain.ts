@@ -83,7 +83,8 @@ export interface SpecialistProfile {
     coverPositionY?: number | null
     coverScale?: number | null
     isPublicMarketplaceEnabled?: boolean
-    role: 'admin' | 'specialist'
+    nurooPlan?: 'nuroo' | 'nuroo_business' | null
+    role: 'admin' | 'specialist' | 'independent_specialist'
   }>
 }
 

@@ -23,7 +23,8 @@ export const AUTH_ROUTES = [ROUTES.LOGIN, ROUTES.REGISTER, ROUTES.JOIN]
 
 export type B2bOrgMembership = {
   orgId: string
-  role?: 'admin' | 'specialist'
+  role?: 'admin' | 'specialist' | 'independent_specialist'
+  nurooPlan?: 'nuroo' | 'nuroo_business' | null
 }
 
 export function isAuthRoute(pathname: string): boolean {
