@@ -517,7 +517,7 @@ export default function FinancePage() {
   if (isLoading) return <PageSpinner />
 
   return (
-    <PlanGate requiredPlan="enterprise" orgId={orgId}>
+    <PlanGate feature="org_finance">
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex items-center gap-3">
           {isAdmin ? (

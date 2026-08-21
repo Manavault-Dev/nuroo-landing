@@ -30,6 +30,7 @@ import { type SpecialistProfile } from '@/lib/b2b/api'
 import { useBranding } from '@/lib/b2b/brandingContext'
 import { usePlan } from '@/lib/b2b/planContext'
 import { type PlanId } from '@/lib/pricing/planFeatureConfig'
+import { usePlanGate, type BusinessFeature } from '@/lib/b2b/planGate'
 
 interface SidebarProps {
   profile: SpecialistProfile | null
@@ -43,8 +44,10 @@ interface NavItem {
   href: string
   labelKey: string
   icon: React.ElementType
-  /** If set, show an "Upgrade" badge when the current plan is below this. */
+  /** Legacy billing plan gate (starter/growth/enterprise) */
   requiredPlan?: PlanId
+  /** Nuroo product plan gate — locks item for nuroo ($15) users */
+  businessFeature?: BusinessFeature
 }
 
 interface NavGroup {
@@ -106,8 +109,8 @@ function NavLink({
       />
       <span className="flex-1 truncate">{item.labelKey}</span>
       {isLocked && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 leading-none whitespace-nowrap shrink-0">
-          ↑
+        <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-500 dark:bg-purple-900/30 dark:text-purple-300 leading-none whitespace-nowrap shrink-0 border border-purple-100 dark:border-purple-700">
+          🔒
         </span>
       )}
       {!isLocked && active && (
@@ -132,6 +135,7 @@ export function Sidebar({
 
   const { branding } = useBranding()
   const { meetsPlan } = usePlan()
+  const { isBusiness } = usePlanGate()
   const displayName = branding?.name || currentOrg?.orgName || 'Nuroo'
   const displayLogo = branding?.logo || currentOrg?.logoUrl || null
   const logoCropSource = branding?.logo ? branding : currentOrg
@@ -157,14 +161,24 @@ export function Sidebar({
       },
       { href: withOrg('/b2b/children'), labelKey: t('children'), icon: Users },
       { href: withOrg('/b2b/groups'), labelKey: t('groups'), icon: Users2 },
-      { href: withOrg('/b2b/assignments'), labelKey: t('assignments'), icon: FileText },
+      {
+        href: withOrg('/b2b/assignments'),
+        labelKey: t('assignments'),
+        icon: FileText,
+        businessFeature: 'assignments_progress' as BusinessFeature,
+      },
     ],
   }
 
   const operationsGroup: NavGroup = {
     labelKey: 'operations',
     items: [
-      { href: withOrg('/b2b/reports'), labelKey: t('reports'), icon: BarChart3 },
+      {
+        href: withOrg('/b2b/reports'),
+        labelKey: t('reports'),
+        icon: BarChart3,
+        businessFeature: 'reports' as BusinessFeature,
+      },
       { href: withOrg('/b2b/courses'), labelKey: t('courses'), icon: BookOpen },
       { href: withOrg('/b2b/bookings'), labelKey: t('bookings'), icon: CalendarDays },
       ...(!isOrgAdmin
@@ -174,6 +188,7 @@ export function Sidebar({
               labelKey: t('attendance'),
               icon: CalendarDays,
               requiredPlan: 'enterprise' as PlanId,
+              businessFeature: 'attendance' as BusinessFeature,
             },
           ]
         : []),
@@ -184,12 +199,14 @@ export function Sidebar({
               labelKey: t('finance'),
               icon: Wallet,
               requiredPlan: 'enterprise' as PlanId,
+              businessFeature: 'org_finance' as BusinessFeature,
             },
             {
               href: withOrg('/b2b/branches'),
               labelKey: t('branches'),
               icon: GitBranch,
               requiredPlan: 'enterprise' as PlanId,
+              businessFeature: 'branches' as BusinessFeature,
             },
           ]
         : []),
@@ -200,9 +217,21 @@ export function Sidebar({
     labelKey: 'teamSection',
     items: [
       ...(isOrgAdmin
-        ? [{ href: withOrg('/b2b/team'), labelKey: t('specialists'), icon: UserCog }]
+        ? [
+            {
+              href: withOrg('/b2b/team'),
+              labelKey: t('specialists'),
+              icon: UserCog,
+              businessFeature: 'team_management' as BusinessFeature,
+            },
+          ]
         : []),
-      { href: withOrg('/b2b/invites'), labelKey: t('inviteCodes'), icon: Key },
+      {
+        href: withOrg('/b2b/invites'),
+        labelKey: t('inviteCodes'),
+        icon: Key,
+        businessFeature: 'team_management' as BusinessFeature,
+      },
     ],
   }
 
@@ -300,15 +329,17 @@ export function Sidebar({
                 {gi > 0 && (
                   <div className="b2b-sidebar-divider my-2.5 mx-3.5 border-t border-gray-100" />
                 )}
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    active={isActive(item.href)}
-                    onClick={onMobileClose}
-                    isLocked={!!item.requiredPlan && !meetsPlan(item.requiredPlan)}
-                  />
-                ))}
+                {group.items
+                  .filter((item) => !item.businessFeature || isBusiness)
+                  .map((item) => (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      active={isActive(item.href)}
+                      onClick={onMobileClose}
+                      isLocked={!!item.requiredPlan && !meetsPlan(item.requiredPlan)}
+                    />
+                  ))}
               </div>
             ))}
           </div>
@@ -358,6 +389,19 @@ export function Sidebar({
           )}
         </nav>
 
+        {!isBusiness && (
+          <div className="shrink-0 px-4 pb-3">
+            <a
+              href="/b2b/billing"
+              className="flex flex-col gap-0.5 w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-3 text-white shadow-sm hover:from-violet-600 hover:to-purple-700 transition-all"
+            >
+              <span className="text-[13px] font-bold leading-tight">Nuroo Business</span>
+              <span className="text-[11px] opacity-80 leading-tight">
+                Команда, отчёты, финансы →
+              </span>
+            </a>
+          </div>
+        )}
         <div className="b2b-sidebar-footer shrink-0 border-t border-gray-100 px-4 py-3">
           <PoweredByNuroo label={t('poweredBy')} size="xs" className="max-w-full" />
         </div>

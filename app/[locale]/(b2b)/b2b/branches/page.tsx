@@ -115,7 +115,7 @@ export default function BranchesPage() {
   if (isLoading || loadingBranches) return <PageSpinner />
 
   return (
-    <PlanGate requiredPlan="enterprise" orgId={orgId}>
+    <PlanGate feature="branches">
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
