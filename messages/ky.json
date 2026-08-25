@@ -333,7 +333,8 @@
       "poweredBy": "Powered by",
       "workSection": "Иш жана аналитика",
       "mainNav": "Навигация",
-      "more": "Дагы"
+      "more": "Дагы",
+      "integrations": "Интеграциялар"
     },
     "header": {
       "dashboard": "Башкы бет",
@@ -953,6 +954,42 @@
             "teeth": "Тиш чистит"
           }
         }
+      },
+      "integrations": {
+        "title": "Интеграциялар",
+        "subtitle": "Жумушту автоматташтыруу үчүн тышкы кызматтарды туташтырыңыз",
+        "google": {
+          "sectionLabel": "Google Workspace",
+          "cardTitle": "Google Calendar + Meet",
+          "cardSubtitle": "Бир туташуу — эки курал",
+          "statusConnected": "Туташтырылган",
+          "statusDisconnected": "Туташтырылган эмес",
+          "calendarFeatureTitle": "Google Календарь",
+          "calendarFeatureDesc": "Жазылуулар автоматтык түрдө Google Календарьыңызга кошулат",
+          "meetFeatureTitle": "Google Meet",
+          "meetFeatureDesc": "Онлайн жазылуулар үчүн видео чалуу шилтемеси автоматтык түрдө түзүлөт",
+          "checkingStatus": "Туташуу абалы текшерилүүдө…",
+          "accountLabel": "Аккаунт",
+          "connectedSince": "Туташтырылган",
+          "connectButton": "Google Workspace туташтыруу",
+          "redirecting": "Googleга багытталууда…",
+          "disconnectButton": "Ажыратуу",
+          "confirmDisconnect": "Google Workspaceти ажыратасызбы? Meet шилтемелери жана Календарь синхрондоштуруу токтойт.",
+          "howItWorksTitle": "Кантип иштейт",
+          "step1": "«Туташтыруу» баскычын басып, Google аккаунтуңузга кириңиз",
+          "step2": "Nurooго Календарь жана Meetке кирүүгө уруксат бериңиз",
+          "step3": "Бардык жаңы жазылуулар автоматтык түрдө Календарьга кошулат жана Meet шилтемесин алат",
+          "successConnected": "Google Workspace ийгиликтүү туташтырылды",
+          "errorCancelled": "Туташуу жокко чыгарылды",
+          "errorConnect": "Googleга туташуу мүмкүн болгон жок. Кайра аракет кылыңыз.",
+          "errorGetLink": "Туташуу шилтемесин алуу мүмкүн болгон жок",
+          "successDisconnected": "Google Workspace ажыратылды",
+          "errorDisconnect": "Ажыратуу мүмкүн болгон жок. Кайра аракет кылыңыз."
+        },
+        "comingSoon": "Жакында",
+        "inDevelopment": "Иштелип жатат",
+        "whatsappDesc": "WhatsApp аркылуу эскертүүлөр жана билдирүүлөр",
+        "telegramDesc": "Ата-энелер үчүн билдирүүлөр менен бот"
       },
       "settings": {
         "title": "Профиль",

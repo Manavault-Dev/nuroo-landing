@@ -333,7 +333,8 @@
       "poweredBy": "Powered by",
       "workSection": "Работа и аналитика",
       "mainNav": "Навигация",
-      "more": "Ещё"
+      "more": "Ещё",
+      "integrations": "Интеграции"
     },
     "header": {
       "dashboard": "Главная",
@@ -953,6 +954,42 @@
             "teeth": "Чистить зубы"
           }
         }
+      },
+      "integrations": {
+        "title": "Интеграции",
+        "subtitle": "Подключите сторонние сервисы для автоматизации работы",
+        "google": {
+          "sectionLabel": "Google Workspace",
+          "cardTitle": "Google Calendar + Meet",
+          "cardSubtitle": "Одно подключение — два инструмента",
+          "statusConnected": "Подключено",
+          "statusDisconnected": "Не подключено",
+          "calendarFeatureTitle": "Google Календарь",
+          "calendarFeatureDesc": "Записи автоматически появляются в вашем Google Календаре",
+          "meetFeatureTitle": "Google Meet",
+          "meetFeatureDesc": "Ссылка на видеозвонок создаётся автоматически для онлайн-записей",
+          "checkingStatus": "Проверяем статус подключения…",
+          "accountLabel": "Аккаунт",
+          "connectedSince": "Подключено",
+          "connectButton": "Подключить Google Workspace",
+          "redirecting": "Перенаправляем в Google…",
+          "disconnectButton": "Отключить",
+          "confirmDisconnect": "Отключить Google Workspace? Автоматическое создание ссылок Meet и синхронизация с Календарём прекратятся.",
+          "howItWorksTitle": "Как это работает",
+          "step1": "Нажмите «Подключить» и войдите в ваш Google-аккаунт",
+          "step2": "Разрешите Nuroo доступ к Календарю и Meet",
+          "step3": "Все новые записи будут автоматически добавляться в ваш Календарь и получать ссылку Meet",
+          "successConnected": "Google Workspace успешно подключён",
+          "errorCancelled": "Подключение отменено",
+          "errorConnect": "Не удалось подключить Google. Попробуйте ещё раз.",
+          "errorGetLink": "Не удалось получить ссылку подключения",
+          "successDisconnected": "Google Workspace отключён",
+          "errorDisconnect": "Не удалось отключить. Попробуйте ещё раз."
+        },
+        "comingSoon": "Скоро",
+        "inDevelopment": "В разработке",
+        "whatsappDesc": "Напоминания и уведомления через WhatsApp",
+        "telegramDesc": "Бот для родителей с уведомлениями"
       },
       "settings": {
         "title": "Профиль",

@@ -333,7 +333,8 @@
       "poweredBy": "Powered by",
       "workSection": "Work & Analytics",
       "mainNav": "Navigation",
-      "more": "More"
+      "more": "More",
+      "integrations": "Integrations"
     },
     "header": {
       "dashboard": "Dashboard",
@@ -953,6 +954,42 @@
             "teeth": "Brush their teeth"
           }
         }
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "Connect third-party services to automate your work",
+        "google": {
+          "sectionLabel": "Google Workspace",
+          "cardTitle": "Google Calendar + Meet",
+          "cardSubtitle": "One connection — two tools",
+          "statusConnected": "Connected",
+          "statusDisconnected": "Not connected",
+          "calendarFeatureTitle": "Google Calendar",
+          "calendarFeatureDesc": "Bookings automatically appear in your Google Calendar",
+          "meetFeatureTitle": "Google Meet",
+          "meetFeatureDesc": "A video call link is created automatically for online bookings",
+          "checkingStatus": "Checking connection status…",
+          "accountLabel": "Account",
+          "connectedSince": "Connected",
+          "connectButton": "Connect Google Workspace",
+          "redirecting": "Redirecting to Google…",
+          "disconnectButton": "Disconnect",
+          "confirmDisconnect": "Disconnect Google Workspace? Automatic Meet link creation and Calendar sync will stop.",
+          "howItWorksTitle": "How it works",
+          "step1": "Click «Connect» and sign in to your Google account",
+          "step2": "Grant Nuroo access to Calendar and Meet",
+          "step3": "All new bookings will automatically appear in your Calendar and receive a Meet link",
+          "successConnected": "Google Workspace connected successfully",
+          "errorCancelled": "Connection cancelled",
+          "errorConnect": "Failed to connect Google. Please try again.",
+          "errorGetLink": "Failed to get the connection link",
+          "successDisconnected": "Google Workspace disconnected",
+          "errorDisconnect": "Failed to disconnect. Please try again."
+        },
+        "comingSoon": "Coming soon",
+        "inDevelopment": "In development",
+        "whatsappDesc": "Reminders and notifications via WhatsApp",
+        "telegramDesc": "Parent bot with notifications"
       },
       "settings": {
         "title": "Profile",
