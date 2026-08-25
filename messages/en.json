@@ -259,7 +259,8 @@
       },
       "googleSignIn": "Continue with Google",
       "orContinueWith": "or",
-      "googleError": "Failed to sign in with Google. Please try again."
+      "googleError": "Failed to sign in with Google. Please try again.",
+      "forgotPassword": "Forgot password?"
     },
     "register": {
       "title": "Create Account",
@@ -2444,5 +2445,19 @@
       "cohorts": "Group Sessions",
       "noCohorts": "No group sessions available"
     }
+  },
+  "forgotPassword": {
+    "title": "Reset your password",
+    "subtitle": "Enter your email and we'll send you reset instructions",
+    "email_label": "Email",
+    "send_button": "Send instructions",
+    "sending": "Sending...",
+    "back_to_signin": "Back to sign in",
+    "check_inbox": "Check your inbox",
+    "email_sent_to": "Instructions sent to",
+    "check_spam": "Can't find it? Check your spam folder",
+    "enter_email": "Please enter your email address",
+    "too_many_requests": "Too many attempts. Please try again later",
+    "send_failed": "Failed to send email. Please try again"
   }
 }
