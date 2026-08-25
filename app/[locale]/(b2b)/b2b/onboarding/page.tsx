@@ -292,6 +292,7 @@ export default function OnboardingPage() {
   const [country, setCountry] = useState('')
   const [city, setCity] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [customCategory, setCustomCategory] = useState('')
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
   // Action state
@@ -354,7 +355,16 @@ export default function OnboardingPage() {
       const token = await ensureToken()
       if (!token) return
       const plan = needsBusiness ? 'nuroo_business' : 'nuroo'
-      const res = await apiClient.createMyOrganization(name, country || undefined, plan)
+      // Replace 'other' with the user's custom text
+      const specializations = selectedCategories.map((c) =>
+        c === 'other' && customCategory.trim() ? customCategory.trim() : c
+      )
+      const res = await apiClient.createMyOrganization(
+        name,
+        country || undefined,
+        plan,
+        specializations
+      )
       apiClient.clearCache()
       const refreshedToken = await getIdToken(true)
       if (refreshedToken) apiClient.setToken(refreshedToken)
@@ -493,6 +503,21 @@ export default function OnboardingPage() {
           })}
         </div>
 
+        {/* Custom category input — shown when "Другое" is selected */}
+        {selectedCategories.includes('other') && (
+          <div className="mt-4">
+            <input
+              type="text"
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="Напишите вашу специализацию..."
+              maxLength={80}
+              className="w-full px-4 py-3 rounded-xl border border-primary-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition"
+              autoFocus
+            />
+          </div>
+        )}
+
         <div className="mt-8 flex justify-between">
           <button
             type="button"
@@ -503,7 +528,10 @@ export default function OnboardingPage() {
           </button>
           <button
             type="button"
-            disabled={selectedCategories.length === 0}
+            disabled={
+              selectedCategories.length === 0 ||
+              (selectedCategories.includes('other') && !customCategory.trim())
+            }
             onClick={() => setStep('goals')}
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >

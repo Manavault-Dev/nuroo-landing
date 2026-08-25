@@ -1045,14 +1045,19 @@ export class ApiClient {
   }
 
   // Self-serve: create org and become org admin
-  async createMyOrganization(name: string, country?: string, plan?: 'nuroo' | 'nuroo_business') {
+  async createMyOrganization(
+    name: string,
+    country?: string,
+    plan?: 'nuroo' | 'nuroo_business',
+    specializations?: string[]
+  ) {
     cache.invalidate('profile')
     cache.invalidate('organizations')
     return this.request<{ ok: boolean; orgId: string; name: string; country: string | null }>(
       '/orgs',
       {
         method: 'POST',
-        body: JSON.stringify({ name, country, plan }),
+        body: JSON.stringify({ name, country, plan, specializations }),
       }
     )
   }
