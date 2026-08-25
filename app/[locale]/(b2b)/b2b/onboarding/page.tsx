@@ -698,15 +698,25 @@ export default function OnboardingPage() {
               </ul>
             </div>
 
-            <div className="bg-white border border-purple-200 rounded-xl p-4 mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Nuroo Business</p>
-                <p className="text-xs text-gray-500">1 месяц бесплатно</p>
+            {/* Free trial badge */}
+            <div className="flex items-center justify-center mb-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                🎉 Первый месяц — бесплатно
+              </span>
+            </div>
+
+            <div className="bg-white border border-purple-200 rounded-xl p-4 mb-5">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-gray-900">Сейчас</p>
+                <p className="text-xl font-bold text-green-600">Бесплатно</p>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-purple-700">$50</p>
-                <p className="text-xs text-gray-400">/месяц</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400">После пробного периода (30 дней)</p>
+                <p className="text-xs text-gray-400">$50 / мес</p>
               </div>
+              <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                Отмена в любой момент · Без скрытых платежей
+              </p>
             </div>
 
             <button
@@ -715,10 +725,14 @@ export default function OnboardingPage() {
                 setOrgName(`${firstName} ${lastName}`.trim())
                 setStep('setup')
               }}
-              className="w-full py-3.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors"
+              className="w-full py-3.5 bg-purple-600 text-white font-bold text-base rounded-xl hover:bg-purple-700 transition-colors shadow-sm shadow-purple-200"
             >
-              Начать бесплатный период →
+              Начать бесплатно →
             </button>
+            <p className="text-xs text-gray-400 text-center mt-2">
+              Карта не нужна · Первые 30 дней бесплатно
+            </p>
+
             <button
               type="button"
               onClick={() => setStep('goals')}
@@ -730,20 +744,25 @@ export default function OnboardingPage() {
         ) : (
           // ── Nuroo basic recommendation ─────────────────────────────────
           <div>
+            {/* Free trial badge */}
+            <div className="flex items-center justify-center mb-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                🎉 Первый месяц — бесплатно
+              </span>
+            </div>
+
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
                 <UserCircle className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider">
-                  Рекомендуем
+                  Идеально для вас
                 </p>
                 <h2 className="text-2xl font-bold text-gray-900">Nuroo</h2>
               </div>
             </div>
-            <p className="text-sm text-gray-500 mb-6">
-              Для самостоятельной работы вам хватит базового тарифа.
-            </p>
+            <p className="text-sm text-gray-500 mb-5">Начните без оплаты — карта не нужна.</p>
 
             <div className="bg-primary-50 rounded-xl p-4 mb-4">
               <p className="text-xs font-semibold text-primary-700 uppercase tracking-wide mb-3">
@@ -759,15 +778,19 @@ export default function OnboardingPage() {
               </ul>
             </div>
 
-            <div className="bg-white border border-primary-200 rounded-xl p-4 mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Nuroo</p>
-                <p className="text-xs text-gray-500">Для независимых специалистов</p>
+            {/* Pricing — free trial front, price secondary */}
+            <div className="bg-white border border-primary-200 rounded-xl p-4 mb-5">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-gray-900">Сейчас</p>
+                <p className="text-xl font-bold text-green-600">Бесплатно</p>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-primary-700">$15</p>
-                <p className="text-xs text-gray-400">/месяц</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400">После пробного периода (30 дней)</p>
+                <p className="text-xs text-gray-400">$15 / мес</p>
               </div>
+              <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                Отмена в любой момент · Без скрытых платежей
+              </p>
             </div>
 
             <button
@@ -776,10 +799,13 @@ export default function OnboardingPage() {
                 setOrgName(`${firstName} ${lastName}`.trim())
                 setStep('setup')
               }}
-              className="w-full py-3.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
+              className="w-full py-3.5 bg-primary-600 text-white font-bold text-base rounded-xl hover:bg-primary-700 transition-colors shadow-sm shadow-primary-200"
             >
-              Начать работу →
+              Начать бесплатно →
             </button>
+            <p className="text-xs text-gray-400 text-center mt-2">
+              Карта не нужна · Первые 30 дней бесплатно
+            </p>
 
             <div className="mt-4 p-3 bg-gray-50 rounded-xl">
               <p className="text-xs text-gray-500 text-center">
