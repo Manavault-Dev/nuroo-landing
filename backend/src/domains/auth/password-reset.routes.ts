@@ -49,6 +49,6 @@ export async function passwordResetRoutes(fastify: FastifyInstance) {
       }
 
       return reply.code(200).send({ ok: true })
-    },
+    }
   )
 }

@@ -76,10 +76,12 @@ const T = {
 
     password_reset_subject: 'Сброс пароля — Nuroo',
     password_reset_h1: 'Сброс пароля 🔑',
-    password_reset_body: 'Мы получили запрос на сброс пароля для вашего аккаунта Nuroo. Нажмите кнопку ниже, чтобы установить новый пароль.',
+    password_reset_body:
+      'Мы получили запрос на сброс пароля для вашего аккаунта Nuroo. Нажмите кнопку ниже, чтобы установить новый пароль.',
     password_reset_button: 'Установить новый пароль',
     password_reset_expiry: 'Ссылка действительна в течение 1 часа.',
-    password_reset_ignore: 'Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо. Ваш пароль останется прежним.',
+    password_reset_ignore:
+      'Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо. Ваш пароль останется прежним.',
   },
   en: {
     footer_unsub: 'Unsubscribe',
@@ -139,10 +141,12 @@ const T = {
 
     password_reset_subject: 'Reset your password — Nuroo',
     password_reset_h1: 'Reset your password 🔑',
-    password_reset_body: 'We received a request to reset the password for your Nuroo account. Click the button below to set a new password.',
+    password_reset_body:
+      'We received a request to reset the password for your Nuroo account. Click the button below to set a new password.',
     password_reset_button: 'Set new password',
     password_reset_expiry: 'This link is valid for 1 hour.',
-    password_reset_ignore: 'If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.',
+    password_reset_ignore:
+      'If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.',
   },
   ky: {
     footer_unsub: 'Жазылуудан баш тарт',
@@ -202,10 +206,12 @@ const T = {
 
     password_reset_subject: 'Сырсөздү калыбына келтирүү — Nuroo',
     password_reset_h1: 'Сырсөздү калыбына келтирүү 🔑',
-    password_reset_body: 'Nuroo аккаунтуңуздун сырсөзүн калыбына келтирүү суроо-талабы алынды. Жаңы сырсөз коюу үчүн төмөндөгү баскычты басыңыз.',
+    password_reset_body:
+      'Nuroo аккаунтуңуздун сырсөзүн калыбына келтирүү суроо-талабы алынды. Жаңы сырсөз коюу үчүн төмөндөгү баскычты басыңыз.',
     password_reset_button: 'Жаңы сырсөз коюу',
     password_reset_expiry: 'Шилтеме 1 саат ичинде жарактуу.',
-    password_reset_ignore: 'Эгер сиз сырсөз калыбына келтирүүнү суранбасаңыз, бул катты жөн эле этибарга албаңыз.',
+    password_reset_ignore:
+      'Эгер сиз сырсөз калыбына келтирүүнү суранбасаңыз, бул катты жөн эле этибарга албаңыз.',
   },
 }
 
@@ -597,5 +603,8 @@ export function passwordResetTemplate(data: PasswordResetTemplateData): {
     ${p(`<span style="color:${MUTED};font-size:13px;">${t.password_reset_expiry}</span>`)}
     ${p(`<span style="color:${MUTED};font-size:12px;">${t.password_reset_ignore}</span>`)}
   `
-  return { subject: t.password_reset_subject, html: layout(t.password_reset_subject, body, data.lang) }
+  return {
+    subject: t.password_reset_subject,
+    html: layout(t.password_reset_subject, body, data.lang),
+  }
 }
