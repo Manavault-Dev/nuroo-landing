@@ -14,6 +14,7 @@ const createOrgSchema = z.object({
   name: z.string().trim().min(1).max(200),
   country: z.string().trim().max(100).optional(),
   plan: z.enum(NUROO_PLAN_IDS).optional(),
+  specializations: z.array(z.string().trim().max(100)).max(20).optional(),
 })
 
 const imageSourceSchema = z
@@ -140,7 +141,8 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       createdAt: admin.firestore.Timestamp.fromDate(now),
       createdBy: uid,
       isActive: true,
-      nurooPlan: chosenPlan, // 'nuroo' | 'nuroo_business'
+      nurooPlan: chosenPlan,
+      specializations: body.specializations ?? [],
       billingPlan: null,
       billing: {
         provider: 'manual',
