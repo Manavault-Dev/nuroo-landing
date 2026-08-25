@@ -52,7 +52,7 @@ export const calendarRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (error) {
         return reply.redirect(
-          `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/settings/calendar?error=access_denied`
+          `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/integrations?error=access_denied`
         )
       }
 
@@ -86,11 +86,11 @@ export const calendarRoutes: FastifyPluginAsync = async (fastify) => {
           updatedAt: new Date().toISOString(),
         })
 
-        const redirectUrl = `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/settings/calendar?success=1`
+        const redirectUrl = `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/integrations?success=1`
         return reply.redirect(redirectUrl)
       } catch (err: any) {
         fastify.log.error({ err }, 'Google Calendar OAuth callback failed')
-        const redirectUrl = `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/settings/calendar?error=token_exchange`
+        const redirectUrl = `${process.env.NEXT_PUBLIC_B2B_URL ?? ''}/b2b/integrations?error=token_exchange`
         return reply.redirect(redirectUrl)
       }
     }
