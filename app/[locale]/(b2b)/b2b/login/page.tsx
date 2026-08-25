@@ -182,6 +182,14 @@ export default function LoginPage() {
                   placeholder="••••••••"
                 />
               </div>
+              <div className="flex justify-end mt-2">
+                <Link
+                  href="/b2b/forgot-password"
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                >
+                  {t('forgotPassword')}
+                </Link>
+              </div>
             </div>
 
             <div>

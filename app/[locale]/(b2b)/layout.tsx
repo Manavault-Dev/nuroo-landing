@@ -17,7 +17,13 @@ import { apiClient, type BillingStatusResponse } from '@/lib/b2b/api'
 import { PlanProvider } from '@/lib/b2b/planContext'
 import { initClientSentry, runWhenIdle, shouldLoadClientSentry } from '@/lib/sentryClient'
 
-const NO_CHROME_PAGES = ['/b2b/login', '/b2b/register', '/b2b/onboarding', '/b2b/join']
+const NO_CHROME_PAGES = [
+  '/b2b/login',
+  '/b2b/register',
+  '/b2b/onboarding',
+  '/b2b/join',
+  '/b2b/forgot-password',
+]
 
 /**
  * Pages that must remain accessible even when the subscription is expired/suspended.
@@ -31,6 +37,7 @@ const PAYWALL_BYPASS_PATHS = [
   '/b2b/register',
   '/b2b/onboarding',
   '/b2b/join',
+  '/b2b/forgot-password',
 ]
 
 function LoadingSpinner() {

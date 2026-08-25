@@ -34,6 +34,7 @@ import { favoritesDomain } from './domains/favorites/index.js'
 import { auditRoutes } from './infrastructure/audit/audit.routes.js'
 import { calendarRoutes } from './domains/calendar/calendar.routes.js'
 import { legalRoutes } from './domains/legal/legal.routes.js'
+import { passwordResetRoutes } from './domains/auth/password-reset.routes.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -146,6 +147,7 @@ async function buildServer() {
     if (url.startsWith('/api/parent/alphakids/')) return
     if (url.startsWith('/api/parent/access/')) return
     if (url.startsWith('/webhooks/')) return
+    if (url === '/auth/forgot-password') return
     if (url === '/marketplace/courses' || url.startsWith('/marketplace/courses?')) return
     if (url === '/marketplace/cohorts' || url.startsWith('/marketplace/cohorts?')) return
     // Public marketplace routes — specialists, services, slots (read-only, no auth)
@@ -212,6 +214,7 @@ async function buildServer() {
     auditRoutes,
     calendarRoutes,
     legalRoutes,
+    passwordResetRoutes,
     // External modules
     parentApiRoutes,
   ]
