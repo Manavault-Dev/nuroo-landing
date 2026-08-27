@@ -31,18 +31,21 @@ export const cohortsAttendanceRoute: FastifyPluginAsync = async (fastify) => {
       for (const record of body.records) {
         const doc: AttendanceDoc = {
           childId: record.childId,
-          sessionId, cohortId,
+          sessionId,
+          cohortId,
           status: record.status,
           markedAt: now,
           markedBy: request.user.uid,
         }
         batch.set(db.doc(`${COL.attendance(orgId, cohortId, sessionId)}/${record.childId}`), doc)
       }
-      await db.doc(COL.session(orgId, cohortId, sessionId)).update({ status: 'completed', updatedAt: now })
+      await db
+        .doc(COL.session(orgId, cohortId, sessionId))
+        .update({ status: 'completed', updatedAt: now })
       await batch.commit()
 
       return { ok: true, count: body.records.length }
-    },
+    }
   )
 
   // ── GET /orgs/:orgId/cohorts/:cohortId/sessions/:sessionId/attendance ─────
@@ -59,7 +62,7 @@ export const cohortsAttendanceRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await db.collection(COL.attendance(orgId, cohortId, sessionId)).get()
       const attendance = snap.docs.map((d) => d.data()) as AttendanceDoc[]
       return { ok: true, attendance }
-    },
+    }
   )
 
   // ── POST /orgs/:orgId/cohorts/:cohortId/cover ─────────────────────────────
@@ -95,8 +98,10 @@ export const cohortsAttendanceRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      if (!imageBuffer || imageBuffer.length === 0) return reply.code(400).send({ error: 'Image file is required' })
-      if (!imageMimetype.startsWith('image/')) return reply.code(400).send({ error: 'Only image uploads are allowed' })
+      if (!imageBuffer || imageBuffer.length === 0)
+        return reply.code(400).send({ error: 'Image file is required' })
+      if (!imageMimetype.startsWith('image/'))
+        return reply.code(400).send({ error: 'Only image uploads are allowed' })
 
       const bucket = await getStorageBucket()
       const safeName = imageFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -113,6 +118,6 @@ export const cohortsAttendanceRoute: FastifyPluginAsync = async (fastify) => {
       await ref.update({ coverUrl, updatedAt: new Date().toISOString() })
 
       return reply.code(200).send({ ok: true, coverUrl })
-    },
+    }
   )
 }

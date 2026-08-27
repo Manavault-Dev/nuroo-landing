@@ -186,10 +186,7 @@ describe('buildFeedbackMap', () => {
 
   it('overwrites earlier entry for same date (last wins)', () => {
     const ts = new Date('2026-01-10T09:00:00Z')
-    const docs = [
-      makeFeedbackDoc('good', 'первый', ts),
-      makeFeedbackDoc('hard', 'второй', ts),
-    ]
+    const docs = [makeFeedbackDoc('good', 'первый', ts), makeFeedbackDoc('hard', 'второй', ts)]
     const map = buildFeedbackMap(docs)
     expect(map.get('2026-01-10')?.mood).toBe('hard')
   })

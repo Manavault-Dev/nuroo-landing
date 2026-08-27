@@ -23,10 +23,13 @@ export const cohortsParticipantsRoute: FastifyPluginAsync = async (fastify) => {
       if (reply.sent) return
 
       const { orgId, cohortId } = request.params
-      const snap = await db.collection(COL.participants(orgId, cohortId)).orderBy('enrolledAt', 'asc').get()
+      const snap = await db
+        .collection(COL.participants(orgId, cohortId))
+        .orderBy('enrolledAt', 'asc')
+        .get()
       const participants = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as ParticipantDoc[]
       return { ok: true, participants }
-    },
+    }
   )
 
   // ── POST /orgs/:orgId/cohorts/:cohortId/participants ─────────────────────
@@ -56,21 +59,28 @@ export const cohortsParticipantsRoute: FastifyPluginAsync = async (fastify) => {
       const id = randomUUID()
 
       const doc: Omit<ParticipantDoc, 'id'> = {
-        cohortId, orgId,
-        childId: body.childId, childName: body.childName,
-        parentId: body.parentId, parentName: body.parentName,
+        cohortId,
+        orgId,
+        childId: body.childId,
+        childName: body.childName,
+        parentId: body.parentId,
+        parentName: body.parentName,
         parentPhone: body.parentPhone ?? null,
         status: 'active',
         paymentStatus: body.paymentStatus,
         amountPaid: body.amountPaid,
         totalAmount: cohortData.price,
         currency: cohortData.currency,
-        enrolledAt: now, updatedAt: now,
+        enrolledAt: now,
+        updatedAt: now,
       }
 
       await db.runTransaction(async (tx) => {
         tx.set(db.doc(COL.participant(orgId, cohortId, id)), doc)
-        tx.update(cohortRef, { enrolledCount: admin.firestore.FieldValue.increment(1), updatedAt: now })
+        tx.update(cohortRef, {
+          enrolledCount: admin.firestore.FieldValue.increment(1),
+          updatedAt: now,
+        })
       })
 
       void (async () => {
@@ -80,28 +90,41 @@ export const cohortsParticipantsRoute: FastifyPluginAsync = async (fastify) => {
             body.parentId ? db.doc(`users/${body.parentId}`).get() : Promise.resolve(null),
           ])
           const orgName: string = (orgSnap.data() as { name?: string } | undefined)?.name ?? orgId
-          const parentEmail: string = (parentSnap?.data() as { email?: string } | undefined)?.email ?? ''
+          const parentEmail: string =
+            (parentSnap?.data() as { email?: string } | undefined)?.email ?? ''
           const specialistName: string = cohortData.instructorId
-            ? (((await db.doc(`users/${cohortData.instructorId}`).get()).data() as { fullName?: string } | undefined)?.fullName ?? 'Специалист')
+            ? ((
+                (await db.doc(`users/${cohortData.instructorId}`).get()).data() as
+                  | { fullName?: string }
+                  | undefined
+              )?.fullName ?? 'Специалист')
             : 'Специалист'
 
           if (parentEmail && body.parentId) {
             eventDispatcher.dispatch({
               type: 'cohort_enrollment_confirmed',
-              orgId, cohortId,
+              orgId,
+              cohortId,
               cohortTitle: cohortData.title,
-              parentId: body.parentId, parentName: body.parentName, parentEmail,
-              specialistName, orgName,
+              parentId: body.parentId,
+              parentName: body.parentName,
+              parentEmail,
+              specialistName,
+              orgName,
               startDate: cohortData.startDate,
               meetingUrl: cohortData.meetingUrl ?? null,
             })
           }
-        } catch { /* notification failure must never affect enrollment response */ }
+        } catch {
+          /* notification failure must never affect enrollment response */
+        }
       })()
 
       writeAudit({
-        db, orgId,
-        entityType: 'participant', entityId: id,
+        db,
+        orgId,
+        entityType: 'participant',
+        entityId: id,
         action: 'participant.enrolled',
         actorId: request.user!.uid,
         actorRole: member.role === 'org_admin' ? 'org_admin' : 'specialist',
@@ -110,7 +133,7 @@ export const cohortsParticipantsRoute: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.code(201).send({ ok: true, participant: { id, ...doc } })
-    },
+    }
   )
 
   // ── PATCH /orgs/:orgId/cohorts/:cohortId/participants/:participantId ──────
@@ -132,15 +155,17 @@ export const cohortsParticipantsRoute: FastifyPluginAsync = async (fastify) => {
       const snap = await ref.get()
       if (!snap.exists) return reply.code(404).send({ error: 'Participant not found' })
 
-      const body = z.object({
-        status:        z.enum(['active', 'dropped', 'completed']).optional(),
-        paymentStatus: z.enum(['paid', 'partial', 'pending']).optional(),
-        amountPaid:    z.number().min(0).optional(),
-        parentPhone:   z.string().max(30).nullable().optional(),
-      }).parse(request.body)
+      const body = z
+        .object({
+          status: z.enum(['active', 'dropped', 'completed']).optional(),
+          paymentStatus: z.enum(['paid', 'partial', 'pending']).optional(),
+          amountPaid: z.number().min(0).optional(),
+          parentPhone: z.string().max(30).nullable().optional(),
+        })
+        .parse(request.body)
 
       await ref.update({ ...body, updatedAt: nowIso() })
       return { ok: true, participant: { id: participantId, ...snap.data(), ...body } }
-    },
+    }
   )
 }

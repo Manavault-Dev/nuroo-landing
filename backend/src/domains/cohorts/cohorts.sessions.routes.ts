@@ -5,9 +5,12 @@ import { canManageCohort, denyNotInstructor } from './cohorts.auth.js'
 import { createUniqueLink } from '../../infrastructure/meetings/google-meet.js'
 import type { CohortDoc, SessionDoc } from './cohorts.types.js'
 import {
-  RATE, COL,
-  sessionCreateSchema, sessionUpdateSchema,
-  nowIso, sortSessionsBySchedule,
+  RATE,
+  COL,
+  sessionCreateSchema,
+  sessionUpdateSchema,
+  nowIso,
+  sortSessionsBySchedule,
   getSpecialistRefreshToken,
 } from './cohorts.helpers.js'
 
@@ -27,10 +30,10 @@ export const cohortsSessionsRoute: FastifyPluginAsync = async (fastify) => {
       const { orgId, cohortId } = request.params
       const snap = await db.collection(COL.sessions(orgId, cohortId)).get()
       const sessions = sortSessionsBySchedule(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[],
+        snap.docs.map((d) => ({ id: d.id, ...d.data() })) as SessionDoc[]
       )
       return { ok: true, sessions }
-    },
+    }
   )
 
   // ── POST /orgs/:orgId/cohorts/:cohortId/sessions ─────────────────────────
@@ -73,17 +76,24 @@ export const cohortsSessionsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const doc: Omit<SessionDoc, 'id'> = {
-        cohortId, orgId,
-        date: body.date, startTime: body.startTime, endTime: body.endTime,
-        format: sessionFormat, meetingUrl,
+        cohortId,
+        orgId,
+        date: body.date,
+        startTime: body.startTime,
+        endTime: body.endTime,
+        format: sessionFormat,
+        meetingUrl,
         status: 'scheduled',
-        topic: body.topic ?? null, notes: body.notes ?? null,
-        postponedFrom: null, createdAt: now, updatedAt: now,
+        topic: body.topic ?? null,
+        notes: body.notes ?? null,
+        postponedFrom: null,
+        createdAt: now,
+        updatedAt: now,
       }
 
       await db.doc(COL.session(orgId, cohortId, id)).set(doc)
       return reply.code(201).send({ ok: true, session: { id, ...doc } })
-    },
+    }
   )
 
   // ── PATCH /orgs/:orgId/cohorts/:cohortId/sessions/:sessionId ─────────────
@@ -108,7 +118,7 @@ export const cohortsSessionsRoute: FastifyPluginAsync = async (fastify) => {
       const body = sessionUpdateSchema.parse(request.body)
       await ref.update({ ...body, updatedAt: nowIso() })
       return { ok: true, session: { id: sessionId, ...snap.data(), ...body } }
-    },
+    }
   )
 
   // ── DELETE /orgs/:orgId/cohorts/:cohortId/sessions/:sessionId ────────────
@@ -131,6 +141,6 @@ export const cohortsSessionsRoute: FastifyPluginAsync = async (fastify) => {
 
       await ref.update({ status: 'cancelled', updatedAt: nowIso() })
       return { ok: true }
-    },
+    }
   )
 }

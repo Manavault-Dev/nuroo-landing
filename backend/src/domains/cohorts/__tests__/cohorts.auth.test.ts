@@ -279,9 +279,7 @@ describe('validateImmutableFields', () => {
       reply,
     })
     expect(result).toBe(false)
-    expect(reply.send).toHaveBeenCalledWith(
-      expect.objectContaining({ field: 'orgId' })
-    )
+    expect(reply.send).toHaveBeenCalledWith(expect.objectContaining({ field: 'orgId' }))
   })
 
   it('specialist can change non-immutable fields', () => {

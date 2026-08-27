@@ -408,7 +408,14 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
 
     // Serve from cache when no filters (most common case: initial marketplace load)
     let orgsRaw: Record<string, unknown>[]
-    if (!category && !search && !country && !city && _orgsCache && Date.now() < _orgsCache.expiresAt) {
+    if (
+      !category &&
+      !search &&
+      !country &&
+      !city &&
+      _orgsCache &&
+      Date.now() < _orgsCache.expiresAt
+    ) {
       orgsRaw = _orgsCache.data
     } else {
       const snap = await db

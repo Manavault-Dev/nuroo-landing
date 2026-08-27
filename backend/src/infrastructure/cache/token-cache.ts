@@ -15,8 +15,8 @@
 
 import type { DecodedIdToken } from 'firebase-admin/auth'
 
-const TTL_MS = 5 * 60 * 1000   // 5 min — aligns with Firebase public-key cache
-const TTL_S  = TTL_MS / 1000
+const TTL_MS = 5 * 60 * 1000 // 5 min — aligns with Firebase public-key cache
+const TTL_S = TTL_MS / 1000
 const MAX_LOCAL_SIZE = 500
 
 // ─── Redis client (lazy, optional) ────────────────────────────────────────────
@@ -32,7 +32,7 @@ let redis: UpstashRedis | null = null
 async function getRedis(): Promise<UpstashRedis | null> {
   if (redis !== null) return redis
 
-  const url   = process.env.UPSTASH_REDIS_REST_URL
+  const url = process.env.UPSTASH_REDIS_REST_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
 
@@ -57,7 +57,10 @@ const localCache = new Map<string, { decoded: DecodedIdToken; expiresAt: number 
 function localGet(token: string): DecodedIdToken | null {
   const entry = localCache.get(token)
   if (!entry) return null
-  if (entry.expiresAt <= Date.now()) { localCache.delete(token); return null }
+  if (entry.expiresAt <= Date.now()) {
+    localCache.delete(token)
+    return null
+  }
   return entry.decoded
 }
 
@@ -82,12 +85,18 @@ export async function cacheGet(token: string): Promise<DecodedIdToken | null> {
       const raw = await r.get(`tkn:${token}`)
       if (!raw) return null
       return JSON.parse(raw) as DecodedIdToken
-    } catch { /* Redis error — fall through to local */ }
+    } catch {
+      /* Redis error — fall through to local */
+    }
   }
   return localGet(token)
 }
 
-export async function cacheSet(token: string, decoded: DecodedIdToken, tokenExpMs: number): Promise<void> {
+export async function cacheSet(
+  token: string,
+  decoded: DecodedIdToken,
+  tokenExpMs: number
+): Promise<void> {
   const expiresAt = Math.min(Date.now() + TTL_MS, tokenExpMs)
   const r = await getRedis()
   if (r) {
@@ -95,7 +104,9 @@ export async function cacheSet(token: string, decoded: DecodedIdToken, tokenExpM
       const ttlSeconds = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000))
       await r.set(`tkn:${token}`, JSON.stringify(decoded), { ex: Math.min(ttlSeconds, TTL_S) })
       return
-    } catch { /* Redis error — fall through to local */ }
+    } catch {
+      /* Redis error — fall through to local */
+    }
   }
   localSet(token, decoded, expiresAt)
 }
@@ -103,7 +114,12 @@ export async function cacheSet(token: string, decoded: DecodedIdToken, tokenExpM
 export async function cacheDel(token: string): Promise<void> {
   const r = await getRedis()
   if (r) {
-    try { await r.del(`tkn:${token}`); return } catch { /* fall through */ }
+    try {
+      await r.del(`tkn:${token}`)
+      return
+    } catch {
+      /* fall through */
+    }
   }
   localDel(token)
 }

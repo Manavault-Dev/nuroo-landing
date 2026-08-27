@@ -100,7 +100,9 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
         .where('status', 'in', ['open', 'in_progress'])
         .limit(query.limit)
         .get()
-      cohorts = snap.docs.map((d) => toPublic({ id: d.id, orgId: query.orgId!, ...d.data() } as CohortDoc))
+      cohorts = snap.docs.map((d) =>
+        toPublic({ id: d.id, orgId: query.orgId!, ...d.data() } as CohortDoc)
+      )
     } else {
       // Cross-org: served from 60-second in-memory cache
       cohorts = await getCachedCohorts(db)
@@ -108,8 +110,12 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
 
     if (query.category) cohorts = cohorts.filter((c) => c.category === query.category)
     if (query.format) cohorts = cohorts.filter((c) => c.format === query.format)
-    if (query.ageMin != null) cohorts = cohorts.filter((c) => (c.ageMax ?? 99) >= query.ageMin!)
-    if (query.ageMax != null) cohorts = cohorts.filter((c) => (c.ageMin ?? 0) <= query.ageMax!)
+    if (query.ageMin !== null && query.ageMin !== undefined) {
+      cohorts = cohorts.filter((c) => (c.ageMax ?? 99) >= query.ageMin!)
+    }
+    if (query.ageMax !== null && query.ageMax !== undefined) {
+      cohorts = cohorts.filter((c) => (c.ageMin ?? 0) <= query.ageMax!)
+    }
 
     reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=60')
     return { ok: true, cohorts }

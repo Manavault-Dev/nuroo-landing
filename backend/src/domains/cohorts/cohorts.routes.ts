@@ -3,17 +3,27 @@ import { randomUUID } from 'crypto'
 import { getFirestore } from '../../infrastructure/database/firebase.js'
 import { requireOrgMember } from '../../infrastructure/auth/rbac.js'
 import {
-  canCreateCohort, canManageCohort, canApproveCohort,
-  isAdmin, validateStatusTransition, validateImmutableFields,
-  denyNotInstructor, denyForbidden,
+  canCreateCohort,
+  canManageCohort,
+  canApproveCohort,
+  isAdmin,
+  validateStatusTransition,
+  validateImmutableFields,
+  denyNotInstructor,
+  denyForbidden,
 } from './cohorts.auth.js'
 import { createPersistentRoom } from '../../infrastructure/meetings/google-meet.js'
 import type { CohortDoc, RecurringTemplate } from './cohorts.types.js'
 import {
-  RATE, COL,
-  cohortCreateSchema, cohortUpdateSchema,
-  nowIso, generateSessionDates,
-  getOrgMeta, getSpecialistName, getSpecialistRefreshToken,
+  RATE,
+  COL,
+  cohortCreateSchema,
+  cohortUpdateSchema,
+  nowIso,
+  generateSessionDates,
+  getOrgMeta,
+  getSpecialistName,
+  getSpecialistRefreshToken,
   computeStatus,
 } from './cohorts.helpers.js'
 import type { SessionDoc } from './cohorts.types.js'
@@ -32,13 +42,17 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (reply.sent) return
 
       const { orgId } = request.params
-      const snap = await db.collection(COL.cohorts(orgId)).orderBy('createdAt', 'desc').limit(200).get()
+      const snap = await db
+        .collection(COL.cohorts(orgId))
+        .orderBy('createdAt', 'desc')
+        .limit(200)
+        .get()
       const cohorts = snap.docs.map((d) => {
         const data = { id: d.id, ...d.data() } as CohortDoc
         return { ...data, status: computeStatus(data) }
       })
       return { ok: true, cohorts }
-    },
+    }
   )
 
   // ── POST /orgs/:orgId/cohorts ────────────────────────────────────────────
@@ -50,7 +64,8 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!request.user) return reply.code(401).send({ error: 'Unauthorized' })
       const member = await requireOrgMember(request, reply, request.params.orgId)
       if (reply.sent) return
-      if (!canCreateCohort(member)) return denyForbidden(reply, 'Only org members can create groups')
+      if (!canCreateCohort(member))
+        return denyForbidden(reply, 'Only org members can create groups')
 
       const { orgId } = request.params
       const body = cohortCreateSchema.parse(request.body)
@@ -62,40 +77,67 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       const instructorName = await getSpecialistName(db, resolvedInstructorId)
 
       const doc: Omit<CohortDoc, 'id'> = {
-        orgId, title: body.title, description: body.description,
-        instructorId: resolvedInstructorId, instructorName,
+        orgId,
+        title: body.title,
+        description: body.description,
+        instructorId: resolvedInstructorId,
+        instructorName,
         category: body.category ?? null,
-        ageMin: body.ageMin ?? null, ageMax: body.ageMax ?? null,
-        format: body.format, targetAudience: body.targetAudience ?? 'children',
-        startDate: body.startDate, endDate: body.endDate,
-        price: body.price, currency: body.currency,
-        maxParticipants: body.maxParticipants, enrolledCount: 0,
+        ageMin: body.ageMin ?? null,
+        ageMax: body.ageMax ?? null,
+        format: body.format,
+        targetAudience: body.targetAudience ?? 'children',
+        startDate: body.startDate,
+        endDate: body.endDate,
+        price: body.price,
+        currency: body.currency,
+        maxParticipants: body.maxParticipants,
+        enrolledCount: 0,
         status: 'draft',
         scheduleType: body.scheduleType,
         recurringTemplate: (body.recurringTemplate as RecurringTemplate) ?? null,
         coverUrl: body.coverUrl ?? null,
-        meetingUrl: null, meetingEventId: null,
-        approvalStatus: null, submittedForApprovalAt: null, submittedBy: null,
-        approvedAt: null, approvedBy: null, rejectionComment: null,
-        orgName, orgLogoUrl,
-        createdBy: request.user.uid, updatedBy: null,
-        createdAt: now, updatedAt: now, publishedAt: null,
+        meetingUrl: null,
+        meetingEventId: null,
+        approvalStatus: null,
+        submittedForApprovalAt: null,
+        submittedBy: null,
+        approvedAt: null,
+        approvedBy: null,
+        rejectionComment: null,
+        orgName,
+        orgLogoUrl,
+        createdBy: request.user.uid,
+        updatedBy: null,
+        createdAt: now,
+        updatedAt: now,
+        publishedAt: null,
       }
 
       await db.doc(COL.cohort(orgId, id)).set(doc)
 
       if (body.scheduleType === 'recurring' && body.recurringTemplate) {
-        const dates = generateSessionDates(body.recurringTemplate as RecurringTemplate, body.startDate)
+        const dates = generateSessionDates(
+          body.recurringTemplate as RecurringTemplate,
+          body.startDate
+        )
         const batch = db.batch()
         for (const date of dates) {
           const sessionId = randomUUID()
           const sessionDoc: Omit<SessionDoc, 'id'> = {
-            cohortId: id, orgId, date,
+            cohortId: id,
+            orgId,
+            date,
             startTime: body.recurringTemplate.startTime,
             endTime: body.recurringTemplate.endTime,
-            format: body.format, meetingUrl: null,
-            status: 'scheduled', topic: null, notes: null,
-            postponedFrom: null, createdAt: now, updatedAt: now,
+            format: body.format,
+            meetingUrl: null,
+            status: 'scheduled',
+            topic: null,
+            notes: null,
+            postponedFrom: null,
+            createdAt: now,
+            updatedAt: now,
           }
           batch.set(db.doc(COL.session(orgId, id, sessionId)), sessionDoc)
         }
@@ -103,7 +145,7 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.code(201).send({ ok: true, cohort: { id, ...doc } })
-    },
+    }
   )
 
   // ── GET /orgs/:orgId/cohorts/:cohortId ───────────────────────────────────
@@ -121,7 +163,7 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!snap.exists) return reply.code(404).send({ error: 'Cohort not found' })
       const cohort = { id: snap.id, ...snap.data() } as CohortDoc
       return { ok: true, cohort: { ...cohort, status: computeStatus(cohort) } }
-    },
+    }
   )
 
   // ── PATCH /orgs/:orgId/cohorts/:cohortId ─────────────────────────────────
@@ -146,10 +188,20 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       if (!validateImmutableFields({ member, body: body as Record<string, unknown>, reply })) return
 
       const { requireGroupApproval } = await getOrgMeta(db, orgId)
-      const updates: Record<string, unknown> = { ...body, updatedAt: nowIso(), updatedBy: request.user.uid }
+      const updates: Record<string, unknown> = {
+        ...body,
+        updatedAt: nowIso(),
+        updatedBy: request.user.uid,
+      }
 
       if (body.status && body.status !== cohort.status) {
-        const valid = validateStatusTransition({ member, cohort, nextStatus: body.status, requireGroupApproval, reply })
+        const valid = validateStatusTransition({
+          member,
+          cohort,
+          nextStatus: body.status,
+          requireGroupApproval,
+          reply,
+        })
         if (!valid) return
 
         if (body.status === 'pending_approval') {
@@ -159,7 +211,8 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
           updates.rejectionComment = null
         }
         if (body.status === 'open' && cohort.status === 'pending_approval') {
-          if (!canApproveCohort(member)) return denyForbidden(reply, 'Only admins can approve groups')
+          if (!canApproveCohort(member))
+            return denyForbidden(reply, 'Only admins can approve groups')
           updates.approvalStatus = 'approved'
           updates.approvedAt = nowIso()
           updates.approvedBy = request.user.uid
@@ -182,14 +235,15 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
             if (!refreshToken) {
               fastify.log.info(
                 { instructorId: cohort.instructorId, requesterId: request.user!.uid },
-                'Google Meet skipped: no connected Google Calendar',
+                'Google Meet skipped: no connected Google Calendar'
               )
             } else {
               try {
                 const meet = await createPersistentRoom({
                   title: cohort.title,
                   description: cohort.description || undefined,
-                  startDate: cohort.startDate, endDate: cohort.endDate,
+                  startDate: cohort.startDate,
+                  endDate: cohort.endDate,
                   orgName: cohort.orgName ?? undefined,
                   refreshToken,
                 })
@@ -222,7 +276,7 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
       await ref.update(updates)
       const updated = { id: cohortId, ...snap.data(), ...updates } as CohortDoc
       return { ok: true, cohort: { ...updated, status: computeStatus(updated) } }
-    },
+    }
   )
 
   // ── DELETE /orgs/:orgId/cohorts/:cohortId ────────────────────────────────
@@ -243,6 +297,6 @@ export const cohortsRoute: FastifyPluginAsync = async (fastify) => {
 
       await ref.update({ status: 'cancelled', updatedAt: nowIso(), updatedBy: request.user!.uid })
       return { ok: true }
-    },
+    }
   )
 }
