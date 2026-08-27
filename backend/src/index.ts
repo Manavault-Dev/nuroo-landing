@@ -45,13 +45,13 @@ declare module 'fastify' {
 }
 
 async function verifyIdTokenCached(token: string): Promise<DecodedIdToken> {
-  const cached = await cacheGet(token)
+  const cached = cacheGet(token)
   if (cached) return cached
 
-  await cacheDel(token)
+  cacheDel(token)
   const decoded = await getAuth().verifyIdToken(token)
   const tokenExpMs = decoded.exp ? decoded.exp * 1000 : Date.now() + 5 * 60 * 1000
-  await cacheSet(token, decoded, tokenExpMs)
+  cacheSet(token, decoded, tokenExpMs)
   return decoded
 }
 
