@@ -210,6 +210,7 @@ async function buildServer() {
     calendarRoutes,
     legalRoutes,
     passwordResetRoutes,
+    // External modules
     parentApiRoutes,
   ]
 
