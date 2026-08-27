@@ -396,26 +396,40 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // ── In-memory cache for public org listing (TTL 60 s) ────────────────────────
+  let _orgsCache: { data: Record<string, unknown>[]; expiresAt: number } | null = null
+
   // ── GET /api/organizations/public — unauthenticated marketplace listing ───────
   fastify.get<{
     Querystring: { category?: string; search?: string; country?: string; city?: string }
-  }>('/api/organizations/public', async (request, _reply) => {
+  }>('/api/organizations/public', async (request, reply) => {
     const db = getFirestore()
     const { category, search, country, city } = request.query
 
-    const snap = await db
-      .collection('organizations')
-      .where('isPublicMarketplaceEnabled', '==', true)
-      .limit(100)
-      .get()
+    // Serve from cache when no filters (most common case: initial marketplace load)
+    let orgsRaw: Record<string, unknown>[]
+    if (!category && !search && !country && !city && _orgsCache && Date.now() < _orgsCache.expiresAt) {
+      orgsRaw = _orgsCache.data
+    } else {
+      const snap = await db
+        .collection('organizations')
+        .where('isPublicMarketplaceEnabled', '==', true)
+        .limit(200)
+        .get()
+      orgsRaw = snap.docs.map((doc) => ({ _id: doc.id, ...doc.data() }))
+      if (!category && !search && !country && !city) {
+        _orgsCache = { data: orgsRaw, expiresAt: Date.now() + 60_000 }
+      }
+    }
 
-    const orgs = snap.docs.map((doc) => {
-      const d = doc.data()
+    const orgs = orgsRaw.map((raw) => {
+      const d = raw as any
+      const id = d._id as string
       const logoUrl = d.logoUrl ?? null
       const coverImageUrl = d.coverImageUrl ?? null
 
       return {
-        id: doc.id,
+        id,
         name: d.name ?? '',
         logoUrl,
         coverImageUrl,
@@ -439,6 +453,12 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
         websiteUrl: d.websiteUrl ?? null,
         reviewCount: (d.reviewCount as number) ?? 0,
         averageRating: (d.averageRating as number) ?? 0,
+        plan: d.plan ?? 'nuroo_business',
+        isOnline: d.isOnline === true,
+        priceFrom: (d.priceFrom as number) ?? null,
+        currency: (d.currency as string) ?? 'KGS',
+        ageMin: (d.ageMin as number) ?? null,
+        ageMax: (d.ageMax as number) ?? null,
       }
     })
 
@@ -466,6 +486,7 @@ export const orgsRoute: FastifyPluginAsync = async (fastify) => {
       )
     }
 
+    reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=60')
     return { ok: true, organizations: result }
   })
 }
