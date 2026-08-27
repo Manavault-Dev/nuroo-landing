@@ -272,7 +272,12 @@ export default function OrgPage() {
         {/* Logo */}
         <div className="absolute bottom-4 left-6 w-16 h-16 rounded-2xl bg-white dark:bg-gray-800 shadow-lg overflow-hidden flex items-center justify-center">
           {org.logoUrl ? (
-            <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover" />
+            <img
+              src={org.logoUrl}
+              alt={org.name}
+              className="object-cover scale-[1.3]"
+              style={{ width: '100%', height: '100%' }}
+            />
           ) : (
             <Building2 className="w-8 h-8 text-primary-400" />
           )}
