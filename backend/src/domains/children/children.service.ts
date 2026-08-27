@@ -301,7 +301,8 @@ export async function countCompletedTasks(db: admin.firestore.Firestore, childId
 }
 
 export function parseTimelineDays(daysParam: string | undefined): number {
-  const days = parseInt(daysParam || String(DEFAULT_TIMELINE_DAYS), 10)
+  const parsed = parseInt(daysParam || String(DEFAULT_TIMELINE_DAYS), 10)
+  const days = Number.isNaN(parsed) ? DEFAULT_TIMELINE_DAYS : parsed
   return Math.min(Math.max(days, MIN_TIMELINE_DAYS), MAX_TIMELINE_DAYS)
 }
 
