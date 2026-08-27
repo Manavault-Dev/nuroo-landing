@@ -24,7 +24,12 @@ import type { CohortStatus } from '../cohorts.types.js'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function member(role: 'org_admin' | 'specialist' | 'parent', uid = 'u1'): OrgMember {
-  return { uid, role, orgId: 'org1', email: null, name: 'Test', joinedAt: null } as OrgMember
+  return {
+    uid,
+    role,
+    status: 'active',
+    addedAt: new Date('2026-01-01T00:00:00Z'),
+  } as unknown as OrgMember
 }
 
 function makeCohort(instructorId: string | null, status: CohortStatus = 'draft') {
