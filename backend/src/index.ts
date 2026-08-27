@@ -5,10 +5,12 @@ import * as Sentry from '@sentry/node'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import compress from '@fastify/compress'
+import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 import { config } from './config/index.js'
 import { initializeFirebaseAdmin, getAuth } from './infrastructure/database/firebase.js'
+import { cacheGet, cacheSet, cacheDel } from './infrastructure/cache/token-cache.js'
 import type { AuthenticatedUser } from './shared/types/domain.js'
 
 // Domain imports — structured by bounded context
@@ -42,29 +44,14 @@ declare module 'fastify' {
   }
 }
 
-const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000
-const TOKEN_CACHE_MAX_SIZE = 500
-const tokenCache = new Map<string, { decoded: DecodedIdToken; expiresAt: number }>()
-
 async function verifyIdTokenCached(token: string): Promise<DecodedIdToken> {
-  const now = Date.now()
-  const cached = tokenCache.get(token)
+  const cached = await cacheGet(token)
+  if (cached) return cached
 
-  if (cached && cached.expiresAt > now) {
-    return cached.decoded
-  }
-
-  tokenCache.delete(token)
+  await cacheDel(token)
   const decoded = await getAuth().verifyIdToken(token)
-  const tokenExpiresAt = decoded.exp ? decoded.exp * 1000 : now + TOKEN_CACHE_TTL_MS
-  const expiresAt = Math.min(now + TOKEN_CACHE_TTL_MS, tokenExpiresAt)
-
-  tokenCache.set(token, { decoded, expiresAt })
-  if (tokenCache.size > TOKEN_CACHE_MAX_SIZE) {
-    const oldestKey = tokenCache.keys().next().value
-    if (oldestKey) tokenCache.delete(oldestKey)
-  }
-
+  const tokenExpMs = decoded.exp ? decoded.exp * 1000 : Date.now() + 5 * 60 * 1000
+  await cacheSet(token, decoded, tokenExpMs)
   return decoded
 }
 
@@ -120,6 +107,13 @@ async function buildServer() {
     credentials: true,
     preflight: true,
     strictPreflight: false,
+  })
+
+  await fastify.register(helmet, {
+    // CSP disabled — API server, not HTML. Enable when serving HTML pages.
+    contentSecurityPolicy: false,
+    // Allow cross-origin requests (CORS is handled separately)
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 
   await fastify.register(compress, {
@@ -190,10 +184,11 @@ async function buildServer() {
     }
   })
 
-  const routes = [
-    // System utilities
-    systemDomain,
-    // Domain plugins
+  // System routes (health, bootstrap) — no version prefix, needed by infra/load-balancers
+  await fastify.register(systemDomain)
+
+  // All domain routes are versioned under /v1
+  const v1Routes = [
     usersDomain,
     organizationsDomain,
     invitationsDomain,
@@ -215,13 +210,17 @@ async function buildServer() {
     calendarRoutes,
     legalRoutes,
     passwordResetRoutes,
-    // External modules
     parentApiRoutes,
   ]
 
-  for (const route of routes) {
-    await fastify.register(route)
-  }
+  await fastify.register(
+    async (v1) => {
+      for (const route of v1Routes) {
+        await v1.register(route)
+      }
+    },
+    { prefix: '/v1' }
+  )
 
   return fastify
 }

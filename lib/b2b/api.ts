@@ -2,9 +2,10 @@ import type { OrgBranding } from './types'
 import { captureClientException } from '@/lib/sentryClient'
 
 const API_BASE_URL =
-  typeof window !== 'undefined'
+  (typeof window !== 'undefined'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
     : process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101'
+  ).replace(/\/+$/, '') + '/v1'
 
 // Types
 export interface SpecialistProfile {
