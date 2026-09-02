@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import {
@@ -68,6 +69,29 @@ interface PublicCohort {
 
 type ActiveTab = 'specialists' | 'centers' | 'programs' | 'events'
 
+interface PublicEvent {
+  id: string
+  orgId: string
+  orgName: string
+  orgLogoUrl: string | null
+  title: string
+  description: string
+  coverUrl: string | null
+  date: string
+  endDate: string | null
+  location: string
+  city: string | null
+  format: 'online' | 'offline' | 'hybrid'
+  price: number
+  currency: string
+  spotsTotal: number
+  spotsLeft: number
+  registeredCount: number
+  category: string | null
+  ageMin: number | null
+  ageMax: number | null
+}
+
 const API_URL = `${(process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3101').replace(/\/+$/, '')}/v1`
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -97,15 +121,22 @@ export function MarketplaceClient({
 }) {
   const t = useTranslations('marketplace')
   const categoryLabel = useCategoryLabel()
+  const searchParams = useSearchParams()
 
   // data
   const [orgs, setOrgs] = useState<PublicOrg[]>([])
   const [cohorts, setCohorts] = useState<PublicCohort[]>([])
+  const [events, setEvents] = useState<PublicEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const VALID_TABS: ActiveTab[] = ['specialists', 'centers', 'programs', 'events']
+  const tabFromUrl = searchParams.get('tab') as ActiveTab | null
+  const initialTab: ActiveTab =
+    tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'centers'
+
   // ui
-  const [activeTab, setActiveTab] = useState<ActiveTab>('centers')
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab)
   const [selectedOrg, setSelectedOrg] = useState<PanelOrg | null>(null)
   const [search, setSearch] = useState(initialQuery)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -131,11 +162,15 @@ export function MarketplaceClient({
       fetch(`${API_URL}/marketplace/cohorts?limit=100`, opts)
         .then((r) => r.json())
         .catch(() => ({ cohorts: [] })),
+      fetch(`${API_URL}/marketplace/events?limit=100`, opts)
+        .then((r) => r.json())
+        .catch(() => ({ events: [] })),
     ])
-      .then(([orgData, cohortData]) => {
+      .then(([orgData, cohortData, eventData]) => {
         setOrgs(orgData.organizations ?? [])
         const raw = Array.isArray(cohortData) ? cohortData : (cohortData?.cohorts ?? [])
         setCohorts(raw)
+        setEvents(Array.isArray(eventData?.events) ? eventData.events : [])
       })
       .catch(() => setError(t('loadError')))
       .finally(() => setLoading(false))
@@ -248,7 +283,7 @@ export function MarketplaceClient({
     { id: 'specialists', label: 'Специалисты', count: filteredSpecialists.length },
     { id: 'centers', label: 'Центры', count: filteredCenters.length },
     { id: 'programs', label: 'Программы', count: filteredCohorts.length },
-    { id: 'events', label: 'Мероприятия', count: 0 },
+    { id: 'events', label: 'Мероприятия', count: events.length },
   ]
 
   return (
@@ -452,13 +487,22 @@ export function MarketplaceClient({
                 </div>
               ))}
 
-            {!loading && !error && activeTab === 'events' && (
-              <EmptyMsg
-                icon={<Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />}
-                text="Мероприятий пока нет"
-                hint="Скоро здесь появятся мастер-классы, вебинары и открытые занятия"
-              />
-            )}
+            {!loading &&
+              !error &&
+              activeTab === 'events' &&
+              (events.length === 0 ? (
+                <EmptyMsg
+                  icon={<Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />}
+                  text="Мероприятий пока нет"
+                  hint="Скоро здесь появятся мастер-классы, вебинары и открытые занятия"
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {events.map((event) => (
+                    <EventCard key={event.id} event={event} locale={locale} />
+                  ))}
+                </div>
+              ))}
           </div>
 
           {/* Booking panel */}
@@ -646,7 +690,7 @@ function FilterDrawer({
                 </p>
                 {currentPrice !== null && (
                   <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                    до {currentPrice.toLocaleString()} KGS
+                    до {currentPrice.toLocaleString('ru-RU')} KGS
                   </span>
                 )}
               </div>
@@ -659,7 +703,7 @@ function FilterDrawer({
                 {priceOptions.map((p) => (
                   <FilterPill
                     key={p}
-                    label={`до ${p.toLocaleString()} KGS`}
+                    label={`до ${p.toLocaleString('ru-RU')} KGS`}
                     active={currentPrice === p}
                     onClick={() => setCurrentPrice(p)}
                   />
@@ -1187,7 +1231,7 @@ function ProgramCard({ cohort }: { cohort: PublicCohort; locale: string }) {
               >
                 {cohort.price === 0
                   ? 'Бесплатно'
-                  : `${cohort.price.toLocaleString()} ${cohort.currency}`}
+                  : `${cohort.price.toLocaleString('ru-RU')} ${cohort.currency}`}
               </span>
               {cohort.price > 0 && <span className="text-gray-400 text-xs ml-1">/ мес.</span>}
             </div>
@@ -1309,7 +1353,7 @@ function EnrollModal({ cohort, onClose }: { cohort: PublicCohort; onClose: () =>
               <div className="text-sm font-semibold text-gray-900 dark:text-white">
                 {cohort.price === 0
                   ? 'Бесплатно'
-                  : `${cohort.price.toLocaleString()} ${cohort.currency} / мес.`}
+                  : `${cohort.price.toLocaleString('ru-RU')} ${cohort.currency} / мес.`}
               </div>
             </div>
 
@@ -1371,6 +1415,121 @@ function EnrollModal({ cohort, onClose }: { cohort: PublicCohort; onClose: () =>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function EventCard({ event, locale }: { event: PublicEvent; locale: string }) {
+  const [registered, setRegistered] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const dateLabel = new Date(event.date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'short',
+  })
+  const timeLabel = new Date(event.date).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const isFree = event.price === 0
+  const spotsLow = event.spotsTotal > 0 && event.spotsLeft <= 5
+
+  const handleRegister = async () => {
+    if (registered || saving) return
+    setSaving(true)
+    try {
+      const token = await getIdToken()
+      const res = await fetch(`${API_URL}/marketplace/events/${event.id}/register`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok || res.status === 409) setRegistered(true)
+    } catch {
+      // silent
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+      <div className="h-40 bg-gradient-to-br from-violet-500 to-purple-700 relative overflow-hidden">
+        {event.coverUrl && (
+          <img src={event.coverUrl} alt="" className="w-full h-full object-cover" />
+        )}
+        <div className="absolute inset-0 bg-black/30" />
+        <span
+          className={`absolute top-2 left-2 flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${FORMAT_COLORS[event.format] ?? FORMAT_COLORS.hybrid}`}
+        >
+          {event.format === 'online' ? (
+            <Wifi className="w-3 h-3" />
+          ) : (
+            <MapPin className="w-3 h-3" />
+          )}
+          {event.format === 'online' ? 'Онлайн' : event.format === 'offline' ? 'Офлайн' : 'Гибрид'}
+        </span>
+        {isFree && (
+          <span className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+            Бесплатно
+          </span>
+        )}
+        {spotsLow && !isFree && (
+          <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+            Осталось {event.spotsLeft}!
+          </span>
+        )}
+        <div className="absolute bottom-3 left-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-xl px-3 py-2">
+          <div className="text-xs font-bold text-gray-900 dark:text-white">{dateLabel}</div>
+          <div className="text-[11px] text-gray-500">{timeLabel}</div>
+        </div>
+      </div>
+
+      <div className="p-4 flex flex-col flex-1">
+        <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mb-1">
+          {event.orgName}
+        </p>
+        <h3 className="font-bold text-gray-900 dark:text-white text-base leading-snug mb-3">
+          {event.title}
+        </h3>
+
+        <div className="space-y-1.5 mb-4 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-violet-500 flex-shrink-0" />
+            <span className="truncate">
+              {event.location}
+              {event.city ? `, ${event.city}` : ''}
+            </span>
+          </div>
+          {event.registeredCount > 0 && (
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-violet-500 flex-shrink-0" />
+              <span>{event.registeredCount} участников</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <span className="text-base font-bold text-gray-900 dark:text-white">
+            {isFree ? (
+              <span className="text-emerald-600">Бесплатно</span>
+            ) : (
+              `${event.price.toLocaleString('ru-RU')} ${event.currency}`
+            )}
+          </span>
+          <button
+            onClick={handleRegister}
+            disabled={saving || registered}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              registered
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-60'
+            }`}
+          >
+            {registered ? '✓ Записан' : saving ? '...' : 'Зарегистрироваться'}
+          </button>
+        </div>
       </div>
     </div>
   )
