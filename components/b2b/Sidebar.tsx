@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -18,16 +19,23 @@ import {
   BarChart3,
   GitBranch,
   CalendarDays,
+  PartyPopper,
   Wallet,
   ChevronRight,
   Palette,
   BookOpen,
   Plug,
+  Shield,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { PoweredByNuroo } from '@/components/b2b/PoweredByNuroo'
 import { type SpecialistProfile } from '@/lib/b2b/api'
 import { useBranding } from '@/lib/b2b/brandingContext'
+import { useAuth } from '@/lib/b2b/AuthContext'
+import { db as _db } from '@/lib/firebase/config'
+import { doc, getDoc, type Firestore } from 'firebase/firestore'
+
+const db = _db as Firestore
 import { usePlan } from '@/lib/b2b/planContext'
 import { type PlanId } from '@/lib/pricing/planFeatureConfig'
 import { usePlanGate, type BusinessFeature } from '@/lib/b2b/planGate'
@@ -136,6 +144,18 @@ export function Sidebar({
   const { branding } = useBranding()
   const { meetsPlan } = usePlan()
   const { isBusiness } = usePlanGate()
+  const { user } = useAuth()
+
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+  useEffect(() => {
+    if (!user || !_db) return
+    void getDoc(doc(db, 'users', user.uid))
+      .then((snap) => {
+        const data = snap.data() as Record<string, unknown> | undefined
+        setIsPlatformAdmin(data?.platformRole === 'platform_admin')
+      })
+      .catch(() => {})
+  }, [user])
   const displayName = branding?.name || currentOrg?.orgName || 'Nuroo'
   const displayLogo = branding?.logo || currentOrg?.logoUrl || null
   const logoCropSource = branding?.logo ? branding : currentOrg
@@ -181,6 +201,7 @@ export function Sidebar({
       },
       { href: withOrg('/b2b/courses'), labelKey: t('courses'), icon: BookOpen },
       { href: withOrg('/b2b/bookings'), labelKey: t('bookings'), icon: CalendarDays },
+      { href: withOrg('/b2b/events'), labelKey: t('events'), icon: PartyPopper },
       ...(!isOrgAdmin
         ? [
             {
@@ -257,7 +278,26 @@ export function Sidebar({
     icon: Settings,
   }
 
-  const groups = [coreGroup, operationsGroup, teamGroup, ...(adminGroup ? [adminGroup] : [])]
+  const platformAdminGroup: NavGroup | null = isPlatformAdmin
+    ? {
+        labelKey: 'System',
+        items: [
+          {
+            href: '/b2b/admin/system',
+            labelKey: 'App Control',
+            icon: Shield,
+          },
+        ],
+      }
+    : null
+
+  const groups = [
+    coreGroup,
+    operationsGroup,
+    teamGroup,
+    ...(adminGroup ? [adminGroup] : []),
+    ...(platformAdminGroup ? [platformAdminGroup] : []),
+  ]
 
   const mobileOpen = isMobileOpen && !isClosing
 

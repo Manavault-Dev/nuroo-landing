@@ -7,7 +7,7 @@ export default function AdminPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/b2b')
+    router.replace('/b2b/admin/system')
   }, [router])
 
   return (
