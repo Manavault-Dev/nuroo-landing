@@ -111,7 +111,7 @@ export const eventsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
         tx.set(registrationRef, {
           uid: request.user!.uid,
           email: request.user!.email ?? profile.email ?? null,
-          displayName: request.user!.displayName ?? profile.displayName ?? profile.name ?? null,
+          displayName: profile.displayName ?? profile.name ?? null,
           phone: profile.phone ?? profile.phoneNumber ?? null,
           registeredAt: now,
         })
