@@ -37,6 +37,42 @@ function sortSessionsBySchedule<T extends { date: string; startTime: string }>(s
   )
 }
 
+// ── In-memory cache (TTL 60 s) ────────────────────────────────────────────────
+let _cohortsCache: { data: PublicCohort[]; expiresAt: number } | null = null
+
+async function getCachedCohorts(db: ReturnType<typeof getFirestore>): Promise<PublicCohort[]> {
+  if (_cohortsCache && Date.now() < _cohortsCache.expiresAt) {
+    return _cohortsCache.data
+  }
+
+  // Fetch all orgs that have marketplace enabled — one query to get org IDs
+  const orgsSnap = await db
+    .collection('organizations')
+    .where('isPublicMarketplaceEnabled', '==', true)
+    .select() // only doc IDs, no field data
+    .get()
+  const orgIds = orgsSnap.docs.map((d) => d.id)
+
+  // Parallel fetch per org (N queries), but now only for enabled orgs
+  const results = await Promise.all(
+    orgIds.map((orgId) =>
+      db
+        .collection(`organizations/${orgId}/cohorts`)
+        .where('status', 'in', ['open', 'in_progress'])
+        .limit(20)
+        .get()
+        .then((snap) =>
+          snap.docs.map((d) => toPublic({ id: d.id, orgId, ...d.data() } as CohortDoc))
+        )
+        .catch(() => [] as PublicCohort[])
+    )
+  )
+
+  const cohorts = results.flat().sort((a, b) => a.startDate.localeCompare(b.startDate))
+  _cohortsCache = { data: cohorts, expiresAt: Date.now() + 60_000 }
+  return cohorts
+}
+
 export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
   const db = getFirestore()
 
@@ -52,38 +88,24 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
     limit: z.coerce.number().int().min(1).max(100).default(24),
   })
 
-  fastify.get('/marketplace/cohorts', { config: { rateLimit: RATE } }, async (request) => {
+  fastify.get('/marketplace/cohorts', { config: { rateLimit: RATE } }, async (request, reply) => {
     const query = listQuerySchema.parse(request.query)
 
-    let cohorts: PublicCohort[] = []
+    let cohorts: PublicCohort[]
 
     if (query.orgId) {
-      // Single-org query — no index needed
+      // Single-org: bypass cache, query directly
       const snap = await db
         .collection(`organizations/${query.orgId}/cohorts`)
         .where('status', 'in', ['open', 'in_progress'])
         .limit(query.limit)
         .get()
-      cohorts = snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc))
-    } else {
-      // Cross-org: fetch all org IDs first, then query each sub-collection individually.
-      // Avoids collectionGroup indexes (which require firebase deploy --only firestore:indexes).
-      const orgsSnap = await db.collection('organizations').select().get()
-      const orgIds = orgsSnap.docs.map((d) => d.id)
-
-      const perOrgLimit = Math.min(query.limit, 20)
-      const results = await Promise.all(
-        orgIds.map((orgId) =>
-          db
-            .collection(`organizations/${orgId}/cohorts`)
-            .where('status', 'in', ['open', 'in_progress'])
-            .limit(perOrgLimit)
-            .get()
-            .then((snap) => snap.docs.map((d) => toPublic({ id: d.id, ...d.data() } as CohortDoc)))
-            .catch(() => [] as PublicCohort[])
-        )
+      cohorts = snap.docs.map((d) =>
+        toPublic({ id: d.id, orgId: query.orgId!, ...d.data() } as CohortDoc)
       )
-      cohorts = results.flat()
+    } else {
+      // Cross-org: served from 60-second in-memory cache
+      cohorts = await getCachedCohorts(db)
     }
 
     if (query.category) cohorts = cohorts.filter((c) => c.category === query.category)
@@ -95,8 +117,7 @@ export const cohortsMarketplaceRoute: FastifyPluginAsync = async (fastify) => {
       cohorts = cohorts.filter((c) => (c.ageMin ?? 0) <= query.ageMax!)
     }
 
-    cohorts.sort((a, b) => a.startDate.localeCompare(b.startDate))
-
+    reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=60')
     return { ok: true, cohorts }
   })
 

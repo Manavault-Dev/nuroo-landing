@@ -4,6 +4,7 @@ export const envSchema = z.object({
   PORT: z.string().default('3101'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
+  // In production these must be set — validated at startup via assertProductionEnv()
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),

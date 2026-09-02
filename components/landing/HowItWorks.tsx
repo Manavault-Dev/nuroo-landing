@@ -7,7 +7,7 @@ export async function HowItWorks() {
   const t = await getTranslations('landing.howItWorks')
 
   return (
-    <section className="py-20 md:py-28 bg-white dark:bg-gray-950">
+    <section id="solution-section" className="py-20 md:py-28 bg-white dark:bg-gray-950">
       <div className="container-custom">
         <div className="text-center mb-14">
           <span className="inline-block text-xs font-semibold uppercase tracking-widest text-teal-600 dark:text-teal-400 mb-3">

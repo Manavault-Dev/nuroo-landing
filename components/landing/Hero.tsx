@@ -1,9 +1,16 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getTranslations, getLocale } from 'next-intl/server'
 import { Search, CheckCircle } from 'lucide-react'
 import { AppStoreButton } from './AppStoreButton'
 import { GooglePlayButton } from './GooglePlayButton'
+
+const MARKETPLACE_TABS = [
+  { id: 'specialists', label: 'Специалисты' },
+  { id: 'centers', label: 'Центры' },
+  { id: 'programs', label: 'Программы' },
+  { id: 'events', label: 'Мероприятия' },
+] as const
 
 const HERO_CARDS = [
   {
@@ -33,6 +40,7 @@ const SLOTS = ['10:00', '11:30', '16:00', '17:30']
 
 export async function Hero() {
   const t = await getTranslations('landing.hero')
+  const locale = await getLocale()
 
   return (
     <section className="relative pt-24 pb-0 md:pt-28 bg-white dark:bg-gray-950 overflow-hidden">
@@ -98,17 +106,18 @@ export async function Hero() {
 
             {/* Category tabs */}
             <div className="w-full flex gap-2">
-              {['Специалисты', 'Центры', 'Программы', 'Мероприятия'].map((tab, i) => (
-                <span
-                  key={tab}
+              {MARKETPLACE_TABS.map((tab, i) => (
+                <Link
+                  key={tab.id}
+                  href={`/${locale}/marketplace?tab=${tab.id}`}
                   className={`flex-1 text-center py-2 rounded-xl text-xs font-semibold border transition-colors ${
                     i === 0
                       ? 'bg-teal-600 text-white border-teal-600'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 hover:border-teal-300 hover:text-teal-600'
                   }`}
                 >
-                  {tab}
-                </span>
+                  {tab.label}
+                </Link>
               ))}
             </div>
 
