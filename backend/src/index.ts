@@ -1,4 +1,3 @@
-// Sentry должен быть первым — до всех остальных импортов
 import './instrument.js'
 import * as Sentry from '@sentry/node'
 
@@ -14,7 +13,7 @@ import { cacheGet, cacheSet, cacheDel } from './infrastructure/cache/token-cache
 import type { AuthenticatedUser } from './shared/types/domain.js'
 
 // Domain imports — structured by bounded context
-import { systemDomain } from './domains/system/index.js'
+import { systemDomain, notificationsDomain } from './domains/system/index.js'
 import { usersDomain } from './domains/users/index.js'
 import { organizationsDomain } from './domains/organizations/index.js'
 import { invitationsDomain } from './domains/invitations/index.js'
@@ -32,6 +31,7 @@ import { verificationsDomain } from './domains/verifications/index.js'
 import { parentApiRoutes } from './modules/parent-api/index.js'
 import { bookingDomain } from './domains/booking/index.js'
 import { cohortsDomain } from './domains/cohorts/index.js'
+import { eventsDomain } from './domains/events/index.js'
 import { favoritesDomain } from './domains/favorites/index.js'
 import { auditRoutes } from './infrastructure/audit/audit.routes.js'
 import { calendarRoutes } from './domains/calendar/calendar.routes.js'
@@ -62,7 +62,6 @@ async function buildServer() {
     logger: { level: isProduction ? 'warn' : 'info' },
   })
 
-  // Sentry перехватывает все необработанные ошибки в роутах
   Sentry.setupFastifyErrorHandler(fastify)
 
   try {
@@ -135,32 +134,40 @@ async function buildServer() {
     if (url === '/health' || method === 'OPTIONS') return
     if (url.startsWith('/bootstrap/')) return
     if (url.startsWith('/public/')) return
-    if (url.startsWith('/calendar/callback')) return // Google OAuth redirect — no Bearer token
-    if (url.startsWith('/api/organizations/public')) return
-    if (url.startsWith('/api/parent/content/')) return
-    if (url.startsWith('/api/parent/alphakids/')) return
-    if (url.startsWith('/api/parent/access/')) return
-    if (url.startsWith('/webhooks/')) return
-    if (url === '/auth/forgot-password') return
-    if (url === '/marketplace/courses' || url.startsWith('/marketplace/courses?')) return
-    if (url === '/marketplace/cohorts' || url.startsWith('/marketplace/cohorts?')) return
+
+    // Strip optional /v1 prefix for whitelist matching — routes are versioned but
+    // public-route checks are path-only (no auth needed regardless of version prefix).
+    const urlPath = url.startsWith('/v1/') ? url.slice(3) : url
+
+    if (urlPath.startsWith('/calendar/callback')) return // Google OAuth redirect — no Bearer token
+    if (urlPath.startsWith('/api/organizations/public')) return
+    if (urlPath.startsWith('/api/parent/content/')) return
+    if (urlPath.startsWith('/api/parent/alphakids/')) return
+    if (urlPath.startsWith('/api/parent/access/')) return
+    if (urlPath.startsWith('/webhooks/')) return
+    if (urlPath === '/auth/forgot-password') return
+    if (urlPath === '/marketplace/courses' || urlPath.startsWith('/marketplace/courses?')) return
+    if (urlPath === '/marketplace/cohorts' || urlPath.startsWith('/marketplace/cohorts?')) return
+    if (urlPath === '/marketplace/events' || urlPath.startsWith('/marketplace/events?')) return
     // Public marketplace routes — specialists, services, slots (read-only, no auth)
     if (
       method === 'GET' &&
       /^\/marketplace\/organizations\/[^/]+(\/specialists(\/[^/]+\/(services|slots)(\?.*)?)?)?(\?.*)?$/.test(
-        url
+        urlPath
       )
     )
       return
     // Public read routes — explicit list to avoid accidentally exposing future endpoints
     if (
       method === 'GET' &&
-      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+(\/modules\/[^/]+\/lessons)?(\?.*)?$/.test(url)
+      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+(\/modules\/[^/]+\/lessons)?(\?.*)?$/.test(
+        urlPath
+      )
     )
       return
     if (
       method === 'GET' &&
-      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+\/lessons\/[^/]+(\?.*)?$/.test(url)
+      /^\/marketplace\/orgs\/[^/]+\/courses\/[^/]+\/lessons\/[^/]+(\?.*)?$/.test(urlPath)
     )
       return
 
@@ -177,7 +184,6 @@ async function buildServer() {
         email: decoded.email,
         claims: decoded,
       }
-      // Привязываем пользователя к Sentry — видим кто получил ошибку
       Sentry.setUser({ id: decoded.uid, email: decoded.email })
     } catch {
       return reply.code(401).send({ error: 'Invalid token' })
@@ -205,13 +211,14 @@ async function buildServer() {
     verificationsDomain,
     bookingDomain,
     cohortsDomain,
+    eventsDomain,
     favoritesDomain,
     auditRoutes,
     calendarRoutes,
     legalRoutes,
     passwordResetRoutes,
-    // External modules
-    parentApiRoutes,
+    notificationsDomain,
+    parentApiRoutes, // external module
   ]
 
   await fastify.register(
